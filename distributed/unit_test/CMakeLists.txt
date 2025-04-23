@@ -1,6 +1,7 @@
 add_executable(unit-tests-mpi
     Test_Main.cpp
     Test_Reshape.cpp
+    Test_All2All.cpp
 )
 
 find_package(MPI REQUIRED COMPONENTS CXX)

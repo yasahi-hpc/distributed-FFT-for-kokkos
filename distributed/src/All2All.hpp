@@ -1,0 +1,50 @@
+#ifndef ALL2ALL_HPP
+#define ALL2ALL_HPP
+
+#include <type_traits>
+#include <mpi.h>
+#include <Kokkos_Core.hpp>
+
+template <typename ValueType>
+struct MPIDataType {};
+
+template <>
+struct MPIDataType<float> {
+  static constexpr MPI_Datatype type() noexcept { return MPI_FLOAT; }
+};
+
+template <>
+struct MPIDataType<double> {
+  static constexpr MPI_Datatype type() noexcept { return MPI_DOUBLE; }
+};
+
+template <typename ExecutionSpace, typename ViewType>
+struct All2All {
+  static_assert(ViewType::rank() >= 2);
+  using value_type = typename ViewType::non_const_value_type;
+  using LayoutType = typename ViewType::array_layout;
+
+  ViewType m_send, m_recv;
+  int m_send_count = 0;
+  MPI_Comm m_comm;
+
+  All2All(const ViewType& send, const ViewType& recv,
+          MPI_Comm comm                   = MPI_COMM_WORLD,
+          const ExecutionSpace exec_space = ExecutionSpace())
+      : m_send(send), m_comm(comm), m_recv(recv) {
+    // Compute the outermost dimension size
+    if (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+      m_send_count = send.size() / send.extent(ViewType::rank() - 1);
+    } else {
+      m_send_count = send.size() / send.extent(0);
+    }
+  }
+
+  void operator()() const {
+    MPI_Datatype mpi_data_type = MPIDataType<value_type>::type();
+    ::MPI_Alltoall(m_send.data(), m_send_count, mpi_data_type, m_recv.data(),
+                   m_send_count, mpi_data_type, m_comm);
+  }
+};
+
+#endif

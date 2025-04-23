@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
+#include <Kokkos_Core.hpp>
 
 class MpiEnvironment : public ::testing::Environment {
  public:
@@ -29,6 +30,8 @@ int main(int argc, char *argv[]) {
     throw std::runtime_error("MPI_THREAD_MULTIPLE is needed");
   }
 
+  Kokkos::initialize(argc, argv);
+
   // Initialize google test
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::AddGlobalTestEnvironment(new MpiEnvironment());
@@ -44,6 +47,7 @@ int main(int argc, char *argv[]) {
   auto result = RUN_ALL_TESTS();
 
   // Finalize MPI before exiting
+  Kokkos::finalize();
   MPI_Finalize();
 
   return result;
