@@ -32,10 +32,12 @@ void test_all2all_view2D_XtoY_Left(int rank, int nprocs, int direction) {
   const int n0 = 4, n1 = 3;
   const int n0_local = ((n0 - 1) / nprocs) + 1;
   const int n1_local = ((n1 - 1) / nprocs) + 1;
+  const int n1_pad   = n1_local * nprocs;
 
-  View3DType send("send", n0_local, n1_local, nprocs),
-      recv("recv", n0_local, n1_local, nprocs),
-      ref("ref", n0_local, n1_local, nprocs);
+  std::string rank_str = std::to_string(rank);
+  View3DType send("send" + rank_str, n0_local, n1_local, nprocs),
+      recv("recv" + rank_str, n0_local, n1_local, nprocs),
+      ref("ref" + rank_str, n0_local, n1_local, nprocs);
 
   double dx = M_PI * 2.0 / static_cast<double>(n0);
   double dy = M_PI * 2.0 / static_cast<double>(n1);
@@ -53,14 +55,23 @@ void test_all2all_view2D_XtoY_Left(int rank, int nprocs, int direction) {
         double lx = li0 * dx;
         double gy = gi1 * dy;
         double ly = li1 * dy;
-        double send_tmp =
-            gi0 < n0 && gi1 < n1 ? std::cos(gx) * std::sin(ly) : 0.0;
-        double ref_tmp =
-            gi0 < n0 && gi1 < n1 ? std::cos(lx) * std::sin(gy) : 0.0;
 
-        if (direction == -1) std::swap(send_tmp, ref_tmp);
-        h_send(i0, i1, p) = send_tmp;
-        h_ref(i0, i1, p)  = ref_tmp;
+        if (direction == 1) {
+          double send_tmp =
+              gi0 < n0 && gi1 < n1 ? std::cos(gx) * std::sin(ly) : 0.0;
+          double ref_tmp =
+              gi0 < n0 && gi1 < n1 ? std::cos(lx) * std::sin(gy) : 0.0;
+          h_send(i0, i1, p) = send_tmp;
+          h_ref(i0, i1, p)  = ref_tmp;
+        } else {
+          double send_tmp =
+              gi0 < n0 && gi1 < n1 ? std::cos(lx) * std::sin(gy) : 0.0;
+          double ref_tmp =
+              gi0 < n0 && gi1 < n1_pad ? std::cos(gx) * std::sin(ly) : 0.0;
+
+          h_send(i0, i1, p) = send_tmp;
+          h_ref(i0, i1, p)  = ref_tmp;
+        }
       }
     }
   }
@@ -90,6 +101,7 @@ void test_all2all_view2D_XtoY_Right(int rank, int nprocs, int direction) {
   const int n0 = 4, n1 = 3;
   const int n0_local = ((n0 - 1) / nprocs) + 1;
   const int n1_local = ((n1 - 1) / nprocs) + 1;
+  const int n1_pad   = n1_local * nprocs;
 
   View3DType send("send", nprocs, n0_local, n1_local),
       recv("recv", nprocs, n0_local, n1_local),
@@ -111,14 +123,24 @@ void test_all2all_view2D_XtoY_Right(int rank, int nprocs, int direction) {
         double lx = li0 * dx;
         double gy = gi1 * dy;
         double ly = li1 * dy;
-        double send_tmp =
-            gi0 < n0 && gi1 < n1 ? std::cos(gx) * std::sin(ly) : 0.0;
-        double ref_tmp =
-            gi0 < n0 && gi1 < n1 ? std::cos(lx) * std::sin(gy) : 0.0;
 
-        if (direction == -1) std::swap(send_tmp, ref_tmp);
-        h_send(p, i0, i1) = send_tmp;
-        h_ref(p, i0, i1)  = ref_tmp;
+        if (direction == 1) {
+          double send_tmp =
+              gi0 < n0 && gi1 < n1 ? std::cos(gx) * std::sin(ly) : 0.0;
+          double ref_tmp =
+              gi0 < n0 && gi1 < n1 ? std::cos(lx) * std::sin(gy) : 0.0;
+
+          h_send(p, i0, i1) = send_tmp;
+          h_ref(p, i0, i1)  = ref_tmp;
+        } else {
+          double send_tmp =
+              gi0 < n0 && gi1 < n1 ? std::cos(lx) * std::sin(gy) : 0.0;
+          double ref_tmp =
+              gi0 < n0 && gi1 < n1_pad ? std::cos(gx) * std::sin(ly) : 0.0;
+
+          h_send(p, i0, i1) = send_tmp;
+          h_ref(p, i0, i1)  = ref_tmp;
+        }
       }
     }
   }
@@ -148,6 +170,7 @@ void test_all2all_view3D_XtoY_Left(int rank, int nprocs, int direction) {
   const int n0 = 4, n1 = 3, n2 = 5;
   const int n0_local = ((n0 - 1) / nprocs) + 1;
   const int n1_local = ((n1 - 1) / nprocs) + 1;
+  const int n1_pad   = n1_local * nprocs;
 
   View4DType send("send", n0_local, n1_local, n2, nprocs),
       recv("recv", n0_local, n1_local, n2, nprocs),
@@ -163,25 +186,37 @@ void test_all2all_view3D_XtoY_Left(int rank, int nprocs, int direction) {
     for (int i1 = 0; i1 < n1_local; i1++) {
       for (int i0 = 0; i0 < n0_local; i0++) {
         for (int p = 0; p < nprocs; p++) {
-          int gi0         = i0 + n0_local * p;
-          int li0         = i0 + n0_local * rank;
-          int gi1         = i1 + n1_local * p;
-          int li1         = i1 + n1_local * rank;
-          double gx       = gi0 * dx;
-          double lx       = li0 * dx;
-          double gy       = gi1 * dy;
-          double ly       = li1 * dy;
-          double z        = i2 * dz;
-          double send_tmp = gi0 < n0 && gi1 < n1
-                                ? std::cos(gx) * std::sin(ly) * std::sin(z)
-                                : 0.0;
-          double ref_tmp  = gi0 < n0 && gi1 < n1
-                                ? std::cos(lx) * std::sin(gy) * std::sin(z)
-                                : 0.0;
+          int gi0   = i0 + n0_local * p;
+          int li0   = i0 + n0_local * rank;
+          int gi1   = i1 + n1_local * p;
+          int li1   = i1 + n1_local * rank;
+          double gx = gi0 * dx;
+          double lx = li0 * dx;
+          double gy = gi1 * dy;
+          double ly = li1 * dy;
+          double z  = i2 * dz;
 
-          if (direction == -1) std::swap(send_tmp, ref_tmp);
-          h_send(i0, i1, i2, p) = send_tmp;
-          h_ref(i0, i1, i2, p)  = ref_tmp;
+          if (direction == 1) {
+            double send_tmp = gi0 < n0 && gi1 < n1
+                                  ? std::cos(gx) * std::sin(ly) * std::sin(z)
+                                  : 0.0;
+            double ref_tmp  = gi0 < n0 && gi1 < n1
+                                  ? std::cos(lx) * std::sin(gy) * std::sin(z)
+                                  : 0.0;
+
+            h_send(i0, i1, i2, p) = send_tmp;
+            h_ref(i0, i1, i2, p)  = ref_tmp;
+          } else {
+            double send_tmp = gi0 < n0 && gi1 < n1
+                                  ? std::cos(lx) * std::sin(gy) * std::sin(z)
+                                  : 0.0;
+            double ref_tmp  = gi0 < n0 && gi1 < n1_pad
+                                  ? std::cos(gx) * std::sin(ly) * std::sin(z)
+                                  : 0.0;
+
+            h_send(i0, i1, i2, p) = send_tmp;
+            h_ref(i0, i1, i2, p)  = ref_tmp;
+          }
         }
       }
     }
@@ -214,6 +249,7 @@ void test_all2all_view3D_XtoY_Right(int rank, int nprocs, int direction) {
   const int n0 = 4, n1 = 3, n2 = 5;
   const int n0_local = ((n0 - 1) / nprocs) + 1;
   const int n1_local = ((n1 - 1) / nprocs) + 1;
+  const int n1_pad   = n1_local * nprocs;
 
   View4DType send("send", nprocs, n0_local, n1_local, n2),
       recv("recv", nprocs, n0_local, n1_local, n2),
@@ -229,25 +265,37 @@ void test_all2all_view3D_XtoY_Right(int rank, int nprocs, int direction) {
     for (int i1 = 0; i1 < n1_local; i1++) {
       for (int i0 = 0; i0 < n0_local; i0++) {
         for (int p = 0; p < nprocs; p++) {
-          int gi0         = i0 + n0_local * p;
-          int li0         = i0 + n0_local * rank;
-          int gi1         = i1 + n1_local * p;
-          int li1         = i1 + n1_local * rank;
-          double gx       = gi0 * dx;
-          double lx       = li0 * dx;
-          double gy       = gi1 * dy;
-          double ly       = li1 * dy;
-          double z        = i2 * dz;
-          double send_tmp = gi0 < n0 && gi1 < n1
-                                ? std::cos(gx) * std::sin(ly) * std::sin(z)
-                                : 0.0;
-          double ref_tmp  = gi0 < n0 && gi1 < n1
-                                ? std::cos(lx) * std::sin(gy) * std::sin(z)
-                                : 0.0;
+          int gi0   = i0 + n0_local * p;
+          int li0   = i0 + n0_local * rank;
+          int gi1   = i1 + n1_local * p;
+          int li1   = i1 + n1_local * rank;
+          double gx = gi0 * dx;
+          double lx = li0 * dx;
+          double gy = gi1 * dy;
+          double ly = li1 * dy;
+          double z  = i2 * dz;
 
-          if (direction == -1) std::swap(send_tmp, ref_tmp);
-          h_send(p, i0, i1, i2) = send_tmp;
-          h_ref(p, i0, i1, i2)  = ref_tmp;
+          if (direction == 1) {
+            double send_tmp = gi0 < n0 && gi1 < n1
+                                  ? std::cos(gx) * std::sin(ly) * std::sin(z)
+                                  : 0.0;
+            double ref_tmp  = gi0 < n0 && gi1 < n1_pad
+                                  ? std::cos(lx) * std::sin(gy) * std::sin(z)
+                                  : 0.0;
+
+            h_send(p, i0, i1, i2) = send_tmp;
+            h_ref(p, i0, i1, i2)  = ref_tmp;
+          } else {
+            double send_tmp = gi0 < n0 && gi1 < n1
+                                  ? std::cos(lx) * std::sin(gy) * std::sin(z)
+                                  : 0.0;
+            double ref_tmp  = gi0 < n0 && gi1 < n1_pad
+                                  ? std::cos(gx) * std::sin(ly) * std::sin(z)
+                                  : 0.0;
+
+            h_send(p, i0, i1, i2) = send_tmp;
+            h_ref(p, i0, i1, i2)  = ref_tmp;
+          }
         }
       }
     }
@@ -280,6 +328,7 @@ void test_all2all_view3D_XtoZ_Left(int rank, int nprocs, int direction) {
   const int n0 = 4, n1 = 3, n2 = 5;
   const int n0_local = ((n0 - 1) / nprocs) + 1;
   const int n2_local = ((n2 - 1) / nprocs) + 1;
+  const int n2_pad   = n2_local * nprocs;
 
   View4DType send("send", n0_local, n1, n2_local, nprocs),
       recv("recv", n0_local, n1, n2_local, nprocs),
@@ -295,25 +344,37 @@ void test_all2all_view3D_XtoZ_Left(int rank, int nprocs, int direction) {
     for (int i1 = 0; i1 < n1; i1++) {
       for (int i0 = 0; i0 < n0_local; i0++) {
         for (int p = 0; p < nprocs; p++) {
-          int gi0         = i0 + n0_local * p;
-          int li0         = i0 + n0_local * rank;
-          int gi2         = i2 + n2_local * p;
-          int li2         = i2 + n2_local * rank;
-          double gx       = gi0 * dx;
-          double lx       = li0 * dx;
-          double gz       = gi2 * dz;
-          double lz       = li2 * dz;
-          double y        = i1 * dy;
-          double send_tmp = gi0 < n0 && gi2 < n2
-                                ? std::cos(gx) * std::sin(y) * std::sin(lz)
-                                : 0.0;
-          double ref_tmp  = gi0 < n0 && gi2 < n2
-                                ? std::cos(lx) * std::sin(y) * std::sin(gz)
-                                : 0.0;
+          int gi0   = i0 + n0_local * p;
+          int li0   = i0 + n0_local * rank;
+          int gi2   = i2 + n2_local * p;
+          int li2   = i2 + n2_local * rank;
+          double gx = gi0 * dx;
+          double lx = li0 * dx;
+          double gz = gi2 * dz;
+          double lz = li2 * dz;
+          double y  = i1 * dy;
 
-          if (direction == -1) std::swap(send_tmp, ref_tmp);
-          h_send(i0, i1, i2, p) = send_tmp;
-          h_ref(i0, i1, i2, p)  = ref_tmp;
+          if (direction == 1) {
+            double send_tmp = gi0 < n0 && gi2 < n2
+                                  ? std::cos(gx) * std::sin(y) * std::sin(lz)
+                                  : 0.0;
+            double ref_tmp  = gi0 < n0 && gi2 < n2_pad
+                                  ? std::cos(lx) * std::sin(y) * std::sin(gz)
+                                  : 0.0;
+
+            h_send(i0, i1, i2, p) = send_tmp;
+            h_ref(i0, i1, i2, p)  = ref_tmp;
+          } else {
+            double send_tmp = gi0 < n0 && gi2 < n2
+                                  ? std::cos(lx) * std::sin(y) * std::sin(gz)
+                                  : 0.0;
+            double ref_tmp  = gi0 < n0 && gi2 < n2_pad
+                                  ? std::cos(gx) * std::sin(y) * std::sin(lz)
+                                  : 0.0;
+
+            h_send(i0, i1, i2, p) = send_tmp;
+            h_ref(i0, i1, i2, p)  = ref_tmp;
+          }
         }
       }
     }
@@ -346,6 +407,7 @@ void test_all2all_view3D_XtoZ_Right(int rank, int nprocs, int direction) {
   const int n0 = 4, n1 = 3, n2 = 5;
   const int n0_local = ((n0 - 1) / nprocs) + 1;
   const int n2_local = ((n2 - 1) / nprocs) + 1;
+  const int n2_pad   = n2_local * nprocs;
 
   View4DType send("send", nprocs, n0_local, n1, n2_local),
       recv("recv", nprocs, n0_local, n1, n2_local),
@@ -361,25 +423,36 @@ void test_all2all_view3D_XtoZ_Right(int rank, int nprocs, int direction) {
     for (int i1 = 0; i1 < n1; i1++) {
       for (int i0 = 0; i0 < n0_local; i0++) {
         for (int p = 0; p < nprocs; p++) {
-          int gi0         = i0 + n0_local * p;
-          int li0         = i0 + n0_local * rank;
-          int gi2         = i2 + n2_local * p;
-          int li2         = i2 + n2_local * rank;
-          double gx       = gi0 * dx;
-          double lx       = li0 * dx;
-          double gz       = gi2 * dz;
-          double lz       = li2 * dz;
-          double y        = i1 * dy;
-          double send_tmp = gi0 < n0 && gi2 < n2
-                                ? std::cos(gx) * std::sin(y) * std::sin(lz)
-                                : 0.0;
-          double ref_tmp  = gi0 < n0 && gi2 < n2
-                                ? std::cos(lx) * std::sin(y) * std::sin(gz)
-                                : 0.0;
+          int gi0   = i0 + n0_local * p;
+          int li0   = i0 + n0_local * rank;
+          int gi2   = i2 + n2_local * p;
+          int li2   = i2 + n2_local * rank;
+          double gx = gi0 * dx;
+          double lx = li0 * dx;
+          double gz = gi2 * dz;
+          double lz = li2 * dz;
+          double y  = i1 * dy;
+          if (direction == 1) {
+            double send_tmp = gi0 < n0 && gi2 < n2
+                                  ? std::cos(gx) * std::sin(y) * std::sin(lz)
+                                  : 0.0;
+            double ref_tmp  = gi0 < n0 && gi2 < n2_pad
+                                  ? std::cos(lx) * std::sin(y) * std::sin(gz)
+                                  : 0.0;
 
-          if (direction == -1) std::swap(send_tmp, ref_tmp);
-          h_send(p, i0, i1, i2) = send_tmp;
-          h_ref(p, i0, i1, i2)  = ref_tmp;
+            h_send(p, i0, i1, i2) = send_tmp;
+            h_ref(p, i0, i1, i2)  = ref_tmp;
+          } else {
+            double send_tmp = gi0 < n0 && gi2 < n2
+                                  ? std::cos(lx) * std::sin(y) * std::sin(gz)
+                                  : 0.0;
+            double ref_tmp  = gi0 < n0 && gi2 < n2_pad
+                                  ? std::cos(gx) * std::sin(y) * std::sin(lz)
+                                  : 0.0;
+
+            h_send(p, i0, i1, i2) = send_tmp;
+            h_ref(p, i0, i1, i2)  = ref_tmp;
+          }
         }
       }
     }
@@ -412,6 +485,8 @@ void test_all2all_view3D_YtoZ_Left(int rank, int nprocs, int direction) {
   const int n0 = 4, n1 = 3, n2 = 5;
   const int n1_local = ((n1 - 1) / nprocs) + 1;
   const int n2_local = ((n2 - 1) / nprocs) + 1;
+  const int n1_pad   = n1_local * nprocs;
+  const int n2_pad   = n2_local * nprocs;
 
   View4DType send("send", n0, n1_local, n2_local, nprocs),
       recv("recv", n0, n1_local, n2_local, nprocs),
@@ -427,25 +502,37 @@ void test_all2all_view3D_YtoZ_Left(int rank, int nprocs, int direction) {
     for (int i1 = 0; i1 < n1_local; i1++) {
       for (int i0 = 0; i0 < n0; i0++) {
         for (int p = 0; p < nprocs; p++) {
-          int gi1         = i1 + n1_local * p;
-          int li1         = i1 + n1_local * rank;
-          int gi2         = i2 + n2_local * p;
-          int li2         = i2 + n2_local * rank;
-          double gy       = gi1 * dy;
-          double ly       = li1 * dy;
-          double gz       = gi2 * dz;
-          double lz       = li2 * dz;
-          double x        = i0 * dx;
-          double send_tmp = gi1 < n1 && gi2 < n2
-                                ? std::cos(x) * std::sin(gy) * std::sin(lz)
-                                : 0.0;
-          double ref_tmp  = gi1 < n1 && gi2 < n2
-                                ? std::cos(x) * std::sin(ly) * std::sin(gz)
-                                : 0.0;
+          int gi1   = i1 + n1_local * p;
+          int li1   = i1 + n1_local * rank;
+          int gi2   = i2 + n2_local * p;
+          int li2   = i2 + n2_local * rank;
+          double gy = gi1 * dy;
+          double ly = li1 * dy;
+          double gz = gi2 * dz;
+          double lz = li2 * dz;
+          double x  = i0 * dx;
 
-          if (direction == -1) std::swap(send_tmp, ref_tmp);
-          h_send(i0, i1, i2, p) = send_tmp;
-          h_ref(i0, i1, i2, p)  = ref_tmp;
+          if (direction == 1) {
+            double send_tmp = gi1 < n1 && gi2 < n2
+                                  ? std::cos(x) * std::sin(gy) * std::sin(lz)
+                                  : 0.0;
+            double ref_tmp  = gi1 < n1_pad && gi2 < n2_pad
+                                  ? std::cos(x) * std::sin(ly) * std::sin(gz)
+                                  : 0.0;
+
+            h_send(i0, i1, i2, p) = send_tmp;
+            h_ref(i0, i1, i2, p)  = ref_tmp;
+          } else {
+            double send_tmp = gi1 < n1 && gi2 < n2
+                                  ? std::cos(x) * std::sin(ly) * std::sin(gz)
+                                  : 0.0;
+            double ref_tmp  = gi1 < n1_pad && gi2 < n2_pad
+                                  ? std::cos(x) * std::sin(gy) * std::sin(lz)
+                                  : 0.0;
+
+            h_send(i0, i1, i2, p) = send_tmp;
+            h_ref(i0, i1, i2, p)  = ref_tmp;
+          }
         }
       }
     }
@@ -478,6 +565,8 @@ void test_all2all_view3D_YtoZ_Right(int rank, int nprocs, int direction) {
   const int n0 = 4, n1 = 3, n2 = 5;
   const int n1_local = ((n1 - 1) / nprocs) + 1;
   const int n2_local = ((n2 - 1) / nprocs) + 1;
+  const int n1_pad   = n1_local * nprocs;
+  const int n2_pad   = n2_local * nprocs;
 
   View4DType send("send", nprocs, n0, n1_local, n2_local),
       recv("recv", nprocs, n0, n1_local, n2_local),
@@ -493,25 +582,36 @@ void test_all2all_view3D_YtoZ_Right(int rank, int nprocs, int direction) {
     for (int i1 = 0; i1 < n1_local; i1++) {
       for (int i0 = 0; i0 < n0; i0++) {
         for (int p = 0; p < nprocs; p++) {
-          int gi1         = i1 + n1_local * p;
-          int li1         = i1 + n1_local * rank;
-          int gi2         = i2 + n2_local * p;
-          int li2         = i2 + n2_local * rank;
-          double gy       = gi1 * dy;
-          double ly       = li1 * dy;
-          double gz       = gi2 * dz;
-          double lz       = li2 * dz;
-          double x        = i0 * dx;
-          double send_tmp = gi1 < n1 && gi2 < n2
-                                ? std::cos(x) * std::sin(gy) * std::sin(lz)
-                                : 0.0;
-          double ref_tmp  = gi1 < n1 && gi2 < n2
-                                ? std::cos(x) * std::sin(ly) * std::sin(gz)
-                                : 0.0;
+          int gi1   = i1 + n1_local * p;
+          int li1   = i1 + n1_local * rank;
+          int gi2   = i2 + n2_local * p;
+          int li2   = i2 + n2_local * rank;
+          double gy = gi1 * dy;
+          double ly = li1 * dy;
+          double gz = gi2 * dz;
+          double lz = li2 * dz;
+          double x  = i0 * dx;
+          if (direction == 1) {
+            double send_tmp = gi1 < n1 && gi2 < n2
+                                  ? std::cos(x) * std::sin(gy) * std::sin(lz)
+                                  : 0.0;
+            double ref_tmp  = gi1 < n1_pad && gi2 < n2_pad
+                                  ? std::cos(x) * std::sin(ly) * std::sin(gz)
+                                  : 0.0;
 
-          if (direction == -1) std::swap(send_tmp, ref_tmp);
-          h_send(p, i0, i1, i2) = send_tmp;
-          h_ref(p, i0, i1, i2)  = ref_tmp;
+            h_send(p, i0, i1, i2) = send_tmp;
+            h_ref(p, i0, i1, i2)  = ref_tmp;
+          } else {
+            double send_tmp = gi1 < n1 && gi2 < n2
+                                  ? std::cos(x) * std::sin(ly) * std::sin(gz)
+                                  : 0.0;
+            double ref_tmp  = gi1 < n1_pad && gi2 < n2_pad
+                                  ? std::cos(x) * std::sin(gy) * std::sin(lz)
+                                  : 0.0;
+
+            h_send(p, i0, i1, i2) = send_tmp;
+            h_ref(p, i0, i1, i2)  = ref_tmp;
+          }
         }
       }
     }
