@@ -164,8 +164,8 @@ void test_unpack_view2D(int rank, int nprocs, int order = 1) {
   Kokkos::deep_copy(ypencil_ref, h_ypencil_ref);
 
   execution_space exec;
-  unpack(exec, xpencil, xrecv, src_map, 0);
-  unpack(exec, ypencil, yrecv, src_map, 1);
+  unpack(exec, xrecv, xpencil, src_map, 0);
+  unpack(exec, yrecv, ypencil, src_map, 1);
 
   auto h_xpencil =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), xpencil);
@@ -587,9 +587,9 @@ void test_unpack_view3D(int rank, int nprocs, int order = 0) {
   Kokkos::deep_copy(zpencil_ref, h_zpencil_ref);
 
   execution_space exec;
-  unpack(exec, xpencil, xrecv, src_map, 0);
-  unpack(exec, ypencil, yrecv, src_map, 1);
-  unpack(exec, zpencil, zrecv, src_map, 2);
+  unpack(exec, xrecv, xpencil, src_map, 0);
+  unpack(exec, yrecv, ypencil, src_map, 1);
+  unpack(exec, zrecv, zpencil, src_map, 2);
 
   auto h_xpencil =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), xpencil);

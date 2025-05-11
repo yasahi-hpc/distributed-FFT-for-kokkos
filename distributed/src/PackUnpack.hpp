@@ -10,7 +10,7 @@ template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           std::size_t Rank, typename iType>
 struct Pack;
 
-template <typename ExecutionSpace, typename DstViewType, typename SrcViewType,
+template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           std::size_t Rank, typename iType>
 struct Unpack;
 
@@ -156,17 +156,17 @@ struct Pack<ExecutionSpace, SrcViewType, DstViewType, 3, iType> {
   }
 };
 
-template <typename ExecutionSpace, typename DstViewType, typename SrcViewType,
+template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           typename iType>
-struct Unpack<ExecutionSpace, DstViewType, SrcViewType, 2, iType> {
+struct Unpack<ExecutionSpace, SrcViewType, DstViewType, 2, iType> {
   using LayoutType  = typename DstViewType::array_layout;
   using policy_type = Kokkos::MDRangePolicy<
       ExecutionSpace,
       Kokkos::Rank<3, Kokkos::Iterate::Default, Kokkos::Iterate::Default>,
       Kokkos::IndexType<iType>>;
 
-  DstViewType m_dst;
   SrcViewType m_src;
+  DstViewType m_dst;
   std::size_t m_axis;
   Kokkos::Array<std::size_t, 2> m_map;
   Kokkos::Array<std::size_t, 2> m_dst_extents;
@@ -174,17 +174,17 @@ struct Unpack<ExecutionSpace, DstViewType, SrcViewType, 2, iType> {
 
   /// \brief Constructor for the Unpack functor.
   ///
-  /// \param[out] dst The output Kokkos view to be unpacked
   /// \param[in] src The input Kokkos view to be unpacked
+  /// \param[out] dst The output Kokkos view to be unpacked
   /// \param[in] axis The axis to be split
   /// \param[in] map The mapping array to be used for the unpacking
   /// \param[in] exec_space The Kokkos execution space to be used (defaults to
   /// ExecutionSpace()).
-  Unpack(const DstViewType& dst, const SrcViewType& src,
+  Unpack(const SrcViewType& src, const DstViewType& dst,
          const Kokkos::Array<std::size_t, 2>& map, const std::size_t axis,
          const ExecutionSpace exec_space = ExecutionSpace())
-      : m_dst(dst),
-        m_src(src),
+      : m_src(src),
+        m_dst(dst),
         m_axis(axis),
         m_map(map),
         m_dst_extents({dst.extent(0), dst.extent(1)}),
@@ -221,17 +221,17 @@ struct Unpack<ExecutionSpace, DstViewType, SrcViewType, 2, iType> {
   }
 };
 
-template <typename ExecutionSpace, typename DstViewType, typename SrcViewType,
+template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           typename iType>
-struct Unpack<ExecutionSpace, DstViewType, SrcViewType, 3, iType> {
+struct Unpack<ExecutionSpace, SrcViewType, DstViewType, 3, iType> {
   using LayoutType  = typename DstViewType::array_layout;
   using policy_type = Kokkos::MDRangePolicy<
       ExecutionSpace,
       Kokkos::Rank<4, Kokkos::Iterate::Default, Kokkos::Iterate::Default>,
       Kokkos::IndexType<iType>>;
 
-  DstViewType m_dst;
   SrcViewType m_src;
+  DstViewType m_dst;
   std::size_t m_axis;
   Kokkos::Array<std::size_t, 3> m_map;
   Kokkos::Array<std::size_t, 3> m_dst_extents;
@@ -239,17 +239,17 @@ struct Unpack<ExecutionSpace, DstViewType, SrcViewType, 3, iType> {
 
   /// \brief Constructor for the Unpack functor.
   ///
-  /// \param[out] dst The output Kokkos view to be unpacked
   /// \param[in] src The input Kokkos view to be unpacked
+  /// \param[out] dst The output Kokkos view to be unpacked
   /// \param[in] axis The axis to be split
   /// \param[in] map The mapping array to be used for the unpacking
   /// \param[in] exec_space The Kokkos execution space to be used (defaults to
   /// ExecutionSpace()).
-  Unpack(const DstViewType& dst, const SrcViewType& src,
+  Unpack(const SrcViewType& src, const DstViewType& dst,
          const Kokkos::Array<std::size_t, 3>& map, const std::size_t axis,
          const ExecutionSpace exec_space = ExecutionSpace())
-      : m_dst(dst),
-        m_src(src),
+      : m_src(src),
+        m_dst(dst),
         m_axis(axis),
         m_map(map),
         m_dst_extents({dst.extent(0), dst.extent(1), dst.extent(2)}),
@@ -317,14 +317,14 @@ void pack(const ExecutionSpace& exec_space, const SrcViewType& src,
          int64_t>(src, dst, src_map, mapped_axis, exec_space);
   } else {
     Pack<ExecutionSpace, SrcViewType, DstViewType, SrcViewType::rank(), int>(
-      src, dst, src_map, mapped_axis, exec_space);
+        src, dst, src_map, mapped_axis, exec_space);
   }
 }
 
-template <typename ExecutionSpace, typename DstViewType, typename SrcViewType,
+template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           std::size_t DIM>
-void unpack(const ExecutionSpace& exec_space, const DstViewType& dst,
-            const SrcViewType& src, std::array<std::size_t, DIM> src_map,
+void unpack(const ExecutionSpace& exec_space, const SrcViewType& src,
+            const DstViewType& dst, std::array<std::size_t, DIM> src_map,
             std::size_t axis) {
   static_assert(DstViewType::rank() >= 2);
   static_assert(SrcViewType::rank() == DstViewType::rank() + 1);
@@ -336,11 +336,11 @@ void unpack(const ExecutionSpace& exec_space, const DstViewType& dst,
   // DO shape check here
   if (dst.span() >= std::size_t(std::numeric_limits<int>::max()) ||
       src.span() >= std::size_t(std::numeric_limits<int>::max())) {
-    Unpack<ExecutionSpace, DstViewType, SrcViewType, DstViewType::rank(),
-           int64_t>(dst, src, dst_map, mapped_axis, exec_space);
+    Unpack<ExecutionSpace, SrcViewType, DstViewType, DstViewType::rank(),
+           int64_t>(src, dst, dst_map, mapped_axis, exec_space);
   } else {
-    Unpack<ExecutionSpace, DstViewType, SrcViewType, DstViewType::rank(), int>(
-        dst, src, dst_map, mapped_axis, exec_space);
+    Unpack<ExecutionSpace, SrcViewType, DstViewType, DstViewType::rank(), int>(
+        src, dst, dst_map, mapped_axis, exec_space);
   }
 }
 
