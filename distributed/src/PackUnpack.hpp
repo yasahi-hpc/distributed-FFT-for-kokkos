@@ -6,7 +6,7 @@
 #include <KokkosFFT.hpp>
 #include "Mapping.hpp"
 
-template <typename ExecutionSpace, typename DstViewType, typename SrcViewType,
+template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           std::size_t Rank, typename iType>
 struct Pack;
 
@@ -14,33 +14,36 @@ template <typename ExecutionSpace, typename DstViewType, typename SrcViewType,
           std::size_t Rank, typename iType>
 struct Unpack;
 
-template <typename ExecutionSpace, typename DstViewType, typename SrcViewType,
+template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           typename iType>
-struct Pack<ExecutionSpace, DstViewType, SrcViewType, 2, iType> {
+struct Pack<ExecutionSpace, SrcViewType, DstViewType, 2, iType> {
   using LayoutType  = typename DstViewType::array_layout;
   using policy_type = Kokkos::MDRangePolicy<
       ExecutionSpace,
       Kokkos::Rank<3, Kokkos::Iterate::Default, Kokkos::Iterate::Default>,
       Kokkos::IndexType<iType>>;
 
-  DstViewType m_dst;
   SrcViewType m_src;
+  DstViewType m_dst;
   std::size_t m_axis;
+  Kokkos::Array<std::size_t, 2> m_map;
   Kokkos::Array<std::size_t, 2> m_dst_extents;
   Kokkos::Array<std::size_t, 2> m_src_extents;
 
-  /// \brief Constructor for the Roll functor.
+  /// \brief Constructor for the Pack functor.
   ///
-  /// \param[in] in The input Kokkos view to be packed
-  /// \param[out] out The output Kokkos view to be packed
+  /// \param[in] src The input Kokkos view to be packed
+  /// \param[out] dst The output Kokkos view to be packed
   /// \param[in] axis The axis to be split
   /// \param exec_space[in] The Kokkos execution space to be used (defaults to
   /// ExecutionSpace()).
-  Pack(const DstViewType& dst, const SrcViewType& src, const std::size_t axis,
+  Pack(const SrcViewType& src, const DstViewType& dst,
+       const Kokkos::Array<std::size_t, 2>& map, const std::size_t axis,
        const ExecutionSpace exec_space = ExecutionSpace())
-      : m_dst(dst),
-        m_src(src),
+      : m_src(src),
+        m_dst(dst),
         m_axis(axis),
+        m_map(map),
         m_dst_extents({dst.extent(0), dst.extent(1)}),
         m_src_extents({src.extent(0), src.extent(1)}) {
     iType n0 = dst.extent(0), n1 = dst.extent(1), n2 = dst.extent(2);
@@ -55,51 +58,57 @@ struct Pack<ExecutionSpace, DstViewType, SrcViewType, 2, iType> {
   KOKKOS_INLINE_FUNCTION
   void operator()(const iType i0, const iType i1, const iType i2) const {
     auto get_src = [&](iType idx_src, iType p, std::size_t axis) {
-      return axis == m_axis ? idx_src + p * m_dst_extents[axis] : idx_src;
+      return axis == m_axis ? idx_src + p * iType(m_dst_extents[axis])
+                            : idx_src;
     };
     if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-      const iType p = i2;
-      iType i0_src  = get_src(i0, p, 0);
-      iType i1_src  = get_src(i1, p, 1);
+      const iType p        = i2;
+      iType src_indices[2] = {get_src(i0, p, 0), get_src(i1, p, 1)};
+      iType i0_src         = src_indices[m_map[0]];
+      iType i1_src         = src_indices[m_map[1]];
       if (i0_src < m_src_extents[0] && i1_src < m_src_extents[1])
-        m_dst(i0, i1, p) = m_src(i0_src, i1_src);
+        m_dst(i0, i1, i2) = m_src(i0_src, i1_src);
     } else {
-      const iType p = i0;
-      iType i0_src  = get_src(i1, p, 0);
-      iType i1_src  = get_src(i2, p, 1);
+      const iType p        = i0;
+      iType src_indices[2] = {get_src(i1, p, 0), get_src(i2, p, 1)};
+      iType i0_src         = src_indices[m_map[0]];
+      iType i1_src         = src_indices[m_map[1]];
       if (i0_src < m_src_extents[0] && i1_src < m_src_extents[1])
-        m_dst(p, i1, i2) = m_src(i0_src, i1_src);
+        m_dst(i0, i1, i2) = m_src(i0_src, i1_src);
     }
   }
 };
 
-template <typename ExecutionSpace, typename DstViewType, typename SrcViewType,
+template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           typename iType>
-struct Pack<ExecutionSpace, DstViewType, SrcViewType, 3, iType> {
+struct Pack<ExecutionSpace, SrcViewType, DstViewType, 3, iType> {
   using LayoutType  = typename DstViewType::array_layout;
   using policy_type = Kokkos::MDRangePolicy<
       ExecutionSpace,
       Kokkos::Rank<4, Kokkos::Iterate::Default, Kokkos::Iterate::Default>,
       Kokkos::IndexType<iType>>;
 
-  DstViewType m_dst;
   SrcViewType m_src;
+  DstViewType m_dst;
   std::size_t m_axis;
+  Kokkos::Array<std::size_t, 3> m_map;
   Kokkos::Array<std::size_t, 3> m_dst_extents;
   Kokkos::Array<std::size_t, 3> m_src_extents;
 
-  /// \brief Constructor for the Roll functor.
+  /// \brief Constructor for the Pack functor.
   ///
-  /// \param[in] in The input Kokkos view to be packed
-  /// \param[out] out The output Kokkos view to be packed
+  /// \param[in] src The input Kokkos view to be packed
+  /// \param[out] dst The output Kokkos view to be packed
   /// \param[in] axis The axis to be split
   /// \param exec_space[in] The Kokkos execution space to be used (defaults to
   /// ExecutionSpace()).
-  Pack(const DstViewType& dst, const SrcViewType& src, const std::size_t axis,
+  Pack(const SrcViewType& src, const DstViewType& dst,
+       const Kokkos::Array<std::size_t, 3>& map, const std::size_t axis,
        const ExecutionSpace exec_space = ExecutionSpace())
       : m_dst(dst),
         m_src(src),
         m_axis(axis),
+        m_map(map),
         m_dst_extents({dst.extent(0), dst.extent(1), dst.extent(2)}),
         m_src_extents({src.extent(0), src.extent(1), src.extent(2)}) {
     iType n0 = dst.extent(0), n1 = dst.extent(1), n2 = dst.extent(2),
@@ -118,22 +127,27 @@ struct Pack<ExecutionSpace, DstViewType, SrcViewType, 3, iType> {
   void operator()(const iType i0, const iType i1, const iType i2,
                   const iType i3) const {
     auto get_src = [&](iType idx_src, iType p, std::size_t axis) {
-      return axis == m_axis ? idx_src + p * m_dst_extents[axis] : idx_src;
+      return axis == m_axis ? idx_src + p * iType(m_dst_extents[axis])
+                            : idx_src;
     };
     if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-      const iType p = i3;
-      iType i0_src  = get_src(i0, p, 0);
-      iType i1_src  = get_src(i1, p, 1);
-      iType i2_src  = get_src(i2, p, 2);
+      const iType p        = i3;
+      iType src_indices[3] = {get_src(i0, p, 0), get_src(i1, p, 1),
+                              get_src(i2, p, 2)};
+      iType i0_src         = src_indices[m_map[0]];
+      iType i1_src         = src_indices[m_map[1]];
+      iType i2_src         = src_indices[m_map[2]];
       if (i0_src < m_src_extents[0] && i1_src < m_src_extents[1] &&
           i2_src < m_src_extents[2]) {
         m_dst(i0, i1, i2, i3) = m_src(i0_src, i1_src, i2_src);
       }
     } else {
-      const iType p = i0;
-      iType i0_src  = get_src(i1, p, 0);
-      iType i1_src  = get_src(i2, p, 1);
-      iType i2_src  = get_src(i3, p, 2);
+      const iType p        = i0;
+      iType src_indices[3] = {get_src(i1, p, 0), get_src(i2, p, 1),
+                              get_src(i3, p, 2)};
+      iType i0_src         = src_indices[m_map[0]];
+      iType i1_src         = src_indices[m_map[1]];
+      iType i2_src         = src_indices[m_map[2]];
       if (i0_src < m_src_extents[0] && i1_src < m_src_extents[1] &&
           i2_src < m_src_extents[2]) {
         m_dst(i0, i1, i2, i3) = m_src(i0_src, i1_src, i2_src);
@@ -285,19 +299,25 @@ struct Unpack<ExecutionSpace, DstViewType, SrcViewType, 3, iType> {
   }
 };
 
-template <typename ExecutionSpace, typename DstViewType, typename SrcViewType>
-void pack(const ExecutionSpace& exec_space, const DstViewType& dst,
-          const SrcViewType& src, std::size_t axis) {
+template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
+          std::size_t DIM>
+void pack(const ExecutionSpace& exec_space, const SrcViewType& src,
+          const DstViewType& dst, std::array<std::size_t, DIM> dst_map,
+          std::size_t axis) {
   static_assert(SrcViewType::rank() >= 2);
   static_assert(DstViewType::rank() == SrcViewType::rank() + 1);
+
+  Kokkos::Array<std::size_t, DIM> src_map = KokkosFFT::Impl::to_array(
+      get_src_dst_map<typename DstViewType::array_layout>(dst_map, axis));
+  std::size_t mapped_axis = KokkosFFT::Impl::get_index(dst_map, axis);
   // DO shape check here
   if (dst.span() >= std::size_t(std::numeric_limits<int>::max()) ||
       src.span() >= std::size_t(std::numeric_limits<int>::max())) {
-    Pack<ExecutionSpace, DstViewType, SrcViewType, SrcViewType::rank(),
-         int64_t>(dst, src, axis, exec_space);
+    Pack<ExecutionSpace, SrcViewType, DstViewType, SrcViewType::rank(),
+         int64_t>(src, dst, src_map, mapped_axis, exec_space);
   } else {
-    Pack<ExecutionSpace, DstViewType, SrcViewType, SrcViewType::rank(), int>(
-        dst, src, axis, exec_space);
+    Pack<ExecutionSpace, SrcViewType, DstViewType, SrcViewType::rank(), int>(
+      src, dst, src_map, mapped_axis, exec_space);
   }
 }
 
