@@ -18,6 +18,20 @@ struct MPIDataType<double> {
   static constexpr MPI_Datatype type() noexcept { return MPI_DOUBLE; }
 };
 
+template <>
+struct MPIDataType<Kokkos::complex<float>> {
+  static constexpr MPI_Datatype type() noexcept {
+    return MPI_CXX_FLOAT_COMPLEX;
+  }
+};
+
+template <>
+struct MPIDataType<Kokkos::complex<double>> {
+  static constexpr MPI_Datatype type() noexcept {
+    return MPI_CXX_DOUBLE_COMPLEX;
+  }
+};
+
 template <typename ExecutionSpace, typename ViewType>
 struct All2All {
   static_assert(ViewType::rank() >= 2);

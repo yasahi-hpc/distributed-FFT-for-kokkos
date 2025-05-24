@@ -1,3 +1,4 @@
 add_subdirectory(derivative)
+add_subdirectory(derivative-v2)
 add_subdirectory(fftn)
 add_subdirectory(fftn_Z2Y)
