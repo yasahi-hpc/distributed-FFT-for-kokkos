@@ -6,6 +6,31 @@
 #include <Kokkos_Random.hpp>
 #include <KokkosFFT.hpp>
 
+#include <iomanip>
+
+template <typename ViewType>
+void display(ViewType& a, int rank) {
+  auto label   = a.label() + std::to_string(rank);
+  const auto n = a.size();
+
+  auto h_a = Kokkos::create_mirror_view(a);
+  Kokkos::deep_copy(h_a, a);
+  auto* data = h_a.data();
+
+  std::cout << std::scientific << std::setprecision(16) << std::flush;
+  // for (std::size_t i = 0; i < n; i++) {
+  //   std::cout << label + "[" << i << "]: " << i << ", " << data[i] <<
+  //   std::endl;
+  // }
+  using value_type = typename ViewType::non_const_value_type;
+  value_type sum   = 0.0;
+  for (std::size_t i = 0; i < n; i++) {
+    sum += data[i];
+  }
+  std::cout << label << ": " << sum << std::endl;
+  std::cout << std::resetiosflags(std::ios_base::floatfield);
+}
+
 #if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP) || \
     defined(KOKKOS_ENABLE_SYCL)
 constexpr int TILE0 = 4;
@@ -72,14 +97,16 @@ void initialize(const int rank, RealView1DType& x, RealView1DType& y,
     for (int ix = 0; ix < nx_local; ++ix) {
       int gix       = ix + rank * nx_local;
       auto tmp_ikx  = z * 2.0 * pi * static_cast<value_type>(gix) / Lx;
-      h_ikx(ix, iy) = gix < nx ? tmp_ikx : 0.0;
+      h_ikx(ix, iy) = gix < (nx / 2 + 1) ? tmp_ikx : 0.0;
     }
   }
 
   for (int iy = 0; iy < ny; ++iy) {
     for (int ix = 0; ix < nx_local; ++ix) {
+      int gix       = ix + rank * nx_local;
       auto tmp_iy   = iy < ny / 2 ? iy : iy - ny;
-      h_iky(ix, iy) = z * 2.0 * pi * static_cast<value_type>(tmp_iy) / Ly;
+      auto tmp_iky  = z * 2.0 * pi * static_cast<value_type>(tmp_iy) / Ly;
+      h_iky(ix, iy) = gix < (nx / 2 + 1) ? tmp_iky : 0.0;
     }
   }
 
@@ -168,6 +195,8 @@ void compute_derivative(const int nx, const int ny, const int nz,
   // Distribute the data in X-pencil layout
   int ny_local = ny / nprocs;
 
+  int nxh = nx / 2 + 1;
+
   RealView3D u("u", nz, ny_local, nx), dudxy("dudxy", nz, ny_local, nx);
   ComplexView3D ux_hat("ux_hat", nz, ny_local, nx / 2 + 1);
 
@@ -178,8 +207,8 @@ void compute_derivative(const int nx, const int ny, const int nz,
   ComplexView2D ikx("ikx", nx_local, ny), iky("iky", nx_local, ny);
 
   // Buffers used for MPI communications
-  ComplexView4D send_buffer("send_buffer", nz, ny_local, nx_local, nprocs);
-  ComplexView4D recv_buffer("recv_buffer", nz, ny_local, nx_local, nprocs);
+  ComplexView4D send_buffer("send_buffer", nprocs, nz, ny_local, nx_local);
+  ComplexView4D recv_buffer("recv_buffer", nprocs, nz, ny_local, nx_local);
 
   initialize(rank, x, y, ikx, iky, u);
   analytical_solution(rank, x, y, dudxy);
@@ -219,7 +248,7 @@ void compute_derivative(const int nx, const int ny, const int nz,
       KOKKOS_LAMBDA(const int iz, const int iy, const int ix) {
         for (int p = 0; p < nprocs; ++p) {
           int gix                    = ix + p * nx_local;
-          send_buffer(iz, iy, ix, p) = gix < nx ? ux_hat(iz, iy, gix) : 0.0;
+          send_buffer(p, iz, iy, ix) = gix < nxh ? ux_hat(iz, iy, gix) : 0.0;
         }
       });
 
@@ -227,8 +256,9 @@ void compute_derivative(const int nx, const int ny, const int nz,
 
   // MPI Alltoall to exchange data
   int send_count = nz * ny_local * nx_local;
-  ::MPI_Alltoall(send_buffer.data(), send_count, MPI_DOUBLE, recv_buffer.data(),
-                 send_count, MPI_DOUBLE, MPI_COMM_WORLD);
+  ::MPI_Alltoall(send_buffer.data(), send_count, MPI_CXX_DOUBLE_COMPLEX,
+                 recv_buffer.data(), send_count, MPI_CXX_DOUBLE_COMPLEX,
+                 MPI_COMM_WORLD);
 
   // Unpack data from recv buffer
   Kokkos::parallel_for(
@@ -236,7 +266,7 @@ void compute_derivative(const int nx, const int ny, const int nz,
       KOKKOS_LAMBDA(const int iz, const int iy, const int ix) {
         for (int p = 0; p < nprocs; ++p) {
           int giy              = iy + p * ny_local;
-          uxy_hat(iz, ix, giy) = recv_buffer(iz, iy, ix, p);
+          uxy_hat(iz, ix, giy) = recv_buffer(p, iz, iy, ix);
         }
       });
 
@@ -273,23 +303,24 @@ void compute_derivative(const int nx, const int ny, const int nz,
       KOKKOS_LAMBDA(const int iz, const int iy, const int ix) {
         for (int p = 0; p < nprocs; ++p) {
           int giy                    = iy + p * ny_local;
-          send_buffer(iz, iy, ix, p) = uxy_hat(iz, ix, giy);
+          send_buffer(p, iz, iy, ix) = uxy_hat(iz, ix, giy);
         }
       });
 
   exec.fence();
 
   // MPI Alltoall to exchange data
-  ::MPI_Alltoall(send_buffer.data(), send_count, MPI_DOUBLE, recv_buffer.data(),
-                 send_count, MPI_DOUBLE, MPI_COMM_WORLD);
+  ::MPI_Alltoall(send_buffer.data(), send_count, MPI_CXX_DOUBLE_COMPLEX,
+                 recv_buffer.data(), send_count, MPI_CXX_DOUBLE_COMPLEX,
+                 MPI_COMM_WORLD);
 
   Kokkos::parallel_for(
       "Unpack-Backward", range3d,
       KOKKOS_LAMBDA(const int iz, const int iy, const int ix) {
         for (int p = 0; p < nprocs; ++p) {
           int gix = ix + p * nx_local;
-          if (gix < nx) {
-            ux_hat(iz, iy, gix) = recv_buffer(iz, iy, ix, p);
+          if (gix < nxh) {
+            ux_hat(iz, iy, gix) = recv_buffer(p, iz, iy, ix);
           }
         }
       });
@@ -313,7 +344,8 @@ void compute_derivative(const int nx, const int ny, const int nz,
         auto relative_error = std::abs(h_dudxy(iz, iy, ix) - h_u(iz, iy, ix)) /
                               std::abs(h_dudxy(iz, iy, ix));
         if (relative_error > epsilon) {
-          std::cerr << "Error: " << h_dudxy(iz, iy, ix)
+          std::cerr << "Error (ix, iy, iz): " << ix << ", " << iy << ", " << iz
+                    << " @ rank" << rank << ", " << h_dudxy(iz, iy, ix)
                     << " != " << h_u(iz, iy, ix) << std::endl;
           return;
         }
@@ -327,7 +359,7 @@ int main(int argc, char** argv) {
 
   Kokkos::initialize(argc, argv);
   {
-    const int nx = 128, ny = 128, nz = 128;
+    const int nx = 8, ny = 8, nz = 2;
     double seconds = 0.0;
     compute_derivative(nx, ny, nz, seconds);
     std::cout << "2D derivative with FFT took: " << seconds << " [s]"
