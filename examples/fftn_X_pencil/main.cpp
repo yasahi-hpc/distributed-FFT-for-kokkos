@@ -53,19 +53,20 @@ void distributed_fft() {
   ::MPI_Cart_sub(cart_comm, remain_dims, &col_comm);
 
   // 2) Local block sizes for Z‐pencils
-  int nx_local  = nx / dims[0];
-  int ny_local  = ny / dims[1];
-  int Py        = dims[1];
-  int nz_local  = nz / Py;  // slice Z across Py
   int Px        = dims[0];
-  int ny_local2 = ny / Px;
+  int Py        = dims[1];
+  int nx_local  = nx / Px;
+  int ny_local  = ny / Px;
+  int nz_local  = nz / Py;  // slice Z across Py
+  int ny_local2 = ny / Py;
 
   using ComplexView3D = View3D<Kokkos::complex<double>>;
   using ComplexView4D = View4D<Kokkos::complex<double>>;
 
   // Start: Z-Pencil, End: X-Pencil
-  ComplexView3D in("in", nx_local, ny_local, nz),
-      in_ref("in_ref", nx_local, ny_local, nz);
+  ComplexView3D in("in", nx, ny_local, nz_local),
+      out("out", nx, ny_local, nz_local),
+      in_ref("in_ref", nx, ny_local, nz_local);
 
   Kokkos::Random_XorShift64_Pool<> random_pool(12345);
   const Kokkos::complex<double> z(1.0, 1.0);
@@ -73,47 +74,47 @@ void distributed_fft() {
   Kokkos::fill_random(exec, in, random_pool, z);
   Kokkos::deep_copy(in_ref, in);
 
-  // FFT on Z-pencil
-  // do your local 1D FFTs along Z:
-  KokkosFFT::fft(exec, in, in, KokkosFFT::Normalization::backward, -1);
+  // FFT on X-pencil
+  // do your local 1D FFTs along X:
+  KokkosFFT::fft(exec, in, out, KokkosFFT::Normalization::backward, 0);
 
-  // --- First transpose: Z‐pencils -> Y‐pencils ---
-  // (Nx/px, Ny/py, Nz) -> (Nx/px, Nz/py, Ny)
+  // --- First transpose: X‐pencils -> Y‐pencils ---
+  // (Nx, Ny/px, Nz/py) -> (Nx/px, Nz/py, Ny)
   // a) prepare for all‐to‐all in the row_comm
   int send_count = nx_local * ny_local * nz_local;  // each recv/send block size
 
   // We reuse these buffers for each all to all communications
-  ComplexView4D send_z2y("send_z2y", Py, nx_local, ny_local, nz_local);
-  ComplexView4D recv_z2y("recv_z2y", Py, nx_local, ny_local, nz_local);
+  ComplexView4D send_x2y("send_x2y", Px, nx_local, ny_local, nz_local);
+  ComplexView4D recv_x2y("recv_x2y", Px, nx_local, ny_local, nz_local);
 
   using policy_type = Kokkos::MDRangePolicy<
       execution_space,
       Kokkos::Rank<3, Kokkos::Iterate::Default, Kokkos::Iterate::Default>,
       Kokkos::IndexType<int>>;
 
-  policy_type policy_z2y(exec, {0, 0, 0}, {nx_local, ny_local, nz_local},
+  policy_type policy_x2y(exec, {0, 0, 0}, {nx_local, ny_local, nz_local},
                          {4, 4, 4});
 
   Kokkos::parallel_for(
-      "pack-z2y", policy_z2y, KOKKOS_LAMBDA(int ix, int iy, int iz) {
-        for (int p = 0; p < Py; p++) {
-          int giz                 = iz + p * nz_local;
-          send_z2y(p, ix, iy, iz) = in(ix, iy, giz);
+      "pack-x2y", policy_x2y, KOKKOS_LAMBDA(int ix, int iy, int iz) {
+        for (int p = 0; p < Px; p++) {
+          int gix                 = ix + p * nx_local;
+          send_x2y(p, ix, iy, iz) = out(gix, iy, iz);
         }
       });
 
   // b) exchange blocks
-  ::MPI_Alltoall(send_z2y.data(), send_count, MPI_DOUBLE_COMPLEX,
-                 recv_z2y.data(), send_count, MPI_DOUBLE_COMPLEX, row_comm);
+  ::MPI_Alltoall(send_x2y.data(), send_count, MPI_DOUBLE_COMPLEX,
+                 recv_x2y.data(), send_count, MPI_DOUBLE_COMPLEX, col_comm);
 
   // c) reshape back into in_y
   ComplexView3D in_Ypencil("in_Ypencil", nx_local, nz_local, ny);
 
   Kokkos::parallel_for(
-      "unpack-z2y", policy_z2y, KOKKOS_LAMBDA(int ix, int iy, int iz) {
-        for (int p = 0; p < Py; p++) {
+      "unpack-x2y", policy_x2y, KOKKOS_LAMBDA(int ix, int iy, int iz) {
+        for (int p = 0; p < Px; p++) {
           int giy                 = iy + p * ny_local;
-          in_Ypencil(ix, iz, giy) = recv_z2y(p, ix, iy, iz);
+          in_Ypencil(ix, iz, giy) = recv_x2y(p, ix, iy, iz);
         }
       });
 
@@ -121,81 +122,81 @@ void distributed_fft() {
   KokkosFFT::fft(exec, in_Ypencil, in_Ypencil,
                  KokkosFFT::Normalization::backward, -1);
 
-  // --- Second transpose: Y‐pencils -> X‐pencils ---
-  // (Nx/px, Nz/py, Ny) -> (Nz/py, Ny/px, Nx)
+  // --- Second transpose: Y‐pencils -> Z‐pencils ---
+  // (Nx/px, Nz/py, Ny) -> (Nx/px, Ny/py, Nz)
   // a) prepare for all-to-all in the col_comm
   int send_count2 = nx_local * ny_local2 * nz_local;
 
-  ComplexView4D send_y2x("send_y2x", Px, nx_local, ny_local2, nz_local);
-  ComplexView4D recv_y2x("recv_y2x", Px, nx_local, ny_local2, nz_local);
+  ComplexView4D send_y2z("send_y2z", Py, nx_local, ny_local2, nz_local);
+  ComplexView4D recv_y2z("recv_y2z", Py, nx_local, ny_local2, nz_local);
 
   exec.fence();
 
-  policy_type policy_y2x(exec, {0, 0, 0}, {nx_local, ny_local2, nz_local},
+  policy_type policy_y2z(exec, {0, 0, 0}, {nx_local, ny_local2, nz_local},
                          {4, 4, 4});
 
   Kokkos::parallel_for(
-      "pack-y2x", policy_y2x, KOKKOS_LAMBDA(int ix, int iy, int iz) {
-        for (int p = 0; p < Px; p++) {
+      "pack-y2z", policy_y2z, KOKKOS_LAMBDA(int ix, int iy, int iz) {
+        for (int p = 0; p < Py; p++) {
           int giy                 = iy + p * ny_local;
-          send_y2x(p, ix, iy, iz) = in_Ypencil(ix, iz, giy);
+          send_y2z(p, ix, iy, iz) = in_Ypencil(ix, iz, giy);
         }
       });
 
   // b) exchange blocks
-  ::MPI_Alltoall(send_y2x.data(), send_count2, MPI_DOUBLE_COMPLEX,
-                 recv_y2x.data(), send_count2, MPI_DOUBLE_COMPLEX, col_comm);
+  ::MPI_Alltoall(send_y2z.data(), send_count2, MPI_DOUBLE_COMPLEX,
+                 recv_y2z.data(), send_count2, MPI_DOUBLE_COMPLEX, row_comm);
 
-  // c) reshape back into in_x
-  ComplexView3D in_Xpencil("in_Xpencil", nz_local, ny_local2, nx);
+  // c) reshape back into Z-pencil
+  ComplexView3D in_Zpencil("in_Zpencil", nx_local, ny_local2, nz);
 
   Kokkos::parallel_for(
-      "unpack-y2x", policy_y2x, KOKKOS_LAMBDA(int ix, int iy, int iz) {
-        for (int p = 0; p < Px; p++) {
-          int gix                 = ix + p * nx_local;
-          in_Xpencil(iz, iy, gix) = recv_y2x(p, ix, iy, iz);
+      "unpack-y2x", policy_y2z, KOKKOS_LAMBDA(int ix, int iy, int iz) {
+        for (int p = 0; p < Py; p++) {
+          int giz                 = iz + p * nz_local;
+          in_Zpencil(ix, iy, giz) = recv_y2z(p, ix, iy, iz);
         }
       });
 
-  // do your local 1D FFTs along X:
-  KokkosFFT::fft(exec, in_Xpencil, in_Xpencil,
+  // do your local 1D FFTs along Z:
+  KokkosFFT::fft(exec, in_Zpencil, in_Zpencil,
                  KokkosFFT::Normalization::backward, -1);
 
   // Now, we will start the backward transforms
-  KokkosFFT::ifft(exec, in_Xpencil, in_Xpencil,
+  KokkosFFT::ifft(exec, in_Zpencil, in_Zpencil,
                   KokkosFFT::Normalization::backward, -1);
 
-  // --- Third transpose: X‐pencils -> Y‐pencils ---
-  // (Nz/py, Ny/px, Nx) -> (Nz/py, Nx/px, Ny)
+  // --- Third transpose: Z‐pencils -> Y‐pencils ---
+  // (Nx/px, Ny/py, Nz) -> (Nx/px, Nz/py, Ny)
   // a) prepare for all-to-all in the col_comm
-  ComplexView4D send_x2y("send_x2y", Px, nx_local, ny_local2, nz_local);
-  ComplexView4D recv_x2y("recv_x2y", Px, nx_local, ny_local2, nz_local);
+  ComplexView4D send_z2y("send_z2y", Py, nx_local, ny_local2, nz_local);
+  ComplexView4D recv_z2y("recv_z2y", Py, nx_local, ny_local2, nz_local);
 
-  policy_type policy_x2y(exec, {0, 0, 0}, {nx_local, ny_local2, nz_local},
+  policy_type policy_z2y(exec, {0, 0, 0}, {nx_local, ny_local2, nz_local},
                          {4, 4, 4});
 
   Kokkos::parallel_for(
-      "pack-x2y", policy_x2y, KOKKOS_LAMBDA(int ix, int iy, int iz) {
+      "pack-z2y", policy_z2y, KOKKOS_LAMBDA(int ix, int iy, int iz) {
         for (int p = 0; p < Py; p++) {
-          int gix                 = ix + p * nx_local;
-          send_x2y(p, ix, iy, iz) = in_Xpencil(iz, iy, gix);
+          int giz                 = iz + p * nz_local;
+          send_z2y(p, ix, iy, iz) = in_Zpencil(ix, iy, giz);
         }
       });
 
   exec.fence();
 
   // b) exchange blocks
-  ::MPI_Alltoall(send_x2y.data(), send_count2, MPI_DOUBLE_COMPLEX,
-                 recv_x2y.data(), send_count2, MPI_DOUBLE_COMPLEX, col_comm);
+  ::MPI_Alltoall(send_z2y.data(), send_count2, MPI_DOUBLE_COMPLEX,
+                 recv_z2y.data(), send_count2, MPI_DOUBLE_COMPLEX, row_comm);
 
   // c) reshape back into in_y
-  ComplexView3D in_Ypencil2("in_Ypencil2", nz_local, nx_local, ny);
+  ComplexView3D in_Ypencil2("in_Ypencil2", nx_local, nz_local, ny);
 
   Kokkos::parallel_for(
-      "unpack-x2y", policy_x2y, KOKKOS_LAMBDA(int ix, int iy, int iz) {
+      "unpack-z2y", policy_z2y, KOKKOS_LAMBDA(int ix, int iy, int iz) {
         for (int p = 0; p < Py; p++) {
           int giy                  = iy + p * ny_local;
-          in_Ypencil2(iz, ix, giy) = recv_x2y(p, ix, iy, iz);
+          in_Ypencil2(ix, iz, giy) = recv_z2y(p, ix, iy, iz);
         }
       });
 
@@ -203,39 +204,38 @@ void distributed_fft() {
   KokkosFFT::ifft(exec, in_Ypencil2, in_Ypencil2,
                   KokkosFFT::Normalization::backward, -1);
 
-  // --- Forth transpose: Y‐pencils -> Z‐pencils ---
-  // (Nz/py, Nx/px, Ny) -> (Nx/px, Ny/py, Nz)
+  // --- Forth transpose: Y‐pencils -> X‐pencils ---
+  // (Nx/px, Nz/py, Ny) -> (Nx, Ny/px, Nz/py)
   // a) prepare for all‐to‐all in the row_comm
-  ComplexView4D send_y2z("send_y2z", Py, nx_local, ny_local, nz_local);
-  ComplexView4D recv_y2z("recv_y2z", Py, nx_local, ny_local, nz_local);
+  ComplexView4D send_y2x("send_y2x", Px, nx_local, ny_local, nz_local);
+  ComplexView4D recv_y2x("recv_y2x", Px, nx_local, ny_local, nz_local);
 
-  policy_type policy_y2z(exec, {0, 0, 0}, {nx_local, ny_local, nz_local},
+  policy_type policy_y2x(exec, {0, 0, 0}, {nx_local, ny_local, nz_local},
                          {4, 4, 4});
   Kokkos::parallel_for(
-      "pack-y2z", policy_y2z, KOKKOS_LAMBDA(int ix, int iy, int iz) {
-        for (int p = 0; p < Py; p++) {
+      "pack-y2x", policy_y2x, KOKKOS_LAMBDA(int ix, int iy, int iz) {
+        for (int p = 0; p < Px; p++) {
           int giy                 = iy + p * ny_local;
-          send_y2z(p, ix, iy, iz) = in_Ypencil2(iz, ix, giy);
+          send_y2x(p, ix, iy, iz) = in_Ypencil2(ix, iz, giy);
         }
       });
 
   exec.fence();
 
   // b) exchange blocks
-  ::MPI_Alltoall(send_y2z.data(), send_count, MPI_DOUBLE_COMPLEX,
-                 recv_y2z.data(), send_count, MPI_DOUBLE_COMPLEX, row_comm);
+  ::MPI_Alltoall(send_y2x.data(), send_count, MPI_DOUBLE_COMPLEX,
+                 recv_y2x.data(), send_count, MPI_DOUBLE_COMPLEX, col_comm);
 
   Kokkos::parallel_for(
-      "unpack-y2z", policy_y2z, KOKKOS_LAMBDA(int ix, int iy, int iz) {
-        for (int p = 0; p < Py; p++) {
-          int giz         = iz + p * nz_local;
-          in(ix, iy, giz) = recv_y2z(p, ix, iy, iz);
+      "unpack-y2x", policy_y2x, KOKKOS_LAMBDA(int ix, int iy, int iz) {
+        for (int p = 0; p < Px; p++) {
+          int gix          = ix + p * nx_local;
+          out(gix, iy, iz) = recv_y2x(p, ix, iy, iz);
         }
       });
 
-  // do your local 1D FFTs along Z:
-  KokkosFFT::ifft(exec, in, in, KokkosFFT::Normalization::backward, -1);
-
+  // do your local 1D FFTs along X:
+  KokkosFFT::ifft(exec, out, in, KokkosFFT::Normalization::backward, 0);
   exec.fence();
 
   // Check results
@@ -243,9 +243,9 @@ void distributed_fft() {
   auto h_in_ref =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), in_ref);
   const double epsilon = 1.e-8;
-  for (int iz = 0; iz < nz; ++iz) {
+  for (int iz = 0; iz < nz_local; ++iz) {
     for (int iy = 0; iy < ny_local; ++iy) {
-      for (int ix = 0; ix < nx_local; ++ix) {
+      for (int ix = 0; ix < nx; ++ix) {
         if (Kokkos::abs(h_in(ix, iy, iz)) <= epsilon) continue;
         auto relative_error =
             Kokkos::abs(h_in(ix, iy, iz) - h_in_ref(ix, iy, iz)) /
@@ -261,7 +261,7 @@ void distributed_fft() {
   }
 
   if (rank == 0) {
-    std::cout << "Distributed Z-pencil FFT completed successfully!"
+    std::cout << "Distributed X-pencil FFT completed successfully!"
               << std::endl;
   }
 
