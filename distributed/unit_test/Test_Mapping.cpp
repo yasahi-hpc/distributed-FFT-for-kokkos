@@ -19,12 +19,14 @@ struct TestMapping : public ::testing::Test {
   using layout_type = typename T::second_type;
 };
 
+class PencilParamTests : public ::testing::TestWithParam<int> {};
+
 template <typename T, typename LayoutType>
 void test_get_dst_map2D_View2D() {
   using map_type = std::array<std::size_t, 2>;
 
-  map_type src_map_01 = {0, 1};
-  map_type src_map_10 = {1, 0};
+  map_type src_map_01   = {0, 1};
+  map_type src_map_10   = {1, 0};
   auto dst_map_01_axis0 = get_dst_map<LayoutType, 2>(src_map_01, 0);
   auto dst_map_10_axis0 = get_dst_map<LayoutType, 2>(src_map_10, 0);
   auto dst_map_01_axis1 = get_dst_map<LayoutType, 2>(src_map_01, 1);
@@ -131,7 +133,7 @@ void test_get_dst_map3D_View3D() {
     ref_dst_map_102_axis2 = {1, 0, 2};
     ref_dst_map_120_axis2 = {1, 0, 2};
     ref_dst_map_201_axis2 = {0, 1, 2};
-    ref_dst_map_210_axis2 = {1, 0, 2};  
+    ref_dst_map_210_axis2 = {1, 0, 2};
   }
 
   EXPECT_TRUE(dst_map_012_axis0 == ref_dst_map_012_axis0);
@@ -156,6 +158,68 @@ void test_get_dst_map3D_View3D() {
   EXPECT_TRUE(dst_map_210_axis2 == ref_dst_map_210_axis2);
 }
 
+void test_get_pencil_3D(std::size_t nprocs) {
+  using topology_type     = std::array<std::size_t, 3>;
+  topology_type topology0 = {1, 1, nprocs};
+  topology_type topology1 = {1, nprocs, 1};
+  topology_type topology2 = {nprocs, 1, 1};
+  topology_type topology3 = {nprocs, 1, 2};
+  topology_type topology4 = {nprocs, 2, 1};
+
+  if (nprocs == 1) {
+    // Failure tests because of size 1 case
+    EXPECT_THROW({ auto inout_axis01 = get_pencil(topology0, topology1); },
+                 std::runtime_error);
+    EXPECT_THROW({ auto inout_axis02 = get_pencil(topology0, topology2); },
+                 std::runtime_error);
+    EXPECT_THROW({ auto inout_axis10 = get_pencil(topology1, topology0); },
+                 std::runtime_error);
+    EXPECT_THROW({ auto inout_axis12 = get_pencil(topology1, topology2); },
+                 std::runtime_error);
+    EXPECT_THROW({ auto inout_axis20 = get_pencil(topology2, topology0); },
+                 std::runtime_error);
+    EXPECT_THROW({ auto inout_axis21 = get_pencil(topology2, topology1); },
+                 std::runtime_error);
+  } else {
+    // Slab tests
+    auto [in_axis01, out_axis01] = get_pencil(topology0, topology1);
+    auto [in_axis02, out_axis02] = get_pencil(topology0, topology2);
+    auto [in_axis10, out_axis10] = get_pencil(topology1, topology0);
+    auto [in_axis12, out_axis12] = get_pencil(topology1, topology2);
+    auto [in_axis20, out_axis20] = get_pencil(topology2, topology0);
+    auto [in_axis21, out_axis21] = get_pencil(topology2, topology1);
+
+    EXPECT_EQ(in_axis01, 1);
+    EXPECT_EQ(out_axis01, 2);
+    EXPECT_EQ(in_axis02, 0);
+    EXPECT_EQ(out_axis02, 2);
+    EXPECT_EQ(in_axis10, 2);
+    EXPECT_EQ(out_axis10, 1);
+    EXPECT_EQ(in_axis12, 0);
+    EXPECT_EQ(out_axis12, 1);
+    EXPECT_EQ(in_axis20, 2);
+    EXPECT_EQ(out_axis20, 0);
+    EXPECT_EQ(in_axis21, 1);
+    EXPECT_EQ(out_axis21, 0);
+
+    // Pencil tests
+    auto [in_axis34, out_axis34] = get_pencil(topology3, topology4);
+    auto [in_axis43, out_axis43] = get_pencil(topology4, topology3);
+    EXPECT_EQ(in_axis34, 1);
+    EXPECT_EQ(out_axis34, 2);
+    EXPECT_EQ(in_axis43, 2);
+    EXPECT_EQ(out_axis43, 1);
+  }
+
+  // Failure tests because of shape mismatch (or size 1 case)
+  EXPECT_THROW({ auto inout_axis30 = get_pencil(topology3, topology0); },
+               std::runtime_error);
+  EXPECT_THROW({ auto inout_axis31 = get_pencil(topology3, topology1); },
+               std::runtime_error);
+  EXPECT_THROW({ auto inout_axis32 = get_pencil(topology3, topology2); },
+               std::runtime_error);
+}
+
 }  // namespace
 
 TYPED_TEST_SUITE(TestMapping, test_types);
@@ -173,3 +237,11 @@ TYPED_TEST(TestMapping, View3D) {
 
   test_get_dst_map3D_View3D<float_type, layout_type>();
 }
+
+TEST_P(PencilParamTests, 3D) {
+  int n0 = GetParam();
+  test_get_pencil_3D(n0);
+}
+
+INSTANTIATE_TEST_SUITE_P(PencilTests, PencilParamTests,
+                         ::testing::Values(1, 2, 3, 4, 5, 6));

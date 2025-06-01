@@ -5,6 +5,7 @@ add_executable(unit-tests-mpi
     Test_Mapping.cpp
     Test_Pack.cpp
     Test_Unpack.cpp
+    Test_Plan.cpp
 )
 
 find_package(MPI REQUIRED COMPONENTS CXX)

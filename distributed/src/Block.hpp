@@ -48,6 +48,99 @@ class Block {
   }
 };
 
+template <typename ExecutionSpace, typename InViewType, typename FFTOutViewType,
+          typename OutViewType, typename BufferType, std::size_t DIM = 1>
+class FFTBlock {
+  using execSpace    = ExecutionSpace;
+  using LayoutType   = typename OutViewType::array_layout;
+  using extents_type = KokkosFFT::shape_type<InViewType::rank()>;
+  using axes_type    = KokkosFFT::axis_type<DIM>;
+  // using out_value_type = typename OutViewType::non_const_value_type;
+  // using InternalOutViewType =
+  //       typename KokkosFFT::Impl::ConvertedViewType<InViewType,
+  //                                                   out_value_type>::type;
+  using FFTPlanType =
+      KokkosFFT::Plan<ExecutionSpace, InViewType, FFTOutViewType, DIM>;
+  using BlockType =
+      Block<ExecutionSpace, FFTOutViewType, OutViewType, BufferType, DIM>;
+
+  InViewType m_in;
+  FFTOutViewType m_fft_out;
+  OutViewType m_out;
+  ExecutionSpace m_exec;
+  FFTPlanType m_plan;
+  BlockType m_block;
+
+ public:
+  explicit FFTBlock(const ExecutionSpace& exec_space, const InViewType& in,
+                    const FFTOutViewType& fft_out, const OutViewType& out,
+                    const BufferType& send_buffer,
+                    const BufferType& recv_buffer, const extents_type& src_map,
+                    const std::size_t src_axis, const extents_type& dst_map,
+                    const std::size_t dst_axis, KokkosFFT::Direction direction,
+                    MPI_Comm comm = MPI_COMM_WORLD)
+      : m_in(in),
+        m_fft_out(fft_out),
+        m_plan(exec_space, in, fft_out, direction,
+               KokkosFFT::Impl::get_index(src_map, src_axis)),
+        m_block(exec_space, fft_out, out, send_buffer, recv_buffer, src_map,
+                src_axis, dst_map, src_axis, comm) {}
+
+  void operator()() const {
+    KokkosFFT::execute(m_plan, m_in, m_fft_out);
+    m_block();
+  }
+};
+
+/*
+template <typename ExecutionSpace, typename InViewType, typename OutViewType,
+          typename BufferType, std::size_t DIM = 1>
+class FFTBlock {
+  using execSpace    = ExecutionSpace;
+  using LayoutType   = typename OutViewType::array_layout;
+  using extents_type = KokkosFFT::shape_type<InViewType::rank()>;
+  using axes_type    = KokkosFFT::axis_type<DIM>;
+  using out_value_type = typename OutViewType::non_const_value_type;
+  using buffer_value_type = KokkosFFT::Impl::add_pointer_n_t<out_value_type,
+OutViewType::rank()+1>;
+
+  using BufferType = Kokkos::View<buffer_value_type, LayoutType,
+ExecutionSpace>; using BlockType  = Block<ExecutionSpace, InViewType,
+OutViewType, BufferType, DIM>;
+
+  InViewType m_in;
+  OutViewType m_out;
+  BufferType m_send_buffer, m_recv_buffer;
+  MPI_Comm m_comm;
+  ExecutionSpace m_exec;
+  extents_type m_in_topology, m_out_topology;
+  BlockType m_block;
+
+ public:
+  explicit FFTBlock(const ExecutionSpace& exec_space, const InViewType& in,
+                    const OutViewType& out, const extents_type& fft_extents,
+                    const extents_type& in_topology, const extents_type&
+out_topology, MPI_Comm comm = MPI_COMM_WORLD) : m_exec(exec_space), m_in(in),
+        m_out(out),
+        m_in_topology(in_topology),
+        m_out_topology(out_topology),
+        m_send_buffer("send_buffer",
+KokkosFFT::Impl::create_layout<LayoutType>(get_buffer_extents(out))),
+        m_send_buffer("recv_buffer",
+KokkosFFT::Impl::create_layout<LayoutType>(get_buffer_extents(out))),
+        m_block(exec_space, in, out, m_send_buffer, m_recv_buffer,
+                get_src_map(m_in_topology, m_in_topology),
+get_src_axis(m_in_topology, m_in_topology), get_dst_map(m_in_topology,
+m_in_topology), get_dst_axis(m_in_topology, m_in_topology), comm); {
+
+  }
+
+  void operator()() const {
+
+  }
+};
+*/
+
 /*
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
 typename BufferType, std::size_t DIM=1> class Block { using execSpace =

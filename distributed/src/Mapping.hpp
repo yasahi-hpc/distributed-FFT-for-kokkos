@@ -96,4 +96,44 @@ auto get_src_dst_map(const std::array<std::size_t, DIM>& src_map,
   return src_dst_map;
 }
 
+template <std::size_t DIM>
+std::size_t get_size(const std::array<std::size_t, DIM>& topology) {
+  return std::accumulate(topology.begin(), topology.end(), 1,
+                         std::multiplies<std::size_t>());
+}
+
+// Can we also check that this is a slab?
+// Example
+// (1, Px, Py, 1) -> (Px, 1, Py, 1): 0-pencil to 1-pencil
+// (1, 1, P) -> (1, P, 1): 1-pencil to 2-pencil
+// (P, 1, 1) -> (1, P, 1): 1-pencil to 0-pencil
+
+template <std::size_t DIM>
+auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
+                const std::array<std::size_t, DIM>& out_topology) {
+  // Extract topology that is common between in_topology and out_topology
+  // std::array<std::size_t, DIM> common_topology = {};
+  auto in_size  = get_size(in_topology);
+  auto out_size = get_size(out_topology);
+  KOKKOSFFT_THROW_IF(in_size == 1 || out_size == 1,
+                     "Input and output topologies must have at least one "
+                     "non-trivial dimension.");
+
+  KOKKOSFFT_THROW_IF(in_size != out_size,
+                     "Input and output topologies must have the same size.");
+
+  std::size_t in_axis = 0, out_axis = 0;
+  for (std::size_t i = 0; i < DIM; ++i) {
+    if (in_topology[i] != out_topology[i]) {
+      if (in_topology[i] == 1) in_axis = i;
+      if (out_topology[i] == 1) out_axis = i;
+      // out_axis = i;
+      // common_topology[i] = in_topology[i];
+    }
+  }
+
+  std::tuple<std::size_t, std::size_t> pencil_array = {in_axis, out_axis};
+  return pencil_array;
+}
+
 #endif
