@@ -1,0 +1,234 @@
+#include <mpi.h>
+#include <gtest/gtest.h>
+#include <iostream>
+#include <Kokkos_Core.hpp>
+#include "Extents.hpp"
+#include "Test_Utils.hpp"
+
+namespace {
+using execution_space = Kokkos::DefaultExecutionSpace;
+using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
+                                    std::pair<float, Kokkos::LayoutRight>,
+                                    std::pair<double, Kokkos::LayoutLeft>,
+                                    std::pair<double, Kokkos::LayoutRight>>;
+
+// Basically the same fixtures, used for labeling tests
+template <typename T>
+struct TestExtents : public ::testing::Test {
+  using float_type  = typename T::first_type;
+  using layout_type = typename T::second_type;
+};
+
+class TopologyParamTests : public ::testing::TestWithParam<int> {};
+
+void test_merge_topology(std::size_t nprocs) {
+  using topology_type     = std::array<std::size_t, 3>;
+  topology_type topology0 = {1, 1, nprocs};
+  topology_type topology1 = {1, nprocs, 1};
+  topology_type topology2 = {nprocs, 1, 1};
+  topology_type topology3 = {nprocs, 1, 8};
+  topology_type topology4 = {nprocs, 8, 1};
+
+  if (nprocs == 1) {
+    // Failure tests because these are identical
+    EXPECT_THROW({ auto merged01 = merge_topology(topology0, topology1); },
+                 std::runtime_error);
+    EXPECT_THROW({ auto merged02 = merge_topology(topology0, topology2); },
+                 std::runtime_error);
+    EXPECT_THROW({ auto merged12 = merge_topology(topology1, topology2); },
+                 std::runtime_error);
+  } else {
+    auto merged01 = merge_topology(topology0, topology1);
+    auto merged02 = merge_topology(topology0, topology2);
+    auto merged12 = merge_topology(topology1, topology2);
+
+    topology_type ref_merged01 = {1, nprocs, nprocs};
+    topology_type ref_merged02 = {nprocs, 1, nprocs};
+    topology_type ref_merged12 = {nprocs, nprocs, 1};
+
+    EXPECT_EQ(merged01, ref_merged01);
+    EXPECT_EQ(merged02, ref_merged02);
+    EXPECT_EQ(merged12, ref_merged12);
+  }
+
+  // Failure tests because these do not have same size
+  EXPECT_THROW({ auto merged03 = merge_topology(topology0, topology3); },
+               std::runtime_error);
+  EXPECT_THROW({ auto merged04 = merge_topology(topology0, topology4); },
+               std::runtime_error);
+  EXPECT_THROW({ auto merged13 = merge_topology(topology1, topology3); },
+               std::runtime_error);
+  EXPECT_THROW({ auto merged14 = merge_topology(topology1, topology4); },
+               std::runtime_error);
+  EXPECT_THROW({ auto merged23 = merge_topology(topology2, topology3); },
+               std::runtime_error);
+  EXPECT_THROW({ auto merged24 = merge_topology(topology2, topology4); },
+               std::runtime_error);
+
+  // This case is valid
+  topology_type ref_merged34 = {nprocs, 8, 8};
+  auto merged34              = merge_topology(topology3, topology4);
+  EXPECT_EQ(merged34, ref_merged34);
+}
+
+void test_diff_topology(std::size_t nprocs) {
+  using topology_type      = std::array<std::size_t, 3>;
+  topology_type topology0  = {1, 1, nprocs};
+  topology_type topology1  = {1, nprocs, 1};
+  topology_type topology2  = {nprocs, 1, 1};
+  topology_type topology3  = {nprocs, 1, 8};
+  topology_type topology01 = {1, nprocs, nprocs};
+  topology_type topology02 = {nprocs, 1, nprocs};
+  topology_type topology12 = {nprocs, nprocs, 1};
+
+  if (nprocs == 1) {
+    // Failure tests because these are identical
+    EXPECT_THROW(
+        { std::size_t diff0_01 = diff_toplogy(topology0, topology01); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { std::size_t diff0_02 = diff_toplogy(topology0, topology02); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { std::size_t diff1_12 = diff_toplogy(topology1, topology12); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { std::size_t diff2_12 = diff_toplogy(topology2, topology12); },
+        std::runtime_error);
+  } else {
+    std::size_t diff0_01 = diff_toplogy(topology0, topology01);
+    std::size_t diff0_02 = diff_toplogy(topology0, topology02);
+    std::size_t diff1_12 = diff_toplogy(topology1, topology12);
+    std::size_t diff2_12 = diff_toplogy(topology2, topology12);
+
+    std::size_t ref_diff0_01 = nprocs;
+    std::size_t ref_diff0_02 = nprocs;
+    std::size_t ref_diff1_12 = nprocs;
+    std::size_t ref_diff2_12 = nprocs;
+
+    EXPECT_EQ(diff0_01, ref_diff0_01);
+    EXPECT_EQ(diff0_02, ref_diff0_02);
+    EXPECT_EQ(diff1_12, ref_diff1_12);
+    EXPECT_EQ(diff2_12, ref_diff2_12);
+
+    // Failure tests because more than two elements are different
+    EXPECT_THROW({ std::size_t diff03 = diff_toplogy(topology0, topology3); },
+                 std::runtime_error);
+  }
+}
+
+template <typename T, typename LayoutType>
+void test_buffer_extents() {
+  using extents_type        = std::array<std::size_t, 4>;
+  using buffer_extents_type = std::array<std::size_t, 5>;
+  using topology_type       = std::array<std::size_t, 4>;
+  using ViewType            = Kokkos::View<T****, LayoutType, execution_space>;
+  const std::size_t n0 = 13, n1 = 8, n2 = 17, n3 = 5;
+  const std::size_t p0 = 2, p1 = 3;
+
+  // Global View
+  extents_type extents{n0, n1, n2, n3};
+
+  // X-pencil
+  topology_type topology0 = {1, p0, p1, 1};
+
+  // Y-pencil
+  topology_type topology1 = {p0, 1, p1, 1};
+
+  // Z-pencil
+  topology_type topology2 = {p0, p1, 1, 1};
+
+  buffer_extents_type ref_buffer_01, ref_buffer_12;
+  if (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+    ref_buffer_01 = {n0 / p0, n1 / p0, n2 / p1, n3, p0};
+    ref_buffer_12 = {n0 / p0, n1 / p1, n2 / p1, n3, p1};
+  } else {
+    ref_buffer_01 = {p0, n0 / p0, n1 / p0, n2 / p1, n3};
+    ref_buffer_12 = {p1, n0 / p0, n1 / p1, n2 / p1, n3};
+  }
+
+  buffer_extents_type buffer_01 =
+      get_buffer_extents<LayoutType>(extents, topology0, topology1);
+  buffer_extents_type buffer_12 =
+      get_buffer_extents<LayoutType>(extents, topology1, topology2);
+
+  EXPECT_TRUE(buffer_01 == ref_buffer_01);
+  EXPECT_TRUE(buffer_12 == ref_buffer_12);
+
+  // In valid, because you cannot go from X to Z in one exchange
+  EXPECT_THROW(
+      {
+        buffer_extents_type buffer_02 =
+            get_buffer_extents<LayoutType>(extents, topology0, topology2);
+      },
+      std::runtime_error);
+}
+
+template <typename T, typename LayoutType>
+void test_next_extents() {
+  using extents_type  = std::array<std::size_t, 4>;
+  using topology_type = std::array<std::size_t, 4>;
+  using map_type      = std::array<std::size_t, 4>;
+
+  using ViewType       = Kokkos::View<T****, LayoutType, execution_space>;
+  const std::size_t n0 = 13, n1 = 8, n2 = 17, n3 = 5;
+  const std::size_t p0 = 2, p1 = 3;
+
+  // Global View
+  extents_type extents{n0, n1, n2, n3};
+
+  // X-pencil
+  topology_type topology0 = {1, p0, p1, 1};
+  map_type map0           = {0, 1, 2, 3};
+
+  // Y-pencil
+  topology_type topology1 = {p0, 1, p1, 1};
+  map_type map1           = {0, 2, 3, 1};
+
+  // Z-pencil
+  topology_type topology2 = {p0, p1, 1, 1};
+  map_type map2           = {0, 3, 1, 2};
+
+  extents_type ref_next_0{n0, n1 / p0, n2 / p1, n3};
+  extents_type ref_next_1{n0 / p0, n2 / p1, n3, n1};
+  extents_type ref_next_2{n0 / p0, n3, n1 / p1, n2};
+
+  extents_type next_0 = get_next_extents(extents, topology0, map0);
+  extents_type next_1 = get_next_extents(extents, topology1, map1);
+  extents_type next_2 = get_next_extents(extents, topology2, map2);
+
+  EXPECT_TRUE(next_0 == ref_next_0);
+  EXPECT_TRUE(next_1 == ref_next_1);
+  EXPECT_TRUE(next_2 == ref_next_2);
+}
+
+}  // namespace
+
+TYPED_TEST_SUITE(TestExtents, test_types);
+
+TYPED_TEST(TestExtents, BufferExtents) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  test_buffer_extents<float_type, layout_type>();
+}
+
+TYPED_TEST(TestExtents, NextExtents) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  test_next_extents<float_type, layout_type>();
+}
+
+TEST_P(TopologyParamTests, MergeTopology) {
+  int n0 = GetParam();
+  test_merge_topology(n0);
+}
+
+TEST_P(TopologyParamTests, DiffTopology) {
+  int n0 = GetParam();
+  test_diff_topology(n0);
+}
+
+INSTANTIATE_TEST_SUITE_P(TopologyTests, TopologyParamTests,
+                         ::testing::Values(1, 2, 3, 4, 5, 6));

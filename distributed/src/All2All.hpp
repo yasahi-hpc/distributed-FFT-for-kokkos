@@ -4,33 +4,7 @@
 #include <type_traits>
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
-
-template <typename ValueType>
-struct MPIDataType {};
-
-template <>
-struct MPIDataType<float> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_FLOAT; }
-};
-
-template <>
-struct MPIDataType<double> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_DOUBLE; }
-};
-
-template <>
-struct MPIDataType<Kokkos::complex<float>> {
-  static constexpr MPI_Datatype type() noexcept {
-    return MPI_CXX_FLOAT_COMPLEX;
-  }
-};
-
-template <>
-struct MPIDataType<Kokkos::complex<double>> {
-  static constexpr MPI_Datatype type() noexcept {
-    return MPI_CXX_DOUBLE_COMPLEX;
-  }
-};
+#include "MPI_Helper.hpp"
 
 template <typename ExecutionSpace, typename ViewType>
 struct All2All {

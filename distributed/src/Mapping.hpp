@@ -3,6 +3,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include "MPI_Helper.hpp"
 
 /// \brief Get the mapping of the destination view from
 /// src mapping. In the middle of the parallel FFTs,
@@ -96,11 +97,13 @@ auto get_src_dst_map(const std::array<std::size_t, DIM>& src_map,
   return src_dst_map;
 }
 
+/*
 template <std::size_t DIM>
 std::size_t get_size(const std::array<std::size_t, DIM>& topology) {
   return std::accumulate(topology.begin(), topology.end(), 1,
                          std::multiplies<std::size_t>());
 }
+*/
 
 // Can we also check that this is a slab?
 // Example
@@ -134,6 +137,58 @@ auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
 
   std::tuple<std::size_t, std::size_t> pencil_array = {in_axis, out_axis};
   return pencil_array;
+}
+
+template <typename ArrayType>
+int countNonOneComponents(const ArrayType& arr) {
+  return std::count_if(arr.begin(), arr.end(),
+                       [](int val) { return val != 1; });
+}
+
+template <typename iType, std::size_t DIM = 1>
+std::vector<iType> find_differences(const std::array<iType, DIM>& a,
+                                    const std::array<iType, DIM>& b) {
+  std::vector<iType> diffs;
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    if (a[i] != b[i]) {
+      diffs.push_back(i);
+    }
+  }
+  return diffs;
+}
+
+template <typename iType, std::size_t DIM = 1>
+std::array<iType, DIM> swap_elements(const std::array<iType, DIM>& arr, int i,
+                                     int j) {
+  std::array<iType, DIM> result = arr;
+  std::swap(result.at(i), result.at(j));
+  return result;
+}
+
+template <typename iType, std::size_t DIM = 1>
+std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
+                                     const std::array<iType, DIM>& out) {
+  std::vector<iType> diff_indices = find_differences(in, out);
+  KOKKOSFFT_THROW_IF(
+      diff_indices.size() != 3,
+      "Input and output topologies must differ exactly three positions.");
+
+  iType idx_one_in  = KokkosFFT::Impl::get_index(in, iType(1));
+  iType idx_one_out = KokkosFFT::Impl::get_index(out, iType(1));
+  // Try all combinations of 2 indices for a single valid swap
+  for (size_t i = 0; i < diff_indices.size(); ++i) {
+    for (size_t j = i + 1; j < diff_indices.size(); ++j) {
+      iType idx_in               = diff_indices.at(i);
+      iType idx_out              = diff_indices.at(j);
+      std::array<iType, DIM> mid = swap_elements(in, idx_in, idx_out);
+      iType idx_one_mid          = KokkosFFT::Impl::get_index(mid, iType(1));
+      if (find_differences(mid, out).size() == 2 &&
+          !(idx_one_mid == idx_one_in || idx_one_mid == idx_one_out)) {
+        return mid;
+      }
+    }
+  }
+  return out;
 }
 
 #endif

@@ -90,6 +90,9 @@ void distributed_fft() {
   map_type topology2 = {Px, Py, 1, 1};  // Z-pencil
 
   // --- First transpose: X‐pencils -> Y‐pencils ---
+  // do your local 1D FFTs along X:
+  KokkosFFT::rfft(exec, in, out, KokkosFFT::Normalization::backward, 0);
+
   // (1, Px, Py, 1) -> (Px, 1, Py, 1)
   // rfft along x
   // src_map = {0, 1, 2, 3}, axis = 0; (already)
@@ -99,8 +102,6 @@ void distributed_fft() {
   map_type dst_map = get_dst_map<Kokkos::LayoutRight, 4>(src_map, out_axis01);
 
   // a) prepare for all‐to‐all in the row_comm
-  int send_count =
-      nx_local * ny_local * nz_local * nbatch;  // each recv/send block size
 
   // We reuse these buffers for each all to all communications
   ComplexView5D send_x2y("send_x2y", Px, nx_local, ny_local, nz_local, nbatch);
@@ -109,15 +110,19 @@ void distributed_fft() {
   // Y-pencil
   ComplexView4D in_Ypencil("in_Ypencil", nx_local, nz_local, nbatch, ny);
 
-  // RFFT on X-pencil (1, Px, Py, 1) -> (Px, 1, Py, 1)
-  // local 1D FFTs along X + X-pencil to Y-Pencil transpose
-  FFTBlock fft_block_x2y(exec, in, out, in_Ypencil, send_x2y, recv_x2y, src_map,
-                         in_axis01, dst_map, out_axis01,
-                         KokkosFFT::Direction::forward, col_comm);
+  // X-pencil (1, Px, Py, 1) -> (Px, 1, Py, 1)
+  // X-pencil to Y-Pencil transpose + local 1D FFTs along Y
+  int fft_axis = 0;  // FFT along Nphi direction
+  bool to_exec_fft =
+      topology0.at(fft_axis) == 1;  // Execute FFT if pencil is not 1D
+
+  FFTForwardBlock fft_block_x2y(exec, out, in_Ypencil, in_Ypencil, send_x2y,
+                                recv_x2y, src_map, in_axis01, dst_map,
+                                out_axis01, col_comm);
   fft_block_x2y();
 
   // FFT on Y-pencil (Px, 1, Py, 1) -> (Px, Py, 1, 1)
-  // local 1D FFTs along Y + Y-pencil to Z-Pencil transpose
+  // Y-pencil to Z-Pencil transpose + local 1D FFTs along Z
   auto [in_axis12, out_axis12] = get_pencil(topology1, topology2);
   map_type zpencil_map =
       get_dst_map<Kokkos::LayoutRight, 4>(dst_map, out_axis12);
@@ -129,29 +134,33 @@ void distributed_fft() {
   ComplexView5D recv_y2z(recv_x2y.data(), Py, nx_local, ny_local2, nz_local,
                          nbatch);
 
-  FFTBlock fft_block_y2z(exec, in_Ypencil, in_Ypencil, in_Zpencil, send_y2z,
-                         recv_y2z, dst_map, out_axis01, zpencil_map, out_axis12,
-                         KokkosFFT::Direction::forward, row_comm);
+  to_exec_fft = topology1.at(out_axis01) == 1;
+  FFTForwardBlock fft_block_y2z(exec, in_Ypencil, in_Zpencil, in_Zpencil,
+                                send_y2z, recv_y2z, dst_map, out_axis01,
+                                zpencil_map, out_axis12, row_comm);
   fft_block_y2z();
 
   // do your local 1D FFTs along Z:
-  KokkosFFT::fft(exec, in_Zpencil, in_Zpencil,
-                 KokkosFFT::Normalization::backward, -1);
+  // KokkosFFT::fft(exec, in_Zpencil, in_Zpencil,
+  //               KokkosFFT::Normalization::backward, -1);
 
   // Now, we will start the backward transforms
   // --- Third transpose: Z‐pencils -> Y‐pencils ---
   // IFFT on Z-pencil (Px, Py, 1, 1) -> (Px, 1, Py, 1)
-  FFTBlock fft_block_z2y(exec, in_Zpencil, in_Zpencil, in_Ypencil, send_y2z,
-                         recv_y2z, zpencil_map, out_axis12, dst_map, out_axis01,
-                         KokkosFFT::Direction::backward, row_comm);
+  // local 1D FFTs along Z + Z-pencil to Y-Pencil transpose
+  to_exec_fft = topology2.at(out_axis12) == 1;
+  FFTBackwardBlock fft_block_z2y(exec, in_Zpencil, in_Zpencil, in_Ypencil,
+                                 send_y2z, recv_y2z, zpencil_map, out_axis12,
+                                 dst_map, out_axis01, row_comm);
   fft_block_z2y();
 
   // do your local 1D FFTs along Y:
   // FFT on Y-pencil (Px, 1, Py, 1) -> (Px, Py, 1, 1)
   // local 1D FFTs along Y + Y-pencil to X-Pencil transpose
-  FFTBlock fft_block_y2x(exec, in_Ypencil, in_Ypencil, out, send_x2y, recv_x2y,
-                         dst_map, out_axis01, src_map, in_axis01,
-                         KokkosFFT::Direction::backward, col_comm);
+  to_exec_fft = topology1.at(out_axis01) == 1;
+  FFTBackwardBlock fft_block_y2x(exec, in_Ypencil, in_Ypencil, out, send_x2y,
+                                 recv_x2y, dst_map, out_axis01, src_map,
+                                 in_axis01, col_comm);
   fft_block_y2x();
 
   // do your local 1D FFTs along X:
