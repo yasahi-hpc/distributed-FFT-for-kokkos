@@ -40,38 +40,6 @@ auto diff_toplogy(const std::array<iType, DIM> &in_topology,
   return std::max(in_topology.at(diff_idx), out_topology.at(diff_idx));
 }
 
-/*
-// Example
-// Global View (n0, n1, n2, n3)
-// in-topology = {1, p0, p1, 1} // X-pencil
-// out-topology = {p0, 1, p1, 1} // Y-pencil
-// Buffer View (p0, n0/p0, n1/p0, n2/p1, n3)
-template <typename ViewType>
-auto get_buffer_extents(const ViewType& view,
-                        const std::array<std::size_t, ViewType::rank()>
-&in_topology, const std::array<std::size_t, ViewType::rank()> &out_topology) {
-  using LayoutType = typename ViewType::array_layout;
-  static_assert(Kokkos::is_view_v<ViewType>,
-                "get_buffer_extents: ViewType is not a Kokkos::View.");
-  constexpr std::size_t rank = ViewType::rank() + 1;
-  std::array<std::size_t, rank> extents;
-  auto merged_topology = merge_topology(in_topology, out_topology);
-  auto p0 = diff_toplogy(merged_topology, in_topology); // return 1 or p0
-  if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
-    extents.at(0) = p0;
-    for (std::size_t i = 0; i < view.rank(); i++) {
-      extents.at(i + 1) = view.extent(i) / merged_topology.at(i);
-    }
-  } else {
-    for (std::size_t i = 0; i < view.rank(); i++) {
-      extents.at(i) = view.extent(i) / merged_topology.at(i);
-    }
-    extents.back() = p0;
-  }
-  return extents;
-}
-*/
-
 // Example
 // Global View extents (n0, n1, n2, n3)
 // in-topology = {1, p0, p1, 1} // X-pencil
@@ -98,29 +66,6 @@ auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
   return buffer_extents;
 }
 
-/*
-// Example
-// Global View (n0, n1, n2, n3)
-// topology = {p0, 1, p1, 1} // Y-pencil
-// map (0, 2, 3, 1)
-template <typename ViewType>
-auto get_next_extents(const ViewType& view,
-                      const std::array<std::size_t, ViewType::rank()> &topology,
-                      const std::array<std::size_t, ViewType::rank()> &map) {
-  static_assert(Kokkos::is_view_v<ViewType>,
-                "get_buffer_extents: ViewType is not a Kokkos::View.");
-  constexpr std::size_t rank = ViewType::rank();
-  std::array<std::size_t, rank> extents;
-
-  for (std::size_t i = 0; i < view.rank(); i++) {
-    std::size_t mapped_idx = map.at(i);
-    extents.at(i) = view.extent(mapped_idx) / topology.at(mapped_idx);
-  }
-
-  return extents;
-}
-*/
-
 // Example
 // Global View extents (n0, n1, n2, n3)
 // topology = {p0, 1, p1, 1} // Y-pencil
@@ -136,7 +81,7 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
     next_extents.at(i)     = extents.at(mapped_idx) / topology.at(mapped_idx);
   }
 
-  return extents;
+  return next_extents;
 }
 
 #endif

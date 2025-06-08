@@ -276,6 +276,8 @@ void test_get_mid_array_pencil_3D(std::size_t nprocs) {
   topology_type topology0 = {nprocs, 1, 8};
   topology_type topology1 = {nprocs, 8, 1};
   topology_type topology2 = {8, nprocs, 1};
+  topology_type topology3 = {1, 2, nprocs};
+  topology_type topology4 = {2, nprocs, 1};
 
   if (nprocs == 1) {
     // Failure tests because only two elements differ
@@ -310,6 +312,15 @@ void test_get_mid_array_pencil_3D(std::size_t nprocs) {
 
     EXPECT_EQ(mid02, ref_mid02);
     EXPECT_EQ(mid20, ref_mid20);
+
+    auto mid34 = get_mid_array(topology3, topology4);
+    auto mid43 = get_mid_array(topology4, topology3);
+
+    topology_type ref_mid34 = {2, 1, nprocs};
+    topology_type ref_mid43 = {2, 1, nprocs};
+
+    EXPECT_EQ(mid34, ref_mid34);
+    EXPECT_EQ(mid43, ref_mid43);
   }
 }
 

@@ -99,4 +99,60 @@ auto get_global_shape(const ViewType &v,
   return global_extents;
 }
 
+template <std::size_t DIM = 1>
+auto rank_to_coord(const std::array<std::size_t, DIM> &topology,
+                   const std::size_t rank) {
+  std::array<std::size_t, DIM> coord;
+  std::size_t rank_tmp  = rank;
+  int64_t topology_size = topology.size() - 1;
+
+  for (int64_t i = topology_size; i >= 0; i--) {
+    coord.at(i) = rank_tmp % topology.at(i);
+    rank_tmp /= topology.at(i);
+  }
+  return coord;
+}
+
+// Data are stored as
+// rank0: extents
+// rank1: extents
+// ...
+// rankn:
+template <std::size_t DIM = 1>
+auto get_local_shape(const std::array<std::size_t, DIM> &extents,
+                     const std::array<std::size_t, DIM> &topology,
+                     MPI_Comm comm, bool equal_extents = false) {
+  // Check that topology includes two or less non-one elements
+  std::array<std::size_t, DIM> local_extents;
+  std::copy(extents.begin(), extents.end(), local_extents.begin());
+  auto total_size = get_size(topology);
+
+  int rank, nprocs;
+  ::MPI_Comm_rank(comm, &rank);
+  ::MPI_Comm_size(comm, &nprocs);
+
+  KOKKOSFFT_THROW_IF(total_size != nprocs,
+                     "topology size must be identical to mpi size.");
+
+  std::array<std::size_t, DIM> coords =
+      rank_to_coord(topology, static_cast<std::size_t>(rank));
+
+  for (std::size_t i = 0; i < extents.size(); i++) {
+    if (topology.at(i) != 1) {
+      std::size_t n        = extents.at(i);
+      std::size_t t        = topology.at(i);
+      std::size_t quotient = (n - 1) / t + 1;
+      if (equal_extents) {
+        local_extents.at(i) = quotient;
+      } else {
+        std::size_t remainder = n - quotient * (t - 1);
+        local_extents.at(i) =
+            (coords.at(i) == topology.at(i) - 1) ? remainder : quotient;
+      }
+    }
+  }
+
+  return local_extents;
+}
+
 #endif
