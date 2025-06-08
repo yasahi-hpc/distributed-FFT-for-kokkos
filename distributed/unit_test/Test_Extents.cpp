@@ -202,6 +202,38 @@ void test_next_extents() {
   EXPECT_TRUE(next_2 == ref_next_2);
 }
 
+void test_get_required_allocation_size() {
+  using topology1D_type = std::array<std::size_t, 1>;
+  using topology2D_type = std::array<std::size_t, 2>;
+  using topology3D_type = std::array<std::size_t, 3>;
+  using topology4D_type = std::array<std::size_t, 4>;
+
+  topology1D_type topology1{2}, topology1_2{4};
+  topology2D_type topology2{1, 2}, topology2_2{4, 2};
+  topology3D_type topology3{1, 2, 1}, topology3_2{4, 2, 1};
+  topology4D_type topology4{1, 4, 1, 1}, topology4_2{1, 1, 4, 2};
+
+  std::vector<topology1D_type> topology1_vec = {topology1, topology1_2};
+  std::vector<topology2D_type> topology2_vec = {topology2, topology2_2};
+  std::vector<topology3D_type> topology3_vec = {topology3, topology3_2};
+  std::vector<topology4D_type> topology4_vec = {topology4, topology4_2};
+
+  auto size1 = get_required_allocation_size(topology1_vec);
+  auto size2 = get_required_allocation_size(topology2_vec);
+  auto size3 = get_required_allocation_size(topology3_vec);
+  auto size4 = get_required_allocation_size(topology4_vec);
+
+  std::size_t ref_size1 = 4;
+  std::size_t ref_size2 = 8;
+  std::size_t ref_size3 = 8;
+  std::size_t ref_size4 = 8;
+
+  EXPECT_EQ(size1, ref_size1);
+  EXPECT_EQ(size2, ref_size2);
+  EXPECT_EQ(size3, ref_size3);
+  EXPECT_EQ(size4, ref_size4);
+}
+
 }  // namespace
 
 TYPED_TEST_SUITE(TestExtents, test_types);
@@ -218,6 +250,10 @@ TYPED_TEST(TestExtents, NextExtents) {
   using layout_type = typename TestFixture::layout_type;
 
   test_next_extents<float_type, layout_type>();
+}
+
+TEST(TestRequiredAllocationSize, 1Dto4D) {
+  test_get_required_allocation_size();
 }
 
 TEST_P(TopologyParamTests, MergeTopology) {
