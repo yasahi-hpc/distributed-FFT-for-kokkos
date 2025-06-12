@@ -222,4 +222,77 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
   return out;
 }
 
+template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
+std::vector<std::array<iType, DIM>> get_shuffled_topologies(
+    const std::array<iType, DIM>& in_topology,
+    const std::array<iType, DIM>& out_topology,
+    const std::array<int, FFT_DIM>& axes) {
+  std::vector<iType> diff_non_ones = find_non_ones(in_topology, out_topology);
+  KOKKOSFFT_THROW_IF(diff_non_ones.size() != 3,
+                     "The total number of non-one elements either in Input and "
+                     "output topologies must be three.");
+  std::vector<std::array<iType, DIM>> topologies;
+  topologies.push_back(in_topology);
+
+  std::vector<int> axes_reversed;
+  for (std::size_t i = 0; i < axes.size(); ++i) {
+    axes_reversed.push_back(axes.at(i));
+  }
+  auto last_axis = axes.back();
+  auto first_dim = in_topology.at(last_axis);
+  if (first_dim == 1) axes_reversed.pop_back();
+
+  std::reverse(axes_reversed.begin(), axes_reversed.end());
+  std::array<iType, DIM> shuffled_topology = in_topology;
+  for (const auto& axis : axes_reversed) {
+    std::size_t swap_idx = 0;
+    for (auto diff_idx : diff_non_ones) {
+      if (shuffled_topology.at(diff_idx) == 1 && diff_idx != axis) {
+        swap_idx = diff_idx;
+        break;
+      }
+    }
+    shuffled_topology = swap_elements(shuffled_topology, axis, swap_idx);
+    topologies.push_back(shuffled_topology);
+  }
+  if (topologies.back() == out_topology) return topologies;
+
+  try {
+    auto mid_topology = get_mid_array(topologies.back(), out_topology);
+    topologies.push_back(mid_topology);
+  } catch (std::runtime_error& e) {
+  }
+  topologies.push_back(out_topology);
+
+  return topologies;
+}
+
+template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
+std::vector<std::array<iType, DIM>> get_topologies(
+    const std::array<iType, DIM>& in_topology,
+    const std::array<iType, DIM>& out_topology,
+    const std::array<iType, FFT_DIM>& axes, bool is_real_transform = false) {
+  // Firstly, check that the first transform is ready or not
+  if (is_real_transform) {
+    auto last_axis = axes.back();
+    auto first_dim = in_topology.at(last_axis);
+
+    // If the first dimension is distributed,
+    // we need to transpose to make the first transform
+    if (first_dim > 1) {
+      auto shuffled_topologies =
+          get_shuffled_topologies(in_topology, out_topology, axes);
+      return shuffled_topologies;
+    }
+  }
+
+  std::vector<std::array<iType, DIM>> topologies;
+  topologies.push_back(in_topology);
+  auto mid_topology = get_mid_array(in_topology, out_topology);
+  topologies.push_back(mid_topology);
+  topologies.push_back(out_topology);
+
+  return topologies;
+}
+
 #endif
