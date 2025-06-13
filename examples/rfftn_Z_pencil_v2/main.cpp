@@ -75,6 +75,7 @@ void distributed_fft() {
   using buffer_extents_type = std::array<std::size_t, 5>;
   using axes_type           = std::array<int, 3>;
   using pencil_axes_type    = std::tuple<std::size_t, std::size_t>;
+  using paired_map_type     = std::tuple<map_type, map_type>;
   using LayoutType          = typename RealView4D::array_layout;
   map_type in_topology      = {Px, Py, 1, 1};  // Z-pencil
   map_type out_topology     = {1, Px, Py, 1};  // X-pencil
@@ -120,7 +121,7 @@ void distributed_fft() {
   map_type current_map = src_map;
   std::vector<buffer_extents_type> all_buffer_extents;
   std::vector<extents_type> all_pencil_extents;
-  std::vector<map_type> all_maps;
+  std::vector<paired_map_type> all_maps;
   std::vector<pencil_axes_type> all_pencil_axes;
   for (std::size_t i = 0; i < all_topologies.size(); i++) {
     // There are valid intermediate topology
@@ -137,9 +138,8 @@ void distributed_fft() {
           get_dst_map<Kokkos::LayoutRight, 4>(mid_map01, out_axis12);
       all_pencil_axes.push_back(pencil_axes_type{in_axis01, out_axis01});
       all_pencil_axes.push_back(pencil_axes_type{in_axis12, out_axis12});
-      all_maps.push_back(current_map);
-      all_maps.push_back(mid_map01);
-      all_maps.push_back(mid_map12);
+      all_maps.push_back(paired_map_type{current_map, mid_map01});
+      all_maps.push_back(paired_map_type{mid_map01, mid_map12});
 
       // Evaluate buffer extents based on the topology
       auto buffer_01_extents = get_buffer_extents<LayoutType>(
@@ -197,28 +197,30 @@ void distributed_fft() {
 
   // Z-pencil to Y-pencil transpose + local 1D FFTs along Y
   auto [in_axis0, out_axis0] = all_pencil_axes.at(0);
+  auto [in_map0, out_map0]   = all_maps.at(0);
   FFTForwardBlock fft_block_z2y(exec, in_hat, Ypencil, Ypencil, send_z2y,
-                                recv_z2y, all_maps.at(0), in_axis0,
-                                all_maps.at(1), out_axis0, col_comm);
+                                recv_z2y, in_map0, in_axis0, out_map0,
+                                out_axis0, col_comm);
   fft_block_z2y();
 
   // Y-pencil to X-pencil transpose + local 1D FFTs along X
   auto [in_axis1, out_axis1] = all_pencil_axes.at(1);
+  auto [in_map1, out_map1]   = all_maps.at(1);
   FFTForwardBlock fft_block_y2x(exec, Ypencil, Xpencil, Xpencil, send_y2x,
-                                recv_y2x, all_maps.at(1), in_axis1,
-                                all_maps.at(2), out_axis1, row_comm);
+                                recv_y2x, in_map1, in_axis1, out_map1,
+                                out_axis1, row_comm);
   fft_block_y2x();
 
   // Now, we will start the backward transforms
   // local 1D FFTs along X + X-pencil to Y-Pencil transpose
   FFTBackwardBlock fft_block_x2y(exec, Xpencil, Xpencil, Ypencil, send_y2x,
-                                 recv_y2x, all_maps.at(2), out_axis1,
-                                 all_maps.at(1), in_axis1, row_comm);
+                                 recv_y2x, out_map1, out_axis1, in_map1,
+                                 in_axis1, row_comm);
   fft_block_x2y();
 
   FFTBackwardBlock fft_block_y2z(exec, Ypencil, Ypencil, in_hat, send_z2y,
-                                 recv_z2y, all_maps.at(1), out_axis0,
-                                 all_maps.at(0), in_axis0, col_comm);
+                                 recv_z2y, out_map0, out_axis0, in_map0,
+                                 in_axis0, col_comm);
   fft_block_y2z();
 
   // do your local 1D FFTs along Z:
