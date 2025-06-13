@@ -192,6 +192,9 @@ void distributed_fft() {
       pencil_allocation.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(all_pencil_extents.at(1)));
 
+  // do your local 1D FFTs along Z:
+  KokkosFFT::rfft(exec, in, in_hat, KokkosFFT::Normalization::backward, 2);
+
   // Z-pencil to Y-pencil transpose + local 1D FFTs along Y
   auto [in_axis0, out_axis0] = all_pencil_axes.at(0);
   FFTForwardBlock fft_block_z2y(exec, in_hat, Ypencil, Ypencil, send_z2y,
