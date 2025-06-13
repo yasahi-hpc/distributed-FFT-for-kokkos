@@ -201,7 +201,10 @@ void distributed_fft() {
   FFTForwardBlock fft_block_z2y(exec, in_hat, Ypencil, Ypencil, send_z2y,
                                 recv_z2y, in_map0, in_axis0, out_map0,
                                 out_axis0, col_comm);
-  fft_block_z2y();
+
+  FFTBackwardBlock fft_block_y2z(exec, Ypencil, Ypencil, in_hat, send_z2y,
+                                 recv_z2y, out_map0, out_axis0, in_map0,
+                                 in_axis0, col_comm);
 
   // Y-pencil to X-pencil transpose + local 1D FFTs along X
   auto [in_axis1, out_axis1] = all_pencil_axes.at(1);
@@ -209,18 +212,18 @@ void distributed_fft() {
   FFTForwardBlock fft_block_y2x(exec, Ypencil, Xpencil, Xpencil, send_y2x,
                                 recv_y2x, in_map1, in_axis1, out_map1,
                                 out_axis1, row_comm);
-  fft_block_y2x();
 
-  // Now, we will start the backward transforms
   // local 1D FFTs along X + X-pencil to Y-Pencil transpose
   FFTBackwardBlock fft_block_x2y(exec, Xpencil, Xpencil, Ypencil, send_y2x,
                                  recv_y2x, out_map1, out_axis1, in_map1,
                                  in_axis1, row_comm);
-  fft_block_x2y();
 
-  FFTBackwardBlock fft_block_y2z(exec, Ypencil, Ypencil, in_hat, send_z2y,
-                                 recv_z2y, out_map0, out_axis0, in_map0,
-                                 in_axis0, col_comm);
+  fft_block_z2y();
+  fft_block_y2x();
+
+  // Now, we will start the backward transforms
+
+  fft_block_x2y();
   fft_block_y2z();
 
   // do your local 1D FFTs along Z:
