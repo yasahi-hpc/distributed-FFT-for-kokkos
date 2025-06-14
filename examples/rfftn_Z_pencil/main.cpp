@@ -85,11 +85,6 @@ void distributed_fft() {
   // do your local 1D FFTs along Z:
   KokkosFFT::rfft(exec, in, out, KokkosFFT::Normalization::backward, 2);
 
-  std::cout << "in.extents: " << in.extent(0) << ", " << in.extent(1) << ", "
-            << in.extent(2) << ", " << in.extent(3) << std::endl;
-  std::cout << "out.extents: " << out.extent(0) << ", " << out.extent(1) << ", "
-            << out.extent(2) << ", " << out.extent(3) << std::endl;
-
   // --- First transpose: Z‐pencils -> X‐pencils ---
   // (Nx/px, Ny/py, Nz) -> (Nz/px, Ny/py, Nx)
   // a) prepare for all‐to‐all in the row_comm

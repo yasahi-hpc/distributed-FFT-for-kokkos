@@ -9,6 +9,7 @@
 #include "Mapping.hpp"
 #include "MPI_Helper.hpp"
 #include "Extents.hpp"
+#include "Helper.hpp"
 
 using execution_space = Kokkos::DefaultExecutionSpace;
 template <typename T>
@@ -41,7 +42,6 @@ void distributed_fft() {
   // get my coords (px, py)
   int coords[2];
   ::MPI_Cart_coords(cart_comm, rank, 2, coords);
-  int px = coords[0], py = coords[1];
 
   // split into row‐ and col‐ communicators
   ::MPI_Comm row_comm, col_comm;
@@ -169,27 +169,28 @@ void distributed_fft() {
   // Allocate buffer views once
   ComplexView1D send_buffer_allocation("send_buffer_allocation", buffer_size),
       recv_buffer_allocation("recv_buffer_allocation", buffer_size);
-  ComplexView1D pencil_allocation("pencil_allocation", pencil_size);
+  ComplexView1D pencil_allocation("pencil_allocation", pencil_size),
+      pencil_allocation2("pencil_allocation2", pencil_size);
 
   // Unmanaged view using the allocation
   ComplexView5D send_z2y(
       send_buffer_allocation.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(all_buffer_extents.at(0)));
   ComplexView5D recv_z2y(
-      send_buffer_allocation.data(),
+      recv_buffer_allocation.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(all_buffer_extents.at(0)));
   ComplexView5D send_y2x(
       send_buffer_allocation.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(all_buffer_extents.at(1)));
   ComplexView5D recv_y2x(
-      send_buffer_allocation.data(),
+      recv_buffer_allocation.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(all_buffer_extents.at(1)));
 
   ComplexView4D Ypencil(
       pencil_allocation.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(all_pencil_extents.at(0)));
   ComplexView4D Xpencil(
-      pencil_allocation.data(),
+      pencil_allocation2.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(all_pencil_extents.at(1)));
 
   // do your local 1D FFTs along Z:
@@ -255,7 +256,7 @@ void distributed_fft() {
   }
 
   if (rank == 0) {
-    std::cout << "Distributed Z-pencil rFFT completed successfully!"
+    std::cout << "Distributed Z-pencil rFFT v2 completed successfully!"
               << std::endl;
   }
 

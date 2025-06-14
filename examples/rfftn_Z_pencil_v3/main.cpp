@@ -42,7 +42,6 @@ void distributed_fft() {
   // get my coords (px, py)
   int coords[2];
   ::MPI_Cart_coords(cart_comm, rank, 2, coords);
-  int px = coords[0], py = coords[1];
 
   // split into row‐ and col‐ communicators
   ::MPI_Comm row_comm, col_comm;
@@ -183,7 +182,8 @@ void distributed_fft() {
   // Allocate buffer views once
   ComplexView1D send_buffer_allocation("send_buffer_allocation", buffer_size),
       recv_buffer_allocation("recv_buffer_allocation", buffer_size);
-  ComplexView1D pencil_allocation("pencil_allocation", pencil_size);
+  ComplexView1D pencil_allocation("pencil_allocation", pencil_size),
+      pencil_allocation2("pencil_allocation2", pencil_size);
 
   // Using the loop to create plans
   std::vector<MPI_Comm> comms = {col_comm, row_comm};
@@ -193,9 +193,6 @@ void distributed_fft() {
   ComplexView4D in_pencil(
       "in_pencil", KokkosFFT::Impl::create_layout<LayoutType>(in_hat_extents));
 
-  // ComplexView4D in_pencil(
-  //     "in_pencil",
-  //     KokkosFFT::Impl::create_layout<LayoutType>(in_hat_extents));
   KokkosFFT::rfft(exec, in, in_pencil, KokkosFFT::Normalization::backward, 2);
 
   auto [in_extents0, out_extents0] = all_paired_extents.at(0);
@@ -230,7 +227,7 @@ void distributed_fft() {
       pencil_allocation.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(in_extents1));
   ComplexView4D out_pencil1(
-      pencil_allocation.data(),
+      pencil_allocation2.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(out_extents1));
   ComplexView5D send_buffer1(
       send_buffer_allocation.data(),
@@ -272,7 +269,7 @@ void distributed_fft() {
               Kokkos::abs(h_in(ix, iy, iz, ib) - h_in_ref(ix, iy, iz, ib)) /
               Kokkos::abs(h_in(ix, iy, iz, ib));
           if (relative_error > epsilon) {
-            std::cerr << "Error (ix, iy, iz, ib): " << ix << ", " << iy << ", "
+            std::cout << "Error (ix, iy, iz, ib): " << ix << ", " << iy << ", "
                       << iz << " @ rank" << rank << ", " << h_in(ix, iy, iz, ib)
                       << " != " << h_in_ref(ix, iy, iz, ib) << std::endl;
             return;
@@ -283,7 +280,7 @@ void distributed_fft() {
   }
 
   if (rank == 0) {
-    std::cout << "Distributed Z-pencil rFFT completed successfully!"
+    std::cout << "Distributed Z-pencil rFFT v3 completed successfully!"
               << std::endl;
   }
 
