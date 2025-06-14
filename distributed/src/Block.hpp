@@ -80,7 +80,7 @@ class FFTForwardBlock {
         m_plan(exec_space, fft_in, out, KokkosFFT::Direction::forward,
                KokkosFFT::Impl::get_index(dst_map, dst_axis)),
         m_block(exec_space, in, fft_in, send_buffer, recv_buffer, src_map,
-                src_axis, dst_map, src_axis, comm) {}
+                src_axis, dst_map, dst_axis, comm) {}
 
   void operator()() const {
     m_block();

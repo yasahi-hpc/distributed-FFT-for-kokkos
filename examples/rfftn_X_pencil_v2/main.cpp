@@ -6,6 +6,7 @@
 #include <Kokkos_Random.hpp>
 #include <KokkosFFT.hpp>
 #include "Block.hpp"
+#include "Helper.hpp"
 
 using execution_space = Kokkos::DefaultExecutionSpace;
 template <typename T>
@@ -38,7 +39,6 @@ void distributed_fft() {
   // get my coords (px, py)
   int coords[2];
   ::MPI_Cart_coords(cart_comm, rank, 2, coords);
-  int px = coords[0], py = coords[1];
 
   // split into row‐ and col‐ communicators
   ::MPI_Comm row_comm, col_comm;
@@ -89,20 +89,10 @@ void distributed_fft() {
   // --- First transpose: X‐pencils -> Y‐pencils ---
   // (Nx, Ny/px, Nz/py) -> (Nx/px, Nz/py, Ny)
   // a) prepare for all‐to‐all in the row_comm
-  int send_count =
-      nx_local * ny_local * nz_local * nbatch;  // each recv/send block size
 
   // We reuse these buffers for each all to all communications
   ComplexView5D send_x2y("send_x2y", Px, nx_local, ny_local, nz_local, nbatch);
   ComplexView5D recv_x2y("recv_x2y", Px, nx_local, ny_local, nz_local, nbatch);
-
-  using policy_type = Kokkos::MDRangePolicy<
-      execution_space,
-      Kokkos::Rank<4, Kokkos::Iterate::Default, Kokkos::Iterate::Default>,
-      Kokkos::IndexType<int>>;
-
-  policy_type policy_x2y(exec, {0, 0, 0, 0},
-                         {nx_local, ny_local, nz_local, nbatch}, {4, 4, 4, 1});
 
   // (gx, y, z, b) -> (p, x, y, z, b)
   // (p, x, y, z, b) -> (x, z, b, gy)
@@ -123,18 +113,14 @@ void distributed_fft() {
   // --- Second transpose: Y‐pencils -> Z‐pencils ---
   // (Nx/px, Nz/py, Ny) -> (Nx/px, Ny/py, Nz)
   // a) prepare for all-to-all in the col_comm
-  int send_count2 = nx_local * ny_local2 * nz_local * nbatch;
 
   ComplexView5D send_y2z("send_y2z", Py, nx_local, ny_local2, nz_local, nbatch);
   ComplexView5D recv_y2z("recv_y2z", Py, nx_local, ny_local2, nz_local, nbatch);
 
-  policy_type policy_y2z(exec, {0, 0, 0, 0},
-                         {nx_local, ny_local2, nz_local, nbatch}, {4, 4, 4, 1});
-
   // c) reshape back into Z-pencil
-  ComplexView4D in_Zpencil("in_Zpencil", nx_local, ny_local2, nbatch, nz);
+  ComplexView4D in_Zpencil("in_Zpencil", nx_local, nbatch, ny_local2, nz);
 
-  map_type zpencil_map = {0, 1, 3, 2};
+  map_type zpencil_map = {0, 3, 1, 2};
 
   Block block_y2z(exec, in_Ypencil, in_Zpencil, send_y2z, recv_y2z, dst_map, 1,
                   zpencil_map, 2, row_comm);
@@ -154,18 +140,12 @@ void distributed_fft() {
   ComplexView5D send_z2y("send_z2y", Py, nx_local, ny_local2, nz_local, nbatch);
   ComplexView5D recv_z2y("recv_z2y", Py, nx_local, ny_local2, nz_local, nbatch);
 
-  policy_type policy_z2y(exec, {0, 0, 0, 0},
-                         {nx_local, ny_local2, nz_local, nbatch}, {4, 4, 4, 1});
-
-  // c) reshape back into in_y
-  ComplexView4D in_Ypencil2("in_Ypencil2", nx_local, nz_local, nbatch, ny);
-
-  Block block_z2y(exec, in_Zpencil, in_Ypencil2, send_y2z, recv_y2z,
-                  zpencil_map, 2, dst_map, 1, row_comm);
+  Block block_z2y(exec, in_Zpencil, in_Ypencil, send_y2z, recv_y2z, zpencil_map,
+                  2, dst_map, 1, row_comm);
   block_z2y();
 
   // do your local 1D FFTs along Y:
-  KokkosFFT::ifft(exec, in_Ypencil2, in_Ypencil2,
+  KokkosFFT::ifft(exec, in_Ypencil, in_Ypencil,
                   KokkosFFT::Normalization::backward, -1);
 
   // --- Forth transpose: Y‐pencils -> X‐pencils ---
@@ -174,7 +154,7 @@ void distributed_fft() {
   ComplexView5D send_y2x("send_y2x", Px, nx_local, ny_local, nz_local, nbatch);
   ComplexView5D recv_y2x("recv_y2x", Px, nx_local, ny_local, nz_local, nbatch);
 
-  Block block_y2x(exec, in_Ypencil2, out, send_y2x, recv_y2x, dst_map, 1,
+  Block block_y2x(exec, in_Ypencil, out, send_y2x, recv_y2x, dst_map, 1,
                   src_map, 0, col_comm);
   block_y2x();
 
@@ -196,7 +176,7 @@ void distributed_fft() {
               Kokkos::abs(h_in(ix, iy, iz, ib) - h_in_ref(ix, iy, iz, ib)) /
               Kokkos::abs(h_in(ix, iy, iz, ib));
           if (relative_error > epsilon) {
-            std::cerr << "Error (ix, iy, iz, ib): " << ix << ", " << iy << ", "
+            std::cout << "Error (ix, iy, iz, ib): " << ix << ", " << iy << ", "
                       << iz << " @ rank" << rank << ", " << h_in(ix, iy, iz, ib)
                       << " != " << h_in_ref(ix, iy, iz, ib) << std::endl;
             return;
