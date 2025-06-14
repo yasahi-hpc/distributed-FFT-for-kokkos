@@ -136,7 +136,8 @@ void distributed_fft() {
 
   ComplexView1D send_buffer_allocation("send_buffer_allocation", buffer_size),
       recv_buffer_allocation("recv_buffer_allocation", buffer_size);
-  ComplexView1D pencil_allocation("pencil_allocation", pencil_size);
+  ComplexView1D pencil_allocation("pencil_allocation", pencil_size),
+      pencil_allocation2("pencil_allocation2", pencil_size);
 
   ComplexView5D send_x2y(
       send_buffer_allocation.data(),
@@ -155,7 +156,7 @@ void distributed_fft() {
       pencil_allocation.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(out_y_extents));
   ComplexView4D Zpencil(
-      pencil_allocation.data(),
+      pencil_allocation2.data(),
       KokkosFFT::Impl::create_layout<LayoutType>(out_z_extents));
 
   // X-pencil to Y-pencil transpose + local 1D FFTs along Y
@@ -214,7 +215,7 @@ void distributed_fft() {
   }
 
   if (rank == 0) {
-    std::cout << "Distributed X-pencil rFFT completed successfully!"
+    std::cout << "Distributed X-pencil rFFT v5 completed successfully!"
               << std::endl;
   }
 

@@ -5,8 +5,8 @@
 #include <Kokkos_Complex.hpp>
 #include <Kokkos_Random.hpp>
 #include <KokkosFFT.hpp>
-#include "Block.hpp"
 #include "Helper.hpp"
+#include "Block.hpp"
 
 using execution_space = Kokkos::DefaultExecutionSpace;
 template <typename T>
@@ -58,12 +58,12 @@ void distributed_fft() {
   // 2) Local block sizes for Z‐pencils
   int Px        = dims[0];
   int Py        = dims[1];
-  int nx_local  = ((nx / 2 + 1) - 1) / Px + 1;
-  int ny_local  = ny / Px;
-  int nz_local  = nz / Py;  // slice Z across Py
-  int ny_local2 = ny / Py;
+  int nx_local  = nx / Px;
+  int ny_local  = ny / Py;
+  int nz_local  = ((nz / 2 + 1) - 1) / Px + 1;  // slice Z across Py
+  int nx_local2 = nx / Py;
   int nbatch    = 5;
-  int nxh       = nx / 2 + 1;  // half size in X for real-to-complex FFT
+  int nzh       = nz / 2 + 1;  // half size in X for real-to-complex FFT
 
   using ComplexView3D = View3D<Kokkos::complex<double>>;
   using ComplexView4D = View4D<Kokkos::complex<double>>;
@@ -71,10 +71,10 @@ void distributed_fft() {
   using RealView3D    = View3D<double>;
   using RealView4D    = View4D<double>;
 
-  // Start: X-Pencil, End: Z-Pencil
-  RealView4D in("in", nx, ny_local, nz_local, nbatch),
-      in_ref("in_ref", nx, ny_local, nz_local, nbatch);
-  ComplexView4D out("out", nx / 2 + 1, ny_local, nz_local, nbatch);
+  // Start: Z-Pencil, End: Y-Pencil
+  RealView4D in("in", nx_local, ny_local, nz, nbatch),
+      in_ref("in_ref", nx_local, ny_local, nz, nbatch);
+  ComplexView4D out("out", nx_local, ny_local, nz / 2 + 1, nbatch);
 
   Kokkos::Random_XorShift64_Pool<> random_pool(12345);
   const double range = 1.0;
@@ -82,84 +82,72 @@ void distributed_fft() {
   Kokkos::fill_random(exec, in, random_pool, range);
   Kokkos::deep_copy(in_ref, in);
 
-  // FFT on X-pencil
-  // do your local 1D FFTs along X:
-  KokkosFFT::rfft(exec, in, out, KokkosFFT::Normalization::backward, 0);
+  // FFT on Z-pencil
+  // do your local 1D FFTs along Z:
+  KokkosFFT::rfft(exec, in, out, KokkosFFT::Normalization::backward, 2);
 
-  // --- First transpose: X‐pencils -> Y‐pencils ---
-  // (Nx, Ny/px, Nz/py) -> (Nx/px, Nz/py, Ny)
+  // --- First transpose: Z‐pencils -> X‐pencils ---
+  // (Nx/px, Ny/py, Nz) -> (Nz/px, Ny/py, Nx)
   // a) prepare for all‐to‐all in the row_comm
 
   // We reuse these buffers for each all to all communications
-  ComplexView5D send_x2y("send_x2y", Px, nx_local, ny_local, nz_local, nbatch);
-  ComplexView5D recv_x2y("recv_x2y", Px, nx_local, ny_local, nz_local, nbatch);
+  ComplexView5D send_z2x("send_z2x", Px, nx_local, ny_local, nz_local, nbatch);
+  ComplexView5D recv_z2x("recv_z2x", Px, nx_local, ny_local, nz_local, nbatch);
 
-  // (gx, y, z, b) -> (p, x, y, z, b)
-  // (p, x, y, z, b) -> (x, z, b, gy)
   using map_type   = std::array<std::size_t, 4>;
-  map_type src_map = {0, 1, 2, 3}, dst_map = {0, 2, 3, 1};
+  map_type src_map = {0, 1, 2, 3},
+           dst_map = {1, 2, 3, 0};  // Z-pencil to X-pencil
 
-  // c) reshape back into in_y
-  ComplexView4D in_Ypencil("in_Ypencil", nx_local, nz_local, nbatch, ny);
+  // (x, y, gz, b) -> (y, z, b, gx)
+  ComplexView4D in_Xpencil("in_Xpencil", ny_local, nz_local, nbatch, nx);
 
-  Block block_x2y(exec, out, in_Ypencil, send_x2y, recv_x2y, src_map, 0,
-                  dst_map, 1, col_comm);
+  Block block_z2x(exec, out, in_Xpencil, send_z2x, recv_z2x, src_map, 2,
+                  dst_map, 0, col_comm);
+  block_z2x();
+
+  // do your local 1D FFTs along X:
+  KokkosFFT::fft(exec, in_Xpencil, in_Xpencil,
+                 KokkosFFT::Normalization::backward, -1);
+
+  // --- Second transpose: X‐pencils -> Y‐pencils ---
+  // (Nz/px, Ny/py, Nx) -> (Nz/px, Nx/py, Ny)
+  // a) prepare for all-to-all in the col_comm
+  // (y, z, b, gx) -> (z, b, x, gy)
+  ComplexView4D in_Ypencil("in_Ypencil", nz_local, nbatch, nx_local2, ny);
+
+  ComplexView5D send_x2y(send_z2x.data(), Px, nx_local, ny_local, nz_local,
+                         nbatch);
+  ComplexView5D recv_x2y(recv_z2x.data(), Px, nx_local, ny_local, nz_local,
+                         nbatch);
+
+  map_type ypencil_map = {2, 3, 0, 1};
+
+  Block block_x2y(exec, in_Xpencil, in_Ypencil, send_x2y, recv_x2y, dst_map, 0,
+                  ypencil_map, 1, row_comm);
   block_x2y();
 
   // do your local 1D FFTs along Y:
   KokkosFFT::fft(exec, in_Ypencil, in_Ypencil,
                  KokkosFFT::Normalization::backward, -1);
 
-  // --- Second transpose: Y‐pencils -> Z‐pencils ---
-  // (Nx/px, Nz/py, Ny) -> (Nx/px, Ny/py, Nz)
-  // a) prepare for all-to-all in the col_comm
-
-  ComplexView5D send_y2z("send_y2z", Py, nx_local, ny_local2, nz_local, nbatch);
-  ComplexView5D recv_y2z("recv_y2z", Py, nx_local, ny_local2, nz_local, nbatch);
-
-  // c) reshape back into Z-pencil
-  ComplexView4D in_Zpencil("in_Zpencil", nx_local, nbatch, ny_local2, nz);
-
-  map_type zpencil_map = {0, 3, 1, 2};
-
-  Block block_y2z(exec, in_Ypencil, in_Zpencil, send_y2z, recv_y2z, dst_map, 1,
-                  zpencil_map, 2, row_comm);
-  block_y2z();
-
-  // do your local 1D FFTs along Z:
-  KokkosFFT::fft(exec, in_Zpencil, in_Zpencil,
-                 KokkosFFT::Normalization::backward, -1);
-
   // Now, we will start the backward transforms
-  KokkosFFT::ifft(exec, in_Zpencil, in_Zpencil,
-                  KokkosFFT::Normalization::backward, -1);
-
-  // --- Third transpose: Z‐pencils -> Y‐pencils ---
-  // (Nx/px, Ny/py, Nz) -> (Nx/px, Nz/py, Ny)
-  // a) prepare for all-to-all in the col_comm
-  ComplexView5D send_z2y("send_z2y", Py, nx_local, ny_local2, nz_local, nbatch);
-  ComplexView5D recv_z2y("recv_z2y", Py, nx_local, ny_local2, nz_local, nbatch);
-
-  Block block_z2y(exec, in_Zpencil, in_Ypencil, send_y2z, recv_y2z, zpencil_map,
-                  2, dst_map, 1, row_comm);
-  block_z2y();
-
-  // do your local 1D FFTs along Y:
   KokkosFFT::ifft(exec, in_Ypencil, in_Ypencil,
                   KokkosFFT::Normalization::backward, -1);
 
-  // --- Forth transpose: Y‐pencils -> X‐pencils ---
-  // (Nx/px, Nz/py, Ny) -> (Nx, Ny/px, Nz/py)
-  // a) prepare for all‐to‐all in the row_comm
-  ComplexView5D send_y2x("send_y2x", Px, nx_local, ny_local, nz_local, nbatch);
-  ComplexView5D recv_y2x("recv_y2x", Px, nx_local, ny_local, nz_local, nbatch);
-
-  Block block_y2x(exec, in_Ypencil, out, send_y2x, recv_y2x, dst_map, 1,
-                  src_map, 0, col_comm);
+  Block block_y2x(exec, in_Ypencil, in_Xpencil, send_x2y, recv_x2y, ypencil_map,
+                  1, dst_map, 0, row_comm);
   block_y2x();
 
-  // do your local 1D FFTs along X:
-  KokkosFFT::irfft(exec, out, in, KokkosFFT::Normalization::backward, 0);
+  // Do your local 1D FFTs along X:
+  KokkosFFT::ifft(exec, in_Xpencil, in_Xpencil,
+                  KokkosFFT::Normalization::backward, -1);
+
+  Block block_x2z(exec, in_Xpencil, out, send_z2x, recv_z2x, dst_map, 0,
+                  src_map, 2, col_comm);
+  block_x2z();
+
+  // do your local 1D FFTs along Z:
+  KokkosFFT::irfft(exec, out, in, KokkosFFT::Normalization::backward, 2);
   exec.fence();
 
   // Check results
@@ -167,10 +155,10 @@ void distributed_fft() {
   auto h_in_ref =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), in_ref);
   const double epsilon = 1.e-8;
-  for (int ib = 0; ib < nbatch; ++ib) {
-    for (int iz = 0; iz < nz_local; ++iz) {
-      for (int iy = 0; iy < ny_local; ++iy) {
-        for (int ix = 0; ix < nx; ++ix) {
+  for (int ib = 0; ib < h_in.extent(3); ++ib) {
+    for (int iz = 0; iz < h_in.extent(2); ++iz) {
+      for (int iy = 0; iy < h_in.extent(1); ++iy) {
+        for (int ix = 0; ix < h_in.extent(0); ++ix) {
           if (Kokkos::abs(h_in(ix, iy, iz, ib)) <= epsilon) continue;
           auto relative_error =
               Kokkos::abs(h_in(ix, iy, iz, ib) - h_in_ref(ix, iy, iz, ib)) /
@@ -187,7 +175,7 @@ void distributed_fft() {
   }
 
   if (rank == 0) {
-    std::cout << "Distributed X-pencil rFFT v2 completed successfully!"
+    std::cout << "Distributed Z-pencil rFFT v1 completed successfully!"
               << std::endl;
   }
 

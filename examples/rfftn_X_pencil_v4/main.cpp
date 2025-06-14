@@ -180,7 +180,7 @@ void distributed_fft() {
               Kokkos::abs(h_in(ix, iy, iz, ib) - h_in_ref(ix, iy, iz, ib)) /
               Kokkos::abs(h_in(ix, iy, iz, ib));
           if (relative_error > epsilon) {
-            std::cerr << "Error (ix, iy, iz, ib): " << ix << ", " << iy << ", "
+            std::cout << "Error (ix, iy, iz, ib): " << ix << ", " << iy << ", "
                       << iz << " @ rank" << rank << ", " << h_in(ix, iy, iz, ib)
                       << " != " << h_in_ref(ix, iy, iz, ib) << std::endl;
             return;
@@ -191,7 +191,7 @@ void distributed_fft() {
   }
 
   if (rank == 0) {
-    std::cout << "Distributed X-pencil rFFT completed successfully!"
+    std::cout << "Distributed X-pencil rFFT v4 completed successfully!"
               << std::endl;
   }
 

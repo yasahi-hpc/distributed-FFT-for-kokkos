@@ -5,6 +5,7 @@
 #include <Kokkos_Complex.hpp>
 #include <Kokkos_Random.hpp>
 #include <KokkosFFT.hpp>
+#include "Helper.hpp"
 
 using execution_space = Kokkos::DefaultExecutionSpace;
 template <typename T>
@@ -37,7 +38,6 @@ void distributed_fft() {
   // get my coords (px, py)
   int coords[2];
   ::MPI_Cart_coords(cart_comm, rank, 2, coords);
-  int px = coords[0], py = coords[1];
 
   // split into row‐ and col‐ communicators
   ::MPI_Comm row_comm, col_comm;
@@ -84,6 +84,11 @@ void distributed_fft() {
   // FFT on Z-pencil
   // do your local 1D FFTs along Z:
   KokkosFFT::rfft(exec, in, out, KokkosFFT::Normalization::backward, 2);
+
+  std::cout << "in.extents: " << in.extent(0) << ", " << in.extent(1) << ", "
+            << in.extent(2) << ", " << in.extent(3) << std::endl;
+  std::cout << "out.extents: " << out.extent(0) << ", " << out.extent(1) << ", "
+            << out.extent(2) << ", " << out.extent(3) << std::endl;
 
   // --- First transpose: Z‐pencils -> X‐pencils ---
   // (Nx/px, Ny/py, Nz) -> (Nz/px, Ny/py, Nx)
@@ -275,7 +280,7 @@ void distributed_fft() {
   }
 
   if (rank == 0) {
-    std::cout << "Distributed Z-pencil rFFT completed successfully!"
+    std::cout << "Distributed Z-pencil rFFT v0 completed successfully!"
               << std::endl;
   }
 
