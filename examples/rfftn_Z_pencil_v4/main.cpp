@@ -42,7 +42,6 @@ void distributed_fft() {
   // get my coords (px, py)
   int coords[2];
   ::MPI_Cart_coords(cart_comm, rank, 2, coords);
-  int px = coords[0], py = coords[1];
 
   // split into row‐ and col‐ communicators
   ::MPI_Comm row_comm, col_comm;

@@ -33,6 +33,23 @@ struct All2All {
     ::MPI_Alltoall(m_send.data(), m_send_count, mpi_data_type, m_recv.data(),
                    m_send_count, mpi_data_type, m_comm);
   }
+
+  // void operator()(const ViewType& send, const ViewType& recv) const {
+  //   auto send_extents = KokkosFFT::Impl::extract_extents(send);
+  //   auto recv_extents = KokkosFFT::Impl::extract_extents(recv);
+  //
+  //   KOKKOSFFT_THROW_IF(send_extents != m_send_extents,
+  //                      "extents of input View for plan and "
+  //                      "execution are not identical.");
+  //
+  //   KOKKOSFFT_THROW_IF(recv_extents != m_recv_extents,
+  //                      "extents of output View for plan and "
+  //                      "execution are not identical.");
+  //
+  //   MPI_Datatype mpi_data_type = MPIDataType<value_type>::type();
+  //   ::MPI_Alltoall(send.data(), m_send_count, mpi_data_type, recv.data(),
+  //                  m_send_count, mpi_data_type, m_comm);
+  // }
 };
 
 #endif
