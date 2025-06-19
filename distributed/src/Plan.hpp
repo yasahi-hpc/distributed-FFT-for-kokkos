@@ -36,8 +36,6 @@ class Plan {
   using paired_extents_type = std::tuple<extents_type, extents_type>;
   using paired_data_type    = std::tuple<complex_type*, complex_type*>;
   using LayoutType          = typename InViewType::array_layout;
-  // using pencil_metadata_type = std::tuple<extents_type, extents_type,
-  // complex_type*, complex_type*>;
 
   using FFTViewType =
       Kokkos::View<fft_data_type, typename InViewType::array_layout,
@@ -67,8 +65,6 @@ class Plan {
   OutViewType m_out;
   AllocationViewType m_send_buffer_allocation;
   AllocationViewType m_recv_buffer_allocation;
-  // AllocationViewType m_pencil_allocation0;
-  // AllocationViewType m_pencil_allocation1;
 
   axes_type m_axes;
   int_map_type m_map_forward, m_map_backward;
@@ -76,11 +72,6 @@ class Plan {
   topology_type m_out_topology;
   MPI_Comm m_comm;
   extents_type m_in_extents, m_out_extents;
-
-  // std::vector<std::unique_ptr<FFTForwardBlockType>> m_forward_blocks;
-  // std::vector<std::unique_ptr<FFTBackwardBlockType>> m_backward_blocks;
-  // std::vector<pencil_metadata_type> m_forward_metadata;
-  // std::vector<pencil_metadata_type> m_backward_metadata;
 
   std::unique_ptr<FFTForwardBlockType> m_forward0;
   std::unique_ptr<FFTForwardBlockType> m_forward1;
@@ -109,9 +100,6 @@ class Plan {
 
   void forward(const InViewType& in, const OutViewType& out) {
     good(in, out);
-
-    // This part should be fixed
-    // forward_block should directly modify out
     KokkosFFT::execute(*m_forward_plan, in, m_pencil0);
 
     // First transpose + FFT
@@ -121,13 +109,11 @@ class Plan {
     (*m_forward1)(m_pencil1, m_pencil2);
 
     safe_transpose(m_exec_space, m_pencil2, out, m_map_forward);
-    // KokkosFFT::Impl::transpose(m_exec_space, m_pencil2, out, m_map_forward);
   }
 
   void backward(const OutViewType& out, const InViewType& in) {
     good(in, out);
     safe_transpose(m_exec_space, out, m_pencil2, m_map_backward);
-    // KokkosFFT::Impl::transpose(m_exec_space, out, m_pencil2, m_map_backward);
 
     // First IFFT + transpose
     (*m_backward1)(m_pencil2, m_pencil1);
@@ -212,17 +198,12 @@ class Plan {
 
     // Get the required buffer and pencil sizes
     auto buffer_size = get_required_allocation_size(all_buffer_extents);
-    // auto pencil_size = get_required_allocation_size(all_pencil_extents);
 
     // Allocate buffer views
     m_send_buffer_allocation =
         AllocationViewType("send_buffer_allocation", buffer_size);
     m_recv_buffer_allocation =
         AllocationViewType("recv_buffer_allocation", buffer_size);
-    // m_pencil_allocation0 =
-    //     AllocationViewType("pencil_allocation0", pencil_size);
-    // m_pencil_allocation1 =
-    //     AllocationViewType("pencil_allocation1", pencil_size);
 
     m_pencil0 = FFTViewType(
         "pencil0", KokkosFFT::Impl::create_layout<LayoutType>(in_hat_extents));
@@ -262,36 +243,6 @@ class Plan {
     ::MPI_Cart_sub(cart_comm, remain_dims, &col_comm);
 
     std::vector<MPI_Comm> comms = {col_comm, row_comm};
-
-    /*
-    for (std::size_t i = 0; i < all_buffer_extents.size(); i++) {
-      auto [in_extents, out_extents] = all_paired_extents.at(i);
-      auto [in_data, out_data]       = all_paired_data.at(i);
-      auto [in_axis, out_axis]       = all_pencil_axes.at(i);
-      auto [in_map, out_map]         = all_maps.at(i);
-
-      // Make unmanaged view using the allocation
-      FFTViewType in_pencil(
-          in_data, KokkosFFT::Impl::create_layout<LayoutType>(in_extents));
-      FFTViewType out_pencil(
-          out_data, KokkosFFT::Impl::create_layout<LayoutType>(out_extents));
-
-      BufferViewType send_buffer(
-          m_send_buffer_allocation.data(),
-          KokkosFFT::Impl::create_layout<LayoutType>(all_buffer_extents.at(i)));
-      BufferViewType recv_buffer(
-          m_recv_buffer_allocation.data(),
-          KokkosFFT::Impl::create_layout<LayoutType>(all_buffer_extents.at(i)));
-
-      // Make a plan
-      m_forward_blocks.push_back(std::make_unique<FFTForwardBlockType>(
-          m_exec_space, in_pencil, out_pencil, out_pencil, send_buffer,
-          recv_buffer, in_map, in_axis, out_map, out_axis, comms.at(i)));
-      m_backward_blocks.push_back(std::make_unique<FFTBackwardBlockType>(
-          m_exec_space, out_pencil, out_pencil, in_pencil, send_buffer,
-          recv_buffer, out_map, out_axis, in_map, in_axis, comms.at(i)));
-    }
-    */
 
     // Make blocks
     BufferViewType send_buffer0(
