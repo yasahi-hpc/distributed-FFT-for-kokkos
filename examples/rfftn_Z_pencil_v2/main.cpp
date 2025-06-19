@@ -219,13 +219,13 @@ void distributed_fft() {
                                  recv_y2x, out_map1, out_axis1, in_map1,
                                  in_axis1, row_comm);
 
-  fft_block_z2y();
-  fft_block_y2x();
+  fft_block_z2y(in_hat, Ypencil);
+  fft_block_y2x(Ypencil, Xpencil);
 
   // Now, we will start the backward transforms
 
-  fft_block_x2y();
-  fft_block_y2z();
+  fft_block_x2y(Xpencil, Ypencil);
+  fft_block_y2z(Ypencil, in_hat);
 
   // do your local 1D FFTs along Z:
   KokkosFFT::irfft(exec, in_hat, in, KokkosFFT::Normalization::backward, 2);

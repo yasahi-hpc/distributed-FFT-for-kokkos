@@ -140,11 +140,15 @@ void test_buffer_extents() {
 
   buffer_extents_type ref_buffer_01, ref_buffer_12;
   if (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-    ref_buffer_01 = {n0 / p0, n1 / p0, n2 / p1, n3, p0};
-    ref_buffer_12 = {n0 / p0, n1 / p1, n2 / p1, n3, p1};
+    ref_buffer_01 = {(n0 - 1) / p0 + 1, (n1 - 1) / p0 + 1, (n2 - 1) / p1 + 1,
+                     n3, p0};
+    ref_buffer_12 = {(n0 - 1) / p0 + 1, (n1 - 1) / p1 + 1, (n2 - 1) / p1 + 1,
+                     n3, p1};
   } else {
-    ref_buffer_01 = {p0, n0 / p0, n1 / p0, n2 / p1, n3};
-    ref_buffer_12 = {p1, n0 / p0, n1 / p1, n2 / p1, n3};
+    ref_buffer_01 = {p0, (n0 - 1) / p0 + 1, (n1 - 1) / p0 + 1,
+                     (n2 - 1) / p1 + 1, n3};
+    ref_buffer_12 = {p1, (n0 - 1) / p0 + 1, (n1 - 1) / p1 + 1,
+                     (n2 - 1) / p1 + 1, n3};
   }
 
   buffer_extents_type buffer_01 =
@@ -189,9 +193,9 @@ void test_next_extents() {
   topology_type topology2 = {p0, p1, 1, 1};
   map_type map2           = {0, 3, 1, 2};
 
-  extents_type ref_next_0{n0, n1 / p0, n2 / p1, n3};
-  extents_type ref_next_1{n0 / p0, n2 / p1, n3, n1};
-  extents_type ref_next_2{n0 / p0, n3, n1 / p1, n2};
+  extents_type ref_next_0{n0, (n1 - 1) / p0 + 1, (n2 - 1) / p1 + 1, n3};
+  extents_type ref_next_1{(n0 - 1) / p0 + 1, (n2 - 1) / p1 + 1, n3, n1};
+  extents_type ref_next_2{(n0 - 1) / p0 + 1, n3, (n1 - 1) / p1 + 1, n2};
 
   extents_type next_0 = get_next_extents(extents, topology0, map0);
   extents_type next_1 = get_next_extents(extents, topology1, map1);

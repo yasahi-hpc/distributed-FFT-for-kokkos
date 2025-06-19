@@ -74,7 +74,7 @@ void distributed_fft() {
   // Start: Z-Pencil, End: Y-Pencil
   RealView4D in("in", nx_local, ny_local, nz, nbatch),
       in_ref("in_ref", nx_local, ny_local, nz, nbatch);
-  ComplexView4D out("out", nx_local, ny_local, nz / 2 + 1, nbatch);
+  ComplexView4D out("out", nx_local, ny_local, nzh, nbatch);
 
   Kokkos::Random_XorShift64_Pool<> random_pool(12345);
   const double range = 1.0;
@@ -103,7 +103,7 @@ void distributed_fft() {
 
   Block block_z2x(exec, out, in_Xpencil, send_z2x, recv_z2x, src_map, 2,
                   dst_map, 0, col_comm);
-  block_z2x();
+  block_z2x(out, in_Xpencil);
 
   // do your local 1D FFTs along X:
   KokkosFFT::fft(exec, in_Xpencil, in_Xpencil,
@@ -124,7 +124,7 @@ void distributed_fft() {
 
   Block block_x2y(exec, in_Xpencil, in_Ypencil, send_x2y, recv_x2y, dst_map, 0,
                   ypencil_map, 1, row_comm);
-  block_x2y();
+  block_x2y(in_Xpencil, in_Ypencil);
 
   // do your local 1D FFTs along Y:
   KokkosFFT::fft(exec, in_Ypencil, in_Ypencil,
@@ -136,7 +136,7 @@ void distributed_fft() {
 
   Block block_y2x(exec, in_Ypencil, in_Xpencil, send_x2y, recv_x2y, ypencil_map,
                   1, dst_map, 0, row_comm);
-  block_y2x();
+  block_y2x(in_Ypencil, in_Xpencil);
 
   // Do your local 1D FFTs along X:
   KokkosFFT::ifft(exec, in_Xpencil, in_Xpencil,
@@ -144,7 +144,7 @@ void distributed_fft() {
 
   Block block_x2z(exec, in_Xpencil, out, send_z2x, recv_z2x, dst_map, 0,
                   src_map, 2, col_comm);
-  block_x2z();
+  block_x2z(in_Xpencil, out);
 
   // do your local 1D FFTs along Z:
   KokkosFFT::irfft(exec, out, in, KokkosFFT::Normalization::backward, 2);

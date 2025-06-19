@@ -211,7 +211,8 @@ void compute_derivative(const int nx, const int ny, const int nz,
   map_type src_xpencil_map = {0, 1, 2};
   pack(exec, ux_hat, send_buffer, src_xpencil_map, 2);
   exec.fence();
-  All2All<execution_space, ComplexView4D>(send_buffer, recv_buffer)();
+  All2All<execution_space, ComplexView4D> all2all(send_buffer, recv_buffer);
+  all2all(send_buffer, recv_buffer);
   unpack(exec, recv_buffer, uxy_hat, src_xpencil_map, 1);
 
   // Forward transform uxy_hat -> uxy_hat (=FFT (ux_hat))
@@ -244,7 +245,9 @@ void compute_derivative(const int nx, const int ny, const int nz,
   // Pack data into send buffer
   pack(exec, uxy_hat, send_buffer, src_xpencil_map, 1);
   exec.fence();
-  All2All<execution_space, ComplexView4D>(send_buffer, recv_buffer)();
+  // All2All<execution_space, ComplexView4D> all2all(send_buffer, recv_buffer);
+  all2all(send_buffer, recv_buffer);
+
   unpack(exec, recv_buffer, ux_hat, src_xpencil_map, 2);
 
   // Backward transform ux_hat -> u (=IFFT (u_hat))

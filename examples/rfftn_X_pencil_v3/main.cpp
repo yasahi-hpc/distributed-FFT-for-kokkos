@@ -57,14 +57,14 @@ void distributed_fft() {
   ::MPI_Cart_sub(cart_comm, remain_dims, &col_comm);
 
   // 2) Local block sizes for Z‐pencils
-  int Px        = dims[0];
-  int Py        = dims[1];
-  int nx_local  = ((nx / 2 + 1) - 1) / Px + 1;
-  int ny_local  = ny / Px;
-  int nz_local  = nz / Py;  // slice Z across Py
-  int ny_local2 = ny / Py;
-  int nbatch    = 5;
-  int nxh       = nx / 2 + 1;  // half size in X for real-to-complex FFT
+  std::size_t Px        = dims[0];
+  std::size_t Py        = dims[1];
+  std::size_t nx_local  = ((nx / 2 + 1) - 1) / Px + 1;
+  std::size_t ny_local  = ny / Px;
+  std::size_t nz_local  = nz / Py;  // slice Z across Py
+  std::size_t ny_local2 = ny / Py;
+  std::size_t nbatch    = 5;
+  std::size_t nxh       = nx / 2 + 1;  // half size in X for real-to-complex FFT
 
   using ComplexView3D = View3D<Kokkos::complex<double>>;
   using ComplexView4D = View4D<Kokkos::complex<double>>;
@@ -75,7 +75,7 @@ void distributed_fft() {
   // Start: X-Pencil, End: Z-Pencil
   RealView4D in("in", nx, ny_local, nz_local, nbatch),
       in_ref("in_ref", nx, ny_local, nz_local, nbatch);
-  ComplexView4D out("out", nx / 2 + 1, ny_local, nz_local, nbatch);
+  ComplexView4D out("out", nxh, ny_local, nz_local, nbatch);
 
   Kokkos::Random_XorShift64_Pool<> random_pool(12345);
   const double range = 1.0;
@@ -115,7 +115,7 @@ void distributed_fft() {
   FFTForwardBlock fft_block_x2y(exec, out, in_Ypencil, in_Ypencil, send_x2y,
                                 recv_x2y, src_map, in_axis01, dst_map,
                                 out_axis01, col_comm);
-  fft_block_x2y();
+  fft_block_x2y(out, in_Ypencil);
 
   // FFT on Y-pencil (Px, 1, Py, 1) -> (Px, Py, 1, 1)
   // Y-pencil to Z-Pencil transpose + local 1D FFTs along Z
@@ -133,7 +133,7 @@ void distributed_fft() {
   FFTForwardBlock fft_block_y2z(exec, in_Ypencil, in_Zpencil, in_Zpencil,
                                 send_y2z, recv_y2z, dst_map, out_axis01,
                                 zpencil_map, out_axis12, row_comm);
-  fft_block_y2z();
+  fft_block_y2z(in_Ypencil, in_Zpencil);
 
   // Now, we will start the backward transforms
   // --- Third transpose: Z‐pencils -> Y‐pencils ---
@@ -142,7 +142,7 @@ void distributed_fft() {
   FFTBackwardBlock fft_block_z2y(exec, in_Zpencil, in_Zpencil, in_Ypencil,
                                  send_y2z, recv_y2z, zpencil_map, out_axis12,
                                  dst_map, out_axis01, row_comm);
-  fft_block_z2y();
+  fft_block_z2y(in_Zpencil, in_Ypencil);
 
   // do your local 1D FFTs along Y:
   // FFT on Y-pencil (Px, 1, Py, 1) -> (Px, Py, 1, 1)
@@ -150,7 +150,7 @@ void distributed_fft() {
   FFTBackwardBlock fft_block_y2x(exec, in_Ypencil, in_Ypencil, out, send_x2y,
                                  recv_x2y, dst_map, out_axis01, src_map,
                                  in_axis01, col_comm);
-  fft_block_y2x();
+  fft_block_y2x(in_Ypencil, out);
 
   // do your local 1D FFTs along X:
   KokkosFFT::irfft(exec, out, in, KokkosFFT::Normalization::backward, 0);
@@ -161,10 +161,10 @@ void distributed_fft() {
   auto h_in_ref =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), in_ref);
   const double epsilon = 1.e-8;
-  for (int ib = 0; ib < nbatch; ++ib) {
-    for (int iz = 0; iz < nz_local; ++iz) {
-      for (int iy = 0; iy < ny_local; ++iy) {
-        for (int ix = 0; ix < nx; ++ix) {
+  for (int ib = 0; ib < h_in.extent(3); ++ib) {
+    for (int iz = 0; iz < h_in.extent(2); ++iz) {
+      for (int iy = 0; iy < h_in.extent(1); ++iy) {
+        for (int ix = 0; ix < h_in.extent(0); ++ix) {
           if (Kokkos::abs(h_in(ix, iy, iz, ib)) <= epsilon) continue;
           auto relative_error =
               Kokkos::abs(h_in(ix, iy, iz, ib) - h_in_ref(ix, iy, iz, ib)) /

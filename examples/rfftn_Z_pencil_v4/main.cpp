@@ -206,7 +206,6 @@ void distributed_fft() {
     auto [in_map, out_map]         = all_maps.at(i);
 
     // Make unmanaged view using the allocation
-    // auto data = i==0 ? fft_buffer.data() : pencil_allocation.data();
     ComplexView4D in_pencil(
         in_data, KokkosFFT::Impl::create_layout<LayoutType>(in_extents));
     ComplexView4D out_pencil(
@@ -228,18 +227,42 @@ void distributed_fft() {
         out_map, out_axis, in_map, in_axis, comms.at(i)));
   }
 
-  // Backward operation order should be reversed
-  std::reverse(backward_blocks.begin(), backward_blocks.end());
-
   // Perform FFTs
   // do your local 1D FFTs along Z:
   KokkosFFT::rfft(exec, in, fft_buffer, KokkosFFT::Normalization::backward, 2);
 
-  for (const auto& forward_block : forward_blocks) {
-    (*forward_block)();
+  // Forward plan execution
+  for (std::size_t i = 0; i < all_buffer_extents.size(); i++) {
+    auto [in_extents, out_extents] = all_paired_extents.at(i);
+    auto [in_data, out_data]       = all_paired_data.at(i);
+
+    // Make unmanaged view using the allocation
+    ComplexView4D in_pencil(
+        in_data, KokkosFFT::Impl::create_layout<LayoutType>(in_extents));
+    ComplexView4D out_pencil(
+        out_data, KokkosFFT::Impl::create_layout<LayoutType>(out_extents));
+
+    // Execute a plan
+    (*(forward_blocks.at(i)))(in_pencil, out_pencil);
   }
-  for (const auto& backward_block : backward_blocks) {
-    (*backward_block)();
+
+  // Backward plan execution
+  // Backward operation order should be reversed
+  std::reverse(backward_blocks.begin(), backward_blocks.end());
+  std::reverse(all_paired_extents.begin(), all_paired_extents.end());
+  std::reverse(all_paired_data.begin(), all_paired_data.end());
+  for (std::size_t i = 0; i < all_buffer_extents.size(); i++) {
+    auto [in_extents, out_extents] = all_paired_extents.at(i);
+    auto [in_data, out_data]       = all_paired_data.at(i);
+
+    // Make unmanaged view using the allocation
+    ComplexView4D in_pencil(
+        in_data, KokkosFFT::Impl::create_layout<LayoutType>(in_extents));
+    ComplexView4D out_pencil(
+        out_data, KokkosFFT::Impl::create_layout<LayoutType>(out_extents));
+
+    // Execute a plan
+    (*(backward_blocks.at(i)))(out_pencil, in_pencil);
   }
 
   // do your local 1D FFTs along Z:

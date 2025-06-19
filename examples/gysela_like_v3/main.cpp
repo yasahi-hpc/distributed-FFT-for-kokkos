@@ -63,7 +63,7 @@ void distributed_fft() {
 
   Block forward_block(exec, phi, phi_full, send_buffer, recv_buffer, src_map, 1,
                       dst_map, 2, MPI_COMM_WORLD);
-  forward_block();
+  forward_block(phi, phi_full);
 
   // Do FFT along phi direction
   KokkosFFT::rfft(exec, phi_full, phi_hat, KokkosFFT::Normalization::backward,
@@ -75,7 +75,7 @@ void distributed_fft() {
 
   Block backward_block(exec, phi_full, phi, send_buffer, recv_buffer, src_map,
                        2, dst_map, 1, MPI_COMM_WORLD);
-  backward_block();
+  backward_block(phi_full, phi);
 
   exec.fence();
 

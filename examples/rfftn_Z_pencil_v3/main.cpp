@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <memory>
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
@@ -125,7 +126,6 @@ void distributed_fft() {
   map_type current_map         = src_map;
   std::vector<buffer_extents_type> all_buffer_extents;
   std::vector<extents_type> all_pencil_extents;
-  // std::vector<map_type> all_maps;
   std::vector<paired_map_type> all_maps;
   std::vector<pencil_axes_type> all_pencil_axes;
   std::vector<paired_extents_type> all_paired_extents;
@@ -243,13 +243,28 @@ void distributed_fft() {
                                  send_buffer1, recv_buffer1, out_map1,
                                  out_axis1, in_map1, in_axis1, comms.at(1));
 
-  fft_block_z2y();
-  fft_block_y2x();
+  fft_block_z2y(in_pencil, out_pencil0);
+  fft_block_y2x(in_pencil1, out_pencil1);
+
+  std::stringstream ss;
+  ss << "in_pencil0: " << in_pencil0.extent(0) << "x" << in_pencil0.extent(1)
+     << "x" << in_pencil0.extent(2) << "x" << in_pencil0.extent(3)
+     << ", out_pencil0: " << out_pencil0.extent(0) << "x"
+     << out_pencil0.extent(1) << "x" << out_pencil0.extent(2) << "x"
+     << out_pencil0.extent(3);
+  ss << ", in_pencil1: " << in_pencil1.extent(0) << "x" << in_pencil1.extent(1)
+     << "x" << in_pencil1.extent(2) << "x" << in_pencil1.extent(3)
+     << ", out_pencil1: " << out_pencil1.extent(0) << "x"
+     << out_pencil1.extent(1) << "x" << out_pencil1.extent(2) << "x"
+     << out_pencil1.extent(3);
+  ss << ", out: " << out.extent(0) << "x" << out.extent(1) << "x"
+     << out.extent(2) << "x" << out.extent(3);
+  std::cout << "Distributed Z-pencil rFFT v3: " << ss.str() << std::endl;
 
   // Now, we will start the backward transforms
 
-  fft_block_x2y();
-  fft_block_y2z();
+  fft_block_x2y(out_pencil1, in_pencil1);
+  fft_block_y2z(out_pencil0, in_pencil);
 
   // do your local 1D FFTs along Z:
   KokkosFFT::irfft(exec, in_pencil, in, KokkosFFT::Normalization::backward, 2);

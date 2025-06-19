@@ -77,7 +77,6 @@ void distributed_fft() {
   map_type in_topology  = {1, Px, Py, 1};  // X-pencil
   map_type out_topology = {Px, Py, 1, 1};  // Z-pencil
   map_type src_map      = {0, 1, 2, 3};
-  axes_type axes{0, 1, 2};  // axes for the FFTs
 
   // Start: X-Pencil, End: Z-Pencil
   // Global shape (nx, ny, nz, nbatch) -> (nx/2+1, ny, nz, nbatch)
@@ -126,7 +125,7 @@ void distributed_fft() {
   FFTForwardBlock fft_block_x2y(exec, out_x, Ypencil, Ypencil, send_x2y,
                                 recv_x2y, src_map, in_axis01, mid_map,
                                 out_axis01, col_comm);
-  fft_block_x2y();
+  fft_block_x2y(out_x, Ypencil);
 
   // Y-pencil to Z-pencil transpose + local 1D FFTs along Z
   auto [in_axis12, out_axis12] = get_pencil(mid_topology, out_topology);
@@ -146,7 +145,7 @@ void distributed_fft() {
   FFTForwardBlock fft_block_y2z(exec, Ypencil, Zpencil, Zpencil, send_y2z,
                                 recv_y2z, mid_map, out_axis01, out_map,
                                 out_axis12, row_comm);
-  fft_block_y2z();
+  fft_block_y2z(Ypencil, Zpencil);
 
   // Now, we will start the backward transforms
   // --- Third transpose: Z‐pencils -> Y‐pencils ---
@@ -155,12 +154,12 @@ void distributed_fft() {
   FFTBackwardBlock fft_block_z2y(exec, Zpencil, Zpencil, Ypencil, send_y2z,
                                  recv_y2z, out_map, out_axis12, mid_map,
                                  out_axis01, row_comm);
-  fft_block_z2y();
+  fft_block_z2y(Zpencil, Ypencil);
 
   FFTBackwardBlock fft_block_y2x(exec, Ypencil, Ypencil, out_x, send_x2y,
                                  recv_x2y, mid_map, out_axis01, src_map,
                                  in_axis01, col_comm);
-  fft_block_y2x();
+  fft_block_y2x(Ypencil, out_x);
 
   // do your local 1D FFTs along X:
   KokkosFFT::irfft(exec, out_x, in, KokkosFFT::Normalization::backward, 0);

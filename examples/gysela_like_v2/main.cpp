@@ -61,7 +61,8 @@ void distributed_fft() {
   map_type src_map = {0, 1, 2}, dst_map = {0, 1, 2};
   pack(exec, phi, send_buffer, src_map, 1);
   exec.fence();
-  All2All<execution_space, RealView4D>(send_buffer, recv_buffer)();
+  All2All<execution_space, RealView4D> all2all(send_buffer, recv_buffer);
+  all2all(send_buffer, recv_buffer);
   unpack(exec, recv_buffer, phi_full, dst_map, 2);
 
   // Do FFT along phi direction
@@ -74,7 +75,8 @@ void distributed_fft() {
 
   pack(exec, phi_full, send_buffer, src_map, 2);
   exec.fence();
-  All2All<execution_space, RealView4D>(send_buffer, recv_buffer)();
+  // All2All<execution_space, RealView4D>(send_buffer, recv_buffer)();
+  all2all(send_buffer, recv_buffer);
   unpack(exec, recv_buffer, phi, dst_map, 1);
 
   exec.fence();

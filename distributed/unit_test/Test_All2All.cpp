@@ -79,7 +79,8 @@ void test_all2all_view2D_XtoY_Left(int rank, int nprocs, int direction) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  All2All<execution_space, View3DType>(send, recv)();
+  All2All<execution_space, View3DType> all2all(send, recv);
+  all2all(send, recv);
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
@@ -148,7 +149,8 @@ void test_all2all_view2D_XtoY_Right(int rank, int nprocs, int direction) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  All2All<execution_space, View3DType>(send, recv)();
+  All2All<execution_space, View3DType> all2all(send, recv);
+  all2all(send, recv);
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
@@ -225,7 +227,8 @@ void test_all2all_view3D_XtoY_Left(int rank, int nprocs, int direction) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  All2All<execution_space, View4DType>(send, recv)();
+  All2All<execution_space, View4DType> all2all(send, recv);
+  all2all(send, recv);
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
@@ -304,7 +307,8 @@ void test_all2all_view3D_XtoY_Right(int rank, int nprocs, int direction) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  All2All<execution_space, View4DType>(send, recv)();
+  All2All<execution_space, View4DType> all2all(send, recv);
+  all2all(send, recv);
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
@@ -383,7 +387,8 @@ void test_all2all_view3D_XtoZ_Left(int rank, int nprocs, int direction) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  All2All<execution_space, View4DType>(send, recv)();
+  All2All<execution_space, View4DType> all2all(send, recv);
+  all2all(send, recv);
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
@@ -461,7 +466,8 @@ void test_all2all_view3D_XtoZ_Right(int rank, int nprocs, int direction) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  All2All<execution_space, View4DType>(send, recv)();
+  All2All<execution_space, View4DType> all2all(send, recv);
+  all2all(send, recv);
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
@@ -541,7 +547,8 @@ void test_all2all_view3D_YtoZ_Left(int rank, int nprocs, int direction) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  All2All<execution_space, View4DType>(send, recv)();
+  All2All<execution_space, View4DType> all2all(send, recv);
+  all2all(send, recv);
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
@@ -620,7 +627,8 @@ void test_all2all_view3D_YtoZ_Right(int rank, int nprocs, int direction) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  All2All<execution_space, View4DType>(send, recv)();
+  All2All<execution_space, View4DType> all2all(send, recv);
+  all2all(send, recv);
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 

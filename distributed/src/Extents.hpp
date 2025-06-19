@@ -40,11 +40,25 @@ auto diff_toplogy(const std::array<iType, DIM> &in_topology,
   return std::max(in_topology.at(diff_idx), out_topology.at(diff_idx));
 }
 
-// Example
-// Global View extents (n0, n1, n2, n3)
-// in-topology = {1, p0, p1, 1} // X-pencil
-// out-topology = {p0, 1, p1, 1} // Y-pencil
-// Buffer View (p0, n0/p0, n1/p0, n2/p1, n3)
+/// \brief Calculate the buffer extents based on the global extents,
+/// the in-topology, and the out-topology.
+///
+/// Example
+/// Global View extents (n0, n1, n2, n3)
+/// in-topology = {1, p0, p1, 1} // X-pencil
+/// out-topology = {p0, 1, p1, 1} // Y-pencil
+/// Buffer View (p0, n0/p0, n1/p0, n2/p1, n3)
+///
+/// \tparam LayoutType The layout type of the view (e.g., Kokkos::LayoutRight).
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] extents Extents of the global View.
+/// \param[in] in_topology A topology representing the distribution of the input
+/// data.
+/// \param[in] out_topology A topology representing the distribution of
+/// the output data.
+/// \return A buffer extents of the view needed for the pencil
+/// transformation.
 template <typename LayoutType, std::size_t DIM = 1>
 auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
                         const std::array<std::size_t, DIM> &in_topology,
@@ -55,21 +69,34 @@ auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
   if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
     buffer_extents.at(0) = p0;
     for (std::size_t i = 0; i < extents.size(); i++) {
-      buffer_extents.at(i + 1) = extents.at(i) / merged_topology.at(i);
+      buffer_extents.at(i + 1) =
+          (extents.at(i) - 1) / merged_topology.at(i) + 1;
     }
   } else {
     for (std::size_t i = 0; i < extents.size(); i++) {
-      buffer_extents.at(i) = extents.at(i) / merged_topology.at(i);
+      buffer_extents.at(i) = (extents.at(i) - 1) / merged_topology.at(i) + 1;
     }
     buffer_extents.back() = p0;
   }
   return buffer_extents;
 }
 
-// Example
-// Global View extents (n0, n1, n2, n3)
-// topology = {p0, 1, p1, 1} // Y-pencil
-// map (0, 2, 3, 1)
+/// \brief Calculate the next extents based on the global extents,
+/// the topology, and the mapping.
+///
+/// Example
+/// Global View extents: (n0, n1, n2, n3)
+/// topology: {p0, 1, p1, 1} // Y-pencil
+/// map: (0, 2, 3, 1)
+/// Next extents: ((n0-1)/p0+1, (n2-1)/p1+1, n3, n1)
+///
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] extents Extents of the global View.
+/// \param[in] topology A topology representing the distribution of the data.
+/// \param[in] map A map representing how the data is permuted
+/// \return A extents of the view after the pencil transformation.
+
 template <std::size_t DIM = 1>
 auto get_next_extents(const std::array<std::size_t, DIM> &extents,
                       const std::array<std::size_t, DIM> &topology,
@@ -78,17 +105,20 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
 
   for (std::size_t i = 0; i < extents.size(); i++) {
     std::size_t mapped_idx = map.at(i);
-    next_extents.at(i)     = extents.at(mapped_idx) / topology.at(mapped_idx);
+    next_extents.at(i) =
+        (extents.at(mapped_idx) - 1) / topology.at(mapped_idx) + 1;
   }
 
   return next_extents;
 }
 
-// \brief From the list of extents, calculate the required allocation size
-// that is big enough to represent all of the extents.
-// \tparam DIM The number of dimensions of the extents.
-// \param extents A vector of extents, each represented as an array of size DIM.
-// \return The total size required for the allocation.
+/// \brief From the list of extents, calculate the required allocation size
+/// that is big enough to represent all of the extents.
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] extents A vector of extents, each represented as an array of size
+/// DIM.
+/// \return The total size required for the allocation.
 template <std::size_t DIM = 1>
 auto get_required_allocation_size(
     const std::vector<std::array<std::size_t, DIM>> &extents) {
