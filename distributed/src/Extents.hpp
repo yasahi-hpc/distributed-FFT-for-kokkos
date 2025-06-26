@@ -5,6 +5,7 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "Mapping.hpp"
+#include "Types.hpp"
 
 template <typename iType, std::size_t DIM = 1>
 auto merge_topology(const std::array<iType, DIM> &in_topology,
@@ -127,6 +128,27 @@ auto get_required_allocation_size(
     sizes.push_back(get_size(extent));
   }
   return *std::max_element(sizes.begin(), sizes.end());
+}
+
+template <std::size_t DIM = 1>
+inline auto get_topology_type(const std::array<std::size_t, DIM> &topology) {
+  TopologyType topology_type = TopologyType::Invalid;
+
+  auto size = get_size(topology);
+  KOKKOSFFT_THROW_IF(size == 0, "topology must not be size 0.");
+  int non_one_count = countNonOneComponents(topology);
+  if (non_one_count == 0) {
+    topology_type = TopologyType::Shared;
+  } else if (non_one_count == 1) {
+    topology_type = TopologyType::Slab;
+  } else if (non_one_count == 2) {
+    topology_type = TopologyType::Pencil;
+  } else {
+    KOKKOSFFT_THROW_IF(true,
+                       "topology must have at most two non-one elements.");
+  }
+
+  return topology_type;
 }
 
 #endif
