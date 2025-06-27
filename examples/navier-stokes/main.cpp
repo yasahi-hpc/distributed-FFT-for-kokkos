@@ -74,9 +74,9 @@ struct Grid {
   Grid(int nx, int ny, int nz, double lx, double ly, double lz) {
     // Grid and Wavenumbers
     execution_space exec;
-    m_x = Math::linspace(exec, 0.0, lx, nx, /*endpoint=*/false);
-    m_y = Math::linspace(exec, 0.0, ly, ny, /*endpoint=*/false);
-    m_z = Math::linspace(exec, 0.0, lz, nz, /*endpoint=*/false);
+    m_x = Math::linspace(exec, 0.0, lx * M_PI, nx, /*endpoint=*/false);
+    m_y = Math::linspace(exec, 0.0, ly * M_PI, ny, /*endpoint=*/false);
+    m_z = Math::linspace(exec, 0.0, lz * M_PI, nz, /*endpoint=*/false);
 
     // Wavenumbers
     // int nkx2 = nx * 2 + 1, nky2 = ny * 2 + 1, nkzh = nz + 1;
@@ -100,7 +100,7 @@ struct Grid {
 
     // [0, dkz, 2*dkz, ..., nkz * dkz]
     double dkz = lz / static_cast<double>(2 * nz);
-    auto h_kzh = KokkosFFT::fftfreq(host_exec, nz, dkz);
+    auto h_kzh = KokkosFFT::rfftfreq(host_exec, nz, dkz);
 
     // kx**2 + ky**2 + kz**2
     auto h_ksq     = Kokkos::create_mirror_view(m_ksq);
@@ -186,7 +186,6 @@ void projection(const Grid& grid, const ViewType& uk) {
   auto ky      = grid.m_ky;
   auto kzh     = grid.m_kzh;
   auto inv_ksq = grid.m_inv_ksq;
-  const Kokkos::complex<double> z(0.0, 1.0);  // Imaginary unit
   const int n0 = uk.extent(1), n1 = uk.extent(2), n2 = uk.extent(3);
   range3D_type policy({0, 0, 0}, {n0, n1, n2});
   Kokkos::parallel_for(
@@ -222,7 +221,7 @@ struct Variables {
     auto h_z =
         Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), grid.m_z);
 
-    int nx = h_x.extent(0), ny = h_y.extent(1), nz = h_z.extent(0);
+    int nx = h_x.extent(0), ny = h_y.extent(0), nz = h_z.extent(0);
     View4D<double> u("u", DIM, nx, ny, nz);  // (u, v, w)
     m_uk    = View4D<Kokkos::complex<double>>("uk", DIM, nx, ny, nz / 2 + 1);
     m_dukdt = View4D<Kokkos::complex<double>>("dukdt", DIM, nx, ny, nz / 2 + 1);
@@ -575,6 +574,7 @@ class NavierStokes {
   }
 
   // \brief Computes the nonlinear advection term in real space
+  // u.grad(u) = u * du/dx + v * dv/dx + w * dw/dx
   //
   // \tparam ViewType The type of the velocity field.
   // \param[in,out] u On entrance, the velocity field. On exit, the
@@ -600,8 +600,8 @@ class NavierStokes {
         });
   }
 
-  // \brief Computes the RHS excluding pressure
-  // - advection_term + viscosity term (-nu * k^2 * u_hat)
+  // \brief Computes the RHS excluding pressure in Fourier space
+  // - advection_term (-u.grad(u))_hat + viscosity term (-nu * k^2 * u_hat)
   //
   // \tparam ViewType The type of the velocity field.
   // \param[in,out] dukdt On entrance, the advection term. On exit, the
@@ -699,7 +699,7 @@ class NavierStokes {
         },
         energy);
 
-    std::cout << "Step: " << iter << "/" << m_nbiter << ", Time: " << m_time
+    std::cout << "Step: " << iter * m_diag_steps << "/" << m_nbiter << ", Time: " << m_time
               << ", Kinetic Energy: " << energy << std::endl;
 
     to_binary_file("E_spec", E_spec, iter);
