@@ -92,15 +92,13 @@ void initialize(const int rank, const int nprocs, RealView1DType& x,
   for (int ix = 0; ix < nx; ++ix) h_x(ix) = static_cast<value_type>(ix) * dx;
   for (int iy = 0; iy < ny; ++iy) h_y(iy) = static_cast<value_type>(iy) * dy;
 
-  const int nx_size = (nx / 2 + 1) / nprocs;
-
   // Initialize wave numbers
   const Kokkos::complex<value_type> z(0.0, 1.0);  // Imaginary unit
   auto h_ikx = Kokkos::create_mirror_view(ikx);
   auto h_iky = Kokkos::create_mirror_view(iky);
   for (int iy = 0; iy < ny; ++iy) {
     for (int ix = 0; ix < nx_local; ++ix) {
-      int gix       = ix + rank * nx_size;
+      int gix       = ix + rank * nx_local;
       auto tmp_ikx  = z * 2.0 * pi * static_cast<value_type>(gix) / Lx;
       h_ikx(ix, iy) = gix < (nx / 2 + 1) ? tmp_ikx : 0.0;
     }
@@ -108,7 +106,7 @@ void initialize(const int rank, const int nprocs, RealView1DType& x,
 
   for (int iy = 0; iy < ny; ++iy) {
     for (int ix = 0; ix < nx_local; ++ix) {
-      int gix       = ix + rank * nx_size;
+      int gix       = ix + rank * nx_local;
       auto tmp_iy   = iy < ny / 2 ? iy : iy - ny;
       auto tmp_iky  = z * 2.0 * pi * static_cast<value_type>(tmp_iy) / Ly;
       h_iky(ix, iy) = gix < (nx / 2 + 1) ? tmp_iky : 0.0;
@@ -208,26 +206,25 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   // Variables to be transformed
   // Distribute the data in X-pencil layout
   // Global shape (nz, ny, nx) -> (nz, ny, nx/2+1)
-  // auto [nz_in, ny_in, nx_in] = get_local_shape(
-  //    extents_type({nz, ny, nx}), in_topology, MPI_COMM_WORLD);
-  // auto [nz_out, ny_out, nx_out] = get_local_shape(
-  //    extents_type({nz, ny, nx/2+1}), out_topology, MPI_COMM_WORLD);
-  // auto [nz_x, ny_x, nx_x] = get_local_shape(
-  //    extents_type({nz, ny, nx/2+1}), in_topology, MPI_COMM_WORLD);
+  auto [nz_in, ny_in, nx_in] =
+      get_local_shape(extents_type({nz, ny, nx}), in_topology, MPI_COMM_WORLD);
+  auto [nz_out, ny_out, nx_out] = get_local_shape(
+      extents_type({nz, ny, nx / 2 + 1}), out_topology, MPI_COMM_WORLD, true);
+  auto [nz_x, ny_x, nx_x] = get_local_shape(extents_type({nz, ny, nx / 2 + 1}),
+                                            in_topology, MPI_COMM_WORLD, true);
+  auto [n3, n2, n1, n0]   = get_buffer_extents<LayoutType>(
+      extents_type({nz, ny, nx / 2 + 1}), in_topology, out_topology);
 
-  const int ny_buf = ny / nprocs;  // Buffer size in Y direction
-  const int nx_buf = ((nx / 2 + 1) - 1) / nprocs + 1;
-
-  RealView3D u("u", nz, ny_buf, nx), dudxy("dudxy", nz, ny_buf, nx);
-  ComplexView3D Xslab("Xslab", nz, ny_buf, nx / 2 + 1);
+  RealView3D u("u", nz_in, ny_in, nx_in), dudxy("dudxy", nz_in, ny_in, nx_in);
+  ComplexView3D Xslab("Xslab", nz_x, ny_x, nx_x);
 
   // Data in Y-slab layout
-  ComplexView3D Yslab("Yslab", nz, nx_buf, ny);
-  ComplexView2D ikx("ikx", nx_buf, ny), iky("iky", nx_buf, ny);
+  ComplexView3D Yslab("Yslab", nz_out, nx_out, ny_out);
+  ComplexView2D ikx("ikx", nx_out, ny_out), iky("iky", nx_out, ny_out);
 
   // Buffers used for MPI communications
-  ComplexView4D send_buffer("send_buffer", nprocs, nz, ny_buf, nx_buf);
-  ComplexView4D recv_buffer("recv_buffer", nprocs, nz, ny_buf, nx_buf);
+  ComplexView4D send_buffer("send_buffer", n3, n2, n1, n0);
+  ComplexView4D recv_buffer("recv_buffer", n3, n2, n1, n0);
 
   initialize(rank, nprocs, x, y, ikx, iky, u);
   analytical_solution(rank, x, y, dudxy);
@@ -245,11 +242,10 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   map_type dst_map = {0, 2, 1};
 
   // X -> Y transpose + FFT (along Y direction)
-  Block block_z2x(exec, Xslab, Yslab, send_buffer, recv_buffer, src_map,
-                  in_axis, dst_map, out_axis, MPI_COMM_WORLD);
-  block_z2x(Xslab, Yslab);
-
-  KokkosFFT::fft(exec, Yslab, Yslab, KokkosFFT::Normalization::backward, -1);
+  FFTForwardBlock fft_block_x2y(exec, Xslab, Yslab, Yslab, send_buffer,
+                                recv_buffer, src_map, in_axis, dst_map,
+                                out_axis, MPI_COMM_WORLD);
+  fft_block_x2y(Xslab, Yslab);
 
   // MDRanges used in the kernels
   using range2D_type = Kokkos::MDRangePolicy<
@@ -258,7 +254,8 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   using tile2D_type  = typename range2D_type::tile_type;
   using point2D_type = typename range2D_type::point_type;
 
-  range2D_type range2d(exec, point2D_type{{0, 0}}, point2D_type{{nx_buf, ny}},
+  range2D_type range2d(exec, point2D_type{{0, 0}},
+                       point2D_type{{nx_out, ny_out}},
                        tile2D_type{{TILE0, TILE2}});
 
   // Compute derivatives by multiplications in Fourier space
@@ -271,11 +268,10 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
         }
       });
 
-  KokkosFFT::ifft(exec, Yslab, Yslab, KokkosFFT::Normalization::backward, -1);
-
-  Block block_y2x(exec, Yslab, Xslab, send_buffer, recv_buffer, dst_map,
-                  out_axis, src_map, in_axis, MPI_COMM_WORLD);
-  block_y2x(Yslab, Xslab);
+  FFTBackwardBlock fft_block_y2x(exec, Yslab, Yslab, Xslab, send_buffer,
+                                 recv_buffer, dst_map, out_axis, src_map,
+                                 in_axis, MPI_COMM_WORLD);
+  fft_block_y2x(Yslab, Xslab);
 
   // Do you local backward FFT
   KokkosFFT::irfft(exec, Xslab, u);  // normalization is made here
@@ -294,7 +290,7 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
       for (int ix = 0; ix < h_dudxy.extent(2); ++ix) {
         auto abs_error = std::abs(h_dudxy(iz, iy, ix) - h_u(iz, iy, ix));
         if (abs_error > epsilon) {
-          std::cerr << "Error (ix, iy, iz): " << ix << ", " << iy << ", " << iz
+          std::cout << "Error (ix, iy, iz): " << ix << ", " << iy << ", " << iz
                     << " @ rank" << rank << ", " << h_dudxy(iz, iy, ix)
                     << " != " << h_u(iz, iy, ix) << std::endl;
           return;

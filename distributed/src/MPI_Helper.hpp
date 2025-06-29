@@ -142,10 +142,13 @@ auto get_local_shape(const std::array<std::size_t, DIM> &extents,
       std::size_t n        = extents.at(i);
       std::size_t t        = topology.at(i);
       std::size_t quotient = (n - 1) / t + 1;
+      // std::size_t quotient = n / t;
+
       if (equal_extents) {
         local_extents.at(i) = quotient;
       } else {
         std::size_t remainder = n - quotient * (t - 1);
+
         local_extents.at(i) =
             (coords.at(i) == topology.at(i) - 1) ? remainder : quotient;
       }
