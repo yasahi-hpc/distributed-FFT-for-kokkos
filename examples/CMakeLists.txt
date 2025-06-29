@@ -1,6 +1,7 @@
 add_subdirectory(derivative)
 add_subdirectory(derivative-v2)
 add_subdirectory(derivative_Y_slab)
+add_subdirectory(derivative_Y_slab_v2)
 add_subdirectory(fftn)
 add_subdirectory(fftn_Z2Y)
 add_subdirectory(fftn_X_pencil)
