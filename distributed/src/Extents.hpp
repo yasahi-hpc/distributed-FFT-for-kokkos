@@ -16,6 +16,8 @@ auto merge_topology(const std::array<iType, DIM> &in_topology,
   KOKKOSFFT_THROW_IF(in_size != out_size,
                      "Input and output topologies must have the same size.");
 
+  if (in_size == 1) return in_topology;
+
   // Check if two topologies are two convertible pencils
   std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
@@ -32,6 +34,11 @@ auto merge_topology(const std::array<iType, DIM> &in_topology,
 template <typename iType, std::size_t DIM = 1>
 auto diff_toplogy(const std::array<iType, DIM> &in_topology,
                   const std::array<iType, DIM> &out_topology) {
+  auto in_size  = get_size(in_topology);
+  auto out_size = get_size(out_topology);
+
+  if (in_size == 1 && out_size == 1) return iType(1);
+
   std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 1,

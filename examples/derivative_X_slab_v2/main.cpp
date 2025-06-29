@@ -221,21 +221,6 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   auto [m3, m2, m1, m0] = get_buffer_extents<LayoutType>(
       extents_type({nz, ny, nx / 2 + 1}), in_topology, out_topology);
 
-  // std::cout << "nz_in: " << nz_in << ", ny_in: " << ny_in
-  //           << ", nx_in: " << nx_in << std::endl;
-  // std::cout << "nz_trans: " << nz_trans << ", ny_trans: " << ny_trans
-  //           << ", nx_trans: " << nx_trans << std::endl;
-  // std::cout << "nz_out: " << nz_out << ", ny_out: " << ny_out
-  //           << ", nx_out: " << nx_out << std::endl;
-  // std::cout << "nz_x: " << nz_x << ", ny_x: " << ny_x
-  //           << ", nx_x: " << nx_x << std::endl;
-  // std::cout << "n3: " << n3 << ", n2: " << n2
-  //           << ", n1: " << n1 << ", n0: " << n0
-  //           << std::endl;
-  // std::cout << "m3: " << m3 << ", m2: " << m2
-  //           << ", m1: " << m1 << ", m0: " << m0
-  //           << std::endl;
-
   // Data in YZ-slab layout (nz, ny, nx/px)
   RealView3D u("u", nz_in, ny_in, nx_in), dudxy("dudxy", nz_in, ny_in, nx_in);
 
@@ -252,9 +237,6 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   ComplexView4D recv_buffer("recv_buffer", m3, m2, m1, m0);
   RealView4D send_buffer_0("send_buffer_0", n3, n2, n1, n0);
   RealView4D recv_buffer_0("recv_buffer_0", n3, n2, n1, n0);
-  // RealView4D send_buffer_0(reinterpret_cast<double *>(send_buffer.data()),
-  // n3, n2, n1, n0); RealView4D recv_buffer_0(reinterpret_cast<double
-  // *>(recv_buffer.data()), n3, n2, n1, n0);
 
   initialize(rank, nprocs, x, y, ikx, iky, u);
   analytical_solution(rank, x, y, dudxy);
@@ -298,7 +280,7 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   using point2D_type = typename range2D_type::point_type;
 
   range2D_type range2d(exec, point2D_type{{0, 0}},
-                       point2D_type{{iky.extent(1), iky.extent(0)}},
+                       point2D_type{{iky.extent(0), iky.extent(1)}},
                        tile2D_type{{TILE0, TILE2}});
 
   // Compute derivatives by multiplications in Fourier space
@@ -325,7 +307,8 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   // Do you local backward FFT
   KokkosFFT::irfft(exec, Xslab, u_trans);  // normalization is made here
 
-  // Y -> X transpose
+  // XZ-slab -> YZ-slab transpose
+  // (nz, ny/px, nx) -> (nz, ny, nx/px)
   Block block_x2y(exec, u_trans, u, send_buffer_0, recv_buffer_0, src_map, 2,
                   src_map, 1, MPI_COMM_WORLD);
   block_x2y(u_trans, u);
@@ -344,7 +327,7 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
       for (int ix = 0; ix < h_dudxy.extent(2); ++ix) {
         auto abs_error = std::abs(h_dudxy(iz, iy, ix) - h_u(iz, iy, ix));
         if (abs_error > epsilon) {
-          std::cout << "Error (ix, iy, iz): " << ix << ", " << iy << ", " << iz
+          std::cout << "Error (iz, iy, ix): " << iz << ", " << iy << ", " << ix
                     << " @ rank" << rank << ", " << h_dudxy(iz, iy, ix)
                     << " != " << h_u(iz, iy, ix) << std::endl;
           return;
