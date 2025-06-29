@@ -1,6 +1,7 @@
 add_subdirectory(derivative) 
-add_subdirectory(derivative - v2) 
+add_subdirectory(derivative-v2) 
 add_subdirectory(derivative_X_slab)
+add_subdirectory(derivative_X_slab_v2)
 add_subdirectory(derivative_Y_slab)
 add_subdirectory(derivative_Y_slab_v2)
 add_subdirectory(derivative_Y_slab_v3)
