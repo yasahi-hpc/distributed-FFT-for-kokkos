@@ -29,27 +29,15 @@ void test_merge_topology(std::size_t nprocs) {
   topology_type topology3 = {nprocs, 1, 8};
   topology_type topology4 = {nprocs, 8, 1};
 
-  if (nprocs == 1) {
-    // Failure tests because these are identical
-    EXPECT_THROW({ auto merged01 = merge_topology(topology0, topology1); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto merged02 = merge_topology(topology0, topology2); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto merged12 = merge_topology(topology1, topology2); },
-                 std::runtime_error);
-  } else {
-    auto merged01 = merge_topology(topology0, topology1);
-    auto merged02 = merge_topology(topology0, topology2);
-    auto merged12 = merge_topology(topology1, topology2);
-
-    topology_type ref_merged01 = {1, nprocs, nprocs};
-    topology_type ref_merged02 = {nprocs, 1, nprocs};
-    topology_type ref_merged12 = {nprocs, nprocs, 1};
-
-    EXPECT_EQ(merged01, ref_merged01);
-    EXPECT_EQ(merged02, ref_merged02);
-    EXPECT_EQ(merged12, ref_merged12);
-  }
+  auto merged01              = merge_topology(topology0, topology1);
+  auto merged02              = merge_topology(topology0, topology2);
+  auto merged12              = merge_topology(topology1, topology2);
+  topology_type ref_merged01 = {1, nprocs, nprocs};
+  topology_type ref_merged02 = {nprocs, 1, nprocs};
+  topology_type ref_merged12 = {nprocs, nprocs, 1};
+  EXPECT_EQ(merged01, ref_merged01);
+  EXPECT_EQ(merged02, ref_merged02);
+  EXPECT_EQ(merged12, ref_merged12);
 
   // Failure tests because these do not have same size
   EXPECT_THROW({ auto merged03 = merge_topology(topology0, topology3); },
@@ -81,36 +69,26 @@ void test_diff_topology(std::size_t nprocs) {
   topology_type topology02 = {nprocs, 1, nprocs};
   topology_type topology12 = {nprocs, nprocs, 1};
 
+  std::size_t diff0_01 = diff_toplogy(topology0, topology01);
+  std::size_t diff0_02 = diff_toplogy(topology0, topology02);
+  std::size_t diff1_12 = diff_toplogy(topology1, topology12);
+  std::size_t diff2_12 = diff_toplogy(topology2, topology12);
+
+  std::size_t ref_diff0_01 = nprocs;
+  std::size_t ref_diff0_02 = nprocs;
+  std::size_t ref_diff1_12 = nprocs;
+  std::size_t ref_diff2_12 = nprocs;
+
+  EXPECT_EQ(diff0_01, ref_diff0_01);
+  EXPECT_EQ(diff0_02, ref_diff0_02);
+  EXPECT_EQ(diff1_12, ref_diff1_12);
+  EXPECT_EQ(diff2_12, ref_diff2_12);
+
   if (nprocs == 1) {
-    // Failure tests because these are identical
-    EXPECT_THROW(
-        { std::size_t diff0_01 = diff_toplogy(topology0, topology01); },
-        std::runtime_error);
-    EXPECT_THROW(
-        { std::size_t diff0_02 = diff_toplogy(topology0, topology02); },
-        std::runtime_error);
-    EXPECT_THROW(
-        { std::size_t diff1_12 = diff_toplogy(topology1, topology12); },
-        std::runtime_error);
-    EXPECT_THROW(
-        { std::size_t diff2_12 = diff_toplogy(topology2, topology12); },
-        std::runtime_error);
+    std::size_t diff03     = diff_toplogy(topology0, topology3);
+    std::size_t ref_diff03 = 8;
+    EXPECT_EQ(diff03, ref_diff03);
   } else {
-    std::size_t diff0_01 = diff_toplogy(topology0, topology01);
-    std::size_t diff0_02 = diff_toplogy(topology0, topology02);
-    std::size_t diff1_12 = diff_toplogy(topology1, topology12);
-    std::size_t diff2_12 = diff_toplogy(topology2, topology12);
-
-    std::size_t ref_diff0_01 = nprocs;
-    std::size_t ref_diff0_02 = nprocs;
-    std::size_t ref_diff1_12 = nprocs;
-    std::size_t ref_diff2_12 = nprocs;
-
-    EXPECT_EQ(diff0_01, ref_diff0_01);
-    EXPECT_EQ(diff0_02, ref_diff0_02);
-    EXPECT_EQ(diff1_12, ref_diff1_12);
-    EXPECT_EQ(diff2_12, ref_diff2_12);
-
     // Failure tests because more than two elements are different
     EXPECT_THROW({ std::size_t diff03 = diff_toplogy(topology0, topology3); },
                  std::runtime_error);
