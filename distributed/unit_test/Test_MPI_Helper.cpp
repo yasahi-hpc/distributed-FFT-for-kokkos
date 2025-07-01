@@ -237,25 +237,31 @@ void test_get_local_shape2D(std::size_t rank, std::size_t nprocs) {
   topology_type topology0{1, nprocs};
   topology_type topology1{nprocs, 1};
 
+  auto distribute_extents = [&](std::size_t n, std::size_t t) {
+    std::size_t quotient  = n / t;
+    std::size_t remainder = n % t;
+    return rank < remainder ? (quotient + 1) : quotient;
+  };
+
   const std::size_t gn0 = 19, gn1 = 32;
   const std::size_t n0_t0           = gn0;
   const std::size_t n1_t0_quotient  = (gn1 - 1) / nprocs + 1;
   const std::size_t n1_t0_remainder = gn1 - n1_t0_quotient * (nprocs - 1);
-  const std::size_t n1_t0 =
-      rank != (nprocs - 1) ? n1_t0_quotient : n1_t0_remainder;
+  const std::size_t n1_t0           = distribute_extents(gn1, nprocs);
+  // const std::size_t n1_t0 =
+  //     rank != (nprocs - 1) ? n1_t0_quotient : n1_t0_remainder;
 
   const std::size_t n0_t1_quotient  = (gn0 - 1) / nprocs + 1;
   const std::size_t n0_t1_remainder = gn0 - n0_t1_quotient * (nprocs - 1);
-  const std::size_t n0_t1 =
-      rank != (nprocs - 1) ? n0_t1_quotient : n0_t1_remainder;
+  // const std::size_t n0_t1 =
+  //     rank != (nprocs - 1) ? n0_t1_quotient : n0_t1_remainder;
+  const std::size_t n0_t1 = distribute_extents(gn0, nprocs);
+
   const std::size_t n1_t1 = gn1;
 
   extents_type global_shape{gn0, gn1};
   extents_type ref_local_shape_t0{n0_t0, n1_t0},
       ref_local_shape_t1{n0_t1, n1_t1};
-
-  ViewType v0("v0", n0_t0, n1_t0);
-  ViewType v1("v1", n0_t1, n1_t1);
 
   auto local_shape_t0 =
       get_local_shape(global_shape, topology0, MPI_COMM_WORLD);

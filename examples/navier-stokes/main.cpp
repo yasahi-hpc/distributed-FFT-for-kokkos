@@ -1,7 +1,6 @@
 #include <vector>
 #include <iostream>
 #include <memory>
-#include <mpi.h>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Complex.hpp>
 #include <Kokkos_Random.hpp>
@@ -9,12 +8,6 @@
 #include "math_utils.hpp"
 #include "io_utils.hpp"
 
-#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP) || \
-    defined(KOKKOS_ENABLE_SYCL)
-constexpr int TILE0 = 1, TILE1 = 4, TILE2 = 32;
-#else
-constexpr int TILE0 = 4, TILE1 = 4, TILE2 = 4;
-#endif
 constexpr int DIM = 3;
 
 using execution_space      = Kokkos::DefaultExecutionSpace;
@@ -387,8 +380,11 @@ class NavierStokes {
   //! The total number of iterations.
   const int m_nbiter;
 
-  //! The parameters used in the simulation.
-  double m_dt = 0.0;
+  //! The time step size.
+  const double m_dt;
+
+  //! The viscosity coefficient.
+  const double m_nu;
 
   //! The directory to output diagnostic data.
   std::string m_out_dir;
@@ -399,10 +395,9 @@ class NavierStokes {
   //! The variables used in the simulation
   Variables m_variables;
 
-  const double m_nu = 0.01;
   double m_coef;
   double m_time = 0.0;
-  int m_diag_it = 0, m_diag_steps = 5000;
+  int m_diag_it = 0, m_diag_steps = 50;
   int m_num_bins = 50;
 
  public:
@@ -411,14 +406,16 @@ class NavierStokes {
   // \param[in] lx The length of the domain in each direction.
   // \param[in] nbiter The total number of iterations.
   // \param[in] dt The time step size.
+  // \param[in] nu The viscosity coefficient.
   // \param[in] out_dir The directory to output diagnostic data.
-  NavierStokes(int nx, double lx, int nbiter, double dt,
+  NavierStokes(int nx, double lx, int nbiter, double dt, double nu,
                const std::string& out_dir)
       : m_nx(nx),
         m_ny(nx),
         m_nz(nx),
         m_nbiter(nbiter),
         m_dt(dt),
+        m_nu(nu),
         m_out_dir(out_dir),
         m_grid(nx, nx, nx, lx, lx, lx),
         m_variables(m_grid) {
@@ -481,7 +478,8 @@ class NavierStokes {
     Kokkos::deep_copy(m_k_vals, h_k_vals);
 
     // Coefficient to calculate total kinetic energy
-    m_coef = Kokkos::pow(lx, 3) / Kokkos::pow(static_cast<double>(nx), 6);
+    m_coef =
+        Kokkos::pow(lx * M_PI, 3) / Kokkos::pow(static_cast<double>(nx), 6);
   }
 
   // \brief Runs the simulation for the specified number of iterations.
@@ -521,7 +519,10 @@ class NavierStokes {
     derivative(uk, m_dukdx, m_dukdy, m_dukdz);
 
     // Inverse FFT to get velocity in real space
-    KokkosFFT::execute(*m_backward_plan, uk, m_u);
+    // Since the input can be modified,
+    // we need to copy uk to dukdt and perform FFT on dukdt
+    Kokkos::deep_copy(dukdt, uk);
+    KokkosFFT::execute(*m_backward_plan, dukdt, m_u);
 
     // Inverse FFT to get derivatives in real space
     KokkosFFT::execute(*m_backward_plan, m_dukdx, m_dudx);
@@ -638,7 +639,8 @@ class NavierStokes {
   // \param[in] iter The current iteration number.
   void diag_fields(const int iter) {
     // Inverse FFT to get velocity in real space
-    KokkosFFT::execute(*m_backward_plan, m_variables.m_uk, m_u);
+    Kokkos::deep_copy(m_variables.m_dukdt, m_variables.m_uk);
+    KokkosFFT::execute(*m_backward_plan, m_variables.m_dukdt, m_u);
 
     auto u = Kokkos::subview(m_u, 0, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL);
     auto v = Kokkos::subview(m_u, 1, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL);
@@ -662,8 +664,11 @@ class NavierStokes {
     const int num_bins = m_E_spec.extent(0);
 
     range3D_type policy({0, 0, 0}, {n0, n1, n2});
-    Kokkos::parallel_for(
-        "spectral-density", policy, KOKKOS_LAMBDA(int i0, int i1, int i2) {
+    double coef   = m_coef;
+    double energy = 0.0;
+    Kokkos::parallel_reduce(
+        "total-energy", policy,
+        KOKKOS_LAMBDA(int i0, int i1, int i2, double& l_energy) {
           auto k_mag = Kokkos::sqrt(ksq(i0, i1, i2));
           auto u_tmp = uk(0, i0, i1, i2), v_tmp = uk(1, i0, i1, i2),
                w_tmp = uk(2, i0, i1, i2);
@@ -673,34 +678,19 @@ class NavierStokes {
           auto Ek = 0.5 * factor *
                     (Kokkos::abs(u_tmp * u_tmp) + Kokkos::abs(v_tmp * v_tmp) +
                      Kokkos::abs(w_tmp * w_tmp));
-
+          l_energy += Ek * coef;  // total energy
           for (int i = 0; i < num_bins; i++) {
             bool mask = (k_mag >= k_bins(i)) && (k_mag < k_bins(i + 1));
             if (mask) {
               Kokkos::atomic_add(&E_spec(i), Ek);
             }
           }
-        });
-
-    double coef   = m_coef;
-    double energy = 0.0;
-    Kokkos::parallel_reduce(
-        "total-energy", policy,
-        KOKKOS_LAMBDA(int i0, int i1, int i2, double& l_energy) {
-          auto u_tmp = uk(0, i0, i1, i2), v_tmp = uk(1, i0, i1, i2),
-               w_tmp = uk(2, i0, i1, i2);
-          double factor =
-              i2 == 0 ? 1.0
-                      : 2.0;  // account for Hermitian symmetry in z direction
-          auto Ek = 0.5 * factor * coef *
-                    (Kokkos::abs(u_tmp * u_tmp) + Kokkos::abs(v_tmp * v_tmp) +
-                     Kokkos::abs(w_tmp * w_tmp));
-          l_energy += Ek;
         },
         energy);
 
-    std::cout << "Step: " << iter * m_diag_steps << "/" << m_nbiter << ", Time: " << m_time
-              << ", Kinetic Energy: " << energy << std::endl;
+    std::cout << "Step: " << iter * m_diag_steps << "/" << m_nbiter
+              << ", Time: " << m_time << ", Kinetic Energy: " << energy
+              << std::endl;
 
     to_binary_file("E_spec", E_spec, iter);
     to_binary_file("k_vals", m_k_vals, iter);
@@ -732,11 +722,16 @@ class NavierStokes {
 
 int main(int argc, char* argv[]) {
   Kokkos::ScopeGuard guard(argc, argv);
-  auto kwargs         = IO::parse_args(argc, argv);
-  std::string out_dir = IO::get_arg(kwargs, "out_dir", "data_kokkos");
-  int nx = 32, nbiter = 500;
-  double lx = 2.0, dt = 0.01;
-  NavierStokes model(nx, lx, nbiter, dt, out_dir);
+  auto kwargs = IO::parse_args(argc, argv);
+  std::string out_dir =
+      IO::get_arg<std::string>(kwargs, "out_dir", "data_kokkos");
+  int nx          = IO::get_arg(kwargs, "nx", 32);
+  int nbiter      = IO::get_arg(kwargs, "nbiter", 500);
+  double lx       = IO::get_arg(kwargs, "lx", 2.0);
+  double dt       = IO::get_arg(kwargs, "dt", 0.01);
+  double Re       = IO::get_arg(kwargs, "Re", 100.0);
+  const double nu = 1.0 / Re;
+  NavierStokes model(nx, lx, nbiter, dt, nu, out_dir);
   Kokkos::Timer timer;
   model.run();
   Kokkos::fence();

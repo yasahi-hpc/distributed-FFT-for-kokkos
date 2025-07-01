@@ -86,7 +86,7 @@ void test_diff_topology(std::size_t nprocs) {
 
   if (nprocs == 1) {
     std::size_t diff03     = diff_toplogy(topology0, topology3);
-    std::size_t ref_diff03 = 8;
+    std::size_t ref_diff03 = topology3.at(2);
     EXPECT_EQ(diff03, ref_diff03);
   } else {
     // Failure tests because more than two elements are different

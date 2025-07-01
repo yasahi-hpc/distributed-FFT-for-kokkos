@@ -139,18 +139,19 @@ auto get_local_shape(const std::array<std::size_t, DIM> &extents,
 
   for (std::size_t i = 0; i < extents.size(); i++) {
     if (topology.at(i) != 1) {
-      std::size_t n        = extents.at(i);
-      std::size_t t        = topology.at(i);
-      std::size_t quotient = (n - 1) / t + 1;
-      // std::size_t quotient = n / t;
+      std::size_t n = extents.at(i);
+      std::size_t t = topology.at(i);
 
       if (equal_extents) {
-        local_extents.at(i) = quotient;
+        // Distribute data with sufficient extent size
+        local_extents.at(i) = (n - 1) / t + 1;
       } else {
-        std::size_t remainder = n - quotient * (t - 1);
+        std::size_t quotient  = n / t;
+        std::size_t remainder = n % t;
 
+        // Distribute the remainder acrocss the first few elements
         local_extents.at(i) =
-            (coords.at(i) == topology.at(i) - 1) ? remainder : quotient;
+            (coords.at(i) < remainder) ? quotient + 1 : quotient;
       }
     }
   }

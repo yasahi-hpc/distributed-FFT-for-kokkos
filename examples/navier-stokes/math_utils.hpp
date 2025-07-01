@@ -15,7 +15,7 @@ template <typename ExecutionSpace, typename RealType>
 auto linspace(const ExecutionSpace&, const RealType start, const RealType stop,
               std::size_t num = 50, bool endpoint = true) {
   static_assert(KokkosFFT::Impl::is_real_v<RealType>,
-                "linspace: d must be float or double");
+                "linspace: start and stop must be float or double");
   KOKKOSFFT_THROW_IF(num == 0, "Number of elements must be larger than 0");
   using ViewType = Kokkos::View<RealType*, ExecutionSpace>;
 
