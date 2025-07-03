@@ -18,6 +18,12 @@ RUN apt-get update && apt-get install -y \
 
 RUN git config --global --add safe.directory "*"
 
+# Install OpenMPI
+RUN apt-get update && apt-get install -y \
+    openmpi-bin \
+    libopenmpi-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Update the alternatives to set GCC 11 as the default
 #RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
 #    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
