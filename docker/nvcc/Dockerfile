@@ -40,8 +40,8 @@ RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.6.tar.b
 RUN make -C openmpi-4.1.6 all install && ldconfig
 
 # Print some MPI Info
-RUN which mpirun && mpirun --version &&
-    which mpicxx && mpicxx --version &&
+RUN which mpirun && mpirun --version && \
+    which mpicxx && mpicxx --version && \
     ompi_info --parsable --all | grep mpi_built_with_cuda_support:value:true
 
 WORKDIR /work
