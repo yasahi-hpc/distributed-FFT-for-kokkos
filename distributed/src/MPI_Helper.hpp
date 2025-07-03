@@ -12,34 +12,34 @@ struct MPIDataType {};
 
 template <>
 struct MPIDataType<int> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_INT32_T; }
+  static inline MPI_Datatype type() noexcept { return MPI_INT32_T; }
 };
 
 template <>
 struct MPIDataType<std::size_t> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_UINT64_T; }
+  static inline MPI_Datatype type() noexcept { return MPI_UINT64_T; }
 };
 
 template <>
 struct MPIDataType<float> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_FLOAT; }
+  static inline MPI_Datatype type() noexcept { return MPI_FLOAT; }
 };
 
 template <>
 struct MPIDataType<double> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_DOUBLE; }
+  static inline MPI_Datatype type() noexcept { return MPI_DOUBLE; }
 };
 
 template <>
 struct MPIDataType<Kokkos::complex<float>> {
-  static constexpr MPI_Datatype type() noexcept {
+  static inline MPI_Datatype type() noexcept {
     return MPI_CXX_FLOAT_COMPLEX;
   }
 };
 
 template <>
 struct MPIDataType<Kokkos::complex<double>> {
-  static constexpr MPI_Datatype type() noexcept {
+  static inline MPI_Datatype type() noexcept {
     return MPI_CXX_DOUBLE_COMPLEX;
   }
 };
