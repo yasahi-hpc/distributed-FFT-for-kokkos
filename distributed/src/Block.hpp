@@ -120,7 +120,7 @@ class FFTBackwardBlock {
         m_plan(exec_space, in, fft_out, KokkosFFT::Direction::backward,
                KokkosFFT::Impl::get_index(src_map, src_axis)),
         m_block(exec_space, fft_out, out, send_buffer, recv_buffer, src_map,
-                src_axis, dst_map, src_axis, comm) {}
+                src_axis, dst_map, dst_axis, comm) {}
 
   void operator()(const InViewType& in, const OutViewType& out) const {
     KokkosFFT::execute(m_plan, in, m_fft_out);

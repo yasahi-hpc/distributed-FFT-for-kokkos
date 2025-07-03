@@ -138,9 +138,9 @@ void test_pack_view2D(int rank, int nprocs, int order = 0) {
   T epsilon = std::numeric_limits<T>::epsilon() * 100;
 
   // Check xsend is correct
-  for (int i2 = 0; i2 < xsend.extent(2); i2++) {
-    for (int i1 = 0; i1 < xsend.extent(1); i1++) {
-      for (int i0 = 0; i0 < xsend.extent(0); i0++) {
+  for (std::size_t i2 = 0; i2 < xsend.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < xsend.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < xsend.extent(0); i0++) {
         auto diff = Kokkos::abs(h_xsend(i0, i1, i2) - h_xsend_ref(i0, i1, i2));
         EXPECT_LE(diff, epsilon);
       }
@@ -148,9 +148,9 @@ void test_pack_view2D(int rank, int nprocs, int order = 0) {
   }
 
   // Check ysend is correct
-  for (int i2 = 0; i2 < ysend.extent(2); i2++) {
-    for (int i1 = 0; i1 < ysend.extent(1); i1++) {
-      for (int i0 = 0; i0 < ysend.extent(0); i0++) {
+  for (std::size_t i2 = 0; i2 < ysend.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < ysend.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < ysend.extent(0); i0++) {
         auto diff = Kokkos::abs(h_ysend(i0, i1, i2) - h_ysend_ref(i0, i1, i2));
         EXPECT_LE(diff, epsilon);
       }
@@ -400,10 +400,10 @@ void test_pack_view3D(int rank, int nprocs, int order = 0) {
   T epsilon = std::numeric_limits<T>::epsilon() * 100;
 
   // Check xsend is correct
-  for (int i3 = 0; i3 < xsend.extent(3); i3++) {
-    for (int i2 = 0; i2 < xsend.extent(2); i2++) {
-      for (int i1 = 0; i1 < xsend.extent(1); i1++) {
-        for (int i0 = 0; i0 < xsend.extent(0); i0++) {
+  for (std::size_t i3 = 0; i3 < xsend.extent(3); i3++) {
+    for (std::size_t i2 = 0; i2 < xsend.extent(2); i2++) {
+      for (std::size_t i1 = 0; i1 < xsend.extent(1); i1++) {
+        for (std::size_t i0 = 0; i0 < xsend.extent(0); i0++) {
           auto diff = Kokkos::abs(h_xsend(i0, i1, i2, i3) -
                                   h_xsend_ref(i0, i1, i2, i3));
           EXPECT_LE(diff, epsilon);
@@ -413,10 +413,10 @@ void test_pack_view3D(int rank, int nprocs, int order = 0) {
   }
 
   // Check ysend is correct
-  for (int i3 = 0; i3 < ysend.extent(3); i3++) {
-    for (int i2 = 0; i2 < ysend.extent(2); i2++) {
-      for (int i1 = 0; i1 < ysend.extent(1); i1++) {
-        for (int i0 = 0; i0 < ysend.extent(0); i0++) {
+  for (std::size_t i3 = 0; i3 < ysend.extent(3); i3++) {
+    for (std::size_t i2 = 0; i2 < ysend.extent(2); i2++) {
+      for (std::size_t i1 = 0; i1 < ysend.extent(1); i1++) {
+        for (std::size_t i0 = 0; i0 < ysend.extent(0); i0++) {
           auto diff = Kokkos::abs(h_ysend(i0, i1, i2, i3) -
                                   h_ysend_ref(i0, i1, i2, i3));
           EXPECT_LE(diff, epsilon);

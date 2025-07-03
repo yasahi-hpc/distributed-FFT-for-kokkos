@@ -192,7 +192,7 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   using ComplexView3D = View3D<Kokkos::complex<double>>;
   using ComplexView4D = View4D<Kokkos::complex<double>>;
 
-  using map_type     = std::array<std::size_t, 3>;
+  using map_type   = std::array<std::size_t, 3>;
   map_type src_map = {0, 1, 2};
 
   // Declare grids
@@ -252,7 +252,8 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   using tile2D_type  = typename range2D_type::tile_type;
   using point2D_type = typename range2D_type::point_type;
 
-  range2D_type range2d(exec, point2D_type{{0, 0}}, point2D_type{{nx_buf1, int(ny)}},
+  range2D_type range2d(exec, point2D_type{{0, 0}},
+                       point2D_type{{nx_buf1, int(ny)}},
                        tile2D_type{{TILE0, TILE1}});
 
   // Compute derivatives by multiplications in Fourier space

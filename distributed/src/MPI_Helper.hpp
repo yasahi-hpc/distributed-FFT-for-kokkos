@@ -32,16 +32,12 @@ struct MPIDataType<double> {
 
 template <>
 struct MPIDataType<Kokkos::complex<float>> {
-  static inline MPI_Datatype type() noexcept {
-    return MPI_CXX_FLOAT_COMPLEX;
-  }
+  static inline MPI_Datatype type() noexcept { return MPI_CXX_FLOAT_COMPLEX; }
 };
 
 template <>
 struct MPIDataType<Kokkos::complex<double>> {
-  static inline MPI_Datatype type() noexcept {
-    return MPI_CXX_DOUBLE_COMPLEX;
-  }
+  static inline MPI_Datatype type() noexcept { return MPI_CXX_DOUBLE_COMPLEX; }
 };
 
 template <std::size_t DIM>
@@ -131,7 +127,7 @@ auto get_local_shape(const std::array<std::size_t, DIM> &extents,
   ::MPI_Comm_rank(comm, &rank);
   ::MPI_Comm_size(comm, &nprocs);
 
-  KOKKOSFFT_THROW_IF(total_size != nprocs,
+  KOKKOSFFT_THROW_IF(static_cast<int>(total_size) != nprocs,
                      "topology size must be identical to mpi size.");
 
   std::array<std::size_t, DIM> coords =
