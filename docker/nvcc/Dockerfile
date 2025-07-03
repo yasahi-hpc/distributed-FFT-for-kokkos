@@ -37,10 +37,13 @@ ARG build_dir=/tmp/build
 RUN mkdir -p ${build_dir} && cd ${build_dir} && \
     wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${OPENMPI_VERSION}.tar.gz && \
     tar -xzf openmpi-${OPENMPI_VERSION}.tar.gz && cd openmpi-${OPENMPI_VERSION} && \
-    ./configure --with-cuda --prefix=/opt/openmpi && \
+    ./configure --with-cuda --enable-mpi-cxx --prefix=/opt/openmpi && \
     make -j"$(nproc)" && make install && \
     ldconfig && \
     cd / && rm -rf ${build_dir}
+
+ENV PATH="/opt/openmpi/bin:$PATH"
+ENV LD_LIBRARY_PATH="/opt/openmpi/lib:$LD_LIBRARY_PATH"
 
 WORKDIR /work
 CMD ["bash"]
