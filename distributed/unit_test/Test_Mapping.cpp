@@ -168,18 +168,36 @@ void test_get_pencil_3D(std::size_t nprocs) {
 
   if (nprocs == 1) {
     // Failure tests because of size 1 case
-    EXPECT_THROW({ auto inout_axis01 = get_pencil(topology0, topology1); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto inout_axis02 = get_pencil(topology0, topology2); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto inout_axis10 = get_pencil(topology1, topology0); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto inout_axis12 = get_pencil(topology1, topology2); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto inout_axis20 = get_pencil(topology2, topology0); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto inout_axis21 = get_pencil(topology2, topology1); },
-                 std::runtime_error);
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axis01 = get_pencil(topology0, topology1);
+        },
+        std::runtime_error);
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axis02 = get_pencil(topology0, topology2);
+        },
+        std::runtime_error);
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axis10 = get_pencil(topology1, topology0);
+        },
+        std::runtime_error);
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axis12 = get_pencil(topology1, topology2);
+        },
+        std::runtime_error);
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axis20 = get_pencil(topology2, topology0);
+        },
+        std::runtime_error);
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axis21 = get_pencil(topology2, topology1);
+        },
+        std::runtime_error);
   } else {
     // Slab tests
     auto [in_axis01, out_axis01] = get_pencil(topology0, topology1);
@@ -212,12 +230,21 @@ void test_get_pencil_3D(std::size_t nprocs) {
   }
 
   // Failure tests because of shape mismatch (or size 1 case)
-  EXPECT_THROW({ auto inout_axis30 = get_pencil(topology3, topology0); },
-               std::runtime_error);
-  EXPECT_THROW({ auto inout_axis31 = get_pencil(topology3, topology1); },
-               std::runtime_error);
-  EXPECT_THROW({ auto inout_axis32 = get_pencil(topology3, topology2); },
-               std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto inout_axis30 = get_pencil(topology3, topology0);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto inout_axis31 = get_pencil(topology3, topology1);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto inout_axis32 = get_pencil(topology3, topology2);
+      },
+      std::runtime_error);
 }
 
 void test_difference_pencil_3D(std::size_t nprocs) {
@@ -281,28 +308,38 @@ void test_get_mid_array_pencil_3D(std::size_t nprocs) {
 
   if (nprocs == 1) {
     // Failure tests because only two elements differ
-    EXPECT_THROW({ auto mid01 = get_mid_array(topology0, topology1); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto mid02 = get_mid_array(topology0, topology2); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto mid10 = get_mid_array(topology1, topology0); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto mid12 = get_mid_array(topology1, topology2); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto mid20 = get_mid_array(topology2, topology0); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto mid21 = get_mid_array(topology2, topology1); },
-                 std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid01 = get_mid_array(topology0, topology1); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid02 = get_mid_array(topology0, topology2); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid10 = get_mid_array(topology1, topology0); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid12 = get_mid_array(topology1, topology2); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid20 = get_mid_array(topology2, topology0); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid21 = get_mid_array(topology2, topology1); },
+        std::runtime_error);
   } else {
     // Failure tests because only two elements differ
-    EXPECT_THROW({ auto mid01 = get_mid_array(topology0, topology1); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto mid10 = get_mid_array(topology1, topology0); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto mid12 = get_mid_array(topology1, topology2); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto mid21 = get_mid_array(topology2, topology1); },
-                 std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid01 = get_mid_array(topology0, topology1); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid10 = get_mid_array(topology1, topology0); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid12 = get_mid_array(topology1, topology2); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto mid21 = get_mid_array(topology2, topology1); },
+        std::runtime_error);
 
     auto mid02 = get_mid_array(topology0, topology2);
     auto mid20 = get_mid_array(topology2, topology0);
@@ -342,25 +379,25 @@ void test_get_shuffled_topologies1D(std::size_t nprocs) {
       // Failure tests because only two elements differ (slabs)
       EXPECT_THROW(
           {
-            auto shuffled_topologies =
+            [[maybe_unused]] auto shuffled_topologies =
                 get_shuffled_topologies(topology0, topology1, axes);
           },
           std::runtime_error);
       EXPECT_THROW(
           {
-            auto shuffled_topologies =
+            [[maybe_unused]] auto shuffled_topologies =
                 get_shuffled_topologies(topology0, topology2, axes);
           },
           std::runtime_error);
       EXPECT_THROW(
           {
-            auto shuffled_topologies =
+            [[maybe_unused]] auto shuffled_topologies =
                 get_shuffled_topologies(topology1, topology0, axes);
           },
           std::runtime_error);
       EXPECT_THROW(
           {
-            auto shuffled_topologies =
+            [[maybe_unused]] auto shuffled_topologies =
                 get_shuffled_topologies(topology2, topology0, axes);
           },
           std::runtime_error);
@@ -534,25 +571,25 @@ void test_get_shuffled_topologies3D(std::size_t nprocs) {
       // Failure tests because only two elements differ (slabs)
       EXPECT_THROW(
           {
-            auto shuffled_topologies =
+            [[maybe_unused]] auto shuffled_topologies =
                 get_shuffled_topologies(topology0, topology1, axes);
           },
           std::runtime_error);
       EXPECT_THROW(
           {
-            auto shuffled_topologies =
+            [[maybe_unused]] auto shuffled_topologies =
                 get_shuffled_topologies(topology0, topology2, axes);
           },
           std::runtime_error);
       EXPECT_THROW(
           {
-            auto shuffled_topologies =
+            [[maybe_unused]] auto shuffled_topologies =
                 get_shuffled_topologies(topology1, topology0, axes);
           },
           std::runtime_error);
       EXPECT_THROW(
           {
-            auto shuffled_topologies =
+            [[maybe_unused]] auto shuffled_topologies =
                 get_shuffled_topologies(topology2, topology0, axes);
           },
           std::runtime_error);
@@ -768,13 +805,13 @@ void test_get_shuffled_topologies3D(std::size_t nprocs) {
     // Failure tests because only two elements differ (slabs)
     EXPECT_THROW(
         {
-          auto shuffled_topologies =
+          [[maybe_unused]] auto shuffled_topologies =
               get_shuffled_topologies(topology1, topology2, axes);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
-          auto shuffled_topologies =
+          [[maybe_unused]] auto shuffled_topologies =
               get_shuffled_topologies(topology2, topology1, axes);
         },
         std::runtime_error);
