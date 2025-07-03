@@ -14,13 +14,13 @@ class Block {
   using extents_type = KokkosFFT::shape_type<InViewType::rank()>;
   using axes_type    = KokkosFFT::axis_type<DIM>;
 
+  ExecutionSpace m_exec;
   InViewType m_in;
   OutViewType m_out;
   BufferType m_send_buffer, m_recv_buffer;
-  MPI_Comm m_comm;
-  ExecutionSpace m_exec;
   extents_type m_src_map, m_dst_map;
   std::size_t m_src_axis, m_dst_axis;
+  MPI_Comm m_comm;
 
  public:
   explicit Block(const ExecutionSpace& exec_space, const InViewType& in,
@@ -34,8 +34,8 @@ class Block {
         m_send_buffer(send_buffer),
         m_recv_buffer(recv_buffer),
         m_src_map(src_map),
-        m_src_axis(src_axis),
         m_dst_map(dst_map),
+        m_src_axis(src_axis),
         m_dst_axis(dst_axis),
         m_comm(comm) {}
 
