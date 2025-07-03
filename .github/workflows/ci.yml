@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+  # Force the use of BuildKit for Docker
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  # run linter on the code
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: DoozyX/clang-format-lint-action@v0.13
+      with:
+        source: 'distributed/'
+        exclude: ''
+        extensions: 'hpp,cpp'
+        clangFormatVersion: 12
+
+  # build project
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        backend:
+          - name: clang-tidy
+            image: clang
+            compiler:
+              cxx: clang++
+            cmake_flags:
+              cxx_standard: 17
+              kokkos: -DKokkos_ENABLE_SERIAL=ON
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
+          - name: cuda
+            image: nvcc
+            compiler:
+              cxx: g++
+            cmake_flags:
+              cxx_standard: 17
+              kokkos: -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON
+              kokkos_fft:
+
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.2.0
+        with:
+          tool-cache: true
+          large-packages: false
+
+      - name: Checkout built branch
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build docker
+        run: docker build -t ${{ matrix.backend.image }} docker/${{ matrix.backend.image }}
+
+      - name: Configure
+        run: |
+          docker run -v ${{ github.workspace }}:/work ${{ matrix.backend.image }} \
+            cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.backend.compiler.cxx }} \
+            ${{ matrix.backend.cmake_flags.kokkos }} \
+            ${{ matrix.backend.cmake_flags.kokkos_fft }}
+
+      - name: Build
+        run: |
+          docker run -v ${{ github.workspace }}:/work ${{ matrix.backend.image }} \
+            cmake --build build -j 4
+
+      - name: Test
+        run: |
+          docker run -v ${{github.workspace}}:/work ${{ matrix.backend.image }} \
+            ctest --test-dir build/distributed/unit_test -C ${{env.BUILD_TYPE}} --output-on-failure
+        if: ${{ matrix.backend.name == 'clang-tidy' }}
