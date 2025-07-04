@@ -255,8 +255,11 @@ std::vector<std::array<iType, DIM>> get_all_slab_topologies(
     auto indices_ones = find_ones(in_topology);
     for (const auto& axis : axes_reversed) {
       std::size_t swap_idx = 0;
+      auto non_negative_axis =
+          KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+      std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
       for (auto idx_one : indices_ones) {
-        if (topology.at(idx_one) == 1 && idx_one != axis) {
+        if (topology.at(idx_one) == 1 && idx_one != unsigned_axis) {
           swap_idx = idx_one;
           break;
         }

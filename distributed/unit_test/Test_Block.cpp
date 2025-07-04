@@ -31,7 +31,7 @@ struct TestBlock : public ::testing::Test {
 };
 
 template <typename T, typename LayoutType>
-void test_block_view2D(std::size_t rank, std::size_t nprocs, int order = 0) {
+void test_block_view2D(std::size_t nprocs, int order = 0) {
   using View2DType    = Kokkos::View<T**, LayoutType, execution_space>;
   using View3DType    = Kokkos::View<T***, LayoutType, execution_space>;
   using map_type      = std::array<std::size_t, 2>;
@@ -140,12 +140,12 @@ TYPED_TEST(TestBlock, View2D_01) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_block_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs, 0);
+  test_block_view2D<float_type, layout_type>(this->m_nprocs, 0);
 }
 
 TYPED_TEST(TestBlock, View2D_10) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_block_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs, 1);
+  test_block_view2D<float_type, layout_type>(this->m_nprocs, 1);
 }

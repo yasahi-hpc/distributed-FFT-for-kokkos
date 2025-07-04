@@ -164,7 +164,7 @@ auto get_local_extents(const std::array<std::size_t, DIM> &extents,
   ::MPI_Comm_rank(comm, &rank);
   ::MPI_Comm_size(comm, &nprocs);
 
-  KOKKOSFFT_THROW_IF(total_size != nprocs,
+  KOKKOSFFT_THROW_IF(total_size != static_cast<std::size_t>(nprocs),
                      "topology size must be identical to mpi size.");
 
   std::array<std::size_t, DIM> coords =
