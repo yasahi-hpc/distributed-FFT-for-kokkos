@@ -6,6 +6,7 @@
 #include <KokkosFFT.hpp>
 #include "Mapping.hpp"
 #include "Types.hpp"
+#include "Utils.hpp"
 
 template <typename iType, std::size_t DIM = 1>
 auto merge_topology(const std::array<iType, DIM> &in_topology,
@@ -17,6 +18,16 @@ auto merge_topology(const std::array<iType, DIM> &in_topology,
                      "Input and output topologies must have the same size.");
 
   if (in_size == 1) return in_topology;
+
+  std::cout << "in_topology: ";
+  for (const auto &val : in_topology) {
+    std::cout << val << " ";
+  }
+  std::cout << "\nout_topology: ";
+  for (const auto &val : out_topology) {
+    std::cout << val << " ";
+  }
+  std::cout << std::endl;
 
   // Check if two topologies are two convertible pencils
   std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
