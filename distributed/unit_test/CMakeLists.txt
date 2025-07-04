@@ -8,6 +8,7 @@ add_executable(unit-tests-mpi
     Test_Extents.cpp
     Test_MPI_Helper.cpp
     Test_Topologies.cpp
+    Test_Block.cpp
     #Test_Plan.cpp
 )
 
