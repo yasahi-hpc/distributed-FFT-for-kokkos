@@ -5,6 +5,99 @@
 #include <KokkosFFT.hpp>
 #include "MPI_Helper.hpp"
 #include "Utils.hpp"
+#include "Types.hpp"
+
+template <std::size_t DIM = 1>
+inline auto get_topology_type(const std::array<std::size_t, DIM>& topology) {
+  TopologyType topology_type = TopologyType::Invalid;
+
+  auto size = get_size(topology);
+  KOKKOSFFT_THROW_IF(size == 0, "topology must not be size 0.");
+  int non_one_count = countNonOneComponents(topology);
+  if (non_one_count == 0) {
+    topology_type = TopologyType::Shared;
+  } else if (non_one_count == 1) {
+    topology_type = TopologyType::Slab;
+  } else if (non_one_count == 2) {
+    topology_type = TopologyType::Pencil;
+  } else {
+    KOKKOSFFT_THROW_IF(true,
+                       "topology must have at most two non-one elements.");
+  }
+
+  return topology_type;
+}
+
+template <std::size_t DIM = 1>
+inline bool is_shared_topology(const std::array<std::size_t, DIM>& topology) {
+  bool is_shared = false;
+  try {
+    is_shared = get_topology_type(topology) == TopologyType::Shared;
+  } catch (std::runtime_error& e) {
+  }
+  return is_shared;
+}
+
+template <std::size_t DIM = 1>
+inline bool is_slab_topology(const std::array<std::size_t, DIM>& topology) {
+  bool is_slab = false;
+  try {
+    is_slab = get_topology_type(topology) == TopologyType::Slab;
+  } catch (std::runtime_error& e) {
+  }
+  return is_slab;
+}
+
+template <std::size_t DIM = 1>
+inline bool is_pencil_topology(const std::array<std::size_t, DIM>& topology) {
+  bool is_pencil = false;
+  try {
+    is_pencil = get_topology_type(topology) == TopologyType::Pencil;
+  } catch (std::runtime_error& e) {
+  }
+  return is_pencil;
+}
+
+template <typename iType, std::size_t DIM = 1>
+auto merge_topology(const std::array<iType, DIM>& in_topology,
+                    const std::array<iType, DIM>& out_topology) {
+  auto in_size  = get_size(in_topology);
+  auto out_size = get_size(out_topology);
+
+  KOKKOSFFT_THROW_IF(in_size != out_size,
+                     "Input and output topologies must have the same size.");
+
+  if (in_size == 1) return in_topology;
+
+  // Check if two topologies are two convertible pencils
+  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
+  KOKKOSFFT_THROW_IF(
+      diff_indices.size() != 2,
+      "Input and output topologies must differ exactly two positions.");
+
+  std::array<iType, DIM> topology = {};
+  for (std::size_t i = 0; i < in_topology.size(); i++) {
+    topology.at(i) = std::max(in_topology.at(i), out_topology.at(i));
+  }
+  return topology;
+}
+
+template <typename iType, std::size_t DIM = 1>
+auto diff_toplogy(const std::array<iType, DIM>& in_topology,
+                  const std::array<iType, DIM>& out_topology) {
+  auto in_size  = get_size(in_topology);
+  auto out_size = get_size(out_topology);
+
+  if (in_size == 1 && out_size == 1) return iType(1);
+
+  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
+  KOKKOSFFT_THROW_IF(
+      diff_indices.size() != 1,
+      "Input and output topologies must differ exactly one positions.");
+  iType diff_idx = diff_indices.at(0);
+
+  return std::max(in_topology.at(diff_idx), out_topology.at(diff_idx));
+}
 
 // Can we also check that this is a slab?
 // Example
@@ -123,29 +216,57 @@ std::vector<std::array<iType, DIM>> get_shuffled_topologies(
   return topologies;
 }
 
+// \brief Get all slab topologies for a given input and output topology
+///
+/// \tparam iType The index type used for the topology.
+/// \tparam DIM The dimensionality of the topology.
+/// \tparam FFT_DIM The dimensionality of the FFT axes.
+///
+/// \param in_topology The input topology.
+/// \param out_topology The output topology.
+/// \param axes The axes along which the FFT is performed.
+/// \return A vector of all possible slab topologies that can be formed
+/// from the input and output topologies, considering the FFT axes.
 template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
-std::vector<std::array<iType, DIM>> get_topologies(
+std::vector<std::array<iType, DIM>> get_all_slab_topologies(
     const std::array<iType, DIM>& in_topology,
     const std::array<iType, DIM>& out_topology,
-    const std::array<iType, FFT_DIM>& axes, bool is_real_transform = false) {
-  // Firstly, check that the first transform is ready or not
-  if (is_real_transform) {
-    auto last_axis = axes.back();
-    auto first_dim = in_topology.at(last_axis);
-
-    // If the first dimension is distributed,
-    // we need to transpose to make the first transform
-    if (first_dim > 1) {
-      auto shuffled_topologies =
-          get_shuffled_topologies(in_topology, out_topology, axes);
-      return shuffled_topologies;
-    }
-  }
+    const std::array<iType, FFT_DIM>& axes) {
+  bool is_slab =
+      is_slab_topology(in_topology) && is_slab_topology(out_topology);
+  KOKKOSFFT_THROW_IF(!is_slab,
+                     "Input and output topologies must be slab topologies.");
 
   std::vector<std::array<iType, DIM>> topologies;
   topologies.push_back(in_topology);
-  auto mid_topology = get_mid_array(in_topology, out_topology);
-  topologies.push_back(mid_topology);
+
+  std::vector<int> axes_reversed;
+  for (std::size_t i = 0; i < axes.size(); ++i) {
+    axes_reversed.push_back(axes.at(i));
+  }
+  auto last_axis = axes.back();
+  auto first_dim = in_topology.at(last_axis);
+  if (first_dim == 1) axes_reversed.pop_back();
+
+  // std::vector<iType> indices_non_ones = find_non_ones(in_topology,
+  // out_topology);
+  std::array<iType, DIM> topology = in_topology;
+  if (in_topology == out_topology) {
+    auto indices_ones = find_ones(in_topology);
+    for (const auto& axis : axes_reversed) {
+      std::size_t swap_idx = 0;
+      for (auto idx_one : indices_ones) {
+        if (topology.at(idx_one) == 1 && idx_one != axis) {
+          swap_idx = idx_one;
+          break;
+        }
+      }
+      topology = swap_elements(topology, axis, swap_idx);
+      topologies.push_back(topology);
+    }
+  }
+
+  if (topologies.back() == out_topology) return topologies;
   topologies.push_back(out_topology);
 
   return topologies;

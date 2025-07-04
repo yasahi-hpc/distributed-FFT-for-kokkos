@@ -31,7 +31,7 @@ struct TestBlock : public ::testing::Test {
 };
 
 template <typename T, typename LayoutType>
-void test_block_view2D(int rank, int nprocs, int order = 0) {
+void test_block_view2D(std::size_t rank, std::size_t nprocs, int order = 0) {
   using View2DType    = Kokkos::View<T**, LayoutType, execution_space>;
   using View3DType    = Kokkos::View<T***, LayoutType, execution_space>;
   using map_type      = std::array<std::size_t, 2>;

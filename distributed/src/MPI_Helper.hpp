@@ -150,4 +150,72 @@ auto get_local_shape(const std::array<std::size_t, DIM> &extents,
   return local_extents;
 }
 
+template <std::size_t DIM = 1>
+auto get_local_extents(const std::array<std::size_t, DIM> &extents,
+                       const std::array<std::size_t, DIM> &topology,
+                       MPI_Comm comm, bool equal_extents = false) {
+  // Check that topology includes two or less non-one elements
+  std::array<std::size_t, DIM> local_extents = {};
+  std::array<std::size_t, DIM> local_starts  = {};
+  std::copy(extents.begin(), extents.end(), local_extents.begin());
+  auto total_size = get_size(topology);
+
+  int rank, nprocs;
+  ::MPI_Comm_rank(comm, &rank);
+  ::MPI_Comm_size(comm, &nprocs);
+
+  KOKKOSFFT_THROW_IF(total_size != nprocs,
+                     "topology size must be identical to mpi size.");
+
+  std::array<std::size_t, DIM> coords =
+      rank_to_coord(topology, static_cast<std::size_t>(rank));
+
+  for (std::size_t i = 0; i < extents.size(); i++) {
+    if (topology.at(i) != 1) {
+      std::size_t n = extents.at(i);
+      std::size_t t = topology.at(i);
+
+      if (equal_extents) {
+        // Distribute data with sufficient extent size
+        local_extents.at(i) = (n - 1) / t + 1;
+      } else {
+        std::size_t quotient  = n / t;
+        std::size_t remainder = n % t;
+
+        // Distribute the remainder acrocss the first few elements
+        local_extents.at(i) =
+            (coords.at(i) < remainder) ? quotient + 1 : quotient;
+      }
+    }
+  }
+
+  std::vector<std::size_t> gathered_extents(DIM * total_size);
+  MPI_Datatype mpi_data_type = MPIDataType<std::size_t>::type();
+
+  // Data are stored as
+  // rank0: extents
+  // rank1: extents
+  // ...
+  // rankn:
+  MPI_Allgather(local_extents.data(), local_extents.size(), mpi_data_type,
+                gathered_extents.data(), local_extents.size(), mpi_data_type,
+                comm);
+
+  std::size_t stride = total_size;
+  for (std::size_t i = 0; i < topology.size(); i++) {
+    if (topology.at(i) != 1) {
+      // Maybe better to check that the shape is something like
+      // n, n, n, n_remain
+      std::size_t sum = 0;
+      stride /= topology.at(i);
+      for (std::size_t j = 0; j < coords.at(i); j++) {
+        sum += gathered_extents.at(i + extents.size() * stride * j);
+      }
+      local_starts.at(i) = sum;
+    }
+  }
+
+  return std::make_tuple(local_extents, local_starts);
+}
+
 #endif

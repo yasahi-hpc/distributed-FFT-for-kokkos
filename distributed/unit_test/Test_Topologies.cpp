@@ -7,7 +7,212 @@
 
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;
+class TopologyParamTests : public ::testing::TestWithParam<int> {};
+class SlabParamTests : public ::testing::TestWithParam<int> {};
 class PencilParamTests : public ::testing::TestWithParam<int> {};
+
+void test_get_all_slab_topologies1D(std::size_t nprocs) {
+  using topology_type     = std::array<std::size_t, 3>;
+  topology_type topology0 = {1, 1, nprocs};
+  topology_type topology1 = {1, nprocs, 1};
+  topology_type topology2 = {nprocs, 1, 1};
+
+  using axes_type = std::array<std::size_t, 1>;
+  axes_type axes0 = {0};
+  axes_type axes1 = {1};
+  axes_type axes2 = {2};
+
+  std::vector<axes_type> all_axes = {axes0, axes1, axes2};
+
+  if (nprocs == 1) {
+    for (const auto& axes : all_axes) {
+      // Failure tests because these are shared topologies
+      EXPECT_THROW(
+          {
+            auto all_slab_topologies =
+                get_all_slab_topologies(topology0, topology1, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            auto all_slab_topologies =
+                get_all_slab_topologies(topology0, topology2, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            auto all_slab_topologies =
+                get_all_slab_topologies(topology1, topology0, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            auto all_slab_topologies =
+                get_all_slab_topologies(topology2, topology0, axes);
+          },
+          std::runtime_error);
+    }
+  } else {
+    // topology0 (XY-slab) to topology0 (XY-slab)
+    auto all_slab_topologies_0_0_ax0 =
+        get_all_slab_topologies(topology0, topology0, axes0);
+    auto all_slab_topologies_0_0_ax1 =
+        get_all_slab_topologies(topology0, topology0, axes1);
+    auto all_slab_topologies_0_0_ax2 =
+        get_all_slab_topologies(topology0, topology0, axes2);
+
+    // [Remark] Not sure which one is better {topology0, topology0} or
+    // {topology0}
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax0 = {topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax0, ref_all_slab_topologies_0_0_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax1 = {topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax1, ref_all_slab_topologies_0_0_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax2 = {
+        topology0, topology2, topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax2, ref_all_slab_topologies_0_0_ax2);
+
+    // topology0 (XY-slab) to topology1 (XZ-slab)
+    auto all_slab_topologies_0_1_ax0 =
+        get_all_slab_topologies(topology0, topology1, axes0);
+    auto all_slab_topologies_0_1_ax1 =
+        get_all_slab_topologies(topology0, topology1, axes1);
+    auto all_slab_topologies_0_1_ax2 =
+        get_all_slab_topologies(topology0, topology1, axes2);
+
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax0 = {topology0,
+                                                                  topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax0, ref_all_slab_topologies_0_1_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax1 = {topology0,
+                                                                  topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax1, ref_all_slab_topologies_0_1_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax2 = {topology0,
+                                                                  topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax2, ref_all_slab_topologies_0_1_ax2);
+
+    // topology0 (XY-slab) to topology2 (YZ-slab)
+    auto all_slab_topologies_0_2_ax0 =
+        get_all_slab_topologies(topology0, topology2, axes0);
+    auto all_slab_topologies_0_2_ax1 =
+        get_all_slab_topologies(topology0, topology2, axes1);
+    auto all_slab_topologies_0_2_ax2 =
+        get_all_slab_topologies(topology0, topology2, axes2);
+
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax0 = {topology0,
+                                                                  topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax0, ref_all_slab_topologies_0_2_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax1 = {topology0,
+                                                                  topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax1, ref_all_slab_topologies_0_2_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax2 = {topology0,
+                                                                  topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax2, ref_all_slab_topologies_0_2_ax2);
+
+    // topology1 (XZ-slab) to topology0 (XY-slab)
+    auto all_slab_topologies_1_0_ax0 =
+        get_all_slab_topologies(topology1, topology0, axes0);
+    auto all_slab_topologies_1_0_ax1 =
+        get_all_slab_topologies(topology1, topology0, axes1);
+    auto all_slab_topologies_1_0_ax2 =
+        get_all_slab_topologies(topology1, topology0, axes2);
+
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax0 = {topology1,
+                                                                  topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax0, ref_all_slab_topologies_1_0_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax1 = {topology1,
+                                                                  topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax1, ref_all_slab_topologies_1_0_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax2 = {topology1,
+                                                                  topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax2, ref_all_slab_topologies_1_0_ax2);
+
+    // topology1 (XZ-slab) to topology1 (XZ-slab)
+    auto all_slab_topologies_1_1_ax0 =
+        get_all_slab_topologies(topology1, topology1, axes0);
+    auto all_slab_topologies_1_1_ax1 =
+        get_all_slab_topologies(topology1, topology1, axes1);
+    auto all_slab_topologies_1_1_ax2 =
+        get_all_slab_topologies(topology1, topology1, axes2);
+
+    // Should this be topo1 -> topo2 -> topo1
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax0 = {topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax0, ref_all_slab_topologies_1_1_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax1 = {
+        topology1, topology2, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax1, ref_all_slab_topologies_1_1_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax2 = {topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax2, ref_all_slab_topologies_1_1_ax2);
+
+    // topology1 (XZ-slab) to topology2 (YZ-slab)
+    auto all_slab_topologies_1_2_ax0 =
+        get_all_slab_topologies(topology1, topology2, axes0);
+    auto all_slab_topologies_1_2_ax1 =
+        get_all_slab_topologies(topology1, topology2, axes1);
+    auto all_slab_topologies_1_2_ax2 =
+        get_all_slab_topologies(topology1, topology2, axes2);
+
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax0 = {topology1,
+                                                                  topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax0, ref_all_slab_topologies_1_2_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax1 = {topology1,
+                                                                  topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax1, ref_all_slab_topologies_1_2_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax2 = {topology1,
+                                                                  topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax2, ref_all_slab_topologies_1_2_ax2);
+
+    // topology2 (YZ-slab) to topology0 (XY-slab)
+    auto all_slab_topologies_2_0_ax0 =
+        get_all_slab_topologies(topology2, topology0, axes0);
+    auto all_slab_topologies_2_0_ax1 =
+        get_all_slab_topologies(topology2, topology0, axes1);
+    auto all_slab_topologies_2_0_ax2 =
+        get_all_slab_topologies(topology2, topology0, axes2);
+
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax0 = {topology2,
+                                                                  topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax0, ref_all_slab_topologies_2_0_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax1 = {topology2,
+                                                                  topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax1, ref_all_slab_topologies_2_0_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax2 = {topology2,
+                                                                  topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax2, ref_all_slab_topologies_2_0_ax2);
+
+    // topology2 (YZ-slab) to topology1 (XZ-slab)
+    auto all_slab_topologies_2_1_ax0 =
+        get_all_slab_topologies(topology2, topology1, axes0);
+    auto all_slab_topologies_2_1_ax1 =
+        get_all_slab_topologies(topology2, topology1, axes1);
+    auto all_slab_topologies_2_1_ax2 =
+        get_all_slab_topologies(topology2, topology1, axes2);
+
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax0 = {topology2,
+                                                                  topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax0, ref_all_slab_topologies_2_1_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax1 = {topology2,
+                                                                  topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax1, ref_all_slab_topologies_2_1_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax2 = {topology2,
+                                                                  topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax2, ref_all_slab_topologies_2_1_ax2);
+
+    // topology2 (YZ-slab) to topology2 (YZ-slab)
+    auto all_slab_topologies_2_2_ax0 =
+        get_all_slab_topologies(topology2, topology2, axes0);
+    auto all_slab_topologies_2_2_ax1 =
+        get_all_slab_topologies(topology2, topology2, axes1);
+    auto all_slab_topologies_2_2_ax2 =
+        get_all_slab_topologies(topology2, topology2, axes2);
+
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax0 = {
+        topology2, topology1, topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax0, ref_all_slab_topologies_2_2_ax0);
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax1 = {topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax1, ref_all_slab_topologies_2_2_ax1);
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax2 = {topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax2, ref_all_slab_topologies_2_2_ax2);
+  }
+}
 
 void test_get_pencil_3D(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 3>;
@@ -209,6 +414,348 @@ void test_get_mid_array_pencil_3D(std::size_t nprocs) {
 
     EXPECT_EQ(mid34, ref_mid34);
     EXPECT_EQ(mid43, ref_mid43);
+  }
+}
+
+void test_merge_topology(std::size_t nprocs) {
+  using topology_type     = std::array<std::size_t, 3>;
+  topology_type topology0 = {1, 1, nprocs};
+  topology_type topology1 = {1, nprocs, 1};
+  topology_type topology2 = {nprocs, 1, 1};
+  topology_type topology3 = {nprocs, 1, 8};
+  topology_type topology4 = {nprocs, 8, 1};
+
+  auto merged01              = merge_topology(topology0, topology1);
+  auto merged02              = merge_topology(topology0, topology2);
+  auto merged12              = merge_topology(topology1, topology2);
+  topology_type ref_merged01 = {1, nprocs, nprocs};
+  topology_type ref_merged02 = {nprocs, 1, nprocs};
+  topology_type ref_merged12 = {nprocs, nprocs, 1};
+  EXPECT_EQ(merged01, ref_merged01);
+  EXPECT_EQ(merged02, ref_merged02);
+  EXPECT_EQ(merged12, ref_merged12);
+
+  // Failure tests because these do not have same size
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged03 = merge_topology(topology0, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged04 = merge_topology(topology0, topology4);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged13 = merge_topology(topology1, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged14 = merge_topology(topology1, topology4);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged23 = merge_topology(topology2, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged24 = merge_topology(topology2, topology4);
+      },
+      std::runtime_error);
+
+  // This case is valid
+  topology_type ref_merged34 = {nprocs, 8, 8};
+  auto merged34              = merge_topology(topology3, topology4);
+  EXPECT_EQ(merged34, ref_merged34);
+}
+
+void test_diff_topology(std::size_t nprocs) {
+  using topology_type      = std::array<std::size_t, 3>;
+  topology_type topology0  = {1, 1, nprocs};
+  topology_type topology1  = {1, nprocs, 1};
+  topology_type topology2  = {nprocs, 1, 1};
+  topology_type topology3  = {nprocs, 1, 8};
+  topology_type topology01 = {1, nprocs, nprocs};
+  topology_type topology02 = {nprocs, 1, nprocs};
+  topology_type topology12 = {nprocs, nprocs, 1};
+
+  std::size_t diff0_01 = diff_toplogy(topology0, topology01);
+  std::size_t diff0_02 = diff_toplogy(topology0, topology02);
+  std::size_t diff1_12 = diff_toplogy(topology1, topology12);
+  std::size_t diff2_12 = diff_toplogy(topology2, topology12);
+
+  std::size_t ref_diff0_01 = nprocs;
+  std::size_t ref_diff0_02 = nprocs;
+  std::size_t ref_diff1_12 = nprocs;
+  std::size_t ref_diff2_12 = nprocs;
+
+  EXPECT_EQ(diff0_01, ref_diff0_01);
+  EXPECT_EQ(diff0_02, ref_diff0_02);
+  EXPECT_EQ(diff1_12, ref_diff1_12);
+  EXPECT_EQ(diff2_12, ref_diff2_12);
+
+  if (nprocs == 1) {
+    std::size_t diff03     = diff_toplogy(topology0, topology3);
+    std::size_t ref_diff03 = topology3.at(2);
+    EXPECT_EQ(diff03, ref_diff03);
+  } else {
+    // Failure tests because more than two elements are different
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] std::size_t diff03 =
+              diff_toplogy(topology0, topology3);
+        },
+        std::runtime_error);
+  }
+}
+
+void test_get_topology_type(std::size_t nprocs) {
+  using topology1D_type = std::array<std::size_t, 1>;
+  using topology2D_type = std::array<std::size_t, 2>;
+  using topology3D_type = std::array<std::size_t, 3>;
+  using topology4D_type = std::array<std::size_t, 4>;
+
+  const std::size_t p0 = 2, p1 = 3, p2 = 4, p3 = 5;
+
+  topology1D_type topology1{nprocs};
+  topology2D_type topology2_1{p0, nprocs}, topology2_2{nprocs, p1};
+  topology3D_type topology3_1{p0, p1, nprocs}, topology3_2{p0, nprocs, p2},
+      topology3_3{nprocs, p1, p2}, topology3_4{nprocs, nprocs, p2},
+      topology3_5{nprocs, nprocs, nprocs};
+  topology4D_type topology4_1{p0, p1, nprocs, nprocs},
+      topology4_2{p0, nprocs, p2, nprocs}, topology4_3{p0, nprocs, nprocs, p3},
+      topology4_4{nprocs, p1, p2, nprocs}, topology4_5{nprocs, p1, nprocs, p3},
+      topology4_6{nprocs, nprocs, p2, p3},
+      topology4_7{p0, nprocs, nprocs, nprocs},
+      topology4_8{nprocs, nprocs, nprocs, nprocs};
+
+  if (nprocs == 1) {
+    // 1D topology
+    auto topo1 = get_topology_type(topology1);
+    EXPECT_EQ(topo1, TopologyType::Shared);
+
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo = get_topology_type(topology1D_type{0}); },
+        std::runtime_error);
+
+    auto topo2_1 = get_topology_type(topology2_1);
+    auto topo2_2 = get_topology_type(topology2_2);
+    EXPECT_EQ(topo2_1, TopologyType::Slab);
+    EXPECT_EQ(topo2_2, TopologyType::Slab);
+
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto topo =
+              get_topology_type(topology2D_type{0, nprocs});
+        },
+        std::runtime_error);
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto topo =
+              get_topology_type(topology2D_type{nprocs, 0});
+        },
+        std::runtime_error);
+
+    auto topo3_1 = get_topology_type(topology3_1);
+    auto topo3_2 = get_topology_type(topology3_2);
+    auto topo3_3 = get_topology_type(topology3_3);
+    auto topo3_4 = get_topology_type(topology3_4);
+    auto topo3_5 = get_topology_type(topology3_5);
+    EXPECT_EQ(topo3_1, TopologyType::Pencil);
+    EXPECT_EQ(topo3_2, TopologyType::Pencil);
+    EXPECT_EQ(topo3_3, TopologyType::Pencil);
+    EXPECT_EQ(topo3_4, TopologyType::Slab);
+    EXPECT_EQ(topo3_5, TopologyType::Shared);
+
+    auto topo4_1 = get_topology_type(topology4_1);
+    auto topo4_2 = get_topology_type(topology4_2);
+    auto topo4_3 = get_topology_type(topology4_3);
+    auto topo4_4 = get_topology_type(topology4_4);
+    auto topo4_5 = get_topology_type(topology4_5);
+    auto topo4_6 = get_topology_type(topology4_6);
+    auto topo4_7 = get_topology_type(topology4_7);
+    auto topo4_8 = get_topology_type(topology4_8);
+    EXPECT_EQ(topo4_1, TopologyType::Pencil);
+    EXPECT_EQ(topo4_2, TopologyType::Pencil);
+    EXPECT_EQ(topo4_3, TopologyType::Pencil);
+    EXPECT_EQ(topo4_4, TopologyType::Pencil);
+    EXPECT_EQ(topo4_5, TopologyType::Pencil);
+    EXPECT_EQ(topo4_6, TopologyType::Pencil);
+    EXPECT_EQ(topo4_7, TopologyType::Slab);
+    EXPECT_EQ(topo4_8, TopologyType::Shared);
+
+  } else {
+    // 1D topology
+    auto topo1 = get_topology_type(topology1);
+    EXPECT_EQ(topo1, TopologyType::Slab);
+
+    // 2D topology
+    auto topo2_1 = get_topology_type(topology2_1);
+    auto topo2_2 = get_topology_type(topology2_2);
+    EXPECT_EQ(topo2_1, TopologyType::Pencil);
+    EXPECT_EQ(topo2_2, TopologyType::Pencil);
+
+    // 3D topology
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_1 = get_topology_type(topology3_1); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_2 = get_topology_type(topology3_2); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_3 = get_topology_type(topology3_3); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_4 = get_topology_type(topology3_4); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_5 = get_topology_type(topology3_5); },
+        std::runtime_error);
+
+    // 4D topology
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_1 = get_topology_type(topology4_1); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_2 = get_topology_type(topology4_2); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_3 = get_topology_type(topology4_3); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_4 = get_topology_type(topology4_4); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_5 = get_topology_type(topology4_5); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_6 = get_topology_type(topology4_6); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_7 = get_topology_type(topology4_7); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_8 = get_topology_type(topology4_8); },
+        std::runtime_error);
+  }
+}
+
+void test_is_topology(std::size_t nprocs) {
+  using topology1D_type = std::array<std::size_t, 1>;
+  using topology2D_type = std::array<std::size_t, 2>;
+  using topology3D_type = std::array<std::size_t, 3>;
+  using topology4D_type = std::array<std::size_t, 4>;
+
+  const std::size_t p0 = 2, p1 = 3, p2 = 4, p3 = 5;
+
+  topology1D_type topology1{nprocs};
+  topology2D_type topology2_1{p0, nprocs}, topology2_2{nprocs, p1};
+  topology3D_type topology3_1{p0, p1, nprocs}, topology3_2{p0, nprocs, p2},
+      topology3_3{nprocs, p1, p2}, topology3_4{nprocs, nprocs, p2},
+      topology3_5{nprocs, nprocs, nprocs};
+  topology4D_type topology4_1{p0, p1, nprocs, nprocs},
+      topology4_2{p0, nprocs, p2, nprocs}, topology4_3{p0, nprocs, nprocs, p3},
+      topology4_4{nprocs, p1, p2, nprocs}, topology4_5{nprocs, p1, nprocs, p3},
+      topology4_6{nprocs, nprocs, p2, p3},
+      topology4_7{p0, nprocs, nprocs, nprocs},
+      topology4_8{nprocs, nprocs, nprocs, nprocs};
+
+  if (nprocs == 1) {
+    // 1D topology is shared
+    EXPECT_TRUE(is_shared_topology(topology1));
+    EXPECT_FALSE(is_slab_topology(topology1));
+    EXPECT_FALSE(is_pencil_topology(topology1));
+
+    // Invalid 1D topology
+    EXPECT_FALSE(is_pencil_topology(topology1D_type{0}));
+
+    // 2D topology is slab
+    EXPECT_TRUE(is_slab_topology(topology2_1));
+    EXPECT_TRUE(is_slab_topology(topology2_2));
+    EXPECT_FALSE(is_shared_topology(topology2_1));
+    EXPECT_FALSE(is_shared_topology(topology2_2));
+    EXPECT_FALSE(is_pencil_topology(topology2_1));
+    EXPECT_FALSE(is_pencil_topology(topology2_2));
+
+    // Invalid 2D topology
+    EXPECT_FALSE(is_slab_topology(topology2D_type{0, nprocs}));
+    EXPECT_FALSE(is_slab_topology(topology2D_type{nprocs, 0}));
+    EXPECT_FALSE(is_shared_topology(topology2D_type{0, nprocs}));
+    EXPECT_FALSE(is_shared_topology(topology2D_type{nprocs, 0}));
+    EXPECT_FALSE(is_pencil_topology(topology2D_type{0, nprocs}));
+    EXPECT_FALSE(is_pencil_topology(topology2D_type{nprocs, 0}));
+
+    // 3D case
+    // Pencil topologies
+    EXPECT_TRUE(is_pencil_topology(topology3_1));
+    EXPECT_TRUE(is_pencil_topology(topology3_2));
+    EXPECT_TRUE(is_pencil_topology(topology3_3));
+    EXPECT_TRUE(is_slab_topology(topology3_4));
+    EXPECT_TRUE(is_shared_topology(topology3_5));
+
+    // 4D case
+    EXPECT_TRUE(is_pencil_topology(topology4_1));
+    EXPECT_TRUE(is_pencil_topology(topology4_2));
+    EXPECT_TRUE(is_pencil_topology(topology4_3));
+    EXPECT_TRUE(is_pencil_topology(topology4_4));
+    EXPECT_TRUE(is_pencil_topology(topology4_5));
+    EXPECT_TRUE(is_pencil_topology(topology4_6));
+    EXPECT_TRUE(is_slab_topology(topology4_7));
+    EXPECT_TRUE(is_shared_topology(topology4_8));
+  } else {
+    // 1D topology
+    EXPECT_TRUE(is_slab_topology(topology1));
+
+    // 2D topology
+    EXPECT_TRUE(is_pencil_topology(topology2_1));
+    EXPECT_TRUE(is_pencil_topology(topology2_2));
+
+    // 3D topology
+    EXPECT_FALSE(is_shared_topology(topology3_1));
+    EXPECT_FALSE(is_shared_topology(topology3_2));
+    EXPECT_FALSE(is_shared_topology(topology3_3));
+    EXPECT_FALSE(is_shared_topology(topology3_4));
+    EXPECT_FALSE(is_shared_topology(topology3_5));
+    EXPECT_FALSE(is_slab_topology(topology3_1));
+    EXPECT_FALSE(is_slab_topology(topology3_2));
+    EXPECT_FALSE(is_slab_topology(topology3_3));
+    EXPECT_FALSE(is_slab_topology(topology3_4));
+    EXPECT_FALSE(is_slab_topology(topology3_5));
+    EXPECT_FALSE(is_pencil_topology(topology3_1));
+    EXPECT_FALSE(is_pencil_topology(topology3_2));
+    EXPECT_FALSE(is_pencil_topology(topology3_3));
+    EXPECT_FALSE(is_pencil_topology(topology3_4));
+    EXPECT_FALSE(is_pencil_topology(topology3_5));
+
+    // 4D topology
+    EXPECT_FALSE(is_shared_topology(topology4_1));
+    EXPECT_FALSE(is_shared_topology(topology4_2));
+    EXPECT_FALSE(is_shared_topology(topology4_3));
+    EXPECT_FALSE(is_shared_topology(topology4_4));
+    EXPECT_FALSE(is_shared_topology(topology4_5));
+    EXPECT_FALSE(is_shared_topology(topology4_6));
+    EXPECT_FALSE(is_shared_topology(topology4_7));
+    EXPECT_FALSE(is_shared_topology(topology4_8));
+    EXPECT_FALSE(is_slab_topology(topology4_1));
+    EXPECT_FALSE(is_slab_topology(topology4_2));
+    EXPECT_FALSE(is_slab_topology(topology4_3));
+    EXPECT_FALSE(is_slab_topology(topology4_4));
+    EXPECT_FALSE(is_slab_topology(topology4_5));
+    EXPECT_FALSE(is_slab_topology(topology4_6));
+    EXPECT_FALSE(is_slab_topology(topology4_7));
+    EXPECT_FALSE(is_slab_topology(topology4_8));
+    EXPECT_FALSE(is_pencil_topology(topology4_1));
+    EXPECT_FALSE(is_pencil_topology(topology4_2));
+    EXPECT_FALSE(is_pencil_topology(topology4_3));
+    EXPECT_FALSE(is_pencil_topology(topology4_4));
+    EXPECT_FALSE(is_pencil_topology(topology4_5));
+    EXPECT_FALSE(is_pencil_topology(topology4_6));
+    EXPECT_FALSE(is_pencil_topology(topology4_7));
+    EXPECT_FALSE(is_pencil_topology(topology4_8));
   }
 }
 
@@ -671,6 +1218,14 @@ void test_get_shuffled_topologies3D(std::size_t nprocs) {
 
 }  // namespace
 
+TEST_P(SlabParamTests, GetAllSlabTopologies1D) {
+  int n0 = GetParam();
+  test_get_all_slab_topologies1D(n0);
+}
+
+INSTANTIATE_TEST_SUITE_P(SlabTests, SlabParamTests,
+                         ::testing::Values(1, 2, 3, 4, 5, 6));
+
 TEST_P(PencilParamTests, GetPencil3D) {
   int n0 = GetParam();
   test_get_pencil_3D(n0);
@@ -697,4 +1252,27 @@ TEST_P(PencilParamTests, GetShuffledTopologies3D) {
 }
 
 INSTANTIATE_TEST_SUITE_P(PencilTests, PencilParamTests,
+                         ::testing::Values(1, 2, 3, 4, 5, 6));
+
+TEST_P(TopologyParamTests, MergeTopology) {
+  int n0 = GetParam();
+  test_merge_topology(n0);
+}
+
+TEST_P(TopologyParamTests, DiffTopology) {
+  int n0 = GetParam();
+  test_diff_topology(n0);
+}
+
+TEST_P(TopologyParamTests, GetTopologyType) {
+  int n0 = GetParam();
+  test_get_topology_type(n0);
+}
+
+TEST_P(TopologyParamTests, IsTopology) {
+  int n0 = GetParam();
+  test_is_topology(n0);
+}
+
+INSTANTIATE_TEST_SUITE_P(TopologyTests, TopologyParamTests,
                          ::testing::Values(1, 2, 3, 4, 5, 6));
