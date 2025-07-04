@@ -167,13 +167,12 @@ void test_buffer_extents() {
       std::runtime_error);
 }
 
-template <typename T, typename LayoutType>
+template <typename T>
 void test_next_extents() {
   using extents_type  = std::array<std::size_t, 4>;
   using topology_type = std::array<std::size_t, 4>;
   using map_type      = std::array<std::size_t, 4>;
 
-  using ViewType       = Kokkos::View<T****, LayoutType, execution_space>;
   const std::size_t n0 = 13, n1 = 8, n2 = 17, n3 = 5;
   const std::size_t p0 = 2, p1 = 3;
 
@@ -380,10 +379,9 @@ TYPED_TEST(TestExtents, BufferExtents) {
 }
 
 TYPED_TEST(TestExtents, NextExtents) {
-  using float_type  = typename TestFixture::float_type;
-  using layout_type = typename TestFixture::layout_type;
+  using float_type = typename TestFixture::float_type;
 
-  test_next_extents<float_type, layout_type>();
+  test_next_extents<float_type>();
 }
 
 TEST(TestRequiredAllocationSize, 1Dto4D) {
