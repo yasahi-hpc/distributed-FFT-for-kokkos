@@ -131,7 +131,8 @@ struct Pack {
         iType src_indices[DstViewType::rank() - 1] = {
             merge_indices(dst_idx[Is], p, m_dst_extents, Is, m_axis)...};
         for (std::size_t i = 0; i < DstViewType::rank() - 1; ++i) {
-          if (src_indices[m_map[i]] >= m_src_extents[i]) out_of_bounds = true;
+          if (src_indices[m_map[i]] >= iType(m_src_extents[i]))
+            out_of_bounds = true;
         }
         return out_of_bounds ? ValueType(0) : m_src(src_indices[m_map[Is]]...);
       } else {
@@ -139,7 +140,8 @@ struct Pack {
         iType src_indices[DstViewType::rank() - 1] = {
             merge_indices(dst_idx[Is + 1], p, m_dst_extents, Is, m_axis)...};
         for (std::size_t i = 0; i < DstViewType::rank() - 1; ++i) {
-          if (src_indices[m_map[i]] >= m_src_extents[i]) out_of_bounds = true;
+          if (src_indices[m_map[i]] >= iType(m_src_extents[i]))
+            out_of_bounds = true;
         }
         return out_of_bounds ? ValueType(0) : m_src(src_indices[m_map[Is]]...);
       }
@@ -265,7 +267,8 @@ struct Unpack {
         iType dst_indices[SrcViewType::rank() - 1] = {
             merge_indices(src_idx[Is], p, m_src_extents, Is, m_axis)...};
         for (std::size_t i = 0; i < SrcViewType::rank() - 1; ++i) {
-          if (dst_indices[m_map[i]] >= m_dst_extents[i]) in_bounds = false;
+          if (dst_indices[m_map[i]] >= iType(m_dst_extents[i]))
+            in_bounds = false;
         }
         if (in_bounds) {
           m_dst(dst_indices[m_map[Is]]...) = src_value;
@@ -275,7 +278,8 @@ struct Unpack {
         iType dst_indices[SrcViewType::rank() - 1] = {
             merge_indices(src_idx[Is + 1], p, m_src_extents, Is, m_axis)...};
         for (std::size_t i = 0; i < SrcViewType::rank() - 1; ++i) {
-          if (dst_indices[m_map[i]] >= m_dst_extents[i]) in_bounds = false;
+          if (dst_indices[m_map[i]] >= iType(m_dst_extents[i]))
+            in_bounds = false;
         }
         if (in_bounds) {
           m_dst(dst_indices[m_map[Is]]...) = src_value;

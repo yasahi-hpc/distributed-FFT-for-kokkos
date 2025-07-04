@@ -37,12 +37,10 @@ void display(ViewType& a, int rank) {
 #if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP) || \
     defined(KOKKOS_ENABLE_SYCL)
 constexpr int TILE0 = 4;
-constexpr int TILE1 = 4;
-constexpr int TILE2 = 32;
+constexpr int TILE1 = 32;
 #else
 constexpr int TILE0 = 4;
 constexpr int TILE1 = 4;
-constexpr int TILE2 = 4;
 #endif
 
 using execution_space = Kokkos::DefaultExecutionSpace;
@@ -74,7 +72,7 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
 // \param[out] u 3D field in real space (nz, ny/p, nx)
 template <typename RealView1DType, typename ComplexView2DType,
           typename RealView3DType>
-void initialize(const int rank, const int nprocs, RealView1DType& x,
+void initialize(const int rank, RealView1DType& x,
                 RealView1DType& y, ComplexView2DType& ikx,
                 ComplexView2DType& iky, RealView3DType& u) {
   using value_type    = typename RealView1DType::non_const_value_type;
@@ -238,7 +236,7 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   RealView4D send_buffer_0("send_buffer_0", n3, n2, n1, n0);
   RealView4D recv_buffer_0("recv_buffer_0", n3, n2, n1, n0);
 
-  initialize(rank, nprocs, x, y, ikx, iky, u);
+  initialize(rank, nprocs,x, y, ikx, iky, u);
   analytical_solution(rank, x, y, dudxy);
 
   execution_space exec;
@@ -280,14 +278,14 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   using point2D_type = typename range2D_type::point_type;
 
   range2D_type range2d(exec, point2D_type{{0, 0}},
-                       point2D_type{{iky.extent(0), iky.extent(1)}},
-                       tile2D_type{{TILE0, TILE2}});
+                       point2D_type{{iky.extent_int(0), iky.extent_int(1)}},
+                       tile2D_type{{TILE0, TILE1}});
 
   // Compute derivatives by multiplications in Fourier space
   Kokkos::parallel_for(
       "ComputeDerivative", range2d, KOKKOS_LAMBDA(const int iy, const int ix) {
         auto ikx_tmp = ikx(iy, ix), iky_tmp = iky(iy, ix);
-        for (int iz = 0; iz < nz; ++iz) {
+        for (std::size_t iz = 0; iz < nz; ++iz) {
           Xslab(iz, iy, ix) =
               (ikx_tmp * Xslab(iz, iy, ix) + iky_tmp * Xslab(iz, iy, ix));
         }

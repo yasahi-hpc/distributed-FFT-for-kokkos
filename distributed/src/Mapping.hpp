@@ -246,13 +246,17 @@ std::vector<std::array<iType, DIM>> get_shuffled_topologies(
   std::array<iType, DIM> shuffled_topology = in_topology;
   for (const auto& axis : axes_reversed) {
     std::size_t swap_idx = 0;
+    auto non_negative_axis =
+        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     for (auto diff_idx : diff_non_ones) {
-      if (shuffled_topology.at(diff_idx) == 1 && diff_idx != axis) {
+      if (shuffled_topology.at(diff_idx) == 1 && diff_idx != unsigned_axis) {
         swap_idx = diff_idx;
         break;
       }
     }
-    shuffled_topology = swap_elements(shuffled_topology, axis, swap_idx);
+    shuffled_topology =
+        swap_elements(shuffled_topology, unsigned_axis, swap_idx);
     topologies.push_back(shuffled_topology);
   }
   if (topologies.back() == out_topology) return topologies;

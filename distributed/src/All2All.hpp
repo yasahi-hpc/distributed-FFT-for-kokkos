@@ -13,7 +13,7 @@ struct All2All {
   using LayoutType   = typename ViewType::array_layout;
   using extents_type = KokkosFFT::shape_type<ViewType::rank()>;
 
-  ViewType m_send, m_recv;
+  ExecutionSpace m_exec_space;
   int m_send_count = 0;
   MPI_Comm m_comm;
   MPI_Datatype m_mpi_data_type;
@@ -22,8 +22,7 @@ struct All2All {
   All2All(const ViewType& send, const ViewType& recv,
           MPI_Comm comm                   = MPI_COMM_WORLD,
           const ExecutionSpace exec_space = ExecutionSpace())
-      : m_send(send),
-        m_recv(recv),
+      : m_exec_space(exec_space),
         m_comm(comm),
         m_mpi_data_type(MPIDataType<value_type>::type()) {
     // Compute the outermost dimension size

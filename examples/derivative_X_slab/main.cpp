@@ -37,12 +37,10 @@ void display(ViewType& a, int rank) {
 #if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP) || \
     defined(KOKKOS_ENABLE_SYCL)
 constexpr int TILE0 = 4;
-constexpr int TILE1 = 4;
-constexpr int TILE2 = 32;
+constexpr int TILE1 = 32;
 #else
 constexpr int TILE0 = 4;
 constexpr int TILE1 = 4;
-constexpr int TILE2 = 4;
 #endif
 
 using execution_space = Kokkos::DefaultExecutionSpace;
@@ -194,27 +192,11 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   using ComplexView3D = View3D<Kokkos::complex<double>>;
   using ComplexView4D = View4D<Kokkos::complex<double>>;
 
-  using map_type     = std::array<std::size_t, 3>;
-  using extents_type = std::array<std::size_t, 3>;
-  using LayoutType   = typename RealView3D::array_layout;
-
-  std::size_t P             = nprocs;
-  extents_type in_topology  = {1, P, 1};  // X-pencil
-  extents_type out_topology = {1, 1, P};  // Y-pencil
-  map_type src_map          = {0, 1, 2};
+  using map_type   = std::array<std::size_t, 3>;
+  map_type src_map = {0, 1, 2};
 
   // Declare grids
   RealView1D x("x", nx), y("y", ny);
-
-  // Variables to be transformed
-  // Distribute the data in X-pencil layout
-  // Global shape (nz, ny, nx) -> (nz, ny, nx/2+1)
-  // auto [nz_in, ny_in, nx_in] = get_local_shape(
-  //    extents_type({nz, ny, nx}), in_topology, MPI_COMM_WORLD);
-  // auto [nz_out, ny_out, nx_out] = get_local_shape(
-  //    extents_type({nz, ny, nx/2+1}), out_topology, MPI_COMM_WORLD);
-  // auto [nz_x, ny_x, nx_x] = get_local_shape(
-  //    extents_type({nz, ny, nx/2+1}), in_topology, MPI_COMM_WORLD);
 
   const int ny_buf  = ny / nprocs;  // Buffer size in Y direction
   const int nx_buf0 = nx / nprocs;
@@ -270,14 +252,15 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
   using tile2D_type  = typename range2D_type::tile_type;
   using point2D_type = typename range2D_type::point_type;
 
-  range2D_type range2d(exec, point2D_type{{0, 0}}, point2D_type{{nx_buf1, ny}},
-                       tile2D_type{{TILE0, TILE2}});
+  range2D_type range2d(exec, point2D_type{{0, 0}},
+                       point2D_type{{nx_buf1, int(ny)}},
+                       tile2D_type{{TILE0, TILE1}});
 
   // Compute derivatives by multiplications in Fourier space
   Kokkos::parallel_for(
       "ComputeDerivative", range2d, KOKKOS_LAMBDA(const int ix, const int iy) {
         auto ikx_tmp = ikx(ix, iy), iky_tmp = iky(ix, iy);
-        for (int iz = 0; iz < nz; ++iz) {
+        for (std::size_t iz = 0; iz < nz; ++iz) {
           Yslab(iz, ix, iy) =
               (ikx_tmp * Yslab(iz, ix, iy) + iky_tmp * Yslab(iz, ix, iy));
         }
@@ -305,9 +288,9 @@ void compute_derivative(const std::size_t nx, const std::size_t ny,
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), dudxy);
 
   const double epsilon = 1.e-8;
-  for (int iz = 0; iz < h_dudxy.extent(0); ++iz) {
-    for (int iy = 0; iy < h_dudxy.extent(1); ++iy) {
-      for (int ix = 0; ix < h_dudxy.extent(2); ++ix) {
+  for (std::size_t iz = 0; iz < h_dudxy.extent(0); ++iz) {
+    for (std::size_t iy = 0; iy < h_dudxy.extent(1); ++iy) {
+      for (std::size_t ix = 0; ix < h_dudxy.extent(2); ++ix) {
         auto abs_error = std::abs(h_dudxy(iz, iy, ix) - h_u(iz, iy, ix));
         if (abs_error > epsilon) {
           std::cout << "Error (ix, iy, iz): " << ix << ", " << iy << ", " << iz

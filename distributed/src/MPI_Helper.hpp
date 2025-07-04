@@ -12,36 +12,32 @@ struct MPIDataType {};
 
 template <>
 struct MPIDataType<int> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_INT32_T; }
+  static inline MPI_Datatype type() noexcept { return MPI_INT32_T; }
 };
 
 template <>
 struct MPIDataType<std::size_t> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_UINT64_T; }
+  static inline MPI_Datatype type() noexcept { return MPI_UINT64_T; }
 };
 
 template <>
 struct MPIDataType<float> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_FLOAT; }
+  static inline MPI_Datatype type() noexcept { return MPI_FLOAT; }
 };
 
 template <>
 struct MPIDataType<double> {
-  static constexpr MPI_Datatype type() noexcept { return MPI_DOUBLE; }
+  static inline MPI_Datatype type() noexcept { return MPI_DOUBLE; }
 };
 
 template <>
 struct MPIDataType<Kokkos::complex<float>> {
-  static constexpr MPI_Datatype type() noexcept {
-    return MPI_CXX_FLOAT_COMPLEX;
-  }
+  static inline MPI_Datatype type() noexcept { return MPI_CXX_FLOAT_COMPLEX; }
 };
 
 template <>
 struct MPIDataType<Kokkos::complex<double>> {
-  static constexpr MPI_Datatype type() noexcept {
-    return MPI_CXX_DOUBLE_COMPLEX;
-  }
+  static inline MPI_Datatype type() noexcept { return MPI_CXX_DOUBLE_COMPLEX; }
 };
 
 template <std::size_t DIM>
@@ -131,7 +127,7 @@ auto get_local_shape(const std::array<std::size_t, DIM> &extents,
   ::MPI_Comm_rank(comm, &rank);
   ::MPI_Comm_size(comm, &nprocs);
 
-  KOKKOSFFT_THROW_IF(total_size != nprocs,
+  KOKKOSFFT_THROW_IF(static_cast<int>(total_size) != nprocs,
                      "topology size must be identical to mpi size.");
 
   std::array<std::size_t, DIM> coords =

@@ -141,16 +141,16 @@ void test_unpack_view2D(int rank, int nprocs, int order = 0) {
   T epsilon = std::numeric_limits<T>::epsilon() * 100;
 
   // Check xpencil is correct
-  for (int i1 = 0; i1 < xpencil.extent(1); i1++) {
-    for (int i0 = 0; i0 < xpencil.extent(0); i0++) {
+  for (std::size_t i1 = 0; i1 < xpencil.extent(1); i1++) {
+    for (std::size_t i0 = 0; i0 < xpencil.extent(0); i0++) {
       auto diff = Kokkos::abs(h_xpencil(i0, i1) - h_xpencil_ref(i0, i1));
       EXPECT_LE(diff, epsilon);
     }
   }
 
   // Check ypencil is correct
-  for (int i1 = 0; i1 < ypencil.extent(1); i1++) {
-    for (int i0 = 0; i0 < ypencil.extent(0); i0++) {
+  for (std::size_t i1 = 0; i1 < ypencil.extent(1); i1++) {
+    for (std::size_t i0 = 0; i0 < ypencil.extent(0); i0++) {
       auto diff = Kokkos::abs(h_ypencil(i0, i1) - h_ypencil_ref(i0, i1));
       EXPECT_LE(diff, epsilon);
     }
@@ -391,9 +391,9 @@ void test_unpack_view3D(int rank, int nprocs, int order = 0) {
   T epsilon = std::numeric_limits<T>::epsilon() * 100;
 
   // Check xpencil is correct
-  for (int i2 = 0; i2 < xpencil.extent(2); i2++) {
-    for (int i1 = 0; i1 < xpencil.extent(1); i1++) {
-      for (int i0 = 0; i0 < xpencil.extent(0); i0++) {
+  for (std::size_t i2 = 0; i2 < xpencil.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < xpencil.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < xpencil.extent(0); i0++) {
         auto diff =
             Kokkos::abs(h_xpencil(i0, i1, i2) - h_xpencil_ref(i0, i1, i2));
         EXPECT_LE(diff, epsilon);
@@ -402,9 +402,9 @@ void test_unpack_view3D(int rank, int nprocs, int order = 0) {
   }
 
   // Check ypencil is correct
-  for (int i2 = 0; i2 < ypencil.extent(2); i2++) {
-    for (int i1 = 0; i1 < ypencil.extent(1); i1++) {
-      for (int i0 = 0; i0 < ypencil.extent(0); i0++) {
+  for (std::size_t i2 = 0; i2 < ypencil.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < ypencil.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < ypencil.extent(0); i0++) {
         auto diff =
             Kokkos::abs(h_ypencil(i0, i1, i2) - h_ypencil_ref(i0, i1, i2));
         EXPECT_LE(diff, epsilon);
@@ -413,9 +413,9 @@ void test_unpack_view3D(int rank, int nprocs, int order = 0) {
   }
 
   // Check zpencil is correct
-  for (int i2 = 0; i2 < zpencil.extent(2); i2++) {
-    for (int i1 = 0; i1 < zpencil.extent(1); i1++) {
-      for (int i0 = 0; i0 < zpencil.extent(0); i0++) {
+  for (std::size_t i2 = 0; i2 < zpencil.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < zpencil.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < zpencil.extent(0); i0++) {
         auto diff =
             Kokkos::abs(h_zpencil(i0, i1, i2) - h_zpencil_ref(i0, i1, i2));
         EXPECT_LE(diff, epsilon);

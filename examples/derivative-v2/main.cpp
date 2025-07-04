@@ -11,12 +11,10 @@
 #if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP) || \
     defined(KOKKOS_ENABLE_SYCL)
 constexpr int TILE0 = 4;
-constexpr int TILE1 = 4;
-constexpr int TILE2 = 32;
+constexpr int TILE1 = 32;
 #else
 constexpr int TILE0 = 4;
 constexpr int TILE1 = 4;
-constexpr int TILE2 = 4;
 #endif
 
 using execution_space = Kokkos::DefaultExecutionSpace;
@@ -226,7 +224,7 @@ void compute_derivative(const int nx, const int ny, const int nz,
   using point2D_type = typename range2D_type::point_type;
 
   range2D_type range2d(exec, point2D_type{{0, 0}}, point2D_type{{nx_local, ny}},
-                       tile2D_type{{TILE0, TILE2}});
+                       tile2D_type{{TILE0, TILE1}});
 
   // Compute derivatives by multiplications in Fourier space
   Kokkos::parallel_for(
