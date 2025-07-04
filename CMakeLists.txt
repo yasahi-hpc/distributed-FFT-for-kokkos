@@ -5,9 +5,13 @@ add_subdirectory(tpls/kokkos)
 add_subdirectory(tpls/kokkos-fft)
 add_subdirectory(tpls/googletest)
 
+option(ENABLE_EXAMPLES "Build examples" OFF)
+
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory(distributed)
 endif()
 
-add_subdirectory(examples)
+if(ENABLE_EXAMPLES)
+    add_subdirectory(examples)
+endif()
