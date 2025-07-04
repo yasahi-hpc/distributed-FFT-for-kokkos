@@ -122,7 +122,6 @@ void test_buffer_extents() {
   using extents_type        = std::array<std::size_t, 4>;
   using buffer_extents_type = std::array<std::size_t, 5>;
   using topology_type       = std::array<std::size_t, 4>;
-  using ViewType            = Kokkos::View<T****, LayoutType, execution_space>;
   const std::size_t n0 = 13, n1 = 8, n2 = 17, n3 = 5;
   const std::size_t p0 = 2, p1 = 3;
 
@@ -231,8 +230,9 @@ void test_get_topology_type(std::size_t nprocs) {
     auto topo1 = get_topology_type(topology1);
     EXPECT_EQ(topo1, TopologyType::Shared);
 
-    EXPECT_THROW({ auto topo = get_topology_type(topology1D_type{0}); },
-                 std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo = get_topology_type(topology1D_type{0}); },
+        std::runtime_error);
 
     auto topo2_1 = get_topology_type(topology2_1);
     auto topo2_2 = get_topology_type(topology2_2);
