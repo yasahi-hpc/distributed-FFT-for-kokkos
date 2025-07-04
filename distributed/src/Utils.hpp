@@ -46,6 +46,17 @@ std::vector<iType> find_non_ones(const std::array<iType, DIM>& a,
 }
 
 template <typename iType, std::size_t DIM = 1>
+std::vector<iType> find_ones(const std::array<iType, DIM>& a) {
+  std::vector<iType> ones;
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    if (a[i] == 1) {
+      ones.push_back(i);
+    }
+  }
+  return ones;
+}
+
+template <typename iType, std::size_t DIM = 1>
 std::array<iType, DIM> swap_elements(const std::array<iType, DIM>& arr, int i,
                                      int j) {
   std::array<iType, DIM> result = arr;
