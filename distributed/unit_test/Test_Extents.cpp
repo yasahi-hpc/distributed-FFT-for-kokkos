@@ -40,18 +40,36 @@ void test_merge_topology(std::size_t nprocs) {
   EXPECT_EQ(merged12, ref_merged12);
 
   // Failure tests because these do not have same size
-  EXPECT_THROW({ auto merged03 = merge_topology(topology0, topology3); },
-               std::runtime_error);
-  EXPECT_THROW({ auto merged04 = merge_topology(topology0, topology4); },
-               std::runtime_error);
-  EXPECT_THROW({ auto merged13 = merge_topology(topology1, topology3); },
-               std::runtime_error);
-  EXPECT_THROW({ auto merged14 = merge_topology(topology1, topology4); },
-               std::runtime_error);
-  EXPECT_THROW({ auto merged23 = merge_topology(topology2, topology3); },
-               std::runtime_error);
-  EXPECT_THROW({ auto merged24 = merge_topology(topology2, topology4); },
-               std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged03 = merge_topology(topology0, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged04 = merge_topology(topology0, topology4);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged13 = merge_topology(topology1, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged14 = merge_topology(topology1, topology4);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged23 = merge_topology(topology2, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged24 = merge_topology(topology2, topology4);
+      },
+      std::runtime_error);
 
   // This case is valid
   topology_type ref_merged34 = {nprocs, 8, 8};
@@ -90,8 +108,12 @@ void test_diff_topology(std::size_t nprocs) {
     EXPECT_EQ(diff03, ref_diff03);
   } else {
     // Failure tests because more than two elements are different
-    EXPECT_THROW({ std::size_t diff03 = diff_toplogy(topology0, topology3); },
-                 std::runtime_error);
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] std::size_t diff03 =
+              diff_toplogy(topology0, topology3);
+        },
+        std::runtime_error);
   }
 }
 
@@ -140,7 +162,7 @@ void test_buffer_extents() {
   // In valid, because you cannot go from X to Z in one exchange
   EXPECT_THROW(
       {
-        buffer_extents_type buffer_02 =
+        [[maybe_unused]] buffer_extents_type buffer_02 =
             get_buffer_extents<LayoutType>(extents, topology0, topology2);
       },
       std::runtime_error);
@@ -219,12 +241,14 @@ void test_get_topology_type(std::size_t nprocs) {
 
     EXPECT_THROW(
         {
-          auto topo = get_topology_type(topology2D_type{0, nprocs});
+          [[maybe_unused]] auto topo =
+              get_topology_type(topology2D_type{0, nprocs});
         },
         std::runtime_error);
     EXPECT_THROW(
         {
-          auto topo = get_topology_type(topology2D_type{nprocs, 0});
+          [[maybe_unused]] auto topo =
+              get_topology_type(topology2D_type{nprocs, 0});
         },
         std::runtime_error);
 
@@ -268,34 +292,47 @@ void test_get_topology_type(std::size_t nprocs) {
     EXPECT_EQ(topo2_2, TopologyType::Pencil);
 
     // 3D topology
-    EXPECT_THROW({ auto topo3_1 = get_topology_type(topology3_1); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo3_2 = get_topology_type(topology3_2); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo3_3 = get_topology_type(topology3_3); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo3_4 = get_topology_type(topology3_4); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo3_5 = get_topology_type(topology3_5); },
-                 std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_1 = get_topology_type(topology3_1); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_2 = get_topology_type(topology3_2); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_3 = get_topology_type(topology3_3); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_4 = get_topology_type(topology3_4); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo3_5 = get_topology_type(topology3_5); },
+        std::runtime_error);
 
     // 4D topology
-    EXPECT_THROW({ auto topo4_1 = get_topology_type(topology4_1); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo4_2 = get_topology_type(topology4_2); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo4_3 = get_topology_type(topology4_3); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo4_4 = get_topology_type(topology4_4); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo4_5 = get_topology_type(topology4_5); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo4_6 = get_topology_type(topology4_6); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo4_7 = get_topology_type(topology4_7); },
-                 std::runtime_error);
-    EXPECT_THROW({ auto topo4_8 = get_topology_type(topology4_8); },
-                 std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_1 = get_topology_type(topology4_1); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_2 = get_topology_type(topology4_2); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_3 = get_topology_type(topology4_3); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_4 = get_topology_type(topology4_4); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_5 = get_topology_type(topology4_5); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_6 = get_topology_type(topology4_6); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_7 = get_topology_type(topology4_7); },
+        std::runtime_error);
+    EXPECT_THROW(
+        { [[maybe_unused]] auto topo4_8 = get_topology_type(topology4_8); },
+        std::runtime_error);
   }
 }
 

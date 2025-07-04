@@ -218,6 +218,8 @@ void test_rank_to_coord() {
   EXPECT_EQ(coord3_2_rank7, ref_coord3_2_rank7);
   EXPECT_EQ(coord4_rank0, ref_coord4_rank0);
   EXPECT_EQ(coord4_rank1, ref_coord4_rank1);
+  EXPECT_EQ(coord4_rank2, ref_coord4_rank2);
+  EXPECT_EQ(coord4_rank3, ref_coord4_rank3);
   EXPECT_EQ(coord4_2_rank0, ref_coord4_2_rank0);
   EXPECT_EQ(coord4_2_rank1, ref_coord4_2_rank1);
   EXPECT_EQ(coord4_2_rank2, ref_coord4_2_rank2);
@@ -232,7 +234,6 @@ template <typename T, typename LayoutType>
 void test_get_local_shape2D(std::size_t rank, std::size_t nprocs) {
   using topology_type = std::array<std::size_t, 2>;
   using extents_type  = std::array<std::size_t, 2>;
-  using ViewType      = Kokkos::View<T**, LayoutType, execution_space>;
 
   topology_type topology0{1, nprocs};
   topology_type topology1{nprocs, 1};
@@ -244,19 +245,10 @@ void test_get_local_shape2D(std::size_t rank, std::size_t nprocs) {
   };
 
   const std::size_t gn0 = 19, gn1 = 32;
-  const std::size_t n0_t0           = gn0;
-  const std::size_t n1_t0_quotient  = (gn1 - 1) / nprocs + 1;
-  const std::size_t n1_t0_remainder = gn1 - n1_t0_quotient * (nprocs - 1);
-  const std::size_t n1_t0           = distribute_extents(gn1, nprocs);
-  // const std::size_t n1_t0 =
-  //     rank != (nprocs - 1) ? n1_t0_quotient : n1_t0_remainder;
+  const std::size_t n0_t0 = gn0;
+  const std::size_t n1_t0 = distribute_extents(gn1, nprocs);
 
-  const std::size_t n0_t1_quotient  = (gn0 - 1) / nprocs + 1;
-  const std::size_t n0_t1_remainder = gn0 - n0_t1_quotient * (nprocs - 1);
-  // const std::size_t n0_t1 =
-  //     rank != (nprocs - 1) ? n0_t1_quotient : n0_t1_remainder;
   const std::size_t n0_t1 = distribute_extents(gn0, nprocs);
-
   const std::size_t n1_t1 = gn1;
 
   extents_type global_shape{gn0, gn1};
