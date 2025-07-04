@@ -426,10 +426,10 @@ void test_pack_view3D(int rank, int nprocs, int order = 0) {
   }
 
   // Check zsend is correct
-  for (int i3 = 0; i3 < zsend.extent(3); i3++) {
-    for (int i2 = 0; i2 < zsend.extent(2); i2++) {
-      for (int i1 = 0; i1 < zsend.extent(1); i1++) {
-        for (int i0 = 0; i0 < zsend.extent(0); i0++) {
+  for (std::size_t i3 = 0; i3 < zsend.extent(3); i3++) {
+    for (std::size_t i2 = 0; i2 < zsend.extent(2); i2++) {
+      for (std::size_t i1 = 0; i1 < zsend.extent(1); i1++) {
+        for (std::size_t i0 = 0; i0 < zsend.extent(0); i0++) {
           auto diff = Kokkos::abs(h_zsend(i0, i1, i2, i3) -
                                   h_zsend_ref(i0, i1, i2, i3));
           EXPECT_LE(diff, epsilon);
