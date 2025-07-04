@@ -6,6 +6,7 @@
 #include <vector>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include "Utils.hpp"
 
 template <typename ValueType>
 struct MPIDataType {};
@@ -39,12 +40,6 @@ template <>
 struct MPIDataType<Kokkos::complex<double>> {
   static inline MPI_Datatype type() noexcept { return MPI_CXX_DOUBLE_COMPLEX; }
 };
-
-template <std::size_t DIM>
-std::size_t get_size(const std::array<std::size_t, DIM> &topology) {
-  return std::accumulate(topology.begin(), topology.end(), 1,
-                         std::multiplies<std::size_t>());
-}
 
 /// \brief
 ///
