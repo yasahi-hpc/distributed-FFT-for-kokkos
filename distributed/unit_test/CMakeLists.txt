@@ -10,6 +10,7 @@ add_executable(unit-tests-mpi
     Test_Topologies.cpp
     Test_Block.cpp
     #Test_Plan.cpp
+    #Test_SlabPlan.cpp
 )
 
 find_package(MPI REQUIRED COMPONENTS CXX)
