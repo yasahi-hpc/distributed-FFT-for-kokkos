@@ -8,57 +8,6 @@
 #include "Types.hpp"
 #include "Utils.hpp"
 
-template <typename iType, std::size_t DIM = 1>
-auto merge_topology(const std::array<iType, DIM> &in_topology,
-                    const std::array<iType, DIM> &out_topology) {
-  auto in_size  = get_size(in_topology);
-  auto out_size = get_size(out_topology);
-
-  KOKKOSFFT_THROW_IF(in_size != out_size,
-                     "Input and output topologies must have the same size.");
-
-  if (in_size == 1) return in_topology;
-
-  std::cout << "in_topology: ";
-  for (const auto &val : in_topology) {
-    std::cout << val << " ";
-  }
-  std::cout << "\nout_topology: ";
-  for (const auto &val : out_topology) {
-    std::cout << val << " ";
-  }
-  std::cout << std::endl;
-
-  // Check if two topologies are two convertible pencils
-  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
-  KOKKOSFFT_THROW_IF(
-      diff_indices.size() != 2,
-      "Input and output topologies must differ exactly two positions.");
-
-  std::array<iType, DIM> topology = {};
-  for (std::size_t i = 0; i < in_topology.size(); i++) {
-    topology.at(i) = std::max(in_topology.at(i), out_topology.at(i));
-  }
-  return topology;
-}
-
-template <typename iType, std::size_t DIM = 1>
-auto diff_toplogy(const std::array<iType, DIM> &in_topology,
-                  const std::array<iType, DIM> &out_topology) {
-  auto in_size  = get_size(in_topology);
-  auto out_size = get_size(out_topology);
-
-  if (in_size == 1 && out_size == 1) return iType(1);
-
-  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
-  KOKKOSFFT_THROW_IF(
-      diff_indices.size() != 1,
-      "Input and output topologies must differ exactly one positions.");
-  iType diff_idx = diff_indices.at(0);
-
-  return std::max(in_topology.at(diff_idx), out_topology.at(diff_idx));
-}
-
 /// \brief Calculate the buffer extents based on the global extents,
 /// the in-topology, and the out-topology.
 ///
@@ -148,25 +97,25 @@ auto get_required_allocation_size(
   return *std::max_element(sizes.begin(), sizes.end());
 }
 
+/// \brief From the list of extents, calculate the required allocation size
+/// that is big enough to represent all of the extents.
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] extents A vector of extents, each represented as an array of size
+/// DIM.
+/// \param[in] byte_sizes A vector of bytes of sizes
+/// \return The total byte size required for the allocation.
 template <std::size_t DIM = 1>
-inline auto get_topology_type(const std::array<std::size_t, DIM> &topology) {
-  TopologyType topology_type = TopologyType::Invalid;
-
-  auto size = get_size(topology);
-  KOKKOSFFT_THROW_IF(size == 0, "topology must not be size 0.");
-  int non_one_count = countNonOneComponents(topology);
-  if (non_one_count == 0) {
-    topology_type = TopologyType::Shared;
-  } else if (non_one_count == 1) {
-    topology_type = TopologyType::Slab;
-  } else if (non_one_count == 2) {
-    topology_type = TopologyType::Pencil;
-  } else {
-    KOKKOSFFT_THROW_IF(true,
-                       "topology must have at most two non-one elements.");
+auto get_required_allocation_size(
+    const std::vector<std::array<std::size_t, DIM>> &extents,
+    std::vector<std::size_t> &byte_sizes) {
+  KOKKOSFFT_THROW_IF(extents.size() != byte_sizes.size(),
+                     "extents and byte_sizes must have the same size.");
+  std::vector<std::size_t> sizes;
+  for (std::size_t i = 0; i < extents.size(); i++) {
+    sizes.push_back(get_size(extents.at(i)) * byte_sizes.at(i));
   }
-
-  return topology_type;
+  return *std::max_element(sizes.begin(), sizes.end());
 }
 
 #endif

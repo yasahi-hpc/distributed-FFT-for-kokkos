@@ -218,4 +218,67 @@ auto get_local_extents(const std::array<std::size_t, DIM> &extents,
   return std::make_tuple(local_extents, local_starts);
 }
 
+// Data are stored as
+// rank0: extents
+// rank1: extents
+// ...
+// rankn:
+template <std::size_t DIM = 1>
+auto get_next_extents(const std::array<std::size_t, DIM> &extents,
+                      const std::array<std::size_t, DIM> &topology,
+                      const std::array<std::size_t, DIM> &map, MPI_Comm comm,
+                      bool equal_extents = false) {
+  // Check that topology includes two or less non-one elements
+  std::array<std::size_t, DIM> local_extents, next_extents;
+  std::copy(extents.begin(), extents.end(), local_extents.begin());
+  auto total_size = get_size(topology);
+
+  int rank, nprocs;
+  ::MPI_Comm_rank(comm, &rank);
+  ::MPI_Comm_size(comm, &nprocs);
+
+  KOKKOSFFT_THROW_IF(static_cast<int>(total_size) != nprocs,
+                     "topology size must be identical to mpi size.");
+
+  std::array<std::size_t, DIM> coords =
+      rank_to_coord(topology, static_cast<std::size_t>(rank));
+
+  for (std::size_t i = 0; i < extents.size(); i++) {
+    if (topology.at(i) != 1) {
+      std::size_t n = extents.at(i);
+      std::size_t t = topology.at(i);
+
+      if (equal_extents) {
+        // Distribute data with sufficient extent size
+        local_extents.at(i) = (n - 1) / t + 1;
+      } else {
+        std::size_t quotient  = n / t;
+        std::size_t remainder = n % t;
+
+        // Distribute the remainder acrocss the first few elements
+        local_extents.at(i) =
+            (coords.at(i) < remainder) ? quotient + 1 : quotient;
+      }
+    }
+  }
+
+  for (std::size_t i = 0; i < extents.size(); i++) {
+    std::size_t mapped_idx = map.at(i);
+    next_extents.at(i)     = local_extents.at(mapped_idx);
+  }
+
+  return next_extents;
+}
+
+template <typename ContainerType>
+auto get_max(const ContainerType &values, MPI_Comm comm) {
+  using value_type = KokkosFFT::Impl::base_container_value_type<ContainerType>;
+  MPI_Datatype mpi_data_type = MPIDataType<value_type>::type();
+  value_type max_value       = 0;
+  value_type lmax_value      = *std::max_element(values.begin(), values.end());
+
+  MPI_Allreduce(&lmax_value, &max_value, 1, mpi_data_type, MPI_MAX, comm);
+  return max_value;
+}
+
 #endif

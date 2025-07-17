@@ -81,6 +81,52 @@ std::size_t get_size(const std::array<std::size_t, DIM>& topology) {
                          std::multiplies<std::size_t>());
 }
 
+template <typename iType, std::size_t DIM = 1>
+auto merge_topology(const std::array<iType, DIM>& in_topology,
+                    const std::array<iType, DIM>& out_topology) {
+  auto in_size  = get_size(in_topology);
+  auto out_size = get_size(out_topology);
+
+  KOKKOSFFT_THROW_IF(in_size != out_size,
+                     "Input and output topologies must have the same size.");
+
+  if (in_size == 1) return in_topology;
+
+  // Check if two topologies are two convertible pencils
+  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
+  KOKKOSFFT_THROW_IF(
+      diff_indices.size() != 2,
+      "Input and output topologies must differ exactly two positions.");
+
+  std::array<iType, DIM> topology = {};
+  for (std::size_t i = 0; i < in_topology.size(); i++) {
+    topology.at(i) = std::max(in_topology.at(i), out_topology.at(i));
+  }
+  return topology;
+}
+
+template <typename iType, std::size_t DIM = 1>
+auto diff_toplogy(const std::array<iType, DIM>& in_topology,
+                  const std::array<iType, DIM>& out_topology) {
+  auto in_size  = get_size(in_topology);
+  auto out_size = get_size(out_topology);
+
+  if (in_size == 1 && out_size == 1) return iType(1);
+
+  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
+  KOKKOSFFT_THROW_IF(
+      diff_indices.size() != 1,
+      "Input and output topologies must differ exactly one positions.");
+  iType diff_idx = diff_indices.at(0);
+
+  return std::max(in_topology.at(diff_idx), out_topology.at(diff_idx));
+}
+
+template <typename ContainerType>
+auto get_max(const ContainerType& values) {
+  return *std::max_element(values.begin(), values.end());
+}
+
 /// \brief Transpose functor for out-of-place transpose operations.
 /// This struct implements a functor that applies a transpose on a Kokkos view.
 /// Before FFT, the input view is transposed into the order which is expected by
