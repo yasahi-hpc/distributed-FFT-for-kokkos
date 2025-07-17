@@ -3115,16 +3115,16 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
 }
 
 void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
-  using topology_type      = std::array<std::size_t, 4>;
-  topology_type topology0  = {1, 1, nprocs, 8};
-  topology_type topology1  = {1, nprocs, 1, 8};
-  topology_type topology2  = {1, 8, nprocs, 1};
-  topology_type topology3  = {1, nprocs, 8, 1};
-  topology_type topology4  = {1, 8, 1, nprocs};
-  topology_type topology5  = {1, 1, 8, nprocs};
-  topology_type topology6  = {nprocs, 1, 1, 8};
-  topology_type topology7  = {8, 1, nprocs, 1};
-  topology_type topology8  = {nprocs, 1, 8, 1};
+  using topology_type     = std::array<std::size_t, 4>;
+  topology_type topology0 = {1, 1, nprocs, 8};
+  topology_type topology1 = {1, nprocs, 1, 8};
+  topology_type topology2 = {1, 8, nprocs, 1};
+  topology_type topology3 = {1, nprocs, 8, 1};
+  topology_type topology4 = {1, 8, 1, nprocs};
+  topology_type topology5 = {1, 1, 8, nprocs};
+  topology_type topology6 = {nprocs, 1, 1, 8};
+  topology_type topology7 = {8, 1, nprocs, 1};
+  topology_type topology8 = {nprocs, 1, 8, 1};
   // topology_type topology9  = {8, 1, 1, nprocs};
   topology_type topology10 = {8, nprocs, 1, 1};
   topology_type topology11 = {nprocs, 8, 1, 1};
