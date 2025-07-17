@@ -9,6 +9,7 @@ class MpiEnvironment : public ::testing::Environment {
   // Override this to define how to set up the environment.
   void SetUp() override {
     m_comm = MPI_COMM_WORLD;
+
     // Ensure all processes start tests together
     ::MPI_Barrier(m_comm);
   }
@@ -22,7 +23,25 @@ class MpiEnvironment : public ::testing::Environment {
   MPI_Comm m_comm;
 };
 
-int main(int argc, char *argv[]) {
+// Custom printer to force output per rank
+class MPITestEventListener : public ::testing::EmptyTestEventListener {
+ public:
+  void OnTestPartResult(const ::testing::TestPartResult& result) override {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (result.failed()) {
+      std::ostringstream oss;
+      oss << "[Rank " << rank << "] "
+          << (result.fatally_failed() ? "FATAL FAILURE" : "FAILURE") << ": "
+          << result.file_name() << ":" << result.line_number() << "\n"
+          << result.summary() << std::endl;
+      std::cout << oss.str();
+    }
+  }
+};
+
+int main(int argc, char* argv[]) {
   // Initialize MPI first
   int provided;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
@@ -30,18 +49,22 @@ int main(int argc, char *argv[]) {
     throw std::runtime_error("MPI_THREAD_MULTIPLE is needed");
   }
 
-  Kokkos::initialize(argc, argv);
-
   // Initialize google test
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::AddGlobalTestEnvironment(new MpiEnvironment());
 
+  Kokkos::initialize(argc, argv);
+
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  auto &test_listeners = ::testing::UnitTest::GetInstance()->listeners();
-  if (rank != 0)
-    delete test_listeners.Release(test_listeners.default_result_printer());
+  // Keep Gtest print on rank 0 and print errors from other ranks
+  ::testing::TestEventListeners& listeners =
+      ::testing::UnitTest::GetInstance()->listeners();
+  if (rank != 0) {
+    delete listeners.Release(listeners.default_result_printer());
+    listeners.Append(new MPITestEventListener);
+  }
 
   // run tests
   auto result = RUN_ALL_TESTS();

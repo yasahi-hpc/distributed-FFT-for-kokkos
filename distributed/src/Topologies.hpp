@@ -58,47 +58,6 @@ inline bool is_pencil_topology(const std::array<std::size_t, DIM>& topology) {
   return is_pencil;
 }
 
-template <typename iType, std::size_t DIM = 1>
-auto merge_topology(const std::array<iType, DIM>& in_topology,
-                    const std::array<iType, DIM>& out_topology) {
-  auto in_size  = get_size(in_topology);
-  auto out_size = get_size(out_topology);
-
-  KOKKOSFFT_THROW_IF(in_size != out_size,
-                     "Input and output topologies must have the same size.");
-
-  if (in_size == 1) return in_topology;
-
-  // Check if two topologies are two convertible pencils
-  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
-  KOKKOSFFT_THROW_IF(
-      diff_indices.size() != 2,
-      "Input and output topologies must differ exactly two positions.");
-
-  std::array<iType, DIM> topology = {};
-  for (std::size_t i = 0; i < in_topology.size(); i++) {
-    topology.at(i) = std::max(in_topology.at(i), out_topology.at(i));
-  }
-  return topology;
-}
-
-template <typename iType, std::size_t DIM = 1>
-auto diff_toplogy(const std::array<iType, DIM>& in_topology,
-                  const std::array<iType, DIM>& out_topology) {
-  auto in_size  = get_size(in_topology);
-  auto out_size = get_size(out_topology);
-
-  if (in_size == 1 && out_size == 1) return iType(1);
-
-  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
-  KOKKOSFFT_THROW_IF(
-      diff_indices.size() != 1,
-      "Input and output topologies must differ exactly one positions.");
-  iType diff_idx = diff_indices.at(0);
-
-  return std::max(in_topology.at(diff_idx), out_topology.at(diff_idx));
-}
-
 // Can we also check that this is a slab?
 // Example
 // (1, Px, Py, 1) -> (Px, 1, Py, 1): 0-pencil to 1-pencil
@@ -133,6 +92,40 @@ auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
   return pencil_array;
 }
 
+// Example
+// (1, P) -> (P, 1): x-slab to y-slab
+// (P, 1) -> (1, p): y-slab to x-slab
+// (1, 1, P) -> (1, P, 1): xy-slab to xz-slab
+// (P, 1, 1) -> (1, P, 1): yz-slab to xz-slab
+
+template <std::size_t DIM>
+auto get_slab(const std::array<std::size_t, DIM>& in_topology,
+              const std::array<std::size_t, DIM>& out_topology) {
+  auto in_size  = get_size(in_topology);
+  auto out_size = get_size(out_topology);
+
+  KOKKOSFFT_THROW_IF(in_size != out_size,
+                     "Input and output topologies must have the same size.");
+
+  bool is_slab =
+      is_slab_topology(in_topology) && is_slab_topology(out_topology);
+  KOKKOSFFT_THROW_IF(!is_slab,
+                     "Input and output topologies must be slab topologies.");
+
+  std::size_t in_axis = 0, out_axis = 0;
+  for (std::size_t i = 0; i < DIM; ++i) {
+    if (in_topology[i] > 1 && out_topology[i] == 1) {
+      out_axis = i;
+    }
+    if (in_topology[i] == 1 && out_topology[i] > 1) {
+      in_axis = i;
+    }
+  }
+
+  std::tuple<std::size_t, std::size_t> slab_array = {in_axis, out_axis};
+  return slab_array;
+}
+
 template <typename iType, std::size_t DIM = 1>
 std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
                                      const std::array<iType, DIM>& out) {
@@ -147,8 +140,15 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
       diff_indices.size() != 3 && diffs.size() == 3,
       "Input and output topologies must differ exactly three positions.");
 
-  iType idx_one_in  = KokkosFFT::Impl::get_index(in, iType(1));
-  iType idx_one_out = KokkosFFT::Impl::get_index(out, iType(1));
+  // Only copy the exchangable indices from original arrays in and out
+  std::array<iType, DIM> in_trimed = {}, out_trimed = {};
+  for (auto diff_idx : diff_indices) {
+    in_trimed.at(diff_idx)  = in.at(diff_idx);
+    out_trimed.at(diff_idx) = out.at(diff_idx);
+  }
+
+  iType idx_one_in  = KokkosFFT::Impl::get_index(in_trimed, iType(1));
+  iType idx_one_out = KokkosFFT::Impl::get_index(out_trimed, iType(1));
 
   // Try all combinations of 2 indices for a single valid swap
   for (size_t i = 0; i < diff_non_ones.size(); ++i) {
@@ -228,9 +228,9 @@ std::vector<std::array<iType, DIM>> get_shuffled_topologies(
 /// \return A vector of all possible slab topologies that can be formed
 /// from the input and output topologies, considering the FFT axes.
 template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
-std::vector<std::array<iType, DIM>> get_all_slab_topologies(
-    const std::array<iType, DIM>& in_topology,
-    const std::array<iType, DIM>& out_topology,
+std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
+    const std::array<std::size_t, DIM>& in_topology,
+    const std::array<std::size_t, DIM>& out_topology,
     const std::array<iType, FFT_DIM>& axes) {
   static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
   static_assert(DIM >= 2 && DIM >= FFT_DIM, "DIM >= 2 and DIM >= FFT_DIM");
@@ -240,7 +240,7 @@ std::vector<std::array<iType, DIM>> get_all_slab_topologies(
   KOKKOSFFT_THROW_IF(!is_slab,
                      "Input and output topologies must be slab topologies.");
 
-  std::vector<std::array<iType, DIM>> topologies;
+  std::vector<std::array<std::size_t, DIM>> topologies;
   topologies.push_back(in_topology);
 
   std::vector<std::size_t> axes_reversed;
@@ -252,10 +252,10 @@ std::vector<std::array<iType, DIM>> get_all_slab_topologies(
   }
 
   // 2D case
-  std::array<iType, DIM> topology = {};
+  std::array<std::size_t, DIM> topology = {};
   topology.fill(1);
 
-  if (DIM == 2 && FFT_DIM == 2) {
+  if constexpr (DIM == 2 && FFT_DIM == 2) {
     if (in_topology == out_topology) {
       auto p = get_size(in_topology);
       for (std::size_t i = 0; i < DIM; ++i) {
@@ -289,7 +289,7 @@ std::vector<std::array<iType, DIM>> get_all_slab_topologies(
   }
 
   // 3D case
-  if (DIM == 3 && FFT_DIM == 3) {
+  if constexpr (DIM == 3 && FFT_DIM == 3) {
     if (in_topology == out_topology) {
       auto p = get_size(in_topology);
       topology.fill(p);
@@ -330,12 +330,6 @@ std::vector<std::array<iType, DIM>> get_all_slab_topologies(
         auto mid_dim = in_topology.at(axes.at(1));
         if (mid_dim != 1) {
           topology.fill(p);
-          // for (std::size_t i = 0; i < DIM; ++i) {
-          //   if (topologies.back().at(i) == 1) {
-          //     topology.at(i) = p;
-          //     break;
-          //   }
-          // }
           for (std::size_t i = 0; i < axes.size() - 1; ++i) {
             topology.at(axes.at(i)) = 1;
           }
@@ -351,11 +345,6 @@ std::vector<std::array<iType, DIM>> get_all_slab_topologies(
               }
             }
             topologies.push_back(topology);
-          } else {
-            // for (std::size_t i = 0; i < axes.size()-1; ++i) {
-            //   topology.at(axes.at(i)) = 1;
-            // }
-            // topologies.push_back(topology);
           }
         }
       }
@@ -406,61 +395,179 @@ std::vector<std::array<iType, DIM>> get_all_slab_topologies(
   topologies.push_back(out_topology);
 
   return topologies;
+}
 
-  /*
+// \brief Get all pencil topologies for a given input and output topology
+///
+/// \tparam iType The index type used for the topology.
+/// \tparam DIM The dimensionality of the topology.
+/// \tparam FFT_DIM The dimensionality of the FFT axes.
+///
+/// \param in_topology The input topology.
+/// \param out_topology The output topology.
+/// \param axes The axes along which the FFT is performed.
+/// \return A vector of all possible slab topologies that can be formed
+/// from the input and output topologies, considering the FFT axes.
+template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
+std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
+    const std::array<std::size_t, DIM>& in_topology,
+    const std::array<std::size_t, DIM>& out_topology,
+    const std::array<iType, FFT_DIM>& axes) {
+  static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
+  static_assert(DIM >= 3 && DIM >= FFT_DIM, "DIM >= 3 and DIM >= FFT_DIM");
+
+  bool is_pencil =
+      is_pencil_topology(in_topology) && is_pencil_topology(out_topology);
+  KOKKOSFFT_THROW_IF(!is_pencil,
+                     "Input and output topologies must be pencil topologies.");
+
+  std::vector<std::array<std::size_t, DIM>> topologies;
+  topologies.push_back(in_topology);
+
+  std::vector<std::size_t> axes_reversed;
+  for (std::size_t i = 0; i < axes.size(); ++i) {
+    auto non_negative_axis =
+        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axes.at(i));
+    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
+    axes_reversed.push_back(unsigned_axis);
+  }
+
+  // 3D case
+  std::array<std::size_t, DIM> topology = {};
+  topology.fill(1);
+
+  // Batched case
+  // If input or output is ready, we can skip the rest of the logic
+  bool is_input_ready = true;
   for (const auto& axis : axes_reversed) {
-    std::cout << "Axis: " << axis << std::endl;
-    //auto indices_ones = find_ones(topology);
-    //std::size_t swap_idx = 0;
     auto non_negative_axis =
         KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    if (current.at(unsigned_axis) != out_topology.at(unsigned_axis)) {
-      std::array<iType, DIM> next = current;
-      next.at(unsigned_axis) =
-          out_topology.at(unsigned_axis);  // Swap the axis
-      current = next;
-      topologies.push_back(current);
-      // If the axis is already 1, we cannot swap it with another index
-      // that is also 1, so we skip this axis.
-      //continue;
-    }
-    //for (auto idx_one : indices_ones) {
-    //  if (topology.at(idx_one) == 1 && idx_one != unsigned_axis) {
-    //    swap_idx = idx_one;
-    //    break;
-    //  }
-    //}
-    //topology = swap_elements(topology, axis, swap_idx);
-    //topologies.push_back(topology);
+    auto dim                  = in_topology.at(unsigned_axis);
+    if (dim != 1) is_input_ready = false;
   }
 
+  bool is_output_ready = true;
+  for (const auto& axis : axes_reversed) {
+    auto non_negative_axis =
+        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
+    auto dim                  = out_topology.at(unsigned_axis);
+    if (dim != 1) is_output_ready = false;
+  }
+
+  if (is_input_ready || is_output_ready) {
+    try {
+      auto mid_topology = get_mid_array(topologies.back(), out_topology);
+      topologies.push_back(mid_topology);
+    } catch (std::runtime_error& e) {
+    }
+    if (topologies.back() != out_topology) topologies.push_back(out_topology);
+    return topologies;
+  }
+
+  std::reverse(axes_reversed.begin(), axes_reversed.end());
+  std::array<std::size_t, DIM> shuffled_topology = in_topology;
   if (in_topology == out_topology) {
+    auto last_axis = axes_reversed.front();
+    auto first_dim = in_topology.at(last_axis);
+    if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
     for (const auto& axis : axes_reversed) {
-      auto indices_ones = find_ones(topology);
       std::size_t swap_idx = 0;
       auto non_negative_axis =
           KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
       std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-      for (auto idx_one : indices_ones) {
-        if (topology.at(idx_one) == 1 && idx_one != unsigned_axis) {
-          swap_idx = idx_one;
+      for (std::size_t idx = 0; idx < DIM; idx++) {
+        if (shuffled_topology.at(idx) == 1 && idx != unsigned_axis) {
+          swap_idx = idx;
           break;
         }
       }
-      topology = swap_elements(topology, axis, swap_idx);
-      topologies.push_back(topology);
+      shuffled_topology =
+          swap_elements(shuffled_topology, unsigned_axis, swap_idx);
+      if (topologies.back() != shuffled_topology)
+        topologies.push_back(shuffled_topology);
     }
-  } else {
+    if (topologies.back() == out_topology) return topologies;
 
+    try {
+      auto mid_topology = get_mid_array(topologies.back(), out_topology);
+      topologies.push_back(mid_topology);
+    } catch (std::runtime_error& e) {
+    }
+
+    if (topologies.back() == out_topology) return topologies;
+    topologies.push_back(out_topology);
+    return topologies;
   }
 
+  std::vector<std::size_t> diff_non_ones =
+      find_non_ones(in_topology, out_topology);
+  auto last_axis = axes_reversed.front();
+  auto first_dim = in_topology.at(last_axis);
+  if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
 
-  //if (topologies.back() == out_topology) return topologies;
-  //topologies.push_back(out_topology);
-  */
+  for (const auto& axis : axes_reversed) {
+    std::size_t swap_idx = 0;
+    auto non_negative_axis =
+        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
+    for (auto diff_idx : diff_non_ones) {
+      // std::cout << "axis: " << axis << ", diff_idx: " << diff_idx <<
+      // std::endl;
+      if (shuffled_topology.at(diff_idx) == 1 && diff_idx != unsigned_axis) {
+        swap_idx = diff_idx;
+        break;
+      }
+    }
+    shuffled_topology =
+        swap_elements(shuffled_topology, unsigned_axis, swap_idx);
 
-  // return topologies;
+    // std::cout << "shuffled" << std::endl;
+    // for (std::size_t i = 0; i < shuffled_topology.size(); i++) {
+    //   std::cout << shuffled_topology[i] << ", " << std::endl;
+    // }
+    if (topologies.back() != shuffled_topology)
+      topologies.push_back(shuffled_topology);
+  }
+  if (topologies.back() == out_topology) return topologies;
+
+  try {
+    auto mid_topology = get_mid_array(topologies.back(), out_topology);
+    topologies.push_back(mid_topology);
+  } catch (std::runtime_error& e) {
+  }
+  if (topologies.back() == out_topology) return topologies;
+  topologies.push_back(out_topology);
+
+  return topologies;
 }
+
+/*
+// \brief Get all slab block info for a given input and output topology
+///
+/// \tparam InViewType
+/// \tparam OutViewType
+/// \tparam iType The index type used for the topology.
+/// \tparam DIM The dimensionality of the topology.
+/// \tparam FFT_DIM The dimensionality of the FFT axes.
+///
+/// \param in_topology The input topology.
+/// \param out_topology The output topology.
+/// \param axes The axes along which the FFT is performed.
+/// \return A vector of all possible slab topologies that can be formed
+/// from the input and output topologies, considering the FFT axes.
+template <typename InViewType, typename OutViewType, typename iType, std::size_t
+FFT_DIM> std::vector<BlockInfo<InViewType::rank()>> get_all_slab_block_info(
+    const InViewType& in,
+    const OutViewType& out,
+    const std::array<std::size_t, InViewType::rank()>& in_topology,
+    const std::array<std::size_t, OutViewType::rank()>& out_topology,
+    const std::array<iType, FFT_DIM>& axes) {
+  SlabBlockAnalyse<InViewType, OutViewType, iType, FFT_DIM>
+    slab_block_analyses(in, out, in_topology, out_topology, axes);
+  return slab_block_analyses.get_blocks();
+}
+*/
 
 #endif
