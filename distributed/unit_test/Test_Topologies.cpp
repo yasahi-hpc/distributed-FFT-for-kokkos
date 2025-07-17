@@ -3125,7 +3125,7 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
   topology_type topology6  = {nprocs, 1, 1, 8};
   topology_type topology7  = {8, 1, nprocs, 1};
   topology_type topology8  = {nprocs, 1, 8, 1};
-  //topology_type topology9  = {8, 1, 1, nprocs};
+  // topology_type topology9  = {8, 1, 1, nprocs};
   topology_type topology10 = {8, nprocs, 1, 1};
   topology_type topology11 = {nprocs, 8, 1, 1};
 
