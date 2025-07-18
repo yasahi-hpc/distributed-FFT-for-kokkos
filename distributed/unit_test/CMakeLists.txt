@@ -8,6 +8,7 @@ add_executable(unit-tests-mpi
     Test_MPI_Helper.cpp
     Test_Topologies.cpp
     Test_Block.cpp
+    Test_SharedPlan.cpp
     #Test_Plan.cpp
     #Test_SlabBlockAnalyses.cpp
     #Test_SlabPlan.cpp
