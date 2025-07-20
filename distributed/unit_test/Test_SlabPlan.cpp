@@ -10,13 +10,11 @@
 
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;
-using test_types      = ::testing::Types<std::pair<double, Kokkos::LayoutLeft>>;
-// using test_types      = ::testing::Types<std::pair<float,
-// Kokkos::LayoutLeft>,
-//                                     std::pair<float, Kokkos::LayoutRight>,
-//                                     std::pair<double, Kokkos::LayoutLeft>,
-//                                     std::pair<double, Kokkos::LayoutRight>>;
-//
+using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
+                                    std::pair<float, Kokkos::LayoutRight>,
+                                    std::pair<double, Kokkos::LayoutLeft>,
+                                    std::pair<double, Kokkos::LayoutRight>>;
+
 //  Basically the same fixtures, used for labeling tests
 template <typename T>
 struct TestSlab1D : public ::testing::Test {
@@ -248,12 +246,11 @@ void test_slab1D_view2D(std::size_t nprocs) {
     plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
 
-    /*
     // topo 0 -> topo 1 with ax = {0}: (n0, n1/p) -> (n0/2+1, n1/p) ->
-    ((n0/2+1)/p, n1)
-    // FFT ax = {0} + Transpose
-    SlabPlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0, axes_type{0}, topology0,
-                              topology1, MPI_COMM_WORLD);
+    ((n0 / 2 + 1) / p, n1)
+        // FFT ax = {0} + Transpose
+        SlabPlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0, axes_type{0},
+                                  topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax0.forward(u_0, u_hat_1_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
 
@@ -283,8 +280,8 @@ void test_slab1D_view2D(std::size_t nprocs) {
 
     // topo1 -> topo0 with ax = {1}: (n0/p, n1) -> (n0, n1/p)
     // FFT ax = {1} -> Transpose
-    SlabPlanType plan_1_0_ax1(exec, u_1, u_hat_0_ax1, axes_type{1},
-                              topology1, topology0, MPI_COMM_WORLD);
+    SlabPlanType plan_1_0_ax1(exec, u_1, u_hat_0_ax1, axes_type{1}, topology1,
+                              topology0, MPI_COMM_WORLD);
     plan_1_0_ax1.forward(u_1, u_hat_0_ax1);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
 
@@ -293,14 +290,13 @@ void test_slab1D_view2D(std::size_t nprocs) {
 
     // topo1 -> topo1 with ax = {0}: (n0/p, n1) -> (n0, n1/p) -> (n0/2+1, n1/p)
     // Transpose + FFT ax = {0} + Transpose
-    SlabPlanType plan_1_1_ax0(exec, u_1, u_hat_1_ax0, axes_type{0},
-                              topology1, topology1, MPI_COMM_WORLD);
+    SlabPlanType plan_1_1_ax0(exec, u_1, u_hat_1_ax0, axes_type{0}, topology1,
+                              topology1, MPI_COMM_WORLD);
     plan_1_1_ax0.forward(u_1, u_hat_1_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
 
     plan_1_1_ax0.backward(u_hat_1_ax0, u_inv_1);
     EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1));
-    */
   }
 }
 
