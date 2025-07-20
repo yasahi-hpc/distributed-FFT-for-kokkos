@@ -37,7 +37,19 @@ class Block {
         m_dst_map(dst_map),
         m_src_axis(src_axis),
         m_dst_axis(dst_axis),
-        m_comm(comm) {}
+        m_comm(comm) {
+    auto send_buffer_size = m_send_buffer.size();
+    auto recv_buffer_size = m_recv_buffer.size();
+    KOKKOSFFT_THROW_IF(send_buffer_size != recv_buffer_size,
+                       "Send and receive buffers must be the same size.");
+
+    auto in_size  = m_in.size();
+    auto out_size = m_out.size();
+    KOKKOSFFT_THROW_IF(
+        in_size > send_buffer_size || out_size > send_buffer_size,
+        "Input and output views must be smaller than the send and receive "
+        "buffers.");
+  }
 
   void operator()(const InViewType& in, const OutViewType& out) const {
     pack(m_exec, in, m_send_buffer, m_src_map, m_src_axis);
