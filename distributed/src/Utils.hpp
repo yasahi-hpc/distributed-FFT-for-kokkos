@@ -237,7 +237,7 @@ struct SafeTranspose {
   static constexpr std::size_t m_rank_truncated =
       std::min(InViewType::rank(), std::size_t(6));
 
-  using ArrayType = Kokkos::Array<int, InViewType::rank()>;
+  using ArrayType = Kokkos::Array<std::size_t, InViewType::rank()>;
 
   /// \brief Retrieves the policy for the parallel execution.
   /// If the view is 1D, a Kokkos::RangePolicy is used. For higher dimensions up
@@ -386,9 +386,10 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
   KOKKOSFFT_THROW_IF(get_mapped_extents(in_extents, map) != out_extents,
                      "transpose: input and output extents do not match after "
                      "applying the transpose map");
-
-  Kokkos::Array<int, InViewType::rank()> map_array =
-      KokkosFFT::Impl::to_array(map);
+  std::array<std::size_t, DIM> non_negative_map =
+      convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(map);
+  Kokkos::Array<std::size_t, InViewType::rank()> map_array =
+      KokkosFFT::Impl::to_array(non_negative_map);
   if ((in.span() >= std::size_t(std::numeric_limits<int>::max())) ||
       (out.span() >= std::size_t(std::numeric_limits<int>::max()))) {
     SafeTranspose<ExecutionSpace, InViewType, OutViewType, int64_t>(
