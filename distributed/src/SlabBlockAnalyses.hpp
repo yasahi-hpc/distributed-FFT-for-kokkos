@@ -90,10 +90,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
                                        size_factor);
 
         BlockInfoType block1;
-        // block1.m_in_extents     = block0.m_out_extents;
-        // block1.m_out_extents    = out_extents;
-        // block1.m_in_extents     = //get_mapped_extents(block0.m_out_extents,
-        // block0.m_out_map);
         block1.m_in_extents = block0.m_out_extents;
         block1.m_out_extents =
             get_mapped_extents(out_extents, block0.m_out_map);
@@ -170,11 +166,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
                                      size_factor);
 
       BlockInfoType block1;
-      // block1.m_in_extents   = block0.m_out_extents;
-      // block1.m_out_extents =
-      //     get_next_extents(gout_extents, mid_topology, src_map, comm);
-      // block1.m_in_extents   = get_mapped_extents(block0.m_out_extents,
-      // block0.m_out_map);
       block1.m_in_extents = block0.m_out_extents;
       block1.m_out_extents =
           get_next_extents(gout_extents, mid_topology, block0.m_out_map, comm);
