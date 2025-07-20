@@ -236,8 +236,9 @@ void test_slab1D_view2D(std::size_t nprocs) {
         },
         std::runtime_error);
   } else {
-    // topo0 -> topo0 with ax = {1}: (n0, n1/p) -> (n0/p, n1) -> ((n0/2+1)/p,
-    // n1) Transpose + FFT ax = {1} + Transpose
+    // topo0 -> topo0 with ax = {1}: 
+    // (n0, n1/p) -> (n0/p, n1) -> ((n0/2+1)/p, n1) 
+    // Transpose + FFT ax = {1} + Transpose
     SlabPlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1, axes_type{1}, topology0,
                               topology0, MPI_COMM_WORLD);
     plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
@@ -246,11 +247,11 @@ void test_slab1D_view2D(std::size_t nprocs) {
     plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
 
-    // topo 0 -> topo 1 with ax = {0}: (n0, n1/p) -> (n0/2+1, n1/p) ->
-    ((n0 / 2 + 1) / p, n1)
-        // FFT ax = {0} + Transpose
-        SlabPlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0, axes_type{0},
-                                  topology0, topology1, MPI_COMM_WORLD);
+    // topo 0 -> topo 1 with ax = {0}: 
+    // (n0, n1/p) -> (n0/2+1, n1/p) -> ((n0 / 2 + 1) / p, n1)
+    // FFT ax = {0} + Transpose
+    SlabPlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0, axes_type{0},
+                              topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax0.forward(u_0, u_hat_1_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
 

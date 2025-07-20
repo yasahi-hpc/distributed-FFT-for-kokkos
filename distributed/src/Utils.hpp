@@ -324,7 +324,7 @@ struct SafeTranspose {
       // Bounds check
       bool in_bounds = true;
       for (std::size_t i = 0; i < InViewType::rank(); ++i) {
-        if (src_idx[m_map[i]] >= m_out.extent(i)) in_bounds = false;
+        if (src_idx[m_map[i]] >= iType(m_out.extent(i))) in_bounds = false;
       }
 
       if (in_bounds) {

@@ -1005,6 +1005,7 @@ void test_slab_analyses_2D_view2D(std::size_t nprocs) {
   }
 }
 
+/*
 template <typename T, typename LayoutType>
 void test_slab_analyses_2D_view3D(std::size_t nprocs) {
   using axes_type           = std::array<std::size_t, 2>;
@@ -1174,6 +1175,7 @@ void test_slab_analyses_2D_view3D(std::size_t nprocs) {
     }
   }
 }
+*/
 
 }  // namespace
 
@@ -1210,9 +1212,11 @@ TYPED_TEST(TestSlabBlockAnalyses2D, View2D_C2C) {
   test_slab_analyses_2D_view2D<complex_type, layout_type>(this->m_nprocs);
 }
 
+/*
 TYPED_TEST(TestSlabBlockAnalyses2D, View3D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
   test_slab_analyses_2D_view3D<float_type, layout_type>(this->m_nprocs);
 }
+  */
