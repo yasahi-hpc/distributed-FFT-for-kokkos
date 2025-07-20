@@ -4,6 +4,30 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 
+template <typename SizeType, typename IntType, std::size_t DIM,
+          std::size_t Rank>
+auto convert_negative_axes(const std::array<IntType, DIM>& axes) {
+  static_assert(std::is_integral_v<SizeType>,
+                "convert_negative_axes: SizeType must be an integer type.");
+  static_assert(
+      std::is_integral_v<IntType> && std::is_signed_v<IntType>,
+      "convert_negative_axes: IntType must be a signed integer type.");
+  std::array<SizeType, DIM> non_negative_axes = {};
+  try {
+    for (std::size_t i = 0; i < axes.size(); i++) {
+      int axis = axes.at(i);
+      auto non_negative_axis =
+          KokkosFFT::Impl::convert_negative_axis<IntType, Rank>(axis);
+      std::size_t unsigned_axis = static_cast<SizeType>(non_negative_axis);
+      non_negative_axes.at(i)   = unsigned_axis;
+    }
+  } catch (std::runtime_error& e) {
+    KOKKOSFFT_THROW_IF(false, "All axes must be in [-rank, rank-1]");
+  }
+
+  return non_negative_axes;
+}
+
 template <typename ArrayType>
 int countNonOneComponents(const ArrayType& arr) {
   return std::count_if(arr.begin(), arr.end(),
@@ -127,6 +151,72 @@ auto get_max(const ContainerType& values) {
   return *std::max_element(values.begin(), values.end());
 }
 
+template <typename SizeType, std::size_t DIM>
+auto to_vector(const std::array<SizeType, DIM>& arr) {
+  std::vector<SizeType> vec(arr.begin(), arr.end());
+  return vec;
+}
+
+template <typename ArraySizeType, typename VecSizeType, std::size_t DIM>
+auto to_array(const std::vector<VecSizeType>& vec) {
+  KOKKOSFFT_THROW_IF(
+      vec.size() != DIM,
+      "to_array: Vector size must match the specified dimension.");
+  std::array<ArraySizeType, DIM> arr;
+  std::copy(vec.begin(), vec.end(), arr.begin());
+  return arr;
+}
+
+/// \brief Calculate the permuted extents based on the map
+///
+/// Example
+/// View extents: (n0, n1, n2, n3)
+/// map: (0, 2, 3, 1)
+/// Next extents: (n0, n2, n3, n1)
+///
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] extents Extents of the View.
+/// \param[in] map A map representing how the data is permuted
+/// \return A extents of the permuted view
+template <typename ContainerType, std::size_t DIM = 1>
+auto get_mapped_extents(const std::array<std::size_t, DIM>& extents,
+                        const ContainerType& map) {
+  std::array<std::size_t, DIM> mapped_extents;
+
+  for (std::size_t i = 0; i < extents.size(); i++) {
+    std::size_t mapped_idx = map.at(i);
+    mapped_extents.at(i)   = extents.at(mapped_idx);
+  }
+
+  return mapped_extents;
+}
+
+/// \brief Calculate the permuted axes based on the map
+///
+/// Example
+/// Axes: (1, 3, 2) for (0, 1, 2, 3)
+/// map: (0, 2, 3, 1)
+/// Mapped Axes: (3, 2, 1) for (0, 2, 3, 1)
+///
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] extents Extents of the View.
+/// \param[in] map A map representing how the data is permuted
+/// \return A extents of the permuted view
+template <typename ContainerType, std::size_t DIM = 1>
+auto get_mapped_axes(const std::array<std::size_t, DIM>& axes,
+                     const ContainerType& map) {
+  std::array<std::size_t, DIM> mapped_axes;
+
+  for (std::size_t i = 0; i < axes.size(); i++) {
+    std::size_t axis  = axes.at(i);
+    mapped_axes.at(i) = KokkosFFT::Impl::get_index(map, axis);
+  }
+
+  return mapped_axes;
+}
+
 /// \brief Transpose functor for out-of-place transpose operations.
 /// This struct implements a functor that applies a transpose on a Kokkos view.
 /// Before FFT, the input view is transposed into the order which is expected by
@@ -147,7 +237,7 @@ struct SafeTranspose {
   static constexpr std::size_t m_rank_truncated =
       std::min(InViewType::rank(), std::size_t(6));
 
-  using ArrayType = Kokkos::Array<int, InViewType::rank()>;
+  using ArrayType = Kokkos::Array<std::size_t, InViewType::rank()>;
 
   /// \brief Retrieves the policy for the parallel execution.
   /// If the view is 1D, a Kokkos::RangePolicy is used. For higher dimensions up
@@ -234,7 +324,7 @@ struct SafeTranspose {
       // Bounds check
       bool in_bounds = true;
       for (std::size_t i = 0; i < InViewType::rank(); ++i) {
-        if (src_idx[m_map[i]] >= m_out.extent(i)) in_bounds = false;
+        if (src_idx[m_map[i]] >= iType(m_out.extent(i))) in_bounds = false;
       }
 
       if (in_bounds) {
@@ -291,8 +381,15 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
   KOKKOSFFT_THROW_IF(!KokkosFFT::Impl::is_transpose_needed(map),
                      "transpose: transpose not necessary");
 
-  Kokkos::Array<int, InViewType::rank()> map_array =
-      KokkosFFT::Impl::to_array(map);
+  auto in_extents  = KokkosFFT::Impl::extract_extents(in);
+  auto out_extents = KokkosFFT::Impl::extract_extents(out);
+  KOKKOSFFT_THROW_IF(get_mapped_extents(in_extents, map) != out_extents,
+                     "transpose: input and output extents do not match after "
+                     "applying the transpose map");
+  std::array<std::size_t, DIM> non_negative_map =
+      convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(map);
+  Kokkos::Array<std::size_t, InViewType::rank()> map_array =
+      KokkosFFT::Impl::to_array(non_negative_map);
   if ((in.span() >= std::size_t(std::numeric_limits<int>::max())) ||
       (out.span() >= std::size_t(std::numeric_limits<int>::max()))) {
     SafeTranspose<ExecutionSpace, InViewType, OutViewType, int64_t>(

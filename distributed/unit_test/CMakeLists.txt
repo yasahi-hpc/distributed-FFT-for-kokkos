@@ -10,8 +10,8 @@ add_executable(unit-tests-mpi
     Test_Block.cpp
     Test_SharedPlan.cpp
     #Test_Plan.cpp
-    #Test_SlabBlockAnalyses.cpp
-    #Test_SlabPlan.cpp
+    Test_SlabBlockAnalyses.cpp
+    Test_SlabPlan.cpp
 )
 
 find_package(MPI REQUIRED COMPONENTS CXX)
