@@ -18,7 +18,29 @@ enum class BlockType {
   TransposeAndFFT,
 };
 
-enum class OperationType { F, FT, FFT, FTF, FTFT, TF, TFT, TFTF, TFTFT };
+enum class OperationType {
+  F,
+  FT,
+  FFT,
+  FTF,
+  FTFT,
+  FTF2,
+  FTF2T,
+  TF,
+  TFT,
+  TFTF,
+  TFTFT,
+  F2,
+  F2T,
+  F2TF,
+  F2TFT,
+  TF2,
+  TF2T,
+  TF2TF,
+  TFTF2,
+  TF2TFT,
+  TFTF2T
+};
 
 /// \brief BlockInfo is a structure that holds information about a block
 /// of data in a distributed FFT operation.

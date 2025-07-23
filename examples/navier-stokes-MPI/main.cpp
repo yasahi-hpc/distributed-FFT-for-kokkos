@@ -1,30 +1,15 @@
 #include <vector>
 #include <iostream>
 #include <memory>
-#include <iomanip>
+#include <mpi.h>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Complex.hpp>
 #include <Kokkos_Random.hpp>
 #include <KokkosFFT.hpp>
 #include "math_utils.hpp"
 #include "io_utils.hpp"
-
-template <typename ViewType>
-void display(ViewType& a) {
-  auto label   = a.label();
-  const auto n = a.size();
-
-  auto h_a = Kokkos::create_mirror_view(a);
-  Kokkos::deep_copy(h_a, a);
-  auto* data = h_a.data();
-
-  std::cout << std::scientific << std::setprecision(16) << std::flush;
-  for (std::size_t i = 0; i < n; i++) {
-    std::cout << label + "[" << i << "]: " << i << ", " << data[i] << std::endl;
-  }
-}
-
-constexpr int DIM = 3;
+#include "MPI_Helper.hpp"
+#include "Plan.hpp"
 
 using execution_space      = Kokkos::DefaultExecutionSpace;
 using host_execution_space = Kokkos::DefaultHostExecutionSpace;
@@ -39,13 +24,38 @@ using View4D = Kokkos::View<T****, Kokkos::LayoutRight, execution_space>;
 template <typename T>
 using View5D = Kokkos::View<T*****, Kokkos::LayoutRight, execution_space>;
 
+using extents_type = std::array<std::size_t, 3>;
+
 using range3D_type = Kokkos::MDRangePolicy<
     execution_space,
     Kokkos::Rank<3, Kokkos::Iterate::Right, Kokkos::Iterate::Right>,
     Kokkos::IndexType<int>>;
 
 // \brief A class to represent the grid used in the Navier-Stokes equation.
+// Wavenumber space grids are in z-pencil format whereas real space grids
+// are in global format
 struct Grid {
+  //! Global MPI rank
+  int m_rank;
+
+  //! Number of processes in x direction (px)
+  int m_px;
+
+  //! Number of processes in y direction (py)
+  int m_py;
+
+  //! Local MPI rank in x direction (rx)
+  int m_rx;
+
+  //! Local MPI rank in y direction (ry)
+  int m_ry;
+
+  //! Input topology of the parallelization
+  extents_type m_in_topology;
+
+  //! Output topology of the parallelization
+  extents_type m_out_topology;
+
   //! Grid in x direction (nx)
   View1D<double> m_x;
 
@@ -74,13 +84,33 @@ struct Grid {
   View3D<double> m_alias_mask;
 
   // \brief Constructor of a Grid class
+  // \param[in] rank Global MPI rank of the process.
+  // \param[in] px Number of processes in the x-direction.
+  // \param[in] py Number of processes in the y-direction.
   // \param[in] nx Number of grid points in the x-direction.
   // \param[in] ny Number of grid points in the y-direction.
   // \param[in] nz Number of grid points in the z-direction.
   // \param[in] lx Length of the domain in the x-direction.
   // \param[in] ly Length of the domain in the y-direction.
   // \param[in] lz Length of the domain in the z-direction.
-  Grid(int nx, int ny, int nz, double lx, double ly, double lz) {
+  Grid(int rank, int px, int py, int nx, int ny, int nz, double lx, double ly,
+       double lz)
+      : m_rank(rank), m_px(px), m_py(py) {
+    // Check that parallelization is valid
+    KOKKOSFFT_THROW_IF(nx % px != 0 || ny % py != 0,
+                       "Grid size must be divisible by the number of processes "
+                       "in each direction.");
+
+    std::array<std::size_t, 2> topology{std::size_t(px), std::size_t(py)};
+    auto coord = rank_to_coord(topology, rank);
+    m_rx = coord.at(0), m_ry = coord.at(1);
+
+    // Z-pencil or YZ-slab (if py==1)
+    m_in_topology = {std::size_t(px), std::size_t(py), std::size_t(1)};
+
+    // X-pencil or XZ-slab (if py==1)
+    m_out_topology = {std::size_t(1), std::size_t(px), std::size_t(py)};
+
     // Grid and Wavenumbers
     execution_space exec;
     m_x = Math::linspace(exec, 0.0, lx * M_PI, nx, /*endpoint=*/false);
@@ -88,24 +118,25 @@ struct Grid {
     m_z = Math::linspace(exec, 0.0, lz * M_PI, nz, /*endpoint=*/false);
 
     // Wavenumbers
-    // int nkx2 = nx * 2 + 1, nky2 = ny * 2 + 1, nkzh = nz + 1;
     int nzh      = nz / 2 + 1;
-    m_kx         = View1D<double>("kx", nx);
-    m_ky         = View1D<double>("ky", ny);
+    int lnx      = nx / m_px;  // Local grid size in x direction
+    int lny      = ny / m_py;  // Local grid size in y direction
+    m_kx         = View1D<double>("kx", lnx);
+    m_ky         = View1D<double>("ky", lny);
     m_kzh        = View1D<double>("kzh", nzh);
-    m_ksq        = View3D<double>("ksq", nx, ny, nzh);
-    m_inv_ksq    = View3D<double>("inv_ksq", nx, ny, nzh);
-    m_alias_mask = View3D<double>("alias_mask", nx, ny, nzh);
+    m_ksq        = View3D<double>("ksq", lnx, lny, nzh);
+    m_inv_ksq    = View3D<double>("inv_ksq", lnx, lny, nzh);
+    m_alias_mask = View3D<double>("alias_mask", lnx, lny, nzh);
 
     host_execution_space host_exec;
 
     // [0, dkx, 2*dkx, ..., nkx * dkx, -nkx * dkx, ..., -dkx]
     double dkx = lx / static_cast<double>(2 * nx);
-    auto h_kx  = KokkosFFT::fftfreq(host_exec, nx, dkx);
+    auto h_gkx = KokkosFFT::fftfreq(host_exec, nx, dkx);
 
     // [0, dky, 2*dky, ..., nky * dky, -nky * dkyx, ..., -dky]
     double dky = ly / static_cast<double>(2 * ny);
-    auto h_ky  = KokkosFFT::fftfreq(host_exec, ny, dky);
+    auto h_gky = KokkosFFT::fftfreq(host_exec, ny, dky);
 
     // [0, dkz, 2*dkz, ..., nkz * dkz]
     double dkz = lz / static_cast<double>(2 * nz);
@@ -115,12 +146,14 @@ struct Grid {
     auto h_ksq     = Kokkos::create_mirror_view(m_ksq);
     auto h_inv_ksq = Kokkos::create_mirror_view(m_inv_ksq);
     for (int ikz = 0; ikz < nzh; ikz++) {
-      for (int iky = 0; iky < ny; iky++) {
-        for (int ikx = 0; ikx < nx; ikx++) {
-          h_ksq(ikx, iky, ikz) = h_kx(ikx) * h_kx(ikx) +
-                                 +h_ky(iky) * h_ky(iky) +
+      for (int iky = 0; iky < lny; iky++) {
+        for (int ikx = 0; ikx < lnx; ikx++) {
+          int gikx             = ikx + m_rx * lnx;  // Global index in x
+          int giky             = iky + m_ry * lny;  // Global index in y
+          h_ksq(ikx, iky, ikz) = h_gkx(gikx) * h_gkx(gikx) +
+                                 +h_gky(giky) * h_gky(giky) +
                                  h_kzh(ikz) * h_kzh(ikz);
-          h_inv_ksq(ikx, iky, ikz) = (ikx == 0 && iky == 0 && ikz == 0)
+          h_inv_ksq(ikx, iky, ikz) = (gikx == 0 && giky == 0 && ikz == 0)
                                          ? 0.0
                                          : 1.0 / (h_ksq(ikx, iky, ikz));
         }
@@ -142,14 +175,27 @@ struct Grid {
 
     auto h_alias_mask = Kokkos::create_mirror_view(m_alias_mask);
     for (int ikz = 0; ikz < nzh; ikz++) {
-      for (int iky = 0; iky < ny; iky++) {
-        for (int ikx = 0; ikx < nx; ikx++) {
-          bool cutoff = (Kokkos::abs(h_kx_ind(ikx) * nx) > cutoff_x) ||
-                        (Kokkos::abs(h_ky_ind(iky) * ny) > cutoff_y) ||
+      for (int iky = 0; iky < lny; iky++) {
+        for (int ikx = 0; ikx < lnx; ikx++) {
+          int gikx    = ikx + m_rx * lnx;  // Global index in x
+          int giky    = iky + m_ry * lny;  // Global index in y
+          bool cutoff = (Kokkos::abs(h_kx_ind(gikx) * nx) > cutoff_x) ||
+                        (Kokkos::abs(h_ky_ind(giky) * ny) > cutoff_y) ||
                         (Kokkos::abs(h_kz_ind(ikz) * nz) > cutoff_z);
           h_alias_mask(ikx, iky, ikz) = static_cast<double>(!cutoff);
         }
       }
+    }
+
+    auto h_kx = Kokkos::create_mirror_view(m_kx);
+    auto h_ky = Kokkos::create_mirror_view(m_ky);
+    for (int ikx = 0; ikx < lnx; ikx++) {
+      int gikx  = ikx + m_rx * lnx;  // Global index in x
+      h_kx(ikx) = h_gkx(gikx);
+    }
+    for (int iky = 0; iky < lny; iky++) {
+      int giky  = iky + m_ry * lny;  // Global index in y
+      h_ky(iky) = h_gky(giky);
     }
 
     Kokkos::deep_copy(m_kx, h_kx);
@@ -211,20 +257,22 @@ void projection(const Grid& grid, const ViewType& uk, const ViewType& vk,
 
 // \brief A class to represent the variables used in the Navier-Stokes equations
 struct Variables {
-  //! Velocity fields in the x, y and z directions.
+  //! Velocity fields in the x, y and z directions. (z-pencil format)
   View3D<Kokkos::complex<double>> m_uk, m_vk, m_wk;
 
-  //! Time derivative of Velocity fields in the x, y and z directions.
+  //! Time derivative of Velocity fields in the x, y and z directions. (z-pencil
+  //! format)
   View3D<Kokkos::complex<double>> m_dukdt, m_dvkdt, m_dwkdt;
 
-  //! Buffer view to store the spatial derivatives of u, v, w
+  //! Buffer view to store the spatial derivatives of u (z-pencil format)
   View3D<Kokkos::complex<double>> m_dukdx, m_dukdy, m_dukdz, m_dvkdx, m_dvkdy,
       m_dvkdz, m_dwkdx, m_dwkdy, m_dwkdz;
 
   //! Buffer view to store the velocity fields in the x, y and z directions
+  //! (x-pencil format)
   View3D<double> m_u, m_v, m_w;
 
-  //! Buffer view to store the time derivative of u, v, w
+  //! Buffer view to store the time derivative of u, v, w (x-pencil format)
   View3D<double> m_dudx, m_dudy, m_dudz, m_dvdx, m_dvdy, m_dvdz, m_dwdx, m_dwdy,
       m_dwdz;
 
@@ -240,43 +288,58 @@ struct Variables {
     auto h_z =
         Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), grid.m_z);
 
-    int nx = h_x.extent(0), ny = h_y.extent(0), nz = h_z.extent(0);
-    m_u    = View3D<double>("u", nx, ny, nz);
-    m_v    = View3D<double>("v", nx, ny, nz);
-    m_w    = View3D<double>("w", nx, ny, nz);
-    m_dudx = View3D<double>("dudx", nx, ny, nz);
-    m_dudy = View3D<double>("dudy", nx, ny, nz);
-    m_dudz = View3D<double>("dudz", nx, ny, nz);
-    m_dvdx = View3D<double>("dvdx", nx, ny, nz);
-    m_dvdy = View3D<double>("dvdy", nx, ny, nz);
-    m_dvdz = View3D<double>("dvdz", nx, ny, nz);
-    m_dwdx = View3D<double>("dwdx", nx, ny, nz);
-    m_dwdy = View3D<double>("dwdy", nx, ny, nz);
-    m_dwdz = View3D<double>("dwdz", nx, ny, nz);
+    std::size_t nx = h_x.extent(0), ny = h_y.extent(0), nz = h_z.extent(0);
 
-    m_uk    = View3D<Kokkos::complex<double>>("uk", nx, ny, nz / 2 + 1);
-    m_vk    = View3D<Kokkos::complex<double>>("vk", nx, ny, nz / 2 + 1);
-    m_wk    = View3D<Kokkos::complex<double>>("wk", nx, ny, nz / 2 + 1);
-    m_dukdt = View3D<Kokkos::complex<double>>("dukdt", nx, ny, nz / 2 + 1);
-    m_dvkdt = View3D<Kokkos::complex<double>>("dvkdt", nx, ny, nz / 2 + 1);
-    m_dwkdt = View3D<Kokkos::complex<double>>("dwkdt", nx, ny, nz / 2 + 1);
-    m_dukdx = View3D<Kokkos::complex<double>>("dukdx", nx, ny, nz / 2 + 1);
-    m_dukdy = View3D<Kokkos::complex<double>>("dukdy", nx, ny, nz / 2 + 1);
-    m_dukdz = View3D<Kokkos::complex<double>>("dukdz", nx, ny, nz / 2 + 1);
-    m_dvkdx = View3D<Kokkos::complex<double>>("dvkdx", nx, ny, nz / 2 + 1);
-    m_dvkdy = View3D<Kokkos::complex<double>>("dvkdy", nx, ny, nz / 2 + 1);
-    m_dvkdz = View3D<Kokkos::complex<double>>("dvkdz", nx, ny, nz / 2 + 1);
-    m_dwkdx = View3D<Kokkos::complex<double>>("dwkdx", nx, ny, nz / 2 + 1);
-    m_dwkdy = View3D<Kokkos::complex<double>>("dwkdy", nx, ny, nz / 2 + 1);
-    m_dwkdz = View3D<Kokkos::complex<double>>("dwkdz", nx, ny, nz / 2 + 1);
+    // Compute the extents in z-pencils
+    auto [nin0, nin1, nin2] = get_local_shape(
+        extents_type({nx, ny, nz}), grid.m_in_topology, MPI_COMM_WORLD);
+
+    // Compute the extents in x-pencils
+    auto [nout0, nout1, nout2] =
+        get_local_shape(extents_type({nx, ny, nz / 2 + 1}), grid.m_out_topology,
+                        MPI_COMM_WORLD);
+
+    // Create views in x-pencil format
+    m_u    = View3D<double>("u", nin0, nin1, nin2);
+    m_v    = View3D<double>("v", nin0, nin1, nin2);
+    m_w    = View3D<double>("w", nin0, nin1, nin2);
+    m_dudx = View3D<double>("dudx", nin0, nin1, nin2);
+    m_dudy = View3D<double>("dudy", nin0, nin1, nin2);
+    m_dudz = View3D<double>("dudz", nin0, nin1, nin2);
+    m_dvdx = View3D<double>("dvdx", nin0, nin1, nin2);
+    m_dvdy = View3D<double>("dvdy", nin0, nin1, nin2);
+    m_dvdz = View3D<double>("dvdz", nin0, nin1, nin2);
+    m_dwdx = View3D<double>("dwdx", nin0, nin1, nin2);
+    m_dwdy = View3D<double>("dwdy", nin0, nin1, nin2);
+    m_dwdz = View3D<double>("dwdz", nin0, nin1, nin2);
+
+    // Create views in z-pencil format
+    m_uk    = View3D<Kokkos::complex<double>>("uk", nout0, nout1, nout2);
+    m_vk    = View3D<Kokkos::complex<double>>("vk", nout0, nout1, nout2);
+    m_wk    = View3D<Kokkos::complex<double>>("wk", nout0, nout1, nout2);
+    m_dukdt = View3D<Kokkos::complex<double>>("dukdt", nout0, nout1, nout2);
+    m_dvkdt = View3D<Kokkos::complex<double>>("dvkdt", nout0, nout1, nout2);
+    m_dwkdt = View3D<Kokkos::complex<double>>("dwkdt", nout0, nout1, nout2);
+    m_dukdx = View3D<Kokkos::complex<double>>("dukdx", nout0, nout1, nout2);
+    m_dukdy = View3D<Kokkos::complex<double>>("dukdy", nout0, nout1, nout2);
+    m_dukdz = View3D<Kokkos::complex<double>>("dukdz", nout0, nout1, nout2);
+    m_dvkdx = View3D<Kokkos::complex<double>>("dvkdx", nout0, nout1, nout2);
+    m_dvkdy = View3D<Kokkos::complex<double>>("dvkdy", nout0, nout1, nout2);
+    m_dvkdz = View3D<Kokkos::complex<double>>("dvkdz", nout0, nout1, nout2);
+    m_dwkdx = View3D<Kokkos::complex<double>>("dwkdx", nout0, nout1, nout2);
+    m_dwkdy = View3D<Kokkos::complex<double>>("dwkdy", nout0, nout1, nout2);
+    m_dwkdz = View3D<Kokkos::complex<double>>("dwkdz", nout0, nout1, nout2);
 
     auto h_u = Kokkos::create_mirror_view(m_u);
     auto h_v = Kokkos::create_mirror_view(m_v);
     auto h_w = Kokkos::create_mirror_view(m_w);
-    for (int iz = 0; iz < nz; iz++) {
-      for (int iy = 0; iy < ny; iy++) {
-        for (int ix = 0; ix < nx; ix++) {
-          double x = h_x(ix), y = h_y(iy), z = h_z(iz);
+    for (int iz = 0; iz < nin2; iz++) {
+      for (int iy = 0; iy < nin1; iy++) {
+        for (int ix = 0; ix < nin0; ix++) {
+          int gix = ix + grid.m_rx * nin0;  // Global index in x
+          int giy = iy + grid.m_ry * nin1;  // Global index in y
+
+          double x = h_x(gix), y = h_y(giy), z = h_z(iz);
           h_u(ix, iy, iz) =
               v0 * Kokkos::sin(x) * Kokkos::cos(y) * Kokkos::cos(z);
           h_v(ix, iy, iz) =
@@ -291,9 +354,12 @@ struct Variables {
 
     using execution_space = Kokkos::DefaultExecutionSpace;
     execution_space exec;
-    KokkosFFT::rfftn(exec, m_u, m_uk, KokkosFFT::axis_type<3>{-3, -2, -1});
-    KokkosFFT::rfftn(exec, m_v, m_vk, KokkosFFT::axis_type<3>{-3, -2, -1});
-    KokkosFFT::rfftn(exec, m_w, m_wk, KokkosFFT::axis_type<3>{-3, -2, -1});
+    Plan plan(exec, m_u, m_uk, KokkosFFT::axis_type<3>{0, 1, 2},
+              grid.m_in_topology, grid.m_out_topology, MPI_COMM_WORLD);
+
+    execute(plan, m_u, m_uk, KokkosFFT::Direction::forward);
+    execute(plan, m_v, m_vk, KokkosFFT::Direction::forward);
+    execute(plan, m_w, m_wk, KokkosFFT::Direction::forward);
 
     dealias(m_uk, grid.m_alias_mask);
     dealias(m_vk, grid.m_alias_mask);
@@ -406,24 +472,27 @@ class RK4th {
 };
 
 class NavierStokes {
-  using OdeSolverType   = RK4th<View1D<Kokkos::complex<double>>>;
-  using ForwardPlanType = KokkosFFT::Plan<execution_space, View3D<double>,
-                                          View3D<Kokkos::complex<double>>, 3>;
-  using BackwardPlanType =
-      KokkosFFT::Plan<execution_space, View3D<Kokkos::complex<double>>,
-                      View3D<double>, 3>;
+  using OdeSolverType = RK4th<View1D<Kokkos::complex<double>>>;
+  using DistributedPlanType =
+      Plan<execution_space, View3D<double>, View3D<Kokkos::complex<double>>, 3>;
 
   //! The ODE solver used in the simulation
   std::unique_ptr<OdeSolverType> m_ode_x, m_ode_y, m_ode_z;
+  ;
 
-  //! The forward fft plan used in the simulation
-  std::unique_ptr<ForwardPlanType> m_forward_plan;
-
-  //! The backward fft plan used in the simulation
-  std::unique_ptr<BackwardPlanType> m_backward_plan;
+  //! The distributed FFT plan used in the simulation
+  std::unique_ptr<DistributedPlanType> m_plan;
 
   //! Radial bins of wavenumbers and energy
   View1D<double> m_k_bins, m_k_vals, m_E_spec;
+
+  //! The rank of the current process.
+  const int m_rank;
+
+  ///@{
+  //! The number of processes in each direction
+  const int m_px, m_py;
+  ///@}
 
   ///@{
   //! The number of grid points in each direction
@@ -439,8 +508,11 @@ class NavierStokes {
   //! The viscosity coefficient.
   const double m_nu;
 
+  ///@{
   //! The directory to output diagnostic data.
-  std::string m_out_dir;
+  std::string m_base_out_dir, m_out_dir;
+  ;
+  ///@}
 
   //! The grid used in the simulation
   Grid m_grid;
@@ -455,22 +527,28 @@ class NavierStokes {
 
  public:
   // \brief Constructor of a HasegawaWakatani class
+  // \param[in] rank The rank of the current process.
+  // \param[in] px The number of processors in x direction.
+  // \param[in] py The number of processors in y direction.
   // \param[in] nx The number of grid points in each direction.
   // \param[in] lx The length of the domain in each direction.
   // \param[in] nbiter The total number of iterations.
   // \param[in] dt The time step size.
   // \param[in] nu The viscosity coefficient.
   // \param[in] out_dir The directory to output diagnostic data.
-  NavierStokes(int nx, double lx, int nbiter, double dt, double nu,
-               const std::string& out_dir)
-      : m_nx(nx),
+  NavierStokes(int rank, int px, int py, int nx, double lx, int nbiter,
+               double dt, double nu, const std::string& out_dir)
+      : m_rank(rank),
+        m_px(px),
+        m_py(py),
+        m_nx(nx),
         m_ny(nx),
         m_nz(nx),
         m_nbiter(nbiter),
         m_dt(dt),
         m_nu(nu),
-        m_out_dir(out_dir),
-        m_grid(nx, nx, nx, lx, lx, lx),
+        m_base_out_dir(out_dir),
+        m_grid(rank, px, py, nx, nx, nx, lx, lx, lx),
         m_variables(m_grid) {
     View1D<Kokkos::complex<double>> uk_flatten(m_variables.m_uk.data(),
                                                m_variables.m_uk.size());
@@ -483,17 +561,21 @@ class NavierStokes {
     m_ode_z = std::make_unique<OdeSolverType>(wk_flatten, dt);
 
     namespace fs = std::filesystem;
-    IO::mkdir(m_out_dir, fs::perms::owner_all | fs::perms::group_read |
-                             fs::perms::group_exec | fs::perms::others_read |
-                             fs::perms::others_exec);
+    // Make a directory for this parallelization (px, py)
+    m_out_dir = m_base_out_dir + "_px" + std::to_string(m_px) + "_py" +
+                std::to_string(m_py);
+    if (m_rank == 0) {
+      IO::mkdir(m_out_dir, fs::perms::owner_all | fs::perms::group_read |
+                               fs::perms::group_exec | fs::perms::others_read |
+                               fs::perms::others_exec);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Create FFT plans
-    m_forward_plan = std::make_unique<ForwardPlanType>(
-        execution_space(), m_variables.m_dudx, m_variables.m_dukdx,
-        KokkosFFT::Direction::forward, KokkosFFT::axis_type<3>({-3, -2, -1}));
-    m_backward_plan = std::make_unique<BackwardPlanType>(
-        execution_space(), m_variables.m_dukdx, m_variables.m_dudx,
-        KokkosFFT::Direction::backward, KokkosFFT::axis_type<3>({-3, -2, -1}));
+    m_plan = std::make_unique<DistributedPlanType>(
+        execution_space(), m_variables.m_u, m_variables.m_uk,
+        KokkosFFT::axis_type<3>{-3, -2, -1}, m_grid.m_in_topology,
+        m_grid.m_out_topology, MPI_COMM_WORLD);
 
     // Preparation for diagnostics
     // Define radial bins (e.g., 0 to k_max)
@@ -509,6 +591,9 @@ class NavierStokes {
         }
       }
     }
+    double gk_max = 0.0;
+    MPI_Allreduce(&k_max, &gk_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    k_max = gk_max;
 
     m_k_bins = View1D<double>("k_bins", m_num_bins + 1);
     m_k_vals = View1D<double>("k_vals", m_num_bins);
@@ -554,7 +639,6 @@ class NavierStokes {
           dukdt(m_variables.m_dukdt.data(), m_variables.m_dukdt.size()),
           dvkdt(m_variables.m_dvkdt.data(), m_variables.m_dvkdt.size()),
           dwkdt(m_variables.m_dwkdt.data(), m_variables.m_dwkdt.size());
-
       m_ode_x->advance(dukdt, uk, step);
       m_ode_y->advance(dvkdt, vk, step);
       m_ode_z->advance(dwkdt, wk, step);
@@ -567,7 +651,9 @@ class NavierStokes {
   // \param[in] uk The Fourier representation of the velocity field u
   // \param[in] vk The Fourier representation of the velocity field v
   // \param[in] wk The Fourier representation of the velocity field w
-  // \param[out] dukdt The RHS of the vorticity equation.
+  // \param[out] dukdt The x component of the RHS of the vorticity equation.
+  // \param[out] dvkdt The y component of the RHS of the vorticity equation.
+  // \param[out] dwkdt The z component of the RHS of the vorticity equation.
   template <typename ViewType>
   void rhs(const ViewType& uk, const ViewType& vk, const ViewType& wk,
            const ViewType& dukdt, const ViewType& dvkdt,
@@ -591,20 +677,6 @@ class NavierStokes {
     derivative(vk, dvkdx, dvkdy, dvkdz);
     derivative(wk, dwkdx, dwkdy, dwkdz);
 
-    // Inverse FFT to get velocity in real space
-    // Since the input can be modified,
-    // we need to copy uk to dukdt
-    auto u = m_variables.m_u;
-    auto v = m_variables.m_v;
-    auto w = m_variables.m_w;
-    Kokkos::deep_copy(dukdt, uk);
-    Kokkos::deep_copy(dvkdt, vk);
-    Kokkos::deep_copy(dwkdt, wk);
-    KokkosFFT::execute(*m_backward_plan, dukdt, u);
-    KokkosFFT::execute(*m_backward_plan, dvkdt, v);
-    KokkosFFT::execute(*m_backward_plan, dwkdt, w);
-
-    // Inverse FFT to get derivatives in real space
     auto dudx = m_variables.m_dudx;
     auto dudy = m_variables.m_dudy;
     auto dudz = m_variables.m_dudz;
@@ -614,23 +686,40 @@ class NavierStokes {
     auto dwdx = m_variables.m_dwdx;
     auto dwdy = m_variables.m_dwdy;
     auto dwdz = m_variables.m_dwdz;
-    KokkosFFT::execute(*m_backward_plan, dukdx, dudx);
-    KokkosFFT::execute(*m_backward_plan, dukdy, dudy);
-    KokkosFFT::execute(*m_backward_plan, dukdz, dudz);
-    KokkosFFT::execute(*m_backward_plan, dvkdx, dvdx);
-    KokkosFFT::execute(*m_backward_plan, dvkdy, dvdy);
-    KokkosFFT::execute(*m_backward_plan, dvkdz, dvdz);
-    KokkosFFT::execute(*m_backward_plan, dwkdx, dwdx);
-    KokkosFFT::execute(*m_backward_plan, dwkdy, dwdy);
-    KokkosFFT::execute(*m_backward_plan, dwkdz, dwdz);
+
+    // Inverse FFT to get derivatives in real space
+    // Z-pencil to X-pencil format
+
+    // Since the input can be modified,
+    // we need to copy uk to dukdt and perform FFT on dukdt
+    auto u = m_variables.m_u;
+    auto v = m_variables.m_v;
+    auto w = m_variables.m_w;
+    Kokkos::deep_copy(dukdt, uk);
+    Kokkos::deep_copy(dvkdt, vk);
+    Kokkos::deep_copy(dwkdt, wk);
+    execute(*m_plan, dukdt, u, KokkosFFT::Direction::backward);
+    execute(*m_plan, dvkdt, v, KokkosFFT::Direction::backward);
+    execute(*m_plan, dwkdt, w, KokkosFFT::Direction::backward);
+    execute(*m_plan, dukdx, dudx, KokkosFFT::Direction::backward);
+    execute(*m_plan, dukdy, dudy, KokkosFFT::Direction::backward);
+    execute(*m_plan, dukdz, dudz, KokkosFFT::Direction::backward);
+    execute(*m_plan, dvkdx, dvdx, KokkosFFT::Direction::backward);
+    execute(*m_plan, dvkdy, dvdy, KokkosFFT::Direction::backward);
+    execute(*m_plan, dvkdz, dvdz, KokkosFFT::Direction::backward);
+    execute(*m_plan, dwkdx, dwdx, KokkosFFT::Direction::backward);
+    execute(*m_plan, dwkdy, dwdy, KokkosFFT::Direction::backward);
+    execute(*m_plan, dwkdz, dwdz, KokkosFFT::Direction::backward);
 
     // Calculate nonlinear advection terms in real space
+    // in X-pencil or XZ-slab (if py==1)
     advection(u, v, w, dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz);
 
     // FFT of nonlinear terms (stored in dukdt)
-    KokkosFFT::execute(*m_forward_plan, u, dukdt);
-    KokkosFFT::execute(*m_forward_plan, v, dvkdt);
-    KokkosFFT::execute(*m_forward_plan, w, dwkdt);
+    // X-pencil to Z-pencil format
+    execute(*m_plan, u, dukdt, KokkosFFT::Direction::forward);
+    execute(*m_plan, v, dvkdt, KokkosFFT::Direction::forward);
+    execute(*m_plan, w, dwkdt, KokkosFFT::Direction::forward);
 
     dealias(dukdt, m_grid.m_alias_mask);
     dealias(dvkdt, m_grid.m_alias_mask);
@@ -661,7 +750,7 @@ class NavierStokes {
     auto kzh = m_grid.m_kzh;
 
     const Kokkos::complex<double> z(0.0, 1.0);  // Imaginary unit
-    const int n0 = uk.extent(0), n1 = uk.extent(1), n2 = uk.extent(2);
+    const int n0 = uk.extent(1), n1 = uk.extent(2), n2 = uk.extent(3);
 
     range3D_type policy({0, 0, 0}, {n0, n1, n2});
     Kokkos::parallel_for(
@@ -676,16 +765,20 @@ class NavierStokes {
 
   // \brief Computes the nonlinear advection term in real space
   // u.grad(u) = u * du/dx + v * dv/dx + w * dw/dx
+  // The operation is made in x-pencil or xz-slab (if py==1) format
   //
   // \tparam ViewType The type of the velocity field.
-  // \param[in,out] u On entrance, the velocity field u. On exit, x component of
-  // the nonlinear advection term \param[in,out] v On entrance, the velocity
-  // field v. On exit, y component of the nonlinear advection term
-  // \param[in,out] w On entrance, the velocity field w. On exit, z component of
-  // the nonlinear advection term \param[in] dudx The x derivative of velocity
-  // field u. \param[in] dudy The y derivative of velocity field u. \param[in]
-  // dudz The z derivative of velocity field u. \param[in] dvdx The x derivative
-  // of velocity field v. \param[in] dvdy The y derivative of velocity field v.
+  // \param[in,out] u On entrance, the velocity field. On exit, the
+  // nonlinear advection term
+  // \param[in,out] v On entrance, the velocity field. On exit, the
+  // nonlinear advection term
+  // \param[in,out] w On entrance, the velocity field. On exit, the
+  // nonlinear advection term
+  // \param[in] dudx The x derivative of velocity field u.
+  // \param[in] dudy The y derivative of velocity field u.
+  // \param[in] dudz The z derivative of velocity field u.
+  // \param[in] dvdx The x derivative of velocity field v.
+  // \param[in] dvdy The y derivative of velocity field v.
   // \param[in] dvdz The z derivative of velocity field v.
   // \param[in] dwdx The x derivative of velocity field w.
   // \param[in] dwdy The y derivative of velocity field w.
@@ -719,11 +812,12 @@ class NavierStokes {
   //
   // \tparam ViewType The type of the velocity field.
   // \param[in,out] advk_x On entrance, the x component of the advection term.
-  // On exit, the the x component of RHS excluding pressure \param[in,out]
-  // advk_y On entrance, the y component of the advection term. On exit, the the
-  // y component of RHS excluding pressure \param[in,out] advk_z On entrance,
-  // the z component of the advection term. On exit, the the z component of RHS
-  // excluding pressure \param[in] uk The x component of the velocity field.
+  // On exit, the the x component of RHS excluding pressure
+  // \param[in,out] advk_y On entrance, the y component of the advection term.
+  // On exit, the the y component of RHS excluding pressure
+  // \param[in,out] advk_z On entrance, the z component of the advection term.
+  // On exit, the the z component of RHS excluding pressure
+  // \param[in] uk The x component of the velocity field.
   // \param[in] vk The y component of the velocity field.
   // \param[in] wk The z component of the velocity field.
   template <typename ViewType>
@@ -761,9 +855,12 @@ class NavierStokes {
     Kokkos::deep_copy(m_variables.m_dukdt, m_variables.m_uk);
     Kokkos::deep_copy(m_variables.m_dvkdt, m_variables.m_vk);
     Kokkos::deep_copy(m_variables.m_dwkdt, m_variables.m_wk);
-    KokkosFFT::execute(*m_backward_plan, m_variables.m_dukdt, m_variables.m_u);
-    KokkosFFT::execute(*m_backward_plan, m_variables.m_dvkdt, m_variables.m_v);
-    KokkosFFT::execute(*m_backward_plan, m_variables.m_dwkdt, m_variables.m_w);
+    execute(*m_plan, m_variables.m_dukdt, m_variables.m_u,
+            KokkosFFT::Direction::backward);
+    execute(*m_plan, m_variables.m_dvkdt, m_variables.m_v,
+            KokkosFFT::Direction::backward);
+    execute(*m_plan, m_variables.m_dwkdt, m_variables.m_w,
+            KokkosFFT::Direction::backward);
 
     to_binary_file("u", m_variables.m_u, iter);
     to_binary_file("v", m_variables.m_v, iter);
@@ -796,13 +893,10 @@ class NavierStokes {
           double factor =
               i2 == 0 ? 1.0
                       : 2.0;  // account for Hermitian symmetry in z direction
-
           auto Ek = 0.5 * factor *
                     (Kokkos::abs(u_tmp * u_tmp) + Kokkos::abs(v_tmp * v_tmp) +
                      Kokkos::abs(w_tmp * w_tmp));
-
-          l_energy += Ek * coef;
-
+          l_energy += Ek * coef;  // total energy
           for (int i = 0; i < num_bins; i++) {
             bool mask = (k_mag >= k_bins(i)) && (k_mag < k_bins(i + 1));
             if (mask) {
@@ -812,12 +906,24 @@ class NavierStokes {
         },
         energy);
 
-    std::cout << "Step: " << iter * m_diag_steps << "/" << m_nbiter
-              << ", Time: " << m_time << ", Kinetic Energy: " << energy
-              << std::endl;
+    // Gather data at rank == 0
+    View1D<double> gE_spec("gE_spec", E_spec.layout());
+    MPI_Reduce(E_spec.data(), gE_spec.data(), E_spec.size(), MPI_DOUBLE,
+               MPI_SUM, 0, MPI_COMM_WORLD);
 
-    to_binary_file("E_spec", E_spec, iter);
-    to_binary_file("k_vals", m_k_vals, iter);
+    double genergy = 0.0;
+    MPI_Reduce(&energy, &genergy, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    energy = genergy;
+
+    // Output should be made from master process
+    if (m_rank == 0) {
+      std::cout << "Step: " << iter * m_diag_steps << "/" << m_nbiter
+                << ", Time: " << m_time << ", Kinetic Energy: " << energy
+                << std::endl;
+
+      to_binary_file("E_spec", E_spec, iter);
+      to_binary_file("k_vals", m_k_vals, iter);
+    }
   }
 
   // \brief Saves a View to a binary file
@@ -838,29 +944,43 @@ class NavierStokes {
     Kokkos::deep_copy(out, value);
 
     std::string file_name =
-        m_out_dir + "/" + label + "_" + IO::zfill(iter, 10) + ".dat";
+        m_out_dir + "/" + label + "_rx" + IO::zfill(m_grid.m_rx, 3) + "_ry" +
+        IO::zfill(m_grid.m_ry, 3) + "_" + IO::zfill(iter, 10) + ".dat";
     auto h_out = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), out);
     IO::to_binary(file_name, h_out);
   }
 };
 
 int main(int argc, char* argv[]) {
-  Kokkos::ScopeGuard guard(argc, argv);
-  auto kwargs = IO::parse_args(argc, argv);
-  std::string out_dir =
-      IO::get_arg<std::string>(kwargs, "out_dir", "data_kokkos");
-  int nx          = IO::get_arg(kwargs, "nx", 32);
-  int nbiter      = IO::get_arg(kwargs, "nbiter", 500);
-  double lx       = IO::get_arg(kwargs, "lx", 2.0);
-  double dt       = IO::get_arg(kwargs, "dt", 0.01);
-  double Re       = IO::get_arg(kwargs, "Re", 100.0);
-  const double nu = 1.0 / Re;
-  NavierStokes model(nx, lx, nbiter, dt, nu, out_dir);
-  Kokkos::Timer timer;
-  model.run();
-  Kokkos::fence();
-  double seconds = timer.seconds();
-  std::cout << "Elapsed time: " << seconds << " [s]" << std::endl;
+  ::MPI_Init(&argc, &argv);
+  int rank, nprocs;
+  ::MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  ::MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  Kokkos::initialize(argc, argv);
+  {
+    auto kwargs = IO::parse_args(argc, argv);
+    std::string out_dir =
+        IO::get_arg<std::string>(kwargs, "out_dir", "data_kokkos");
+    int px          = IO::get_arg(kwargs, "px", 2);
+    int py          = IO::get_arg(kwargs, "py", 1);
+    int nx          = IO::get_arg(kwargs, "nx", 32);
+    int nbiter      = IO::get_arg(kwargs, "nbiter", 500);
+    double lx       = IO::get_arg(kwargs, "lx", 2.0);
+    double dt       = IO::get_arg(kwargs, "dt", 0.01);
+    double Re       = IO::get_arg(kwargs, "Re", 100.0);
+    const double nu = 1.0 / Re;
+    NavierStokes model(rank, px, py, nx, lx, nbiter, dt, nu, out_dir);
+    Kokkos::Timer timer;
+    model.run();
+    Kokkos::fence();
+    double seconds = timer.seconds();
+    if (rank == 0) {
+      std::cout << "Elapsed time: " << seconds << " [s]" << std::endl;
+    }
+  }
+  Kokkos::finalize();
+  ::MPI_Finalize();
 
   return 0;
 }

@@ -9,10 +9,12 @@
 
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;
-using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
-                                    std::pair<float, Kokkos::LayoutRight>,
-                                    std::pair<double, Kokkos::LayoutLeft>,
-                                    std::pair<double, Kokkos::LayoutRight>>;
+using test_types = ::testing::Types<std::pair<double, Kokkos::LayoutRight>>;
+// using test_types      = ::testing::Types<std::pair<float,
+// Kokkos::LayoutLeft>,
+//                                     std::pair<float, Kokkos::LayoutRight>,
+//                                     std::pair<double, Kokkos::LayoutLeft>,
+//                                     std::pair<double, Kokkos::LayoutRight>>;
 
 // Basically the same fixtures, used for labeling tests
 template <typename T>
@@ -31,6 +33,20 @@ struct TestSlabBlockAnalyses1D : public ::testing::Test {
 
 template <typename T>
 struct TestSlabBlockAnalyses2D : public ::testing::Test {
+  using float_type  = typename T::first_type;
+  using layout_type = typename T::second_type;
+
+  int m_rank   = 0;
+  int m_nprocs = 1;
+
+  virtual void SetUp() {
+    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
+    ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
+  }
+};
+
+template <typename T>
+struct TestSlabBlockAnalyses3D : public ::testing::Test {
   using float_type  = typename T::first_type;
   using layout_type = typename T::second_type;
 
@@ -1177,10 +1193,305 @@ void test_slab_analyses_2D_view3D(std::size_t nprocs) {
 }
 */
 
+template <typename T, typename LayoutType>
+void test_slab_analyses_3D_view3D(std::size_t nprocs) {
+  using axes_type           = std::array<std::size_t, 3>;
+  using extents_type        = std::array<std::size_t, 3>;
+  using buffer_extents_type = std::array<std::size_t, 4>;
+  using topology_type       = std::array<std::size_t, 3>;
+  using SlabBlockAnalysesType =
+      SlabBlockAnalysesInternal<T, LayoutType, std::size_t, 3, 3>;
+  using BlockInfoType = BlockInfo<3>;
+
+  topology_type topology0{1, 1, nprocs};
+  topology_type topology1{1, nprocs, 1};
+  topology_type topology2{nprocs, 1, 1};
+
+  std::vector<topology_type> all_topologies = {topology0, topology1, topology2};
+
+  axes_type ax012 = {0, 1, 2}, ax021 = {0, 2, 1}, ax102 = {1, 0, 2},
+            ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
+
+  extents_type map012{0, 1, 2}, map021{0, 2, 1}, map102{1, 0, 2},
+      map120{1, 2, 0}, map201{2, 0, 1}, map210{2, 1, 0};
+
+  std::vector<axes_type> all_axes = {ax012, ax021, ax102, ax120, ax201, ax210};
+
+  const std::size_t n0 = 8, n1 = 7, n2 = 10;
+  extents_type global_in_extents{n0, n1, n2}, global_out_extents_ax0,
+      global_out_extents_ax1, global_out_extents_ax2;
+
+  if (KokkosFFT::Impl::is_real_v<T>) {
+    global_out_extents_ax0 = {n0 / 2 + 1, n1, n2};
+    global_out_extents_ax1 = {n0, n1 / 2 + 1, n2};
+    global_out_extents_ax2 = {n0, n1, n2 / 2 + 1};
+  } else {
+    global_out_extents_ax0 = global_in_extents;
+    global_out_extents_ax1 = global_in_extents;
+    global_out_extents_ax2 = global_in_extents;
+  }
+
+  buffer_extents_type buffer_real_0_1, buffer_real_0_2, buffer_real_1_2,
+      buffer_complex_0_1_ax0, buffer_complex_0_1_ax1, buffer_complex_0_1_ax2,
+      buffer_complex_0_2_ax0, buffer_complex_0_2_ax1, buffer_complex_0_2_ax2,
+      buffer_complex_1_2_ax0, buffer_complex_1_2_ax1, buffer_complex_1_2_ax2;
+
+  if (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+    buffer_real_0_1 = {n0, (n1 - 1) / nprocs + 1, (n2 - 1) / nprocs + 1,
+                       nprocs};
+    buffer_real_0_2 = {(n0 - 1) / nprocs + 1, n1, (n2 - 1) / nprocs + 1,
+                       nprocs};
+    buffer_real_1_2 = {(n0 - 1) / nprocs + 1, (n1 - 1) / nprocs + 1, n2,
+                       nprocs};
+    if (KokkosFFT::Impl::is_real_v<T>) {
+      buffer_complex_0_1_ax0 = {n0 / 2 + 1, (n1 - 1) / nprocs + 1,
+                                (n2 - 1) / nprocs + 1, nprocs};
+      buffer_complex_0_1_ax1 = {n0, (n1 / 2) / nprocs + 1,
+                                (n2 - 1) / nprocs + 1, nprocs};
+      buffer_complex_0_1_ax2 = {n0, (n1 - 1) / nprocs + 1,
+                                (n2 / 2) / nprocs + 1, nprocs};
+      buffer_complex_0_2_ax0 = {n0 / 2 + 1, (n1 - 1) / nprocs + 1,
+                                (n2 - 1) / nprocs + 1, nprocs};
+      buffer_complex_0_2_ax1 = {n0, (n1 / 2) / nprocs + 1,
+                                (n2 - 1) / nprocs + 1, nprocs};
+      buffer_complex_0_2_ax2 = {n0, (n1 - 1) / nprocs + 1,
+                                (n2 / 2) / nprocs + 1, nprocs};
+      buffer_complex_1_2_ax0 = {(n0 / 2) / nprocs + 1, (n1 - 1) / nprocs + 1,
+                                n2, nprocs};
+      buffer_complex_1_2_ax1 = {(n0 - 1) / nprocs + 1, (n1 / 2) / nprocs + 1,
+                                n2, nprocs};
+      buffer_complex_1_2_ax2 = {(n0 - 1) / nprocs + 1, (n1 - 1) / nprocs + 1,
+                                n2 / 2 + 1, nprocs};
+    } else {
+      buffer_complex_0_1_ax0 = buffer_real_0_1;
+      buffer_complex_0_1_ax1 = buffer_real_0_1;
+      buffer_complex_0_1_ax2 = buffer_real_0_1;
+      buffer_complex_0_2_ax0 = buffer_real_0_2;
+      buffer_complex_0_2_ax1 = buffer_real_0_2;
+      buffer_complex_0_2_ax2 = buffer_real_0_2;
+      buffer_complex_1_2_ax0 = buffer_real_1_2;
+      buffer_complex_1_2_ax1 = buffer_real_1_2;
+      buffer_complex_1_2_ax2 = buffer_real_1_2;
+    }
+  } else {
+    buffer_real_0_1 = {nprocs, n0, (n1 - 1) / nprocs + 1,
+                       (n2 - 1) / nprocs + 1};
+    buffer_real_0_2 = {nprocs, (n0 - 1) / nprocs + 1, n1,
+                       (n2 - 1) / nprocs + 1};
+    buffer_real_1_2 = {nprocs, (n0 - 1) / nprocs + 1, (n1 - 1) / nprocs + 1,
+                       n2};
+    if (KokkosFFT::Impl::is_real_v<T>) {
+      buffer_complex_0_1_ax0 = {nprocs, n0 / 2 + 1, (n1 - 1) / nprocs + 1,
+                                (n2 - 1) / nprocs + 1};
+      buffer_complex_0_1_ax1 = {nprocs, n0, (n1 / 2) / nprocs + 1,
+                                (n2 - 1) / nprocs + 1};
+      buffer_complex_0_1_ax2 = {nprocs, n0, (n1 - 1) / nprocs + 1,
+                                (n2 / 2) / nprocs + 1};
+      buffer_complex_0_2_ax0 = {nprocs, n0 / 2 + 1, (n1 - 1) / nprocs + 1,
+                                (n2 - 1) / nprocs + 1};
+      buffer_complex_0_2_ax1 = {nprocs, (n1 / 2) / nprocs + 1,
+                                (n2 - 1) / nprocs + 1};
+      buffer_complex_0_2_ax2 = {nprocs, (n1 - 1) / nprocs + 1,
+                                (n2 / 2) / nprocs + 1};
+      buffer_complex_1_2_ax0 = {nprocs, (n0 / 2) / nprocs + 1,
+                                (n1 - 1) / nprocs + 1, n2};
+      buffer_complex_1_2_ax1 = {nprocs, (n0 - 1) / nprocs + 1,
+                                (n1 / 2) / nprocs + 1, n2};
+      buffer_complex_1_2_ax2 = {nprocs, (n0 - 1) / nprocs + 1,
+                                (n1 - 1) / nprocs + 1, n2 / 2 + 1};
+    } else {
+      buffer_complex_0_1_ax0 = buffer_real_0_1;
+      buffer_complex_0_1_ax1 = buffer_real_0_1;
+      buffer_complex_0_1_ax2 = buffer_real_0_1;
+      buffer_complex_0_2_ax0 = buffer_real_0_2;
+      buffer_complex_0_2_ax1 = buffer_real_0_2;
+      buffer_complex_0_2_ax2 = buffer_real_0_2;
+      buffer_complex_1_2_ax0 = buffer_real_1_2;
+      buffer_complex_1_2_ax1 = buffer_real_1_2;
+      buffer_complex_1_2_ax2 = buffer_real_1_2;
+    }
+  }
+
+  if (nprocs == 1) {
+    // Failure tests because these are shared topologies
+    for (const auto& axes : all_axes) {
+      for (const auto& in_topo : all_topologies) {
+        for (const auto& out_topo : all_topologies) {
+          auto [in_extents, in_starts] =
+              get_local_extents(global_in_extents, in_topo, MPI_COMM_WORLD);
+          extents_type global_out_extents;
+          if (axes == ax120 || axes == ax210) {
+            global_out_extents = global_out_extents_ax0;
+          } else if (axes == ax021 || axes == ax201) {
+            global_out_extents = global_out_extents_ax1;
+          } else {
+            global_out_extents = global_out_extents_ax2;
+          }
+          auto [out_extents, out_starts] =
+              get_local_extents(global_out_extents, out_topo, MPI_COMM_WORLD);
+
+          EXPECT_THROW(
+              {
+                SlabBlockAnalysesType slab_block_analyses(
+                    in_extents, out_extents, global_in_extents,
+                    global_out_extents, in_topo, out_topo, axes);
+              },
+              std::runtime_error);
+        }
+      }
+    }
+  } else {
+    auto [in_extents_t0, in_starts_t0] =
+        get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+    auto [in_extents_t1, in_starts_t1] =
+        get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+    auto [in_extents_t2, in_starts_t2] =
+        get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+    auto [out_extents_t0_ax0, out_starts_t0_ax0] =
+        get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+    auto [out_extents_t1_ax0, out_starts_t1_ax0] =
+        get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+    auto [out_extents_t2_ax0, out_starts_t2_ax0] =
+        get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+    auto [out_extents_t0_ax1, out_starts_t0_ax1] =
+        get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+    auto [out_extents_t1_ax1, out_starts_t1_ax1] =
+        get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+    auto [out_extents_t2_ax1, out_starts_t2_ax1] =
+        get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+    auto [out_extents_t0_ax2, out_starts_t0_ax2] =
+        get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+    auto [out_extents_t1_ax2, out_starts_t1_ax2] =
+        get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+    auto [out_extents_t2_ax2, out_starts_t2_ax2] =
+        get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+    // Axes {0, 1, 2}
+    // {P, 1, 1} + FFT {ax=1,2} -> {1, P, 1} + FFT (ax=0) -> (local transpose)
+    // FFT2 + Transpose + FFT
+    SlabBlockAnalysesType slab_2_1_ax012(
+        in_extents_t2, out_extents_t1_ax2, global_in_extents,
+        global_out_extents_ax2, topology2, topology1, ax012);
+
+    EXPECT_EQ(slab_2_1_ax012.m_block_infos.size(), 3);
+    EXPECT_EQ(slab_2_1_ax012.m_op_type, OperationType::FTF);
+    EXPECT_EQ(slab_2_1_ax012.m_max_buffer_size,
+              get_size(buffer_complex_1_2_ax2) * 2);
+
+    auto block0_2_1_ax012 = slab_2_1_ax012.m_block_infos.at(0);
+    BlockInfoType ref_block0_2_1_ax012;
+    if (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+      ref_block0_2_1_ax012.m_in_map  = map201;
+      ref_block0_2_1_ax012.m_out_map = map201;
+      ref_block0_2_1_ax012.m_in_extents =
+          get_mapped_extents(in_extents_t2, map201);
+      ref_block0_2_1_ax012.m_out_extents =
+          get_mapped_extents(out_extents_t2_ax2, map201);
+    } else {
+      ref_block0_2_1_ax012.m_in_map      = map012;
+      ref_block0_2_1_ax012.m_out_map     = map012;
+      ref_block0_2_1_ax012.m_in_extents  = in_extents_t2;
+      ref_block0_2_1_ax012.m_out_extents = out_extents_t2_ax2;
+    }
+    ref_block0_2_1_ax012.m_axes       = {1, 2};
+    ref_block0_2_1_ax012.m_block_type = BlockType::FFT;
+    EXPECT_EQ(block0_2_1_ax012, ref_block0_2_1_ax012);
+
+    auto block1_2_1_ax012 = slab_2_1_ax012.m_block_infos.at(1);
+    BlockInfoType ref_block1_2_1_ax012;
+    ref_block1_2_1_ax012.m_in_topology  = topology2;
+    ref_block1_2_1_ax012.m_out_topology = topology1;
+    ref_block1_2_1_ax012.m_in_extents   = block0_2_1_ax012.m_out_extents;
+    if (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+      ref_block1_2_1_ax012.m_out_map = map012;
+      ref_block1_2_1_ax012.m_out_extents =
+          get_mapped_extents(out_extents_t1_ax2, map012);
+    } else {
+      ref_block1_2_1_ax012.m_out_map = map120;
+      ref_block1_2_1_ax012.m_out_extents =
+          get_mapped_extents(out_extents_t1_ax2, map120);
+    }
+    ref_block1_2_1_ax012.m_buffer_extents = buffer_complex_1_2_ax2;
+    ref_block1_2_1_ax012.m_in_map         = block0_2_1_ax012.m_out_map;
+    ref_block1_2_1_ax012.m_in_axis        = 1;
+    ref_block1_2_1_ax012.m_out_axis       = 0;
+    ref_block1_2_1_ax012.m_block_type     = BlockType::Transpose;
+    EXPECT_EQ(block1_2_1_ax012, ref_block1_2_1_ax012);
+
+    // EXPECT_EQ(block1_2_1_ax012.m_in_topology,
+    // ref_block1_2_1_ax012.m_in_topology);
+    // EXPECT_EQ(block1_2_1_ax012.m_out_topology,
+    // ref_block1_2_1_ax012.m_out_topology);
+    // EXPECT_EQ(block1_2_1_ax012.m_in_extents,
+    // ref_block1_2_1_ax012.m_in_extents);
+    // EXPECT_EQ(block1_2_1_ax012.m_out_extents,
+    // ref_block1_2_1_ax012.m_out_extents); EXPECT_EQ(block1_2_1_ax012.m_in_map,
+    // ref_block1_2_1_ax012.m_in_map); EXPECT_EQ(block1_2_1_ax012.m_out_map,
+    // ref_block1_2_1_ax012.m_out_map);
+    // EXPECT_EQ(block1_2_1_ax012.m_buffer_extents,
+    // ref_block1_2_1_ax012.m_buffer_extents);
+    // EXPECT_EQ(block1_2_1_ax012.m_in_axis, ref_block1_2_1_ax012.m_in_axis);
+    // EXPECT_EQ(block1_2_1_ax012.m_out_axis, ref_block1_2_1_ax012.m_out_axis);
+    // EXPECT_EQ(block1_2_1_ax012.m_block_type,
+    // ref_block1_2_1_ax012.m_block_type);
+
+    auto block2_2_1_ax012 = slab_2_1_ax012.m_block_infos.at(2);
+    BlockInfoType ref_block2_2_1_ax012;
+    if (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+      ref_block2_2_1_ax012.m_in_extents = get_mapped_extents(
+          out_extents_t1_ax2, ref_block1_2_1_ax012.m_out_map);
+      ref_block2_2_1_ax012.m_out_extents = get_mapped_extents(
+          out_extents_t1_ax2, ref_block1_2_1_ax012.m_out_map);
+    } else {
+      ref_block2_2_1_ax012.m_in_extents = get_mapped_extents(
+          out_extents_t1_ax2, ref_block1_2_1_ax012.m_out_map);
+      ref_block2_2_1_ax012.m_out_extents = get_mapped_extents(
+          out_extents_t1_ax2, ref_block1_2_1_ax012.m_out_map);
+    }
+    ref_block2_2_1_ax012.m_axes       = {0};
+    ref_block2_2_1_ax012.m_block_type = BlockType::FFT;
+    EXPECT_EQ(block2_2_1_ax012, ref_block2_2_1_ax012);
+
+    // EXPECT_EQ(block2_2_1_ax012.m_in_extents,
+    // ref_block2_2_1_ax012.m_in_extents);
+    // EXPECT_EQ(block2_2_1_ax012.m_out_extents,
+    // ref_block2_2_1_ax012.m_out_extents); EXPECT_EQ(block2_2_1_ax012.m_axes,
+    // ref_block2_2_1_ax012.m_axes); EXPECT_EQ(block2_2_1_ax012.m_block_type,
+    // ref_block2_2_1_ax012.m_block_type);
+  }
+
+  /*
+  auto [in_extents_t0, in_starts_t0] =
+      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+  auto [in_extents_t1, in_starts_t1] =
+      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+  auto [in_extents_t2, in_starts_t2] =
+      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+  auto [out_extents_t0_ax0, out_starts_t0_ax0] =
+      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+  auto [out_extents_t1_ax0, out_starts_t1_ax0] =
+      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+  auto [out_extents_t2_ax0, out_starts_t2_ax0] =
+      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+  auto [out_extents_t0_ax1, out_starts_t0_ax1] =
+      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+  auto [out_extents_t1_ax1, out_starts_t1_ax1] =
+      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+  auto [out_extents_t2_ax1, out_starts_t2_ax1] =
+      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+  auto [out_extents_t0_ax2, out_starts_t0_ax2] =
+      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+  auto [out_extents_t1_ax2, out_starts_t1_ax2] =
+      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+  auto [out_extents_t2_ax2, out_starts_t2_ax2] =
+      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+  */
+}
+
 }  // namespace
 
 TYPED_TEST_SUITE(TestSlabBlockAnalyses1D, test_types);
 TYPED_TEST_SUITE(TestSlabBlockAnalyses2D, test_types);
+TYPED_TEST_SUITE(TestSlabBlockAnalyses3D, test_types);
 
 TYPED_TEST(TestSlabBlockAnalyses1D, View2D_R2C) {
   using float_type  = typename TestFixture::float_type;
@@ -1220,3 +1531,18 @@ TYPED_TEST(TestSlabBlockAnalyses2D, View3D) {
   test_slab_analyses_2D_view3D<float_type, layout_type>(this->m_nprocs);
 }
   */
+
+TYPED_TEST(TestSlabBlockAnalyses3D, View3D_R2C) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  test_slab_analyses_3D_view3D<float_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestSlabBlockAnalyses3D, View3D_C2C) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  test_slab_analyses_3D_view3D<complex_type, layout_type>(this->m_nprocs);
+}

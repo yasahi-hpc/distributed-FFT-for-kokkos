@@ -3555,6 +3555,52 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
   }
 }
 
+void test_decompose_axes(std::size_t nprocs) {
+  using topology_type     = std::array<std::size_t, 3>;
+  topology_type topology0 = {1, 1, nprocs};
+  topology_type topology1 = {1, nprocs, 1};
+  topology_type topology2 = {nprocs, 1, 1};
+
+  using axes_type     = std::array<std::size_t, 3>;
+  using vec_axes_type = std::vector<std::size_t>;
+  axes_type axes012   = {0, 1, 2};
+  axes_type axes021   = {0, 2, 1};
+  axes_type axes102   = {1, 0, 2};
+  axes_type axes120   = {1, 2, 0};
+  axes_type axes201   = {2, 0, 1};
+  axes_type axes210   = {2, 1, 0};
+
+  std::vector<axes_type> all_axes = {axes012, axes021, axes102,
+                                     axes120, axes201, axes210};
+
+  // All topologies
+  std::vector<topology_type> topologies_0_1   = {topology0, topology1};
+  std::vector<topology_type> topologies_0_2   = {topology0, topology2};
+  std::vector<topology_type> topologies_1_2   = {topology1, topology2};
+  std::vector<topology_type> topologies_2_0_2 = {topology2, topology0,
+                                                 topology2};
+
+  if (nprocs == 1) {
+    for (const auto& axes : all_axes) {
+      auto all_axes_0_1   = decompose_axes(topologies_0_1, axes);
+      auto all_axes_0_2   = decompose_axes(topologies_0_2, axes);
+      auto all_axes_1_2   = decompose_axes(topologies_1_2, axes);
+      auto all_axes_2_0_2 = decompose_axes(topologies_2_0_2, axes);
+      std::vector<vec_axes_type> ref_all_axes2 = {to_vector(axes), {}},
+                                 ref_all_axes3 = {to_vector(axes), {}, {}};
+      EXPECT_EQ(all_axes_0_1, ref_all_axes2);
+      EXPECT_EQ(all_axes_0_2, ref_all_axes2);
+      EXPECT_EQ(all_axes_1_2, ref_all_axes2);
+      EXPECT_EQ(all_axes_2_0_2, ref_all_axes3);
+    }
+  } else {
+    auto all_axes_2_0_2 = decompose_axes(topologies_2_0_2, axes021);
+    std::vector<vec_axes_type> ref_all_axes_2_0_2 = {
+        vec_axes_type{2, 1}, vec_axes_type{0}, vec_axes_type{}};
+    EXPECT_EQ(all_axes_2_0_2, ref_all_axes_2_0_2);
+  }
+}
+
 }  // namespace
 
 TEST_P(SlabParamTests, GetSlab2D) {
@@ -3661,6 +3707,11 @@ TEST_P(TopologyParamTests, GetTopologyType) {
 TEST_P(TopologyParamTests, IsTopology) {
   int n0 = GetParam();
   test_is_topology(n0);
+}
+
+TEST_P(TopologyParamTests, DecomposeAxes) {
+  int n0 = GetParam();
+  test_decompose_axes(n0);
 }
 
 INSTANTIATE_TEST_SUITE_P(TopologyTests, TopologyParamTests,

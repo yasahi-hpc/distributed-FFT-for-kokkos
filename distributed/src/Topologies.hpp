@@ -216,6 +216,66 @@ std::vector<std::array<iType, DIM>> get_shuffled_topologies(
   return topologies;
 }
 
+/// \brief Decompose the FFT axes of the slab geometry into vectors
+///        The first vector includes the axes for FFT without transpose
+///        The second vector includes the axes for FFT after transpose
+///        The third vector includes the axes for remaining FFT
+///
+/// \tparam iType The index type used for the topology.
+/// \tparam DIM The dimensionality of the topology.
+/// \tparam FFT_DIM The dimensionality of the FFT axes.
+///
+template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
+std::vector<std::vector<iType>> decompose_axes(
+    const std::vector<std::array<std::size_t, DIM>>& topologies,
+    const std::array<iType, FFT_DIM>& axes) {
+  std::vector<std::size_t> axes_reversed;
+  for (std::size_t i = 0; i < axes.size(); ++i) {
+    auto non_negative_axis =
+        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axes.at(i));
+    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
+    axes_reversed.push_back(unsigned_axis);
+  }
+
+  // Reverse the axes e.g. {0, 2, 1} -> {1, 2, 0}
+  std::reverse(axes_reversed.begin(), axes_reversed.end());
+
+  std::vector<std::vector<iType>> all_axes = {};
+  for (auto topology : topologies) {
+    // KOKKOSFFT_THROW_IF(!is_slab_topology(topology),
+    //                  "Topology must be a slab topology.");
+    std::vector<iType> ready_axes;
+    for (auto axis : axes_reversed) {
+      if (topology.at(axis) > 1) break;
+      ready_axes.push_back(axis);
+    }
+    // We need to reverse the axes again
+    // i.e. {1, 2} -> {2, 1}
+    std::reverse(ready_axes.begin(), ready_axes.end());
+    all_axes.push_back(ready_axes);
+
+    // Remove already registered axes
+    for (auto axis : ready_axes) {
+      auto it = std::find(axes_reversed.begin(), axes_reversed.end(), axis);
+      if (it != axes_reversed.end()) {
+        axes_reversed.erase(it);
+      }
+    }
+  }
+
+  std::size_t total_axes = 0;
+  for (auto ready_axes : all_axes) {
+    total_axes += ready_axes.size();
+  }
+
+  KOKKOSFFT_THROW_IF(
+      total_axes != axes.size(),
+      "Axes are not decomposed correctly:" + std::to_string(total_axes) +
+          " != " + std::to_string(axes.size()));
+
+  return all_axes;
+}
+
 // \brief Get all slab topologies for a given input and output topology
 ///
 /// \tparam iType The index type used for the topology.
