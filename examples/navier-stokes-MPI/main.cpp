@@ -299,12 +299,6 @@ struct Variables {
         get_local_shape(extents_type({nx, ny, nz / 2 + 1}), grid.m_out_topology,
                         MPI_COMM_WORLD);
 
-    std::cout << "rank: " << grid.m_rank << std::endl;
-    std::cout << "nin0: " << nin0 << ", nin1: " << nin1 << ", nin2: " << nin2
-              << std::endl;
-    std::cout << "nout0: " << nout0 << ", nout1: " << nout1
-              << ", nout2: " << nout2 << std::endl;
-
     // Create views in x-pencil format
     m_u    = View3D<double>("u", nin0, nin1, nin2);
     m_v    = View3D<double>("v", nin0, nin1, nin2);
@@ -363,12 +357,9 @@ struct Variables {
     Plan plan(exec, m_u, m_uk, KokkosFFT::axis_type<3>{0, 1, 2},
               grid.m_in_topology, grid.m_out_topology, MPI_COMM_WORLD);
 
-    std::cout << "plan" << std::endl;
     execute(plan, m_u, m_uk, KokkosFFT::Direction::forward);
     execute(plan, m_v, m_vk, KokkosFFT::Direction::forward);
     execute(plan, m_w, m_wk, KokkosFFT::Direction::forward);
-
-    std::cout << "forward" << std::endl;
 
     dealias(m_uk, grid.m_alias_mask);
     dealias(m_vk, grid.m_alias_mask);
