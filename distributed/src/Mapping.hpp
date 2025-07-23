@@ -72,7 +72,8 @@ auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
 ///      axis == 0 -> (2, 1, 0)
 ///      axis == 1 -> (0, 2, 1)
 ///      axis == 2 -> (0, 1, 2)
-///
+/// [TO DO] Add a test case with src_map is not
+/// in ascending order
 /// \tparam LayoutType The layout type of the view
 /// \tparam DIM        The dimensionality of the map
 ///
@@ -84,9 +85,9 @@ auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
   std::vector<std::size_t> map;
   map.reserve(DIM);
   if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
-    for (std::size_t i = 0; i < DIM; ++i) {
-      if (!KokkosFFT::Impl::is_found(axes, i)) {
-        map.push_back(i);
+    for (const auto src_idx : src_map) {
+      if (!KokkosFFT::Impl::is_found(axes, src_idx)) {
+        map.push_back(src_idx);
       }
     }
     for (auto axis : axes) {
@@ -101,9 +102,9 @@ auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
     }
 
     // Then stack remaining axes
-    for (std::size_t i = 0; i < DIM; i++) {
-      if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
-        map.push_back(i);
+    for (const auto src_idx : src_map) {
+      if (!KokkosFFT::Impl::is_found(axes_reversed, src_idx)) {
+        map.push_back(src_idx);
       }
     }
   }

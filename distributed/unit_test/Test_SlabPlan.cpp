@@ -763,76 +763,76 @@ void test_slab2D_view3D(std::size_t nprocs) {
                                      topology2, MPI_COMM_WORLD);
         },
         std::runtime_error);
+  } else {
+    // topo 0 -> topo 0 with ax = {1, 0}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p)
+    // FFT2 ax = {1, 0}
+    SlabPlanType plan_0_0_ax10(exec, u_0, u_hat_0_ax10, ax10, topology0,
+                               topology0, MPI_COMM_WORLD);
+    plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
+
+    plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 1 with ax = {1, 0}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> (n0/2+1, n1/p, n2)
+    // FFT2 ax = {1, 0} + Transpose
+    SlabPlanType plan_0_1_ax10(exec, u_0, u_hat_1_ax10, ax10, topology0,
+                               topology1, MPI_COMM_WORLD);
+    plan_0_1_ax10.forward(u_0, u_hat_1_ax10);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
+
+    plan_0_1_ax10.backward(u_hat_1_ax10, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    /*
+    // topology0 (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) axis {0, 1}
+    SharedPlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1, axes_type{0, 1},
+                                topology0, topology0, MPI_COMM_WORLD);
+    plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
+
+    plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topology1 (n0, n1/p, n2) -> topology1 (n0/2+1, n1/p, n2) axis {2, 0}
+    SharedPlanType plan_1_1_ax0(exec, u_1, u_hat_1_ax0, axes_type{2, 0},
+                                topology1, topology1, MPI_COMM_WORLD);
+    plan_1_1_ax0.forward(u_1, u_hat_1_ax0);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
+
+    plan_1_1_ax0.backward(u_hat_1_ax0, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+
+    // topology1 (n0, n1/p, n2) -> topology1 (n0, n1/p, n2/2+1) axis {0, 2}
+    SharedPlanType plan_1_1_ax2(exec, u_1, u_hat_1_ax2, axes_type{0, 2},
+                                topology1, topology1, MPI_COMM_WORLD);
+    plan_1_1_ax2.forward(u_1, u_hat_1_ax2);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax2, ref_u_hat_1_ax2));
+
+    plan_1_1_ax2.backward(u_hat_1_ax2, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+
+    // topology2 (n0/p, n1, n2) -> topology2 (n0/p, n1/2+1, n2) axis {2, 1}
+    SharedPlanType plan_2_2_ax1(exec, u_2, u_hat_2_ax1, axes_type{2, 1},
+                                topology2, topology2, MPI_COMM_WORLD);
+    plan_2_2_ax1.forward(u_2, u_hat_2_ax1);
+    EXPECT_TRUE(allclose(exec, u_hat_2_ax1, ref_u_hat_2_ax1));
+
+    plan_2_2_ax1.backward(u_hat_2_ax1, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+
+    // topology2 (n0/p, n1, n2) -> topology2 (n0/p, n1, n2/2+1) axis {1, 2}
+    SharedPlanType plan_2_2_ax2(exec, u_2, u_hat_2_ax2, axes_type{1, 2},
+                                topology2, topology2, MPI_COMM_WORLD);
+    plan_2_2_ax2.forward(u_2, u_hat_2_ax2);
+    EXPECT_TRUE(allclose(exec, u_hat_2_ax2, ref_u_hat_2_ax2));
+
+    plan_2_2_ax2.backward(u_hat_2_ax2, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    */
   }
-
-  // topo 0 -> topo 0 with ax = {1, 0}:
-  // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p)
-  // FFT2 ax = {1, 0}
-  SlabPlanType plan_0_0_ax10(exec, u_0, u_hat_0_ax10, ax10, topology0,
-                             topology0, MPI_COMM_WORLD);
-  plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
-
-  plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topo 0 -> topo 1 with ax = {1, 0}:
-  // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> (n0/2+1, n1/p, n2)
-  // FFT2 ax = {1, 0} + Transpose
-  SlabPlanType plan_0_1_ax10(exec, u_0, u_hat_1_ax10, ax10, topology0,
-                             topology1, MPI_COMM_WORLD);
-  plan_0_1_ax10.forward(u_0, u_hat_1_ax10);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
-
-  plan_0_1_ax10.backward(u_hat_1_ax10, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  /*
-  // topology0 (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) axis {0, 1}
-  SharedPlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1, axes_type{0, 1},
-                              topology0, topology0, MPI_COMM_WORLD);
-  plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
-
-  plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topology1 (n0, n1/p, n2) -> topology1 (n0/2+1, n1/p, n2) axis {2, 0}
-  SharedPlanType plan_1_1_ax0(exec, u_1, u_hat_1_ax0, axes_type{2, 0},
-                              topology1, topology1, MPI_COMM_WORLD);
-  plan_1_1_ax0.forward(u_1, u_hat_1_ax0);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
-
-  plan_1_1_ax0.backward(u_hat_1_ax0, u_inv_1);
-  EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-  // topology1 (n0, n1/p, n2) -> topology1 (n0, n1/p, n2/2+1) axis {0, 2}
-  SharedPlanType plan_1_1_ax2(exec, u_1, u_hat_1_ax2, axes_type{0, 2},
-                              topology1, topology1, MPI_COMM_WORLD);
-  plan_1_1_ax2.forward(u_1, u_hat_1_ax2);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax2, ref_u_hat_1_ax2));
-
-  plan_1_1_ax2.backward(u_hat_1_ax2, u_inv_1);
-  EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-  // topology2 (n0/p, n1, n2) -> topology2 (n0/p, n1/2+1, n2) axis {2, 1}
-  SharedPlanType plan_2_2_ax1(exec, u_2, u_hat_2_ax1, axes_type{2, 1},
-                              topology2, topology2, MPI_COMM_WORLD);
-  plan_2_2_ax1.forward(u_2, u_hat_2_ax1);
-  EXPECT_TRUE(allclose(exec, u_hat_2_ax1, ref_u_hat_2_ax1));
-
-  plan_2_2_ax1.backward(u_hat_2_ax1, u_inv_2);
-  EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-  // topology2 (n0/p, n1, n2) -> topology2 (n0/p, n1, n2/2+1) axis {1, 2}
-  SharedPlanType plan_2_2_ax2(exec, u_2, u_hat_2_ax2, axes_type{1, 2},
-                              topology2, topology2, MPI_COMM_WORLD);
-  plan_2_2_ax2.forward(u_2, u_hat_2_ax2);
-  EXPECT_TRUE(allclose(exec, u_hat_2_ax2, ref_u_hat_2_ax2));
-
-  plan_2_2_ax2.backward(u_hat_2_ax2, u_inv_2);
-  EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-  */
 }
 
 template <typename T, typename LayoutType>
@@ -1296,154 +1296,156 @@ void test_slab3D_view3D(std::size_t nprocs) {
                                       topology2, topology2, MPI_COMM_WORLD);
         },
         std::runtime_error);
+  } else {
+    // topo 0 -> topo 0 with ax = {0, 1, 2}:
+    // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1,
+    // (n2/2+1)/p) Transpose -> FFT2 ax = {1, 2} -> Transpose -> FFT ax = {0}
+    SlabPlanType plan_0_0_ax012(exec, u_0, u_hat_0_ax012, ax012, topology0,
+                                topology0, MPI_COMM_WORLD);
+    plan_0_0_ax012.forward(u_0, u_hat_0_ax012);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
+
+    plan_0_0_ax012.backward(u_hat_0_ax012, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 0 with ax = {0, 2, 1}:
+    // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0/p, n1/2+1, n2) -> (n0, n1/2+1,
+    // n2/p) FFT ax = {1} -> Transpose topo 1 -> FFT2 ax = {0, 2} -> Transpose
+    SlabPlanType plan_0_0_ax021(exec, u_0, u_hat_0_ax021, ax021, topology0,
+                                topology0, MPI_COMM_WORLD);
+    plan_0_0_ax021.forward(u_0, u_hat_0_ax021);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
+
+    plan_0_0_ax021.backward(u_hat_0_ax021, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 0 with ax = {1, 0, 2}:
+    // (n0, n1, n2/p) -> (n0, n1/p, n2) -> (n0, n1/p, n2/2+1) -> (n0, n1,
+    // (n2/2+1)/p) Transpose -> FFT2 ax = {0, 2} -> Transpose -> FFT ax = {1}
+    SlabPlanType plan_0_0_ax102(exec, u_0, u_hat_0_ax102, ax102, topology0,
+                                topology0, MPI_COMM_WORLD);
+    plan_0_0_ax102.forward(u_0, u_hat_0_ax102);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
+
+    plan_0_0_ax102.backward(u_hat_0_ax102, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 0 with ax = {1, 2, 0}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2) -> (n0/2+1,
+    // n1, n2/p) FFT ax = {0} -> Transpose topo 2 -> FFT2 ax = {1, 2} ->
+    // Transpose
+    SlabPlanType plan_0_0_ax120(exec, u_0, u_hat_0_ax120, ax120, topology0,
+                                topology0, MPI_COMM_WORLD);
+    plan_0_0_ax120.forward(u_0, u_hat_0_ax120);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
+
+    plan_0_0_ax120.backward(u_hat_0_ax120, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 0 with ax = {2, 0, 1}:
+    // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2) -> (n0,
+    // n1/2+1, n2/p) FFT2 ax = {0, 1} -> Transpose topo 1 -> FFT ax = {2} ->
+    // Transpose
+    SlabPlanType plan_0_0_ax201(exec, u_0, u_hat_0_ax201, ax201, topology0,
+                                topology0, MPI_COMM_WORLD);
+    plan_0_0_ax201.forward(u_0, u_hat_0_ax201);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
+
+    plan_0_0_ax201.backward(u_hat_0_ax201, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 0 with ax = {2, 1, 0}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2) -> (n0/2+1,
+    // n1, n2/p) FFT2 ax = {1, 0} -> Transpose topo 2 -> FFT ax = {2} ->
+    // Transpose
+    SlabPlanType plan_0_0_ax210(exec, u_0, u_hat_0_ax210, ax210, topology0,
+                                topology0, MPI_COMM_WORLD);
+    plan_0_0_ax210.forward(u_0, u_hat_0_ax210);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
+
+    plan_0_0_ax210.backward(u_hat_0_ax210, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 2 -> topo 1 with ax = {0, 1, 2}:
+    // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
+    // FFT2 ax = {1, 2} -> Transpose -> FFT ax = {0}
+    SlabPlanType plan_2_1_ax012(exec, u_2, u_hat_1_ax012, ax012, topology2,
+                                topology1, MPI_COMM_WORLD);
+    plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+
+    plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+
+    /*
+    // topo 0 -> topo 0 with ax = {0, 1, 2}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p)
+    // FFT2 ax = {1, 0}
+    SlabPlanType plan_0_0_ax10(exec, u_0, u_hat_0_ax10, ax10,
+                                topology0, topology0, MPI_COMM_WORLD);
+    plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
+
+    plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 1 with ax = {1, 0}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> (n0/2+1, n1/p, n2)
+    // FFT2 ax = {1, 0} + Transpose
+    SlabPlanType plan_0_1_ax10(exec, u_0, u_hat_1_ax10, ax10,
+                               topology0, topology1, MPI_COMM_WORLD);
+    plan_0_1_ax10.forward(u_0, u_hat_1_ax10);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
+
+    plan_0_1_ax10.backward(u_hat_1_ax10, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topology0 (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) axis {0, 1}
+    SharedPlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1, axes_type{0, 1},
+                                topology0, topology0, MPI_COMM_WORLD);
+    plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
+
+    plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topology1 (n0, n1/p, n2) -> topology1 (n0/2+1, n1/p, n2) axis {2, 0}
+    SharedPlanType plan_1_1_ax0(exec, u_1, u_hat_1_ax0, axes_type{2, 0},
+                                topology1, topology1, MPI_COMM_WORLD);
+    plan_1_1_ax0.forward(u_1, u_hat_1_ax0);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
+
+    plan_1_1_ax0.backward(u_hat_1_ax0, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+
+    // topology1 (n0, n1/p, n2) -> topology1 (n0, n1/p, n2/2+1) axis {0, 2}
+    SharedPlanType plan_1_1_ax2(exec, u_1, u_hat_1_ax2, axes_type{0, 2},
+                                topology1, topology1, MPI_COMM_WORLD);
+    plan_1_1_ax2.forward(u_1, u_hat_1_ax2);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax2, ref_u_hat_1_ax2));
+
+    plan_1_1_ax2.backward(u_hat_1_ax2, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+
+    // topology2 (n0/p, n1, n2) -> topology2 (n0/p, n1/2+1, n2) axis {2, 1}
+    SharedPlanType plan_2_2_ax1(exec, u_2, u_hat_2_ax1, axes_type{2, 1},
+                                topology2, topology2, MPI_COMM_WORLD);
+    plan_2_2_ax1.forward(u_2, u_hat_2_ax1);
+    EXPECT_TRUE(allclose(exec, u_hat_2_ax1, ref_u_hat_2_ax1));
+
+    plan_2_2_ax1.backward(u_hat_2_ax1, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+
+    // topology2 (n0/p, n1, n2) -> topology2 (n0/p, n1, n2/2+1) axis {1, 2}
+    SharedPlanType plan_2_2_ax2(exec, u_2, u_hat_2_ax2, axes_type{1, 2},
+                                topology2, topology2, MPI_COMM_WORLD);
+    plan_2_2_ax2.forward(u_2, u_hat_2_ax2);
+    EXPECT_TRUE(allclose(exec, u_hat_2_ax2, ref_u_hat_2_ax2));
+
+    plan_2_2_ax2.backward(u_hat_2_ax2, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    */
   }
-
-  // topo 0 -> topo 0 with ax = {0, 1, 2}:
-  // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1,
-  // (n2/2+1)/p) Transpose -> FFT2 ax = {1, 2} -> Transpose -> FFT ax = {0}
-  SlabPlanType plan_0_0_ax012(exec, u_0, u_hat_0_ax012, ax012, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax012.forward(u_0, u_hat_0_ax012);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
-
-  plan_0_0_ax012.backward(u_hat_0_ax012, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topo 0 -> topo 0 with ax = {0, 2, 1}:
-  // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0/p, n1/2+1, n2) -> (n0, n1/2+1,
-  // n2/p) FFT ax = {1} -> Transpose topo 1 -> FFT2 ax = {0, 2} -> Transpose
-  SlabPlanType plan_0_0_ax021(exec, u_0, u_hat_0_ax021, ax021, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax021.forward(u_0, u_hat_0_ax021);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
-
-  plan_0_0_ax021.backward(u_hat_0_ax021, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topo 0 -> topo 0 with ax = {1, 0, 2}:
-  // (n0, n1, n2/p) -> (n0, n1/p, n2) -> (n0, n1/p, n2/2+1) -> (n0, n1,
-  // (n2/2+1)/p) Transpose -> FFT2 ax = {0, 2} -> Transpose -> FFT ax = {1}
-  SlabPlanType plan_0_0_ax102(exec, u_0, u_hat_0_ax102, ax102, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax102.forward(u_0, u_hat_0_ax102);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
-
-  plan_0_0_ax102.backward(u_hat_0_ax102, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topo 0 -> topo 0 with ax = {1, 2, 0}:
-  // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2) -> (n0/2+1,
-  // n1, n2/p) FFT ax = {0} -> Transpose topo 2 -> FFT2 ax = {1, 2} -> Transpose
-  SlabPlanType plan_0_0_ax120(exec, u_0, u_hat_0_ax120, ax120, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax120.forward(u_0, u_hat_0_ax120);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
-
-  plan_0_0_ax120.backward(u_hat_0_ax120, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topo 0 -> topo 0 with ax = {2, 0, 1}:
-  // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2) -> (n0,
-  // n1/2+1, n2/p) FFT2 ax = {0, 1} -> Transpose topo 1 -> FFT ax = {2} ->
-  // Transpose
-  SlabPlanType plan_0_0_ax201(exec, u_0, u_hat_0_ax201, ax201, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax201.forward(u_0, u_hat_0_ax201);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
-
-  plan_0_0_ax201.backward(u_hat_0_ax201, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topo 0 -> topo 0 with ax = {2, 1, 0}:
-  // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2) -> (n0/2+1,
-  // n1, n2/p) FFT2 ax = {1, 0} -> Transpose topo 2 -> FFT ax = {2} -> Transpose
-  SlabPlanType plan_0_0_ax210(exec, u_0, u_hat_0_ax210, ax210, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax210.forward(u_0, u_hat_0_ax210);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
-
-  plan_0_0_ax210.backward(u_hat_0_ax210, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topo 2 -> topo 1 with ax = {0, 1, 2}:
-  // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
-  // FFT2 ax = {1, 2} -> Transpose -> FFT ax = {0}
-  SlabPlanType plan_2_1_ax012(exec, u_2, u_hat_1_ax012, ax012, topology2,
-                              topology1, MPI_COMM_WORLD);
-  plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
-
-  plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
-  EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-  /*
-  // topo 0 -> topo 0 with ax = {0, 1, 2}:
-  // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p)
-  // FFT2 ax = {1, 0}
-  SlabPlanType plan_0_0_ax10(exec, u_0, u_hat_0_ax10, ax10,
-                              topology0, topology0, MPI_COMM_WORLD);
-  plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
-
-  plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topo 0 -> topo 1 with ax = {1, 0}:
-  // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> (n0/2+1, n1/p, n2)
-  // FFT2 ax = {1, 0} + Transpose
-  SlabPlanType plan_0_1_ax10(exec, u_0, u_hat_1_ax10, ax10,
-                             topology0, topology1, MPI_COMM_WORLD);
-  plan_0_1_ax10.forward(u_0, u_hat_1_ax10);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
-
-  plan_0_1_ax10.backward(u_hat_1_ax10, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topology0 (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) axis {0, 1}
-  SharedPlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1, axes_type{0, 1},
-                              topology0, topology0, MPI_COMM_WORLD);
-  plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
-
-  plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
-  EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-  // topology1 (n0, n1/p, n2) -> topology1 (n0/2+1, n1/p, n2) axis {2, 0}
-  SharedPlanType plan_1_1_ax0(exec, u_1, u_hat_1_ax0, axes_type{2, 0},
-                              topology1, topology1, MPI_COMM_WORLD);
-  plan_1_1_ax0.forward(u_1, u_hat_1_ax0);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
-
-  plan_1_1_ax0.backward(u_hat_1_ax0, u_inv_1);
-  EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-  // topology1 (n0, n1/p, n2) -> topology1 (n0, n1/p, n2/2+1) axis {0, 2}
-  SharedPlanType plan_1_1_ax2(exec, u_1, u_hat_1_ax2, axes_type{0, 2},
-                              topology1, topology1, MPI_COMM_WORLD);
-  plan_1_1_ax2.forward(u_1, u_hat_1_ax2);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax2, ref_u_hat_1_ax2));
-
-  plan_1_1_ax2.backward(u_hat_1_ax2, u_inv_1);
-  EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-  // topology2 (n0/p, n1, n2) -> topology2 (n0/p, n1/2+1, n2) axis {2, 1}
-  SharedPlanType plan_2_2_ax1(exec, u_2, u_hat_2_ax1, axes_type{2, 1},
-                              topology2, topology2, MPI_COMM_WORLD);
-  plan_2_2_ax1.forward(u_2, u_hat_2_ax1);
-  EXPECT_TRUE(allclose(exec, u_hat_2_ax1, ref_u_hat_2_ax1));
-
-  plan_2_2_ax1.backward(u_hat_2_ax1, u_inv_2);
-  EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-  // topology2 (n0/p, n1, n2) -> topology2 (n0/p, n1, n2/2+1) axis {1, 2}
-  SharedPlanType plan_2_2_ax2(exec, u_2, u_hat_2_ax2, axes_type{1, 2},
-                              topology2, topology2, MPI_COMM_WORLD);
-  plan_2_2_ax2.forward(u_2, u_hat_2_ax2);
-  EXPECT_TRUE(allclose(exec, u_hat_2_ax2, ref_u_hat_2_ax2));
-
-  plan_2_2_ax2.backward(u_hat_2_ax2, u_inv_2);
-  EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-  */
 }
 
 }  // namespace
