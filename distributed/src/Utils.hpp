@@ -28,6 +28,67 @@ auto convert_negative_axes(const std::array<IntType, DIM>& axes) {
   return non_negative_axes;
 }
 
+template <typename Layout, typename iType, std::size_t DIM, std::size_t FFT_DIM>
+auto get_map_axes(const std::array<iType, FFT_DIM>& axes) {
+  // Convert the input axes to be in the range of [0, rank-1]
+  std::array<iType, FFT_DIM> non_negative_axes = {};
+  if constexpr (std::is_signed_v<iType>) {
+    for (std::size_t i = 0; i < DIM; i++) {
+      non_negative_axes.at(i) =
+          KokkosFFT::Impl::convert_negative_axis<iType, DIM>(axes.at(i));
+    }
+  } else {
+    for (std::size_t i = 0; i < DIM; i++) {
+      non_negative_axes.at(i) = axes.at(i);
+    }
+  }
+
+  // how indices are map
+  // For 5D View and axes are (2,3), map would be (0, 1, 4, 2, 3)
+  constexpr iType rank = static_cast<iType>(DIM);
+  std::vector<iType> map;
+  map.reserve(rank);
+
+  if (std::is_same_v<Layout, Kokkos::LayoutRight>) {
+    // Stack axes not specified by axes (0, 1, 4)
+    for (iType i = 0; i < rank; i++) {
+      if (!KokkosFFT::Impl::is_found(non_negative_axes, i)) {
+        map.push_back(i);
+      }
+    }
+
+    // Stack axes on the map (For layout Right)
+    // Then stack (2, 3) to have (0, 1, 4, 2, 3)
+    for (auto axis : non_negative_axes) {
+      map.push_back(axis);
+    }
+  } else {
+    // For layout Left, stack innermost axes first
+    std::reverse(non_negative_axes.begin(), non_negative_axes.end());
+    for (auto axis : non_negative_axes) {
+      map.push_back(axis);
+    }
+
+    // Then stack remaining axes
+    for (iType i = 0; i < rank; i++) {
+      if (!KokkosFFT::Impl::is_found(non_negative_axes, i)) {
+        map.push_back(i);
+      }
+    }
+  }
+
+  using full_axis_type     = std::array<iType, rank>;
+  full_axis_type array_map = {}, array_map_inv = {};
+  std::copy_n(map.begin(), rank, array_map.begin());
+
+  // Construct inverse map
+  for (iType i = 0; i < rank; i++) {
+    array_map_inv.at(i) = KokkosFFT::Impl::get_index(array_map, i);
+  }
+
+  return std::tuple<full_axis_type, full_axis_type>({array_map, array_map_inv});
+}
+
 template <typename ArrayType>
 int countNonOneComponents(const ArrayType& arr) {
   return std::count_if(arr.begin(), arr.end(),
@@ -116,11 +177,33 @@ auto merge_topology(const std::array<iType, DIM>& in_topology,
 
   if (in_size == 1) return in_topology;
 
+  auto mismatched_extents =
+      [](std::array<iType, DIM> in_topology,
+         std::array<iType, DIM> out_topology) -> std::string {
+    std::string message;
+    message += "in_topology (";
+    message += std::to_string(in_topology.at(0));
+    for (std::size_t r = 1; r < in_topology.size(); r++) {
+      message += ",";
+      message += std::to_string(in_topology.at(r));
+    }
+    message += "), ";
+    message += "out_topology (";
+    message += std::to_string(out_topology.at(0));
+    for (std::size_t r = 1; r < out_topology.size(); r++) {
+      message += ",";
+      message += std::to_string(out_topology.at(r));
+    }
+    message += ")";
+    return message;
+  };
+
   // Check if two topologies are two convertible pencils
   std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 2,
-      "Input and output topologies must differ exactly two positions.");
+      "Input and output topologies must differ exactly two positions: " +
+          mismatched_extents(in_topology, out_topology));
 
   std::array<iType, DIM> topology = {};
   for (std::size_t i = 0; i < in_topology.size(); i++) {
@@ -215,6 +298,39 @@ auto get_mapped_axes(const std::array<std::size_t, DIM>& axes,
   }
 
   return mapped_axes;
+}
+
+/// \brief Calculate the permuted axes based on the map
+///
+/// Example
+/// Axes: (1, 3, 2) for (0, 1, 2, 3)
+/// map: (0, 2, 3, 1)
+/// Mapped Axes: (3, 2, 1) for (0, 2, 3, 1)
+///
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] extents Extents of the View.
+/// \param[in] map A map representing how the data is permuted
+/// \return A extents of the permuted view
+template <typename Layout, typename iType, std::size_t Rank>
+auto get_contiguous_axes(const std::vector<iType>& axes) {
+  std::vector<iType> contiguous_axes(axes.size());
+
+  if (std::is_same_v<Layout, Kokkos::LayoutLeft>) {
+    for (std::size_t i = 0; i < axes.size(); ++i) {
+      contiguous_axes[i] = static_cast<iType>(i);
+    }
+    // Reverse the axes to have the inner most axes first
+    // (0, 1, 2) -> (2, 1, 0)
+    std::reverse(contiguous_axes.begin(), contiguous_axes.end());
+  } else {
+    for (std::size_t i = 0; i < axes.size(); ++i) {
+      int negative_axis = -int(axes.size()) + int(i);
+      contiguous_axes[i] =
+          KokkosFFT::Impl::convert_negative_axis<int, Rank>(negative_axis);
+    }
+  }
+  return contiguous_axes;
 }
 
 /// \brief Transpose functor for out-of-place transpose operations.

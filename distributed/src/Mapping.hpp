@@ -59,6 +59,68 @@ auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
 /// the src_map. The dst_map is the mapping that is ready
 /// for FFTs along the innermost direction.
 ///
+/// E.g. Src Mapping (0, 1, 2) -> (0, 2, 1)
+///      This corresponds to the mapping of
+///      x -> x, y -> z, z -> y
+///
+///      Layout Left
+///      axis == 0 -> (0, 2, 1)
+///      axis == 1 -> (1, 0, 2)
+///      axis == 2 -> (2, 0, 1)
+///
+///      Layout Right
+///      axis == 0 -> (2, 1, 0)
+///      axis == 1 -> (0, 2, 1)
+///      axis == 2 -> (0, 1, 2)
+///
+/// \tparam LayoutType The layout type of the view
+/// \tparam DIM        The dimensionality of the map
+///
+/// \param[in] src_map The axis map of the input view
+/// \param[in] axis    The axis to be merged/split
+template <typename LayoutType, typename iType, std::size_t DIM>
+auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
+                 const std::vector<iType>& axes) {
+  std::vector<std::size_t> map;
+  map.reserve(DIM);
+  if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
+    for (std::size_t i = 0; i < DIM; ++i) {
+      if (!KokkosFFT::Impl::is_found(axes, i)) {
+        map.push_back(i);
+      }
+    }
+    for (auto axis : axes) {
+      map.push_back(axis);
+    }
+  } else {
+    // For layout Left, stack innermost axes first
+    std::vector<iType> axes_reversed(axes);
+    std::reverse(axes_reversed.begin(), axes_reversed.end());
+    for (auto axis : axes_reversed) {
+      map.push_back(axis);
+    }
+
+    // Then stack remaining axes
+    for (std::size_t i = 0; i < DIM; i++) {
+      if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
+        map.push_back(i);
+      }
+    }
+  }
+
+  using full_axis_type   = std::array<std::size_t, DIM>;
+  full_axis_type dst_map = {};
+  std::copy_n(map.begin(), DIM, dst_map.begin());
+
+  return dst_map;
+}
+
+/// \brief Get the mapping of the destination view from
+/// src mapping. In the middle of the parallel FFTs,
+/// the axis of the view can be changed which is stored in
+/// the src_map. The dst_map is the mapping that is ready
+/// for FFTs along the innermost direction.
+///
 /// E.g. Src Mapping (0, 2, 1)
 ///      This corresponds to the mapping of
 ///      x -> x, y -> z, z -> y
