@@ -83,11 +83,6 @@ void test_all2all_view2D(int rank, int nprocs) {
   All2All<execution_space, View3DType> all2all(send, recv);
   all2all(send, recv);
 
-  if (rank == 1) {
-    display(send);
-    display(recv);
-  }
-
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
   T epsilon = std::numeric_limits<T>::epsilon() * 100;
