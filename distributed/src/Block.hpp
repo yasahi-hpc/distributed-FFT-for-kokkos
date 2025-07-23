@@ -21,6 +21,7 @@ class Block {
   extents_type m_src_map, m_dst_map;
   std::size_t m_src_axis, m_dst_axis;
   MPI_Comm m_comm;
+  extents_type m_in_extents, m_out_extents;
 
  public:
   explicit Block(const ExecutionSpace& exec_space, const InViewType& in,
@@ -37,7 +38,9 @@ class Block {
         m_dst_map(dst_map),
         m_src_axis(src_axis),
         m_dst_axis(dst_axis),
-        m_comm(comm) {
+        m_comm(comm),
+        m_in_extents(KokkosFFT::Impl::extract_extents(in)),
+        m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
     auto send_buffer_size = m_send_buffer.size();
     auto recv_buffer_size = m_recv_buffer.size();
     KOKKOSFFT_THROW_IF(send_buffer_size != recv_buffer_size,
@@ -52,11 +55,61 @@ class Block {
   }
 
   void operator()(const InViewType& in, const OutViewType& out) const {
+    good(in, out);
+
     pack(m_exec, in, m_send_buffer, m_src_map, m_src_axis);
     m_exec.fence();
     All2All<ExecutionSpace, BufferType>(m_send_buffer, m_recv_buffer, m_comm,
                                         m_exec)(m_send_buffer, m_recv_buffer);
     unpack(m_exec, m_recv_buffer, out, m_dst_map, m_dst_axis);
+  }
+
+ private:
+  void good(const InViewType& in, const OutViewType& out) const {
+    auto in_extents  = KokkosFFT::Impl::extract_extents(in);
+    auto out_extents = KokkosFFT::Impl::extract_extents(out);
+
+    auto mismatched_extents = [&](extents_type extents,
+                                  extents_type plan_extents) -> std::string {
+      std::string message;
+      message += "View (";
+      message += std::to_string(extents.at(0));
+      for (std::size_t r = 1; r < extents.size(); r++) {
+        message += ",";
+        message += std::to_string(extents.at(r));
+      }
+      message += "), ";
+      message += "Plan (";
+      message += std::to_string(plan_extents.at(0));
+      for (std::size_t r = 1; r < plan_extents.size(); r++) {
+        message += ",";
+        message += std::to_string(plan_extents.at(r));
+      }
+      message += ")";
+      return message;
+    };
+
+    KOKKOSFFT_THROW_IF(in_extents != m_in_extents,
+                       "extents of input View for plan and "
+                       "execution are not identical: " +
+                           mismatched_extents(in_extents, m_in_extents));
+
+    KOKKOSFFT_THROW_IF(out_extents != m_out_extents,
+                       "extents of output View for plan and "
+                       "execution are not identical: " +
+                           mismatched_extents(out_extents, m_out_extents));
+
+    // Check in and send_buffer are not aliasing
+    KOKKOSFFT_THROW_IF(
+        KokkosFFT::Impl::are_aliasing(in.data(), m_send_buffer.data()),
+        "input: " + in.label() + " and send_buffer: " + m_send_buffer.label() +
+            " must not be aliasing");
+
+    // Check out and recv_buffer are not aliasing
+    KOKKOSFFT_THROW_IF(
+        KokkosFFT::Impl::are_aliasing(out.data(), m_recv_buffer.data()),
+        "output: " + out.label() + " and recv_buffer: " +
+            m_recv_buffer.label() + " must not be aliasing");
   }
 };
 
