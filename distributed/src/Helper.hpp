@@ -39,15 +39,14 @@ void nd_display(ViewType& a) {
 
   if constexpr (ViewType::rank == 1) {
     for (std::size_t i = 0; i < a.extent(0); i++) {
-      std::cout << label + "(" << i << "): " << i << ", " << h_a(i)
-                << std::endl;
+      std::cout << label + "(" << i << "): " << h_a(i) << std::endl;
     }
     std::cout << std::resetiosflags(std::ios_base::floatfield);
   } else if constexpr (ViewType::rank == 2) {
     for (std::size_t i = 0; i < a.extent(0); i++) {
       for (std::size_t j = 0; j < a.extent(1); j++) {
-        std::cout << label + "(" << i << ", " << j << "): " << i << ", " << j
-                  << ", " << h_a(i, j) << std::endl;
+        std::cout << label + "(" << i << ", " << j << "): " << h_a(i, j)
+                  << std::endl;
       }
     }
     std::cout << std::resetiosflags(std::ios_base::floatfield);
@@ -55,9 +54,8 @@ void nd_display(ViewType& a) {
     for (std::size_t i = 0; i < a.extent(0); i++) {
       for (std::size_t j = 0; j < a.extent(1); j++) {
         for (std::size_t k = 0; k < a.extent(2); k++) {
-          std::cout << label + "(" << i << ", " << j << ", " << k << "): " << i
-                    << ", " << j << ", " << k << ", " << h_a(i, j, k)
-                    << std::endl;
+          std::cout << label + "(" << i << ", " << j << ", " << k
+                    << "): " << h_a(i, j, k) << std::endl;
         }
       }
     }
