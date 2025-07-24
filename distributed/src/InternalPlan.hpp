@@ -12,15 +12,16 @@ class InternalPlan {
   using topology_type = KokkosFFT::shape_type<InViewType::rank()>;
   using extents_type  = KokkosFFT::shape_type<InViewType::rank()>;
 
-  extents_type m_in_extents, m_out_extents;
+  const extents_type m_in_extents, m_out_extents;
 
  public:
-  explicit InternalPlan(
-      const ExecutionSpace& exec_space, const InViewType& in,
-      const OutViewType& out, const axes_type& axes,
-      const topology_type& in_topology, const topology_type& out_topology,
-      const MPI_Comm& /*comm*/,
-      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+  explicit InternalPlan(const ExecutionSpace& /*exec_space*/,
+                        const InViewType& in, const OutViewType& out,
+                        const axes_type& /*axes*/,
+                        const topology_type& /*in_topology*/,
+                        const topology_type& /*out_topology*/,
+                        const MPI_Comm& /*comm*/,
+                        KokkosFFT::Normalization /*norm*/)
       : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)) {}
 

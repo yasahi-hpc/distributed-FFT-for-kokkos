@@ -842,11 +842,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       // 1. Transpose + FFT + Transpose + FFT + Transpose
       // E.g. {1, 1, P} -> {1, P, 1} + FFT2 ax = {0, 2}
       // -> {P, 1, 1} + FFT ax = {1} -> {1, P, 1}
-
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1),
-           axes2          = all_axes.at(2);
-      auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 3>(axes);
-      m_op_type           = OperationType::TFTFT;
+           axes2 = all_axes.at(2);
+      m_op_type  = OperationType::TFTFT;
 
       BlockInfoType block0;
       auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology0);
