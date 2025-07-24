@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iomanip>
 #include <cassert>
+#include <algorithm>
 #include <filesystem>
 #include <type_traits>
 
@@ -62,6 +63,19 @@ template <typename T>
 T string_to_num(const std::string& input) {
   static_assert(std::is_arithmetic<T>::value,
                 "Template argument must be an arithmetic type");
+
+  if constexpr (std::is_same_v<T, bool>) {
+    std::string lower_input = Impl::trim(input, " \t");
+    std::transform(lower_input.begin(), lower_input.end(), lower_input.begin(),
+                   ::tolower);  // to lowercase
+    if (lower_input == "true" || lower_input == "1") {
+      return true;
+    } else if (lower_input == "false" || lower_input == "0") {
+      return false;
+    } else {
+      throw std::invalid_argument("Invalid input for boolean conversion");
+    }
+  }
 
   std::istringstream iss(input);
   T result;

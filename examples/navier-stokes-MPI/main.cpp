@@ -1,4 +1,3 @@
-#include <vector>
 #include <iostream>
 #include <memory>
 #include <mpi.h>
@@ -97,7 +96,7 @@ struct Grid {
        double lz)
       : m_rank(rank), m_px(px), m_py(py) {
     // Check that parallelization is valid
-    KOKKOSFFT_THROW_IF(nx % px != 0 || ny % py != 0,
+    KOKKOSFFT_THROW_IF(nx % px != 0 || ny % py != 0 || nz % py != 0,
                        "Grid size must be divisible by the number of processes "
                        "in each direction.");
 
@@ -105,11 +104,11 @@ struct Grid {
     auto coord = rank_to_coord(topology, rank);
     m_rx = coord.at(0), m_ry = coord.at(1);
 
-    // Z-pencil or YZ-slab (if py==1)
-    m_in_topology = {std::size_t(px), std::size_t(py), std::size_t(1)};
-
     // X-pencil or XZ-slab (if py==1)
-    m_out_topology = {std::size_t(1), std::size_t(px), std::size_t(py)};
+    m_in_topology = {std::size_t(1), std::size_t(px), std::size_t(py)};
+
+    // Z-pencil or YZ-slab (if py==1)
+    m_out_topology = {std::size_t(px), std::size_t(py), std::size_t(1)};
 
     // Grid and Wavenumbers
     execution_space exec;
@@ -330,16 +329,18 @@ struct Variables {
     m_dwkdy = View3D<Kokkos::complex<double>>("dwkdy", nout0, nout1, nout2);
     m_dwkdz = View3D<Kokkos::complex<double>>("dwkdz", nout0, nout1, nout2);
 
+    // Data in x-pencil format
+    // (nx, ny/px, nz/py)
     auto h_u = Kokkos::create_mirror_view(m_u);
     auto h_v = Kokkos::create_mirror_view(m_v);
     auto h_w = Kokkos::create_mirror_view(m_w);
     for (int iz = 0; iz < nin2; iz++) {
       for (int iy = 0; iy < nin1; iy++) {
         for (int ix = 0; ix < nin0; ix++) {
-          int gix = ix + grid.m_rx * nin0;  // Global index in x
-          int giy = iy + grid.m_ry * nin1;  // Global index in y
+          int giy = iy + grid.m_rx * nin1;  // Global index in y
+          int giz = iz + grid.m_ry * nin2;  // Global index in z
 
-          double x = h_x(gix), y = h_y(giy), z = h_z(iz);
+          double x = h_x(ix), y = h_y(giy), z = h_z(giz);
           h_u(ix, iy, iz) =
               v0 * Kokkos::sin(x) * Kokkos::cos(y) * Kokkos::cos(z);
           h_v(ix, iy, iz) =
@@ -364,6 +365,7 @@ struct Variables {
     dealias(m_uk, grid.m_alias_mask);
     dealias(m_vk, grid.m_alias_mask);
     dealias(m_wk, grid.m_alias_mask);
+
     projection(grid, m_uk, m_vk, m_wk);
   }
 };
@@ -478,7 +480,6 @@ class NavierStokes {
 
   //! The ODE solver used in the simulation
   std::unique_ptr<OdeSolverType> m_ode_x, m_ode_y, m_ode_z;
-  ;
 
   //! The distributed FFT plan used in the simulation
   std::unique_ptr<DistributedPlanType> m_plan;
@@ -514,6 +515,9 @@ class NavierStokes {
   ;
   ///@}
 
+  //! If true, suppresses diagnostics.
+  const bool m_suppress_diag;
+
   //! The grid used in the simulation
   Grid m_grid;
 
@@ -536,8 +540,10 @@ class NavierStokes {
   // \param[in] dt The time step size.
   // \param[in] nu The viscosity coefficient.
   // \param[in] out_dir The directory to output diagnostic data.
+  // \param[in] suppress_diag If true, suppresses diagnostics.
   NavierStokes(int rank, int px, int py, int nx, double lx, int nbiter,
-               double dt, double nu, const std::string& out_dir)
+               double dt, double nu, const std::string& out_dir,
+               bool suppress_diag)
       : m_rank(rank),
         m_px(px),
         m_py(py),
@@ -548,6 +554,7 @@ class NavierStokes {
         m_dt(dt),
         m_nu(nu),
         m_base_out_dir(out_dir),
+        m_suppress_diag(suppress_diag),
         m_grid(rank, px, py, nx, nx, nx, lx, lx, lx),
         m_variables(m_grid) {
     View1D<Kokkos::complex<double>> uk_flatten(m_variables.m_uk.data(),
@@ -564,6 +571,7 @@ class NavierStokes {
     // Make a directory for this parallelization (px, py)
     m_out_dir = m_base_out_dir + "_px" + std::to_string(m_px) + "_py" +
                 std::to_string(m_py);
+
     if (m_rank == 0) {
       IO::mkdir(m_out_dir, fs::perms::owner_all | fs::perms::group_read |
                                fs::perms::group_exec | fs::perms::others_read |
@@ -574,7 +582,7 @@ class NavierStokes {
     // Create FFT plans
     m_plan = std::make_unique<DistributedPlanType>(
         execution_space(), m_variables.m_u, m_variables.m_uk,
-        KokkosFFT::axis_type<3>{-3, -2, -1}, m_grid.m_in_topology,
+        KokkosFFT::axis_type<3>{0, 1, 2}, m_grid.m_in_topology,
         m_grid.m_out_topology, MPI_COMM_WORLD);
 
     // Preparation for diagnostics
@@ -619,7 +627,7 @@ class NavierStokes {
   void run() {
     m_time = 0.0;
     for (int iter = 0; iter < m_nbiter; iter++) {
-      diag(iter);
+      if (!m_suppress_diag) diag(iter);
       solve();
       m_time += m_dt;
     }
@@ -750,7 +758,7 @@ class NavierStokes {
     auto kzh = m_grid.m_kzh;
 
     const Kokkos::complex<double> z(0.0, 1.0);  // Imaginary unit
-    const int n0 = uk.extent(1), n1 = uk.extent(2), n2 = uk.extent(3);
+    const int n0 = uk.extent(0), n1 = uk.extent(1), n2 = uk.extent(2);
 
     range3D_type policy({0, 0, 0}, {n0, n1, n2});
     Kokkos::parallel_for(
@@ -962,15 +970,31 @@ int main(int argc, char* argv[]) {
     auto kwargs = IO::parse_args(argc, argv);
     std::string out_dir =
         IO::get_arg<std::string>(kwargs, "out_dir", "data_kokkos");
-    int px          = IO::get_arg(kwargs, "px", 2);
-    int py          = IO::get_arg(kwargs, "py", 1);
-    int nx          = IO::get_arg(kwargs, "nx", 32);
-    int nbiter      = IO::get_arg(kwargs, "nbiter", 500);
-    double lx       = IO::get_arg(kwargs, "lx", 2.0);
-    double dt       = IO::get_arg(kwargs, "dt", 0.01);
-    double Re       = IO::get_arg(kwargs, "Re", 100.0);
-    const double nu = 1.0 / Re;
-    NavierStokes model(rank, px, py, nx, lx, nbiter, dt, nu, out_dir);
+    int px             = IO::get_arg(kwargs, "px", 2);
+    int py             = IO::get_arg(kwargs, "py", 1);
+    int nx             = IO::get_arg(kwargs, "nx", 32);
+    int nbiter         = IO::get_arg(kwargs, "nbiter", 500);
+    double lx          = IO::get_arg(kwargs, "lx", 2.0);
+    double dt          = IO::get_arg(kwargs, "dt", 0.01);
+    double Re          = IO::get_arg(kwargs, "Re", 100.0);
+    bool suppress_diag = IO::get_arg(kwargs, "suppress_diag", false);
+    const double nu    = 1.0 / Re;
+
+    // Make sure parallelization is valid
+    KOKKOSFFT_THROW_IF(
+        px * py != nprocs,
+        "Total number of process must be equal to px * py.\n nprocs: " +
+            std::to_string(nprocs) + ", px: " + std::to_string(px) +
+            ", py: " + std::to_string(py));
+
+    if (rank == 0) {
+      std::cout << "NS3D (px * py): (" << px << ", " << py
+                << "), nbiter: " << nbiter << ", nx: " << nx << ", dt: " << dt
+                << ", Re: " << Re << std::endl;
+    }
+
+    NavierStokes model(rank, px, py, nx, lx, nbiter, dt, nu, out_dir,
+                       suppress_diag);
     Kokkos::Timer timer;
     model.run();
     Kokkos::fence();
