@@ -1151,6 +1151,608 @@ void test_get_all_slab_topologies3D_3DView(std::size_t nprocs) {
   }
 }
 
+void test_get_all_slab_topologies3D_4DView(std::size_t nprocs) {
+  using topology_type     = std::array<std::size_t, 4>;
+  topology_type topology0 = {1, 1, 1, nprocs}, topology1 = {1, 1, nprocs, 1},
+                topology2 = {1, nprocs, 1, 1}, topology3 = {nprocs, 1, 1, 1};
+
+  using axes_type   = std::array<std::size_t, 3>;
+  axes_type axes012 = {0, 1, 2}, axes021 = {0, 2, 1}, axes102 = {1, 0, 2},
+            axes120 = {1, 2, 0}, axes201 = {2, 0, 1}, axes210 = {2, 1, 0},
+            axes123 = {1, 2, 3}, axes132 = {1, 3, 2};
+
+  std::vector<axes_type> all_axes = {axes012, axes021, axes102, axes120,
+                                     axes201, axes210, axes123, axes132};
+
+  if (nprocs == 1) {
+    for (const auto& axes : all_axes) {
+      // Failure tests because these are shared topologies
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology0, topology0, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology0, topology1, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology0, topology2, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology1, topology0, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology1, topology1, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology1, topology2, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology2, topology0, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology2, topology1, axes);
+          },
+          std::runtime_error);
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto all_slab_topologies =
+                get_all_slab_topologies(topology2, topology2, axes);
+          },
+          std::runtime_error);
+    }
+  } else {
+    // topology0 (XYZ-slab) to topology0 (XYZ-slab)
+    auto all_slab_topologies_0_0_ax012 =
+        get_all_slab_topologies(topology0, topology0, axes012);
+    auto all_slab_topologies_0_0_ax021 =
+        get_all_slab_topologies(topology0, topology0, axes021);
+    auto all_slab_topologies_0_0_ax102 =
+        get_all_slab_topologies(topology0, topology0, axes102);
+    auto all_slab_topologies_0_0_ax120 =
+        get_all_slab_topologies(topology0, topology0, axes120);
+    auto all_slab_topologies_0_0_ax201 =
+        get_all_slab_topologies(topology0, topology0, axes201);
+    auto all_slab_topologies_0_0_ax210 =
+        get_all_slab_topologies(topology0, topology0, axes210);
+    auto all_slab_topologies_0_0_ax123 =
+        get_all_slab_topologies(topology0, topology0, axes123);
+    auto all_slab_topologies_0_0_ax132 =
+        get_all_slab_topologies(topology0, topology0, axes132);
+
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax012 = {topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax012, ref_all_slab_topologies_0_0_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax021 = {topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax021, ref_all_slab_topologies_0_0_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax102 = {topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax102, ref_all_slab_topologies_0_0_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax120 = {topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax120, ref_all_slab_topologies_0_0_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax201 = {topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax201, ref_all_slab_topologies_0_0_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax210 = {topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax210, ref_all_slab_topologies_0_0_ax210);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax123 = {
+        topology0, topology2, topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax123, ref_all_slab_topologies_0_0_ax123);
+    std::vector<topology_type> ref_all_slab_topologies_0_0_ax132 = {
+        topology0, topology1, topology0};
+    EXPECT_EQ(all_slab_topologies_0_0_ax132, ref_all_slab_topologies_0_0_ax132);
+
+    // topology0 (XYZ-slab) to topology1 (XZW-slab)
+    auto all_slab_topologies_0_1_ax012 =
+        get_all_slab_topologies(topology0, topology1, axes012);
+    auto all_slab_topologies_0_1_ax021 =
+        get_all_slab_topologies(topology0, topology1, axes021);
+    auto all_slab_topologies_0_1_ax102 =
+        get_all_slab_topologies(topology0, topology1, axes102);
+    auto all_slab_topologies_0_1_ax120 =
+        get_all_slab_topologies(topology0, topology1, axes120);
+    auto all_slab_topologies_0_1_ax201 =
+        get_all_slab_topologies(topology0, topology1, axes201);
+    auto all_slab_topologies_0_1_ax210 =
+        get_all_slab_topologies(topology0, topology1, axes210);
+
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax012 = {topology0,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax012, ref_all_slab_topologies_0_1_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax021 = {topology0,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax021, ref_all_slab_topologies_0_1_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax102 = {topology0,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax102, ref_all_slab_topologies_0_1_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax120 = {topology0,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax120, ref_all_slab_topologies_0_1_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax201 = {topology0,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax201, ref_all_slab_topologies_0_1_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax210 = {topology0,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_0_1_ax210, ref_all_slab_topologies_0_1_ax210);
+
+    // topology0 (XYZ-slab) to topology2 (XZW-slab)
+    auto all_slab_topologies_0_2_ax012 =
+        get_all_slab_topologies(topology0, topology2, axes012);
+    auto all_slab_topologies_0_2_ax021 =
+        get_all_slab_topologies(topology0, topology2, axes021);
+    auto all_slab_topologies_0_2_ax102 =
+        get_all_slab_topologies(topology0, topology2, axes102);
+    auto all_slab_topologies_0_2_ax120 =
+        get_all_slab_topologies(topology0, topology2, axes120);
+    auto all_slab_topologies_0_2_ax201 =
+        get_all_slab_topologies(topology0, topology2, axes201);
+    auto all_slab_topologies_0_2_ax210 =
+        get_all_slab_topologies(topology0, topology2, axes210);
+
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax012 = {topology0,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax012, ref_all_slab_topologies_0_2_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax021 = {topology0,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax021, ref_all_slab_topologies_0_2_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax102 = {topology0,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax102, ref_all_slab_topologies_0_2_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax120 = {topology0,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax120, ref_all_slab_topologies_0_2_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax201 = {topology0,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax201, ref_all_slab_topologies_0_2_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax210 = {topology0,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_0_2_ax210, ref_all_slab_topologies_0_2_ax210);
+
+    // topology0 (XYZ-slab) to topology3 (YZW-slab)
+    auto all_slab_topologies_0_3_ax012 =
+        get_all_slab_topologies(topology0, topology3, axes012);
+    auto all_slab_topologies_0_3_ax021 =
+        get_all_slab_topologies(topology0, topology3, axes021);
+    auto all_slab_topologies_0_3_ax102 =
+        get_all_slab_topologies(topology0, topology3, axes102);
+    auto all_slab_topologies_0_3_ax120 =
+        get_all_slab_topologies(topology0, topology3, axes120);
+    auto all_slab_topologies_0_3_ax201 =
+        get_all_slab_topologies(topology0, topology3, axes201);
+    auto all_slab_topologies_0_3_ax210 =
+        get_all_slab_topologies(topology0, topology3, axes210);
+    auto all_slab_topologies_0_3_ax123 =
+        get_all_slab_topologies(topology0, topology3, axes123);
+    auto all_slab_topologies_0_3_ax132 =
+        get_all_slab_topologies(topology0, topology3, axes132);
+
+    std::vector<topology_type> ref_all_slab_topologies_0_3_ax012 = {topology0,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_0_3_ax012, ref_all_slab_topologies_0_3_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_0_3_ax021 = {topology0,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_0_3_ax021, ref_all_slab_topologies_0_3_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_0_3_ax102 = {topology0,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_0_3_ax102, ref_all_slab_topologies_0_3_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_0_3_ax120 = {topology0,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_0_3_ax120, ref_all_slab_topologies_0_3_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_0_3_ax201 = {topology0,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_0_3_ax201, ref_all_slab_topologies_0_3_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_0_3_ax210 = {topology0,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_0_3_ax210, ref_all_slab_topologies_0_3_ax210);
+    std::vector<topology_type> ref_all_slab_topologies_0_3_ax123 = {topology0,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_0_3_ax123, ref_all_slab_topologies_0_3_ax123);
+    std::vector<topology_type> ref_all_slab_topologies_0_3_ax132 = {topology0,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_0_3_ax132, ref_all_slab_topologies_0_3_ax132);
+
+    // topology1 (XZ-slab) to topology0 (XY-slab)
+    auto all_slab_topologies_1_0_ax012 =
+        get_all_slab_topologies(topology1, topology0, axes012);
+    auto all_slab_topologies_1_0_ax021 =
+        get_all_slab_topologies(topology1, topology0, axes021);
+    auto all_slab_topologies_1_0_ax102 =
+        get_all_slab_topologies(topology1, topology0, axes102);
+    auto all_slab_topologies_1_0_ax120 =
+        get_all_slab_topologies(topology1, topology0, axes120);
+    auto all_slab_topologies_1_0_ax201 =
+        get_all_slab_topologies(topology1, topology0, axes201);
+    auto all_slab_topologies_1_0_ax210 =
+        get_all_slab_topologies(topology1, topology0, axes210);
+
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax012 = {topology1,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax012, ref_all_slab_topologies_1_0_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax021 = {topology1,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax021, ref_all_slab_topologies_1_0_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax102 = {topology1,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax102, ref_all_slab_topologies_1_0_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax120 = {topology1,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax120, ref_all_slab_topologies_1_0_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax201 = {topology1,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax201, ref_all_slab_topologies_1_0_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax210 = {topology1,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_1_0_ax210, ref_all_slab_topologies_1_0_ax210);
+
+    // topology1 (XYW-slab) to topology1 (XZW-slab)
+    auto all_slab_topologies_1_1_ax012 =
+        get_all_slab_topologies(topology1, topology1, axes012);
+    auto all_slab_topologies_1_1_ax021 =
+        get_all_slab_topologies(topology1, topology1, axes021);
+    auto all_slab_topologies_1_1_ax102 =
+        get_all_slab_topologies(topology1, topology1, axes102);
+    auto all_slab_topologies_1_1_ax120 =
+        get_all_slab_topologies(topology1, topology1, axes120);
+    auto all_slab_topologies_1_1_ax201 =
+        get_all_slab_topologies(topology1, topology1, axes201);
+    auto all_slab_topologies_1_1_ax210 =
+        get_all_slab_topologies(topology1, topology1, axes210);
+    auto all_slab_topologies_1_1_ax123 =
+        get_all_slab_topologies(topology1, topology1, axes123);
+    auto all_slab_topologies_1_1_ax132 =
+        get_all_slab_topologies(topology1, topology1, axes132);
+
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax012 = {
+        topology1, topology3, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax012, ref_all_slab_topologies_1_1_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax021 = {
+        topology1, topology2, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax021, ref_all_slab_topologies_1_1_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax102 = {
+        topology1, topology2, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax102, ref_all_slab_topologies_1_1_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax120 = {
+        topology1, topology3, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax120, ref_all_slab_topologies_1_1_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax201 = {
+        topology1, topology3, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax201, ref_all_slab_topologies_1_1_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax210 = {
+        topology1, topology3, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax210, ref_all_slab_topologies_1_1_ax210);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax123 = {
+        topology1, topology0, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax123, ref_all_slab_topologies_1_1_ax123);
+    std::vector<topology_type> ref_all_slab_topologies_1_1_ax132 = {
+        topology1, topology2, topology1};
+    EXPECT_EQ(all_slab_topologies_1_1_ax132, ref_all_slab_topologies_1_1_ax132);
+
+    // topology1 (XYW-slab) to topology2 (XZW-slab)
+    auto all_slab_topologies_1_2_ax012 =
+        get_all_slab_topologies(topology1, topology2, axes012);
+    auto all_slab_topologies_1_2_ax021 =
+        get_all_slab_topologies(topology1, topology2, axes021);
+    auto all_slab_topologies_1_2_ax102 =
+        get_all_slab_topologies(topology1, topology2, axes102);
+    auto all_slab_topologies_1_2_ax120 =
+        get_all_slab_topologies(topology1, topology2, axes120);
+    auto all_slab_topologies_1_2_ax201 =
+        get_all_slab_topologies(topology1, topology2, axes201);
+    auto all_slab_topologies_1_2_ax210 =
+        get_all_slab_topologies(topology1, topology2, axes210);
+    auto all_slab_topologies_1_2_ax123 =
+        get_all_slab_topologies(topology1, topology2, axes123);
+    auto all_slab_topologies_1_2_ax132 =
+        get_all_slab_topologies(topology1, topology2, axes132);
+
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax012 = {
+        topology1, topology3, topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax012, ref_all_slab_topologies_1_2_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax021 = {topology1,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax021, ref_all_slab_topologies_1_2_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax102 = {
+        topology1, topology2, topology3, topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax102, ref_all_slab_topologies_1_2_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax120 = {
+        topology1, topology3, topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax120, ref_all_slab_topologies_1_2_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax201 = {topology1,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax201, ref_all_slab_topologies_1_2_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax210 = {topology1,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax210, ref_all_slab_topologies_1_2_ax210);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax123 = {
+        topology1, topology0, topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax123, ref_all_slab_topologies_1_2_ax123);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax132 = {
+        topology1, topology2, topology1, topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax132, ref_all_slab_topologies_1_2_ax132);
+
+    // topology1 (XYW-slab) to topology3 (YZW-slab)
+    auto all_slab_topologies_1_3_ax012 =
+        get_all_slab_topologies(topology1, topology3, axes012);
+    auto all_slab_topologies_1_3_ax021 =
+        get_all_slab_topologies(topology1, topology3, axes021);
+    auto all_slab_topologies_1_3_ax102 =
+        get_all_slab_topologies(topology1, topology3, axes102);
+    auto all_slab_topologies_1_3_ax120 =
+        get_all_slab_topologies(topology1, topology3, axes120);
+    auto all_slab_topologies_1_3_ax201 =
+        get_all_slab_topologies(topology1, topology3, axes201);
+    auto all_slab_topologies_1_3_ax210 =
+        get_all_slab_topologies(topology1, topology3, axes210);
+    auto all_slab_topologies_1_3_ax123 =
+        get_all_slab_topologies(topology1, topology3, axes123);
+    auto all_slab_topologies_1_3_ax132 =
+        get_all_slab_topologies(topology1, topology3, axes132);
+
+    std::vector<topology_type> ref_all_slab_topologies_1_3_ax012 = {
+        topology1, topology3, topology2, topology3};
+    EXPECT_EQ(all_slab_topologies_1_3_ax012, ref_all_slab_topologies_1_3_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_1_3_ax021 = {
+        topology1, topology2, topology3};
+    EXPECT_EQ(all_slab_topologies_1_3_ax021, ref_all_slab_topologies_1_3_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_1_3_ax102 = {
+        topology1, topology2, topology3};
+    EXPECT_EQ(all_slab_topologies_1_3_ax102, ref_all_slab_topologies_1_3_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_1_3_ax120 = {topology1,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_1_3_ax120, ref_all_slab_topologies_1_3_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_1_3_ax201 = {topology1,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_1_3_ax201, ref_all_slab_topologies_1_3_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_1_3_ax210 = {topology1,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_1_3_ax210, ref_all_slab_topologies_1_3_ax210);
+    std::vector<topology_type> ref_all_slab_topologies_1_3_ax123 = {topology1,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_1_3_ax123, ref_all_slab_topologies_1_3_ax123);
+    std::vector<topology_type> ref_all_slab_topologies_1_3_ax132 = {topology1,
+                                                                    topology3};
+    EXPECT_EQ(all_slab_topologies_1_3_ax132, ref_all_slab_topologies_1_3_ax132);
+
+    // topology2 (XYW-slab) to topology0 (XYZ-slab)
+    auto all_slab_topologies_2_0_ax012 =
+        get_all_slab_topologies(topology2, topology0, axes012);
+    auto all_slab_topologies_2_0_ax021 =
+        get_all_slab_topologies(topology2, topology0, axes021);
+    auto all_slab_topologies_2_0_ax102 =
+        get_all_slab_topologies(topology2, topology0, axes102);
+    auto all_slab_topologies_2_0_ax120 =
+        get_all_slab_topologies(topology2, topology0, axes120);
+    auto all_slab_topologies_2_0_ax201 =
+        get_all_slab_topologies(topology2, topology0, axes201);
+    auto all_slab_topologies_2_0_ax210 =
+        get_all_slab_topologies(topology2, topology0, axes210);
+    auto all_slab_topologies_2_0_ax123 =
+        get_all_slab_topologies(topology2, topology0, axes123);
+    auto all_slab_topologies_2_0_ax132 =
+        get_all_slab_topologies(topology2, topology0, axes132);
+
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax012 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax012, ref_all_slab_topologies_2_0_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax021 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax021, ref_all_slab_topologies_2_0_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax102 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax102, ref_all_slab_topologies_2_0_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax120 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax120, ref_all_slab_topologies_2_0_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax201 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax201, ref_all_slab_topologies_2_0_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax210 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax210, ref_all_slab_topologies_2_0_ax210);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax123 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax123, ref_all_slab_topologies_2_0_ax123);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax132 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax132, ref_all_slab_topologies_2_0_ax132);
+
+    // topology2 (XYW-slab) to topology1 (XZW-slab)
+    auto all_slab_topologies_2_1_ax012 =
+        get_all_slab_topologies(topology2, topology1, axes012);
+    auto all_slab_topologies_2_1_ax021 =
+        get_all_slab_topologies(topology2, topology1, axes021);
+    auto all_slab_topologies_2_1_ax102 =
+        get_all_slab_topologies(topology2, topology1, axes102);
+    auto all_slab_topologies_2_1_ax120 =
+        get_all_slab_topologies(topology2, topology1, axes120);
+    auto all_slab_topologies_2_1_ax201 =
+        get_all_slab_topologies(topology2, topology1, axes201);
+    auto all_slab_topologies_2_1_ax210 =
+        get_all_slab_topologies(topology2, topology1, axes210);
+    auto all_slab_topologies_2_1_ax123 =
+        get_all_slab_topologies(topology2, topology1, axes123);
+    auto all_slab_topologies_2_1_ax132 =
+        get_all_slab_topologies(topology2, topology1, axes132);
+
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax012 = {topology2,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax012, ref_all_slab_topologies_2_1_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax021 = {
+        topology2, topology3, topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax021, ref_all_slab_topologies_2_1_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax102 = {topology2,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax102, ref_all_slab_topologies_2_1_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax120 = {topology2,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax120, ref_all_slab_topologies_2_1_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax201 = {
+        topology2, topology1, topology3, topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax201, ref_all_slab_topologies_2_1_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax210 = {
+        topology2, topology3, topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax210, ref_all_slab_topologies_2_1_ax210);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax123 = {topology2,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax123, ref_all_slab_topologies_2_1_ax123);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax132 = {topology2,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax132, ref_all_slab_topologies_2_1_ax132);
+
+    /*
+    // topology1 (XZ-slab) to topology2 (YZ-slab)
+    auto all_slab_topologies_1_2_ax012 =
+        get_all_slab_topologies(topology1, topology2, axes012);
+    auto all_slab_topologies_1_2_ax021 =
+        get_all_slab_topologies(topology1, topology2, axes021);
+    auto all_slab_topologies_1_2_ax102 =
+        get_all_slab_topologies(topology1, topology2, axes102);
+    auto all_slab_topologies_1_2_ax120 =
+        get_all_slab_topologies(topology1, topology2, axes120);
+    auto all_slab_topologies_1_2_ax201 =
+        get_all_slab_topologies(topology1, topology2, axes201);
+    auto all_slab_topologies_1_2_ax210 =
+        get_all_slab_topologies(topology1, topology2, axes210);
+
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax012 = {
+        topology1, topology0, topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax012, ref_all_slab_topologies_1_2_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax021 = {
+        topology1, topology2, topology1, topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax021, ref_all_slab_topologies_1_2_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax102 = {topology1,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax102, ref_all_slab_topologies_1_2_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax120 = {topology1,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax120, ref_all_slab_topologies_1_2_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax201 = {
+        topology1, topology0, topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax201, ref_all_slab_topologies_1_2_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax210 = {topology1,
+                                                                    topology2};
+    EXPECT_EQ(all_slab_topologies_1_2_ax210, ref_all_slab_topologies_1_2_ax210);
+
+    // topology2 (YZ-slab) to topology0 (XY-slab)
+    auto all_slab_topologies_2_0_ax012 =
+        get_all_slab_topologies(topology2, topology0, axes012);
+    auto all_slab_topologies_2_0_ax021 =
+        get_all_slab_topologies(topology2, topology0, axes021);
+    auto all_slab_topologies_2_0_ax102 =
+        get_all_slab_topologies(topology2, topology0, axes102);
+    auto all_slab_topologies_2_0_ax120 =
+        get_all_slab_topologies(topology2, topology0, axes120);
+    auto all_slab_topologies_2_0_ax201 =
+        get_all_slab_topologies(topology2, topology0, axes201);
+    auto all_slab_topologies_2_0_ax210 =
+        get_all_slab_topologies(topology2, topology0, axes210);
+
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax012 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax012, ref_all_slab_topologies_2_0_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax021 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax021, ref_all_slab_topologies_2_0_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax102 = {topology2,
+                                                                    topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax102, ref_all_slab_topologies_2_0_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax120 = {
+        topology2, topology1, topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax120, ref_all_slab_topologies_2_0_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax201 = {
+        topology2, topology1, topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax201, ref_all_slab_topologies_2_0_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax210 = {
+        topology2, topology0, topology2, topology0};
+    EXPECT_EQ(all_slab_topologies_2_0_ax210, ref_all_slab_topologies_2_0_ax210);
+
+    // topology2 (YZ-slab) to topology1 (XZ-slab)
+    auto all_slab_topologies_2_1_ax012 =
+        get_all_slab_topologies(topology2, topology1, axes012);
+    auto all_slab_topologies_2_1_ax021 =
+        get_all_slab_topologies(topology2, topology1, axes021);
+    auto all_slab_topologies_2_1_ax102 =
+        get_all_slab_topologies(topology2, topology1, axes102);
+    auto all_slab_topologies_2_1_ax120 =
+        get_all_slab_topologies(topology2, topology1, axes120);
+    auto all_slab_topologies_2_1_ax201 =
+        get_all_slab_topologies(topology2, topology1, axes201);
+    auto all_slab_topologies_2_1_ax210 =
+        get_all_slab_topologies(topology2, topology1, axes210);
+
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax012 = {topology2,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax012, ref_all_slab_topologies_2_1_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax021 = {topology2,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax021, ref_all_slab_topologies_2_1_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax102 = {
+        topology2, topology0, topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax102, ref_all_slab_topologies_2_1_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax120 = {
+        topology2, topology1, topology2, topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax120, ref_all_slab_topologies_2_1_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax201 = {topology2,
+                                                                    topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax201, ref_all_slab_topologies_2_1_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax210 = {
+        topology2, topology0, topology1};
+    EXPECT_EQ(all_slab_topologies_2_1_ax210, ref_all_slab_topologies_2_1_ax210);
+
+    // topology2 (YZ-slab) to topology2 (YZ-slab)
+    auto all_slab_topologies_2_2_ax012 =
+        get_all_slab_topologies(topology2, topology2, axes012);
+    auto all_slab_topologies_2_2_ax021 =
+        get_all_slab_topologies(topology2, topology2, axes021);
+    auto all_slab_topologies_2_2_ax102 =
+        get_all_slab_topologies(topology2, topology2, axes102);
+    auto all_slab_topologies_2_2_ax120 =
+        get_all_slab_topologies(topology2, topology2, axes120);
+    auto all_slab_topologies_2_2_ax201 =
+        get_all_slab_topologies(topology2, topology2, axes201);
+    auto all_slab_topologies_2_2_ax210 =
+        get_all_slab_topologies(topology2, topology2, axes210);
+
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax012 = {
+        topology2, topology0, topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax012, ref_all_slab_topologies_2_2_ax012);
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax021 = {
+        topology2, topology1, topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax021, ref_all_slab_topologies_2_2_ax021);
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax102 = {
+        topology2, topology0, topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax102, ref_all_slab_topologies_2_2_ax102);
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax120 = {
+        topology2, topology1, topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax120, ref_all_slab_topologies_2_2_ax120);
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax201 = {
+        topology2, topology1, topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax201, ref_all_slab_topologies_2_2_ax201);
+    std::vector<topology_type> ref_all_slab_topologies_2_2_ax210 = {
+        topology2, topology0, topology2};
+    EXPECT_EQ(all_slab_topologies_2_2_ax210, ref_all_slab_topologies_2_2_ax210);
+    */
+  }
+}
+
 void test_get_pencil_3D(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 3>;
   topology_type topology0 = {1, 1, nprocs};
@@ -3631,6 +4233,11 @@ TEST_P(SlabParamTests, GetAllSlabTopologies2D_3DView) {
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_3DView) {
   int n0 = GetParam();
   test_get_all_slab_topologies3D_3DView(n0);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_4DView) {
+  int n0 = GetParam();
+  test_get_all_slab_topologies3D_4DView(n0);
 }
 
 INSTANTIATE_TEST_SUITE_P(SlabTests, SlabParamTests,

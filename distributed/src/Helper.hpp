@@ -60,9 +60,21 @@ void nd_display(ViewType& a) {
       }
     }
     std::cout << std::resetiosflags(std::ios_base::floatfield);
+  } else if constexpr (ViewType::rank == 4) {
+    for (std::size_t i = 0; i < a.extent(0); i++) {
+      for (std::size_t j = 0; j < a.extent(1); j++) {
+        for (std::size_t k = 0; k < a.extent(2); k++) {
+          for (std::size_t l = 0; l < a.extent(3); l++) {
+            std::cout << label + "(" << i << ", " << j << ", " << k << ", " << l
+                      << "): " << h_a(i, j, k, l) << std::endl;
+          }
+        }
+      }
+    }
+    std::cout << std::resetiosflags(std::ios_base::floatfield);
   } else {
     std::cerr << "Unsupported rank: " << ViewType::rank
-              << ". Only 1D, 2D, and 3D views are supported." << std::endl;
+              << ". Only 1D, 2D, 3D, and 4D views are supported." << std::endl;
   }
 }
 

@@ -33,12 +33,12 @@ auto get_map_axes(const std::array<iType, FFT_DIM>& axes) {
   // Convert the input axes to be in the range of [0, rank-1]
   std::array<iType, FFT_DIM> non_negative_axes = {};
   if constexpr (std::is_signed_v<iType>) {
-    for (std::size_t i = 0; i < DIM; i++) {
+    for (std::size_t i = 0; i < FFT_DIM; i++) {
       non_negative_axes.at(i) =
           KokkosFFT::Impl::convert_negative_axis<iType, DIM>(axes.at(i));
     }
   } else {
-    for (std::size_t i = 0; i < DIM; i++) {
+    for (std::size_t i = 0; i < FFT_DIM; i++) {
       non_negative_axes.at(i) = axes.at(i);
     }
   }
