@@ -442,19 +442,74 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 
   // If the conditions above are not satisified, we need a
   // intermediate topology
-  for (std::size_t i = 0; i < DIM; ++i) {
-    if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
-      auto p         = get_size(in_topology);
-      topology.at(i) = p;
-      topologies.push_back(topology);
-      break;
+  if constexpr (DIM > 3 && FFT_DIM == 3) {
+    // First, remove the already ready axes
+    std::vector<std::size_t> sorted_axes = axes_reversed;
+    std::sort(sorted_axes.begin(), sorted_axes.end());
+    std::reverse(axes_reversed.begin(), axes_reversed.end());
+
+    // Get axes ready for transform
+    std::vector<iType> ready_axes;
+    for (auto axis : axes_reversed) {
+      if (in_topology.at(axis) > 1) break;
+      ready_axes.push_back(axis);
     }
+
+    auto p = get_size(in_topology);
+    if (ready_axes.size() == 0) {
+      topology.at(axes_reversed.back()) = p;
+      topologies.push_back(topology);
+      for (auto axis : axes_reversed) {
+        if (topology.at(axis) > 1) break;
+        ready_axes.push_back(axis);
+      }
+      topology.fill(1);
+    }
+
+    // Remove already registered axes
+    for (auto axis : ready_axes) {
+      auto it = std::find(axes_reversed.begin(), axes_reversed.end(), axis);
+      if (it != axes_reversed.end()) {
+        axes_reversed.erase(it);
+      }
+    }
+    // test if output is ready
+    bool is_ready = true;
+    for (const auto& axis : axes_reversed) {
+      if (out_topology.at(axis) > 1) is_ready = false;
+    }
+    if (is_ready) {
+      topologies.push_back(out_topology);
+    } else {
+      // Need to find a new topology
+      for (auto axis : sorted_axes) {
+        if (!KokkosFFT::Impl::is_found(axes_reversed, axis)) {
+          topology.at(axis) = p;
+          topologies.push_back(topology);
+          break;
+        }
+      }
+    }
+
+    if (topologies.back() == out_topology) return topologies;
+    topologies.push_back(out_topology);
+
+    return topologies;
+  } else {
+    for (std::size_t i = 0; i < DIM; ++i) {
+      if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
+        auto p         = get_size(in_topology);
+        topology.at(i) = p;
+        topologies.push_back(topology);
+        break;
+      }
+    }
+
+    if (topologies.back() == out_topology) return topologies;
+    topologies.push_back(out_topology);
+
+    return topologies;
   }
-
-  if (topologies.back() == out_topology) return topologies;
-  topologies.push_back(out_topology);
-
-  return topologies;
 }
 
 // \brief Get all pencil topologies for a given input and output topology
@@ -602,32 +657,5 @@ std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
 
   return topologies;
 }
-
-/*
-// \brief Get all slab block info for a given input and output topology
-///
-/// \tparam InViewType
-/// \tparam OutViewType
-/// \tparam iType The index type used for the topology.
-/// \tparam DIM The dimensionality of the topology.
-/// \tparam FFT_DIM The dimensionality of the FFT axes.
-///
-/// \param in_topology The input topology.
-/// \param out_topology The output topology.
-/// \param axes The axes along which the FFT is performed.
-/// \return A vector of all possible slab topologies that can be formed
-/// from the input and output topologies, considering the FFT axes.
-template <typename InViewType, typename OutViewType, typename iType, std::size_t
-FFT_DIM> std::vector<BlockInfo<InViewType::rank()>> get_all_slab_block_info(
-    const InViewType& in,
-    const OutViewType& out,
-    const std::array<std::size_t, InViewType::rank()>& in_topology,
-    const std::array<std::size_t, OutViewType::rank()>& out_topology,
-    const std::array<iType, FFT_DIM>& axes) {
-  SlabBlockAnalyse<InViewType, OutViewType, iType, FFT_DIM>
-    slab_block_analyses(in, out, in_topology, out_topology, axes);
-  return slab_block_analyses.get_blocks();
-}
-*/
 
 #endif

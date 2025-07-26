@@ -618,6 +618,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
                             const std::array<iType, 3>& axes,
                             MPI_Comm comm = MPI_COMM_WORLD) {
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
+    auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 3>(axes);
+
     // Get all relevant topologies
     auto all_topologies =
         get_all_slab_topologies(in_topology, out_topology, axes);
@@ -628,10 +630,27 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
     std::vector<std::size_t> all_max_buffer_sizes;
 
     std::size_t nb_topologies = all_topologies.size();
-    if (nb_topologies == 2) {
+    if (nb_topologies == 1) {
+      // 1. FFT3 with axes = {0,1,2}
+      // E.g. {1, 1, 1, P} + FFT {ax=0,1,2}
+
+      m_op_type = OperationType::F;
+      BlockInfoType block;
+      block.m_in_map     = map;
+      block.m_out_map    = map;
+      block.m_in_extents = get_mapped_extents(in_extents, map);
+      block.m_out_extents =
+          get_next_extents(gout_extents, in_topology, map, comm);
+      block.m_block_type = BlockType::FFT;
+      block.m_axes = get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
+      m_block_infos.push_back(block);
+
+      // Data is always complex
+      all_max_buffer_sizes.push_back(get_size(out_extents) * 2);
+      m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
+    } else if (nb_topologies == 2) {
       m_op_type  = OperationType::FTF;
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1);
-      auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 3>(axes);
 
       // 1. FFT + Transpose + FFT2 with axes = {0,2,1}
       // E.g. {1, 1, P} + FFT {ax=1} -> {1, P, 1} + FFT2 {ax=0,2}
@@ -684,6 +703,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 3) {
       auto mid_topology = all_topologies.at(1);
+      // 0. Transpose + FFT + Transpose
+      /// E.g. {1, 1, 1, P} -> {P, 1, 1, 1} + FFT3 {ax=1,2,3} + {1, 1, 1, P}
       // 1. Transpose + FFT + Transpose + FFT
       /// E.g. {1, 1, P} -> {P, 1, 1} + FFT2 {ax=1,2} -> {1, 1, P} + FFT {ax=0}
       // 2. FFT + Transpose + FFT + Transpose
@@ -691,11 +712,15 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       /// {1, 1, P} + FFT {ax=0} -> {P, 1, 1} + FFT2 {ax=1,2} -> {1, 1, P}
 
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1),
-           axes2          = all_axes.at(2);
-      auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 3>(axes);
+           axes2 = all_axes.at(2);
       if (axes0.size() == 0) {
-        // This means FFT can not be done in the in-topology
-        m_op_type = OperationType::TFTF;
+        if (axes2.size() == 0) {
+          // 0. Transpose + FFT + Transpose
+          m_op_type = OperationType::TFT;
+        } else {
+          // 1. Transpose + FFT + Transpose + FFT
+          m_op_type = OperationType::TFTF;
+        }
 
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology);
@@ -753,16 +778,18 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
         all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
 
-        BlockInfoType block3;
-        block3.m_in_extents  = block2.m_out_extents;
-        block3.m_out_extents = block2.m_out_extents;
-        block3.m_block_type  = BlockType::FFT;
-        block3.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes2);
-        block3.m_in_map      = block2.m_out_map;
-        block3.m_out_map     = block2.m_out_map;
-        m_block_infos.push_back(block3);
+        if (axes2.size() != 0) {
+          BlockInfoType block3;
+          block3.m_in_extents  = block2.m_out_extents;
+          block3.m_out_extents = block2.m_out_extents;
+          block3.m_block_type  = BlockType::FFT;
+          block3.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes2);
+          block3.m_in_map      = block2.m_out_map;
+          block3.m_out_map     = block2.m_out_map;
+          m_block_infos.push_back(block3);
 
-        all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+        }
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // 2. FFT + Transpose + FFT + Transpose
