@@ -139,68 +139,49 @@ void test_slab1D_view2D(std::size_t nprocs) {
   KokkosFFT::rfft(exec, gu, gu_hat_ax0, KokkosFFT::Normalization::backward, 0);
   KokkosFFT::rfft(exec, gu, gu_hat_ax1, KokkosFFT::Normalization::backward, 1);
 
-  auto h_gu = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu);
-  auto h_gu_hat_ax0 =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu_hat_ax0);
-  auto h_gu_hat_ax1 =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu_hat_ax1);
-  auto h_u_0             = Kokkos::create_mirror_view(u_0);
-  auto h_u_1             = Kokkos::create_mirror_view(u_1);
-  auto h_ref_u_hat_0_ax0 = Kokkos::create_mirror_view(ref_u_hat_0_ax0);
-  auto h_ref_u_hat_0_ax1 = Kokkos::create_mirror_view(ref_u_hat_0_ax1);
-  auto h_ref_u_hat_1_ax0 = Kokkos::create_mirror_view(ref_u_hat_1_ax0);
-  auto h_ref_u_hat_1_ax1 = Kokkos::create_mirror_view(ref_u_hat_1_ax1);
-
   // Topo 0
   Kokkos::pair<std::size_t, std::size_t> range_gu0(
       in_starts_t0.at(1), in_starts_t0.at(1) + in_extents_t0.at(1));
-  auto h_sub_gu_0 = Kokkos::subview(h_gu, Kokkos::ALL, range_gu0);
-  Kokkos::deep_copy(h_u_0, h_sub_gu_0);
+  auto sub_gu_0 = Kokkos::subview(gu, Kokkos::ALL, range_gu0);
+  Kokkos::deep_copy(u_0, sub_gu_0);
 
   // Topo 1
   Kokkos::pair<std::size_t, std::size_t> range_gu1(
       in_starts_t1.at(0), in_starts_t1.at(0) + in_extents_t1.at(0));
-  auto h_sub_gu_1 = Kokkos::subview(h_gu, range_gu1, Kokkos::ALL);
-  Kokkos::deep_copy(h_u_1, h_sub_gu_1);
+  auto sub_gu_1 = Kokkos::subview(gu, range_gu1, Kokkos::ALL);
+  Kokkos::deep_copy(u_1, sub_gu_1);
 
   // Topo 0 -> Topo 0 ax = {0}
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax0(
       out_starts_t0_ax0.at(1),
       out_starts_t0_ax0.at(1) + out_extents_t0_ax0.at(1));
-  auto h_sub_gu_hat_0_ax0 =
-      Kokkos::subview(h_gu_hat_ax0, Kokkos::ALL, range_gu_hat_0_ax0);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax0, h_sub_gu_hat_0_ax0);
+  auto sub_gu_hat_0_ax0 =
+      Kokkos::subview(gu_hat_ax0, Kokkos::ALL, range_gu_hat_0_ax0);
+  Kokkos::deep_copy(ref_u_hat_0_ax0, sub_gu_hat_0_ax0);
 
   // Topo 0 -> Topo 0 ax = {1}
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax1(
       out_starts_t0_ax1.at(1),
       out_starts_t0_ax1.at(1) + out_extents_t0_ax1.at(1));
-  auto h_sub_gu_hat_0_ax1 =
-      Kokkos::subview(h_gu_hat_ax1, Kokkos::ALL, range_gu_hat_0_ax1);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax1, h_sub_gu_hat_0_ax1);
+  auto sub_gu_hat_0_ax1 =
+      Kokkos::subview(gu_hat_ax1, Kokkos::ALL, range_gu_hat_0_ax1);
+  Kokkos::deep_copy(ref_u_hat_0_ax1, sub_gu_hat_0_ax1);
 
   // Topo 1 -> Topo 1 ax = {0}
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax0(
       out_starts_t1_ax0.at(0),
       out_starts_t1_ax0.at(0) + out_extents_t1_ax0.at(0));
-  auto h_sub_gu_hat_1_ax0 =
-      Kokkos::subview(h_gu_hat_ax0, range_gu_hat_1_ax0, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax0, h_sub_gu_hat_1_ax0);
+  auto sub_gu_hat_1_ax0 =
+      Kokkos::subview(gu_hat_ax0, range_gu_hat_1_ax0, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax0, sub_gu_hat_1_ax0);
 
   // Topo 1 -> Topo 1 ax = {1}
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax1(
       out_starts_t1_ax1.at(0),
       out_starts_t1_ax1.at(0) + out_extents_t1_ax1.at(0));
-  auto h_sub_gu_hat_1_ax1 =
-      Kokkos::subview(h_gu_hat_ax1, range_gu_hat_1_ax1, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax1, h_sub_gu_hat_1_ax1);
-
-  Kokkos::deep_copy(u_0, h_u_0);
-  Kokkos::deep_copy(u_1, h_u_1);
-  Kokkos::deep_copy(ref_u_hat_0_ax0, h_ref_u_hat_0_ax0);
-  Kokkos::deep_copy(ref_u_hat_0_ax1, h_ref_u_hat_0_ax1);
-  Kokkos::deep_copy(ref_u_hat_1_ax0, h_ref_u_hat_1_ax0);
-  Kokkos::deep_copy(ref_u_hat_1_ax1, h_ref_u_hat_1_ax1);
+  auto sub_gu_hat_1_ax1 =
+      Kokkos::subview(gu_hat_ax1, range_gu_hat_1_ax1, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax1, sub_gu_hat_1_ax1);
 
   // For inverse transform
   Kokkos::deep_copy(ref_u_inv_0, u_0);
@@ -298,6 +279,416 @@ void test_slab1D_view2D(std::size_t nprocs) {
 
     plan_1_1_ax0.backward(u_hat_1_ax0, u_inv_1);
     EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1));
+  }
+}
+
+template <typename T, typename LayoutType>
+void test_slab1D_view3D(std::size_t nprocs) {
+  using RealView3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using ComplexView3DType =
+      Kokkos::View<Kokkos::complex<T>***, LayoutType, execution_space>;
+  using axes_type     = KokkosFFT::axis_type<1>;
+  using extents_type  = std::array<std::size_t, 3>;
+  using topology_type = std::array<std::size_t, 3>;
+
+  topology_type topology0{1, 1, nprocs};
+  topology_type topology1{1, nprocs, 1};
+  topology_type topology2{nprocs, 1, 1};
+
+  const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  extents_type global_in_extents{n0, n1, n2},
+      global_out_extents_ax0{n0 / 2 + 1, n1, n2},
+      global_out_extents_ax1{n0, n1 / 2 + 1, n2},
+      global_out_extents_ax2{n0, n1, n2 / 2 + 1};
+
+  axes_type ax0 = {0}, ax1 = {1}, ax2 = {2};
+
+  // Available combinations
+  // Topology 0 -> Topology 1 with all axes
+  // Topology 0 -> Topology 2 with all axes
+  // Topology 1 -> Topology 2 with all axes
+
+  auto [in_extents_t0, in_starts_t0] =
+      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+  auto [in_extents_t1, in_starts_t1] =
+      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+  auto [in_extents_t2, in_starts_t2] =
+      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+  auto [out_extents_t0_ax0, out_starts_t0_ax0] =
+      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+  auto [out_extents_t1_ax0, out_starts_t1_ax0] =
+      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+  auto [out_extents_t2_ax0, out_starts_t2_ax0] =
+      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+  auto [out_extents_t0_ax1, out_starts_t0_ax1] =
+      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+  auto [out_extents_t1_ax1, out_starts_t1_ax1] =
+      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+  auto [out_extents_t2_ax1, out_starts_t2_ax1] =
+      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+  auto [out_extents_t0_ax2, out_starts_t0_ax2] =
+      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+  auto [out_extents_t1_ax2, out_starts_t1_ax2] =
+      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+  auto [out_extents_t2_ax2, out_starts_t2_ax2] =
+      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+
+  // Make reference with a basic-API
+  RealView3DType gu("gu", n0, n1, n2);
+  ComplexView3DType gu_hat_ax0("gu_hat_ax0", n0 / 2 + 1, n1, n2),
+      gu_hat_ax1("gu_hat_ax1", n0, n1 / 2 + 1, n2),
+      gu_hat_ax2("gu_hat_ax2", n0, n1, n2 / 2 + 1);
+
+  // Data in Topology 0 (XY-slab)
+  RealView3DType u_0("u_0",
+                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
+      u_inv_0("u_inv_0",
+              KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
+      ref_u_inv_0("ref_u_inv_0",
+                  KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0));
+  ComplexView3DType u_hat_0_ax0(
+      "u_hat_0_ax0",
+      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax0)),
+      u_hat_0_ax1("u_hat_0_ax1", KokkosFFT::Impl::create_layout<LayoutType>(
+                                     out_extents_t0_ax1)),
+      u_hat_0_ax2("u_hat_0_ax2", KokkosFFT::Impl::create_layout<LayoutType>(
+                                     out_extents_t0_ax2)),
+      ref_u_hat_0_ax0(
+          "ref_u_hat_0_ax0",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax0)),
+      ref_u_hat_0_ax1(
+          "ref_u_hat_0_ax1",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax1)),
+      ref_u_hat_0_ax2(
+          "ref_u_hat_0_ax2",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax2));
+
+  // Data in Topology 1 (XZ-slab)
+  RealView3DType u_1("u_1",
+                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
+      u_inv_1("u_inv_1",
+              KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
+      ref_u_inv_1("ref_u_inv_1",
+                  KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1));
+  ComplexView3DType u_hat_1_ax0(
+      "u_hat_1_ax0",
+      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax0)),
+      u_hat_1_ax1("u_hat_1_ax1", KokkosFFT::Impl::create_layout<LayoutType>(
+                                     out_extents_t1_ax1)),
+      u_hat_1_ax2("u_hat_1_ax2", KokkosFFT::Impl::create_layout<LayoutType>(
+                                     out_extents_t1_ax2)),
+      ref_u_hat_1_ax0(
+          "ref_u_hat_1_ax0",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax0)),
+      ref_u_hat_1_ax1(
+          "ref_u_hat_1_ax1",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax1)),
+      ref_u_hat_1_ax2(
+          "ref_u_hat_1_ax2",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax2));
+
+  // Data in Topology 2 (YZ-slab)
+  RealView3DType u_2("u_2",
+                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
+      u_inv_2("u_inv_2",
+              KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
+      ref_u_inv_2("ref_u_inv_2",
+                  KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2));
+  ComplexView3DType u_hat_2_ax0(
+      "u_hat_2_ax0",
+      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax0)),
+      u_hat_2_ax1("u_hat_2_ax1", KokkosFFT::Impl::create_layout<LayoutType>(
+                                     out_extents_t2_ax1)),
+      u_hat_2_ax2("u_hat_2_ax2", KokkosFFT::Impl::create_layout<LayoutType>(
+                                     out_extents_t2_ax2)),
+      ref_u_hat_2_ax0(
+          "ref_u_hat_2_ax0",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax0)),
+      ref_u_hat_2_ax1(
+          "ref_u_hat_2_ax1",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax1)),
+      ref_u_hat_2_ax2(
+          "ref_u_hat_2_ax2",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax2));
+
+  // Initialization
+  execution_space exec;
+  Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
+  Kokkos::fill_random(gu, random_pool, 1.0);
+
+  KokkosFFT::rfft(exec, gu, gu_hat_ax0, KokkosFFT::Normalization::backward, 0);
+  KokkosFFT::rfft(exec, gu, gu_hat_ax1, KokkosFFT::Normalization::backward, 1);
+  KokkosFFT::rfft(exec, gu, gu_hat_ax2, KokkosFFT::Normalization::backward, 2);
+
+  // Topo 0
+  Kokkos::pair<std::size_t, std::size_t> range_gu0(
+      in_starts_t0.at(2), in_starts_t0.at(2) + in_extents_t0.at(2));
+  auto sub_gu_0 = Kokkos::subview(gu, Kokkos::ALL, Kokkos::ALL, range_gu0);
+  Kokkos::deep_copy(u_0, sub_gu_0);
+
+  // Topo 1
+  Kokkos::pair<std::size_t, std::size_t> range_gu1(
+      in_starts_t1.at(1), in_starts_t1.at(1) + in_extents_t1.at(1));
+  auto sub_gu_1 = Kokkos::subview(gu, Kokkos::ALL, range_gu1, Kokkos::ALL);
+  Kokkos::deep_copy(u_1, sub_gu_1);
+
+  // Topo 2
+  Kokkos::pair<std::size_t, std::size_t> range_gu2(
+      in_starts_t2.at(0), in_starts_t2.at(0) + in_extents_t2.at(0));
+  auto sub_gu_2 = Kokkos::subview(gu, range_gu2, Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(u_2, sub_gu_2);
+
+  // Define ranges for topology 0 (XY-slab)
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax0(
+      out_starts_t0_ax0.at(2),
+      out_starts_t0_ax0.at(2) + out_extents_t0_ax0.at(2));
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax1(
+      out_starts_t0_ax1.at(2),
+      out_starts_t0_ax1.at(2) + out_extents_t0_ax1.at(2));
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax2(
+      out_starts_t0_ax2.at(2),
+      out_starts_t0_ax2.at(2) + out_extents_t0_ax2.at(2));
+
+  // Topo 0 ax = {0}
+  auto sub_gu_hat_0_ax0 =
+      Kokkos::subview(gu_hat_ax0, Kokkos::ALL, Kokkos::ALL, range_gu_hat_0_ax0);
+  Kokkos::deep_copy(ref_u_hat_0_ax0, sub_gu_hat_0_ax0);
+
+  // Topo 0 ax = {1}
+  auto sub_gu_hat_0_ax1 =
+      Kokkos::subview(gu_hat_ax1, Kokkos::ALL, Kokkos::ALL, range_gu_hat_0_ax1);
+  Kokkos::deep_copy(ref_u_hat_0_ax1, sub_gu_hat_0_ax1);
+
+  // Topo 0 ax = {2}
+  auto sub_gu_hat_0_ax2 =
+      Kokkos::subview(gu_hat_ax2, Kokkos::ALL, Kokkos::ALL, range_gu_hat_0_ax2);
+  Kokkos::deep_copy(ref_u_hat_0_ax2, sub_gu_hat_0_ax2);
+
+  // Define ranges for topology 1 (XZ-slab)
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax0(
+      out_starts_t1_ax0.at(1),
+      out_starts_t1_ax0.at(1) + out_extents_t1_ax0.at(1));
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax1(
+      out_starts_t1_ax1.at(1),
+      out_starts_t1_ax1.at(1) + out_extents_t1_ax1.at(1));
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax2(
+      out_starts_t1_ax2.at(1),
+      out_starts_t1_ax2.at(1) + out_extents_t1_ax2.at(1));
+
+  // Topo 1 ax = {0}
+  auto sub_gu_hat_1_ax0 =
+      Kokkos::subview(gu_hat_ax0, Kokkos::ALL, range_gu_hat_1_ax0, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax0, sub_gu_hat_1_ax0);
+
+  // Topo 1 ax = {1}
+  auto sub_gu_hat_1_ax1 =
+      Kokkos::subview(gu_hat_ax1, Kokkos::ALL, range_gu_hat_1_ax1, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax1, sub_gu_hat_1_ax1);
+
+  // Topo 1 ax = {2}
+  auto sub_gu_hat_1_ax2 =
+      Kokkos::subview(gu_hat_ax2, Kokkos::ALL, range_gu_hat_1_ax2, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax2, sub_gu_hat_1_ax2);
+
+  // Define ranges for topology 2 (YZ-slab)
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_2_ax0(
+      out_starts_t2_ax0.at(0),
+      out_starts_t2_ax0.at(0) + out_extents_t2_ax0.at(0));
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_2_ax1(
+      out_starts_t2_ax1.at(0),
+      out_starts_t2_ax1.at(0) + out_extents_t2_ax1.at(0));
+  Kokkos::pair<std::size_t, std::size_t> range_gu_hat_2_ax2(
+      out_starts_t2_ax2.at(0),
+      out_starts_t2_ax2.at(0) + out_extents_t2_ax2.at(0));
+
+  // Topo 2 ax = {0}
+  auto sub_gu_hat_2_ax0 =
+      Kokkos::subview(gu_hat_ax0, range_gu_hat_2_ax0, Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax0, sub_gu_hat_2_ax0);
+
+  // Topo 2 ax = {1}
+  auto sub_gu_hat_2_ax1 =
+      Kokkos::subview(gu_hat_ax1, range_gu_hat_2_ax1, Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax1, sub_gu_hat_2_ax1);
+
+  // Topo 2 ax = {2}
+  auto sub_gu_hat_2_ax2 =
+      Kokkos::subview(gu_hat_ax2, range_gu_hat_2_ax2, Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax2, sub_gu_hat_2_ax2);
+
+  // For inverse transform
+  Kokkos::deep_copy(ref_u_inv_0, u_0);
+  Kokkos::deep_copy(ref_u_inv_1, u_1);
+  Kokkos::deep_copy(ref_u_inv_2, u_2);
+
+  using SlabPlanType =
+      SlabPlan<execution_space, RealView3DType, ComplexView3DType, 1>;
+
+  // Not a slab geometry
+  if (nprocs == 1) {
+    // topo0 -> topo1 with ax = {0}:
+    // (n0, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+    ASSERT_THROW(
+        {
+          SlabPlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0, ax0, topology0,
+                                    topology1, MPI_COMM_WORLD);
+        },
+        std::runtime_error);
+
+    // topo0 -> topo2 with ax = {1}:
+    // (n0, n1, n2/p) -> (n0/p, n1/2+1, n2)
+    ASSERT_THROW(
+        {
+          SlabPlanType plan_0_2_ax1(exec, u_0, u_hat_2_ax1, ax1, topology0,
+                                    topology2, MPI_COMM_WORLD);
+        },
+        std::runtime_error);
+
+    // topo1 -> topo2 with ax = {2}:
+    // (n0, n1/p, n2) -> (n0/p, n1, n2/2+1)
+    ASSERT_THROW(
+        {
+          SlabPlanType plan_1_2_ax2(exec, u_1, u_hat_2_ax2, ax2, topology1,
+                                    topology2, MPI_COMM_WORLD);
+        },
+        std::runtime_error);
+
+    // topo0 -> topo0 with ax = {2}:
+    // (n0, n1, n2/p) -> (n0, n1, (n2/2+1)/p)
+    ASSERT_THROW(
+        {
+          SlabPlanType plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax2, topology0,
+                                    topology0, MPI_COMM_WORLD);
+        },
+        std::runtime_error);
+
+    // topo1 -> topo1 with ax = {1}
+    // (n0, n1/p, n2) -> (n0, (n1/2+1)/p, n2)
+    ASSERT_THROW(
+        {
+          SlabPlanType plan_1_1_ax1(exec, u_1, u_hat_1_ax1, ax1, topology1,
+                                    topology1, MPI_COMM_WORLD);
+        },
+        std::runtime_error);
+
+    // topology2 -> topology2 with ax = {1}
+    // (n0/p, n1, n2) -> (n0/p, (n1/2+1), n2)
+    ASSERT_THROW(
+        {
+          SlabPlanType plan_2_2_ax1(exec, u_2, u_hat_2_ax1, ax1, topology2,
+                                    topology2, MPI_COMM_WORLD);
+        },
+        std::runtime_error);
+  } else {
+    // topo 0 -> topo 0 with ax = {0}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p)
+    // FFT ax = {0}
+    SlabPlanType plan_0_0_ax0(exec, u_0, u_hat_0_ax0, ax0, topology0, topology0,
+                              MPI_COMM_WORLD);
+    plan_0_0_ax0.forward(u_0, u_hat_0_ax0);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax0, ref_u_hat_0_ax0));
+
+    plan_0_0_ax0.backward(u_hat_0_ax0, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 0 with ax = {1}:
+    // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p)
+    // FFT ax = {1}
+    SlabPlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1, ax1, topology0, topology0,
+                              MPI_COMM_WORLD);
+    plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
+
+    plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 0 with ax = {2}:
+    // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0, n1, (n2/2+1)/p)
+    // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
+    SlabPlanType plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax2, topology0, topology0,
+                              MPI_COMM_WORLD);
+    plan_0_0_ax2.forward(u_0, u_hat_0_ax2);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax2, ref_u_hat_0_ax2));
+
+    plan_0_0_ax2.backward(u_hat_0_ax2, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 1 with ax = {0}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> (n0/2+1, n1/p, n2)
+    // FFT ax = {0} + Transpose 1
+    SlabPlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0, ax0, topology0, topology1,
+                              MPI_COMM_WORLD);
+    plan_0_1_ax0.forward(u_0, u_hat_1_ax0);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
+
+    plan_0_1_ax0.backward(u_hat_1_ax0, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 1 with ax = {1}:
+    // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
+    // FFT ax = {1} -> Transpose topo 1
+    SlabPlanType plan_0_1_ax1(exec, u_0, u_hat_1_ax1, ax1, topology0, topology1,
+                              MPI_COMM_WORLD);
+    plan_0_1_ax1.forward(u_0, u_hat_1_ax1);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax1, ref_u_hat_1_ax1));
+
+    plan_0_1_ax1.backward(u_hat_1_ax1, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 1 with ax = {2}:
+    // (n0, n1, n2/p) -> (n0, n1/p, n2) -> (n0, n1/p, n2/2+1)
+    // Transpose topo 1 ->FFT ax = {2}
+    SlabPlanType plan_0_1_ax2(exec, u_0, u_hat_1_ax2, ax2, topology0, topology1,
+                              MPI_COMM_WORLD);
+    plan_0_1_ax2.forward(u_0, u_hat_1_ax2);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax2, ref_u_hat_1_ax2));
+
+    plan_0_1_ax2.backward(u_hat_1_ax2, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 2 with ax = {0}:
+    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+    // FFT ax = {0} -> Transpose topo 2
+    SlabPlanType plan_0_2_ax0(exec, u_0, u_hat_2_ax0, ax0, topology0, topology2,
+                              MPI_COMM_WORLD);
+    plan_0_2_ax0.forward(u_0, u_hat_2_ax0);
+    EXPECT_TRUE(allclose(exec, u_hat_2_ax0, ref_u_hat_2_ax0));
+
+    plan_0_2_ax0.backward(u_hat_2_ax0, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 2 with ax = {1}:
+    // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
+    // FFT ax = {1} -> Transpose topo 2
+    SlabPlanType plan_0_2_ax1(exec, u_0, u_hat_2_ax1, ax1, topology0, topology2,
+                              MPI_COMM_WORLD);
+    plan_0_2_ax1.forward(u_0, u_hat_2_ax1);
+    EXPECT_TRUE(allclose(exec, u_hat_2_ax1, ref_u_hat_2_ax1));
+
+    plan_0_2_ax1.backward(u_hat_2_ax1, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 0 -> topo 2 with ax = {2}:
+    // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1)
+    // Transpose topo 2 -> FFT ax = {2}
+    SlabPlanType plan_0_2_ax2(exec, u_0, u_hat_2_ax2, ax2, topology0, topology2,
+                              MPI_COMM_WORLD);
+    plan_0_2_ax2.forward(u_0, u_hat_2_ax2);
+    EXPECT_TRUE(allclose(exec, u_hat_2_ax2, ref_u_hat_2_ax2));
+
+    plan_0_2_ax2.backward(u_hat_2_ax2, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 1 -> topo 0 with ax = {0}:
+    // (n0, n1/p, n2) -> (n0/2+1, n1, n2/p) -> (n0/2+1, n1, n2/p)
+    // FFT ax = {0} -> Transpose topo 0
+    SlabPlanType plan_1_0_ax0(exec, u_1, u_hat_0_ax0, ax0, topology1, topology0,
+                              MPI_COMM_WORLD);
+    plan_1_0_ax0.forward(u_1, u_hat_0_ax0);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax0, ref_u_hat_0_ax0));
+
+    plan_1_0_ax0.backward(u_hat_0_ax0, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
   }
 }
 
@@ -2278,6 +2669,13 @@ TYPED_TEST(TestSlab1D, View2D) {
   using layout_type = typename TestFixture::layout_type;
 
   test_slab1D_view2D<float_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestSlab1D, View3D) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  test_slab1D_view3D<float_type, layout_type>(this->m_nprocs);
 }
 
 TYPED_TEST(TestSlab2D, View3D) {

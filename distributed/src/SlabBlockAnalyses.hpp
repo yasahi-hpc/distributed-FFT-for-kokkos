@@ -36,6 +36,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       const extents_type& in_topology, const extents_type& out_topology,
       const std::array<iType, 1>& axes, MPI_Comm comm = MPI_COMM_WORLD) {
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
+    auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 1>(axes);
     // Get all relevant topologies
     auto all_topologies =
         get_all_slab_topologies(in_topology, out_topology, axes);
@@ -49,10 +50,13 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       // E.g. {1, 1, P} + FFT ax=0
       m_op_type = OperationType::F;
       BlockInfoType block;
-      block.m_in_extents  = in_extents;
-      block.m_out_extents = out_extents;
-      block.m_block_type  = BlockType::FFT;
-      block.m_axes        = to_vector(axes);
+      block.m_in_map     = map;
+      block.m_out_map    = map;
+      block.m_in_extents = get_mapped_extents(in_extents, map);
+      block.m_out_extents =
+          get_next_extents(gout_extents, in_topology, map, comm);
+      block.m_block_type = BlockType::FFT;
+      block.m_axes = get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block);
 
       // Data is always complex
@@ -71,17 +75,15 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         block0.m_in_axis  = in_axis0;
         block0.m_out_axis = out_axis0;
 
-        // Do we really need this?
         block0.m_in_topology  = in_topology;
         block0.m_out_topology = out_topology;
-
-        block0.m_in_extents = in_extents;
+        block0.m_in_extents   = in_extents;
         block0.m_out_extents =
             get_next_extents(gin_extents, out_topology, block0.m_out_map, comm);
         block0.m_buffer_extents =
             get_buffer_extents<Layout>(gin_extents, in_topology, out_topology);
-
         block0.m_block_type = BlockType::Transpose;
+
         m_block_infos.push_back(block0);
 
         all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
@@ -96,7 +98,10 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         block1.m_out_extents =
             get_mapped_extents(out_extents, block0.m_out_map);
         block1.m_block_type = BlockType::FFT;
-        block1.m_axes = to_vector(get_mapped_axes(axes, block0.m_out_map));
+        block1.m_axes =
+            get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
+        block1.m_in_map  = block0.m_out_map;
+        block1.m_out_map = block0.m_out_map;
         m_block_infos.push_back(block1);
 
         all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
@@ -105,29 +110,30 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         m_op_type = OperationType::FT;
         // E.g. {1, 1, P} + FFT (ax=0) -> {P, 1, 1}
         BlockInfoType block0;
-        block0.m_in_extents = in_extents;
+        block0.m_in_map     = map;
+        block0.m_out_map    = map;
+        block0.m_in_extents = get_mapped_extents(in_extents, map);
         block0.m_out_extents =
-            get_next_extents(gout_extents, in_topology, src_map, comm);
+            get_next_extents(gout_extents, in_topology, map, comm);
         block0.m_block_type = BlockType::FFT;
-        block0.m_axes       = to_vector(axes);
+        block0.m_axes =
+            get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
         m_block_infos.push_back(block0);
-
         all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
+        auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
+        block1.m_in_map            = map;
+        block1.m_out_map           = src_map;
+        block1.m_in_axis           = in_axis1;
+        block1.m_out_axis          = out_axis1;
+
         block1.m_in_topology  = in_topology;
         block1.m_out_topology = out_topology;
         block1.m_in_extents   = block0.m_out_extents;
         block1.m_out_extents  = out_extents;
         block1.m_buffer_extents =
             get_buffer_extents<Layout>(gout_extents, in_topology, out_topology);
-
-        auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
-        block1.m_in_map            = src_map;
-        // block1.m_out_map    = get_dst_map<Layout, DIM>(src_map, out_axis1);
-        block1.m_out_map    = src_map;  // Do not need to change mapping
-        block1.m_in_axis    = in_axis1;
-        block1.m_out_axis   = out_axis1;
         block1.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block1);
 
@@ -172,24 +178,25 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       block1.m_out_extents =
           get_next_extents(gout_extents, mid_topology, block0.m_out_map, comm);
       block1.m_block_type = BlockType::FFT;
-      block1.m_axes       = to_vector(get_mapped_axes(axes, block0.m_out_map));
+      block1.m_axes =  // to_vector(get_mapped_axes(axes, block0.m_out_map));
+          get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block1);
 
       all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
-      block2.m_in_topology  = mid_topology;
-      block2.m_out_topology = out_topology;
-      block2.m_in_extents   = block1.m_out_extents;
-      block2.m_out_extents  = out_extents;
-      block2.m_buffer_extents =
-          get_buffer_extents<Layout>(gout_extents, mid_topology, out_topology);
       auto [in_axis2, out_axis2] = get_slab(mid_topology, out_topology);
       block2.m_in_map            = block0.m_out_map;
       block2.m_out_map           = src_map;
       block2.m_in_axis           = in_axis2;
       block2.m_out_axis          = out_axis2;
-      block2.m_block_type        = BlockType::Transpose;
+      block2.m_in_topology       = mid_topology;
+      block2.m_out_topology      = out_topology;
+      block2.m_in_extents        = block1.m_out_extents;
+      block2.m_out_extents       = out_extents;
+      block2.m_buffer_extents =
+          get_buffer_extents<Layout>(gout_extents, mid_topology, out_topology);
+      block2.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block2);
 
       all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
