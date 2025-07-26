@@ -68,27 +68,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       if (first_dim != 1) {
         m_op_type = OperationType::TF;
         // E.g. {P, 1, 1} -> {1, 1, P} + FFT (ax=0)
-
-        /*
-        BlockInfoType block0;
-        auto [in_axis0, out_axis0] = get_slab(in_topology, out_topology);
-        block0.m_in_map            = src_map;
-        block0.m_out_map  = get_dst_map<Layout, DIM>(src_map, out_axis0);
-        block0.m_in_axis  = in_axis0;
-        block0.m_out_axis = out_axis0;
-
-        // Do we really need this?
-        block0.m_in_topology  = in_topology;
-        block0.m_out_topology = out_topology;
-
-        block0.m_in_extents = in_extents;
-        block0.m_out_extents =
-            get_next_extents(gin_extents, out_topology, block0.m_out_map, comm);
-        block0.m_buffer_extents =
-            get_buffer_extents<Layout>(gin_extents, in_topology, out_topology);
-
-        block0.m_block_type = BlockType::Transpose;
-        */
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, out_topology);
         block0.m_in_map            = src_map;
@@ -131,12 +110,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         m_op_type = OperationType::FT;
         // E.g. {1, 1, P} + FFT (ax=0) -> {P, 1, 1}
         BlockInfoType block0;
-        // block0.m_in_extents = in_extents;
-        // block0.m_out_extents =
-        //     get_next_extents(gout_extents, in_topology, src_map, comm);
-        // block0.m_block_type = BlockType::FFT;
-        // block0.m_axes       = to_vector(axes);
-        // m_block_infos.push_back(block0);
         block0.m_in_map     = map;
         block0.m_out_map    = map;
         block0.m_in_extents = get_mapped_extents(in_extents, map);
@@ -148,32 +121,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         m_block_infos.push_back(block0);
         all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
 
-        /*
-        BlockInfoType block1;
-        block1.m_in_topology  = in_topology;
-        block1.m_out_topology = out_topology;
-        block1.m_in_extents   = block0.m_out_extents;
-        block1.m_out_extents  = out_extents;
-        block1.m_buffer_extents =
-            get_buffer_extents<Layout>(gout_extents, in_topology, out_topology);
-
-        auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
-        block1.m_in_map            = src_map;
-        // block1.m_out_map    = get_dst_map<Layout, DIM>(src_map, out_axis1);
-        block1.m_out_map    = src_map;  // Do not need to change mapping
-        block1.m_in_axis    = in_axis1;
-        block1.m_out_axis   = out_axis1;
-        block1.m_block_type = BlockType::Transpose;
-        m_block_infos.push_back(block1);
-        */
-
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
         block1.m_in_map            = map;
-        block1.m_out_map =
-            src_map;  // get_dst_map<Layout, iType, DIM>(src_map, axes1);
-        block1.m_in_axis  = in_axis1;
-        block1.m_out_axis = out_axis1;
+        block1.m_out_map           = src_map;
+        block1.m_in_axis           = in_axis1;
+        block1.m_out_axis          = out_axis1;
 
         block1.m_in_topology  = in_topology;
         block1.m_out_topology = out_topology;
@@ -232,21 +185,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
-      /*
-      block2.m_in_topology  = mid_topology;
-      block2.m_out_topology = out_topology;
-      block2.m_in_extents   = block1.m_out_extents;
-      block2.m_out_extents  = out_extents;
-      block2.m_buffer_extents =
-          get_buffer_extents<Layout>(gout_extents, mid_topology, out_topology);
-      auto [in_axis2, out_axis2] = get_slab(mid_topology, out_topology);
-      block2.m_in_map            = block0.m_out_map;
-      block2.m_out_map           = src_map;
-      block2.m_in_axis           = in_axis2;
-      block2.m_out_axis          = out_axis2;
-      block2.m_block_type        = BlockType::Transpose;
-      m_block_infos.push_back(block2);
-      */
       auto [in_axis2, out_axis2] = get_slab(mid_topology, out_topology);
       block2.m_in_map            = block0.m_out_map;
       block2.m_out_map           = src_map;
