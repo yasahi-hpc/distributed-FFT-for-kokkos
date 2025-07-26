@@ -96,9 +96,11 @@ struct Grid {
        double lz)
       : m_rank(rank), m_px(px), m_py(py) {
     // Check that parallelization is valid
-    KOKKOSFFT_THROW_IF(nx % px != 0 || ny % py != 0 || nz % py != 0,
-                       "Grid size must be divisible by the number of processes "
-                       "in each direction.");
+    if (nx % px != 0 || ny % py != 0 || nz % py != 0) {
+      throw std::runtime_error(
+          "Grid size must be divisible by the number of processes in each "
+          "direction.");
+    }
 
     std::array<std::size_t, 2> topology{std::size_t(px), std::size_t(py)};
     auto coord = rank_to_coord(topology, rank);
@@ -981,11 +983,12 @@ int main(int argc, char* argv[]) {
     const double nu    = 1.0 / Re;
 
     // Make sure parallelization is valid
-    KOKKOSFFT_THROW_IF(
-        px * py != nprocs,
-        "Total number of process must be equal to px * py.\n nprocs: " +
-            std::to_string(nprocs) + ", px: " + std::to_string(px) +
-            ", py: " + std::to_string(py));
+    if (px * py != nprocs) {
+      throw std::runtime_error(
+          "Total number of process must be equal to px * py.\n nprocs: " +
+          std::to_string(nprocs) + ", px: " + std::to_string(px) +
+          ", py: " + std::to_string(py));
+    }
 
     if (rank == 0) {
       std::cout << "NS3D (px * py): (" << px << ", " << py
