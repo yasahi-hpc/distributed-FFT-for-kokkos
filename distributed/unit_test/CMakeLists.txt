@@ -12,7 +12,6 @@ add_executable(unit-tests-mpi
     Test_Plan.cpp
     #Test_SlabBlockAnalyses.cpp
     Test_SlabPlan.cpp
-    Test_Plan.cpp
 )
 
 find_package(MPI REQUIRED COMPONENTS CXX)

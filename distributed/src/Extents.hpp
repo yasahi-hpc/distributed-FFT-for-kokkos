@@ -194,12 +194,35 @@ bool are_valid_extents(
   auto in_extents  = get_mapped_extents(gin_extents, map);
   auto out_extents = get_mapped_extents(gout_extents, map);
 
+  auto mismatched_extents = [&in, &out, &in_extents,
+                             &out_extents]() -> std::string {
+    std::string message;
+    message += in.label();
+    message += "(";
+    message += std::to_string(in_extents.at(0));
+    for (std::size_t r = 1; r < in_extents.size(); r++) {
+      message += ",";
+      message += std::to_string(in_extents.at(r));
+    }
+    message += "), ";
+    message += out.label();
+    message += "(";
+    message += std::to_string(out_extents.at(0));
+    for (std::size_t r = 1; r < out_extents.size(); r++) {
+      message += ",";
+      message += std::to_string(out_extents.at(r));
+    }
+    message += ")";
+    return message;
+  };
+
   for (std::size_t i = 0; i < rank; i++) {
     // The requirement for inner_most_axis is different for transform type
     if (i == inner_most_axis) continue;
     KOKKOSFFT_THROW_IF(in_extents.at(i) != out_extents.at(i),
                        "input and output extents must be the same except for "
-                       "the transform axis");
+                       "the transform axis: " +
+                           mismatched_extents());
   }
 
   if constexpr (KokkosFFT::Impl::is_complex_v<in_value_type> &&
@@ -207,7 +230,8 @@ bool are_valid_extents(
     // Then C2C
     KOKKOSFFT_THROW_IF(
         in_extents.at(inner_most_axis) != out_extents.at(inner_most_axis),
-        "input and output extents must be the same for C2C transform");
+        "input and output extents must be the same for C2C transform: " +
+            mismatched_extents());
   }
 
   if constexpr (KokkosFFT::Impl::is_real_v<in_value_type>) {
@@ -216,7 +240,8 @@ bool are_valid_extents(
         out_extents.at(inner_most_axis) !=
             in_extents.at(inner_most_axis) / 2 + 1,
         "For R2C, the 'output extent' of transform must be equal to "
-        "'input extent'/2 + 1");
+        "'input extent'/2 + 1: " +
+            mismatched_extents());
   }
 
   if constexpr (KokkosFFT::Impl::is_real_v<out_value_type>) {
@@ -225,7 +250,8 @@ bool are_valid_extents(
         in_extents.at(inner_most_axis) !=
             out_extents.at(inner_most_axis) / 2 + 1,
         "For C2R, the 'input extent' of transform must be equal to "
-        "'output extent' / 2 + 1");
+        "'output extent' / 2 + 1: " +
+            mismatched_extents());
   }
   return true;
 }
