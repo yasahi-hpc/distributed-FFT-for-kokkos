@@ -882,26 +882,26 @@ void test_shared3D_view4D(std::size_t nprocs) {
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       ref_u_inv_0("ref_u_inv_0",
                   KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0));
-  ComplexView4DType u_hat_0_ax0(
-      "u_hat_0_ax0",
-      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax0)),
-      u_hat_0_ax1("u_hat_0_ax1", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t0_ax1)),
-      u_hat_0_ax2("u_hat_0_ax2", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t0_ax2)),
-      u_hat_0_ax3("u_hat_0_ax3", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t0_ax3)),
-      ref_u_hat_0_ax0(
-          "ref_u_hat_0_ax0",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax0)),
-      ref_u_hat_0_ax1(
-          "ref_u_hat_0_ax1",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax1)),
-      ref_u_hat_0_ax2(
-          "ref_u_hat_0_ax2",
+  ComplexView4DType u_hat_0_ax102(
+      "u_hat_0_ax102",
+      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax2)),
+      u_hat_0_ax201("u_hat_0_ax201", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t0_ax1)),
+      u_hat_0_ax210("u_hat_0_ax210", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t0_ax0)),
+      u_hat_0_ax123("u_hat_0_ax123", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t0_ax3)),
+      ref_u_hat_0_ax102(
+          "ref_u_hat_0_ax102",
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax2)),
-      ref_u_hat_0_ax3(
-          "ref_u_hat_0_ax3",
+      ref_u_hat_0_ax201(
+          "ref_u_hat_0_ax201",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax1)),
+      ref_u_hat_0_ax210(
+          "ref_u_hat_0_ax210",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax0)),
+      ref_u_hat_0_ax123(
+          "ref_u_hat_0_ax123",
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax3));
 
   // Data in Topology 1 (XYW-slab)
@@ -911,27 +911,32 @@ void test_shared3D_view4D(std::size_t nprocs) {
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       ref_u_inv_1("ref_u_inv_1",
                   KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1));
-  ComplexView4DType u_hat_1_ax0(
-      "u_hat_1_ax0",
-      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax0)),
-      u_hat_1_ax1("u_hat_1_ax1", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t1_ax1)),
-      u_hat_1_ax2("u_hat_1_ax2", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t1_ax2)),
-      u_hat_1_ax3("u_hat_1_ax3", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t1_ax3)),
-      ref_u_hat_1_ax0(
-          "ref_u_hat_1_ax0",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax0)),
-      ref_u_hat_1_ax1(
-          "ref_u_hat_1_ax1",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax1)),
-      ref_u_hat_1_ax2(
-          "ref_u_hat_1_ax2",
+  ComplexView4DType u_hat_1_ax012(
+      "u_hat_1_ax012",
+      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax2)),
+      u_hat_1_ax103("u_hat_1_ax103", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t1_ax3)),
+      u_hat_1_ax132("u_hat_1_ax132", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t1_ax2)),
+      u_hat_1_ax301("u_hat_1_ax301", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t1_ax1)),
+      u_hat_1_ax310("u_hat_1_ax310", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t1_ax0)),
+      ref_u_hat_1_ax012(
+          "ref_u_hat_1_ax012",
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax2)),
-      ref_u_hat_1_ax3(
-          "ref_u_hat_1_ax3",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax3));
+      ref_u_hat_1_ax103(
+          "ref_u_hat_1_ax103",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax3)),
+      ref_u_hat_1_ax132(
+          "ref_u_hat_1_ax132",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax2)),
+      ref_u_hat_1_ax301(
+          "ref_u_hat_1_ax301",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax1)),
+      ref_u_hat_1_ax310(
+          "ref_u_hat_1_ax310",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax0));
 
   // Data in Topology 2 (XZW-slab)
   View4DType u_2("u_2",
@@ -940,27 +945,34 @@ void test_shared3D_view4D(std::size_t nprocs) {
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       ref_u_inv_2("ref_u_inv_2",
                   KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2));
-  ComplexView4DType u_hat_2_ax0(
-      "u_hat_2_ax0",
-      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax0)),
-      u_hat_2_ax1("u_hat_2_ax1", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t2_ax1)),
-      u_hat_2_ax2("u_hat_2_ax2", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t2_ax2)),
-      u_hat_2_ax3("u_hat_2_ax3", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t2_ax3)),
-      ref_u_hat_2_ax0(
-          "ref_u_hat_2_ax0",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax0)),
-      ref_u_hat_2_ax1(
-          "ref_u_hat_2_ax1",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax1)),
-      ref_u_hat_2_ax2(
-          "ref_u_hat_2_ax2",
+  ComplexView4DType u_hat_2_ax012(
+      "u_hat_2_ax012",
+      KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax2)),
+      u_hat_2_ax021("u_hat_2_ax021", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t2_ax1)),
+      u_hat_2_ax123("u_hat_2_ax123", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t2_ax3)),
+      u_hat_2_ax203("u_hat_2_ax203", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t2_ax3)),
+      u_hat_2_ax230("u_hat_2_ax230", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t2_ax0)),
+      u_hat_2_ax302("u_hat_2_ax302", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t2_ax2)),
+      ref_u_hat_2_ax012(
+          "ref_u_hat_2_ax012",
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax2)),
-      ref_u_hat_2_ax3(
-          "ref_u_hat_2_ax3",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax3));
+      ref_u_hat_2_ax123(
+          "ref_u_hat_2_ax123",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax3)),
+      ref_u_hat_2_ax203(
+          "ref_u_hat_2_ax203",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax3)),
+      ref_u_hat_2_ax230(
+          "ref_u_hat_2_ax230",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax0)),
+      ref_u_hat_2_ax302(
+          "ref_u_hat_2_ax302",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax2));
 
   // Data in Topology 3 (YZW-slab)
   View4DType u_3("u_3",
@@ -969,27 +981,28 @@ void test_shared3D_view4D(std::size_t nprocs) {
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t3)),
       ref_u_inv_3("ref_u_inv_3",
                   KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t3));
-  ComplexView4DType u_hat_3_ax0(
-      "u_hat_3_ax0",
+
+  ComplexView4DType u_hat_3_ax210(
+      "u_hat_3_ax210",
       KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t3_ax0)),
-      u_hat_3_ax1("u_hat_3_ax1", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t3_ax1)),
-      u_hat_3_ax2("u_hat_3_ax2", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t3_ax2)),
-      u_hat_3_ax3("u_hat_3_ax3", KokkosFFT::Impl::create_layout<LayoutType>(
-                                     out_extents_t3_ax3)),
-      ref_u_hat_3_ax0(
-          "ref_u_hat_3_ax0",
+      u_hat_3_ax123("u_hat_3_ax123", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t3_ax3)),
+      u_hat_3_ax321("u_hat_3_ax321", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t3_ax1)),
+      u_hat_3_ax312("u_hat_3_ax312", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         out_extents_t3_ax2)),
+      ref_u_hat_3_ax210(
+          "ref_u_hat_3_ax210",
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t3_ax0)),
-      ref_u_hat_3_ax1(
-          "ref_u_hat_3_ax1",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t3_ax1)),
-      ref_u_hat_3_ax2(
-          "ref_u_hat_3_ax2",
+      ref_u_hat_3_ax123(
+          "ref_u_hat_3_ax123",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t3_ax3)),
+      ref_u_hat_3_ax312(
+          "ref_u_hat_3_ax312",
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t3_ax2)),
-      ref_u_hat_3_ax3(
-          "ref_u_hat_3_ax3",
-          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t3_ax3));
+      ref_u_hat_3_ax321(
+          "ref_u_hat_3_ax321",
+          KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t3_ax1));
 
   // Initialization
   execution_space exec;
@@ -1147,22 +1160,22 @@ void test_shared3D_view4D(std::size_t nprocs) {
   // Topo 0 ax = {2, 1, 0}
   auto sub_gu_hat_0_ax210 = Kokkos::subview(
       gu_hat_ax210, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, range_gu_hat_0_ax0);
-  Kokkos::deep_copy(ref_u_hat_0_ax0, sub_gu_hat_0_ax210);
+  Kokkos::deep_copy(ref_u_hat_0_ax210, sub_gu_hat_0_ax210);
 
   // Topo 0 ax = {2, 0, 1}
   auto sub_gu_hat_0_ax201 = Kokkos::subview(
       gu_hat_ax201, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, range_gu_hat_0_ax1);
-  Kokkos::deep_copy(ref_u_hat_0_ax1, sub_gu_hat_0_ax201);
+  Kokkos::deep_copy(ref_u_hat_0_ax201, sub_gu_hat_0_ax201);
 
   // Topo 0 ax = {1, 0, 2}
   auto sub_gu_hat_0_ax102 = Kokkos::subview(
       gu_hat_ax102, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, range_gu_hat_0_ax2);
-  Kokkos::deep_copy(ref_u_hat_0_ax2, sub_gu_hat_0_ax102);
+  Kokkos::deep_copy(ref_u_hat_0_ax102, sub_gu_hat_0_ax102);
 
   // Topo 0 ax = {1, 2, 3}; This is slab
   auto sub_gu_hat_0_ax123 = Kokkos::subview(
       gu_hat_ax123, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL, range_gu_hat_0_ax3);
-  Kokkos::deep_copy(ref_u_hat_0_ax3, sub_gu_hat_0_ax123);
+  Kokkos::deep_copy(ref_u_hat_0_ax123, sub_gu_hat_0_ax123);
 
   // Define ranges for topology 1 (XYW-slab)
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax0(
@@ -1181,22 +1194,22 @@ void test_shared3D_view4D(std::size_t nprocs) {
   // Topo 1 ax = {3, 1, 0}
   auto sub_gu_hat_1_ax310 = Kokkos::subview(
       gu_hat_ax310, Kokkos::ALL, Kokkos::ALL, range_gu_hat_1_ax0, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_1_ax0, sub_gu_hat_1_ax310);
+  Kokkos::deep_copy(ref_u_hat_1_ax310, sub_gu_hat_1_ax310);
 
   // Topo 1 ax = {3, 0, 1}
   auto sub_gu_hat_1_ax301 = Kokkos::subview(
       gu_hat_ax301, Kokkos::ALL, Kokkos::ALL, range_gu_hat_1_ax1, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_1_ax1, sub_gu_hat_1_ax301);
+  Kokkos::deep_copy(ref_u_hat_1_ax301, sub_gu_hat_1_ax301);
 
   // Topo 1 ax = {1, 0, 3}
   auto sub_gu_hat_1_ax103 = Kokkos::subview(
       gu_hat_ax103, Kokkos::ALL, Kokkos::ALL, range_gu_hat_1_ax3, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_1_ax3, sub_gu_hat_1_ax103);
+  Kokkos::deep_copy(ref_u_hat_1_ax103, sub_gu_hat_1_ax103);
 
   // Topo 1 ax = {1, 3, 2}; This is slab
   auto sub_gu_hat_1_ax132 = Kokkos::subview(
       gu_hat_ax132, Kokkos::ALL, Kokkos::ALL, range_gu_hat_1_ax2, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_1_ax2, sub_gu_hat_1_ax132);
+  Kokkos::deep_copy(ref_u_hat_1_ax132, sub_gu_hat_1_ax132);
 
   // Define ranges for topology 2 (XZW-slab)
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_2_ax0(
@@ -1215,22 +1228,17 @@ void test_shared3D_view4D(std::size_t nprocs) {
   // Topo 2 ax = {2, 3, 0}
   auto sub_gu_hat_2_ax230 = Kokkos::subview(
       gu_hat_ax230, Kokkos::ALL, range_gu_hat_2_ax0, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_2_ax0, sub_gu_hat_2_ax230);
+  Kokkos::deep_copy(ref_u_hat_2_ax230, sub_gu_hat_2_ax230);
 
   // Topo 2 ax = {3, 0, 2}
   auto sub_gu_hat_2_ax302 = Kokkos::subview(
       gu_hat_ax302, Kokkos::ALL, range_gu_hat_2_ax2, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_2_ax2, sub_gu_hat_2_ax302);
+  Kokkos::deep_copy(ref_u_hat_2_ax302, sub_gu_hat_2_ax302);
 
   // Topo 2 ax = {2, 0, 3}
   auto sub_gu_hat_2_ax203 = Kokkos::subview(
       gu_hat_ax203, Kokkos::ALL, range_gu_hat_2_ax3, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_2_ax3, sub_gu_hat_2_ax203);
-
-  // Topo 2 ax = {3, 2, 1}; This is slab
-  auto sub_gu_hat_2_ax321 = Kokkos::subview(
-      gu_hat_ax321, Kokkos::ALL, range_gu_hat_2_ax1, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_2_ax1, sub_gu_hat_2_ax321);
+  Kokkos::deep_copy(ref_u_hat_2_ax203, sub_gu_hat_2_ax203);
 
   // Define ranges for topology 3 (YZW-slab)
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_3_ax0(
@@ -1249,22 +1257,17 @@ void test_shared3D_view4D(std::size_t nprocs) {
   // Topo 3 -> Topo 3 ax = {3, 2, 1}
   auto sub_gu_hat_3_ax321 = Kokkos::subview(
       gu_hat_ax321, range_gu_hat_3_ax1, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_3_ax1, sub_gu_hat_3_ax321);
+  Kokkos::deep_copy(ref_u_hat_3_ax321, sub_gu_hat_3_ax321);
 
   // Topo 3 -> Topo 3 ax = {3, 1, 2}
   auto sub_gu_hat_ax312 = Kokkos::subview(
       gu_hat_ax312, range_gu_hat_3_ax2, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_3_ax2, sub_gu_hat_ax312);
+  Kokkos::deep_copy(ref_u_hat_3_ax312, sub_gu_hat_ax312);
 
   // Topo 3 -> Topo 3 ax = {1, 2, 3}
   auto sub_gu_hat_ax123 = Kokkos::subview(
       gu_hat_ax123, range_gu_hat_3_ax3, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_3_ax3, sub_gu_hat_ax123);
-
-  // Topo 3 -> Topo 3 ax = {1, 2, 0}
-  auto sub_gu_hat_ax120 = Kokkos::subview(
-      gu_hat_ax120, range_gu_hat_3_ax0, Kokkos::ALL, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(ref_u_hat_3_ax0, sub_gu_hat_ax120);
+  Kokkos::deep_copy(ref_u_hat_3_ax123, sub_gu_hat_ax123);
 
   // For inverse transform
   Kokkos::deep_copy(ref_u_inv_0, u_0);
@@ -1280,8 +1283,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // (n0, n1, n2, n3/p) -> (n0, n1, (n2/2+1)/p, n3)
     ASSERT_THROW(
         {
-          SharedPlanType plan_0_1_ax1(exec, u_0, u_hat_1_ax1, ax012, topology0,
-                                      topology1, MPI_COMM_WORLD);
+          SharedPlanType plan_0_1_ax012(exec, u_0, u_hat_1_ax012, ax012,
+                                        topology0, topology1, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1289,8 +1292,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // (n0, n1, n2, n3/p) -> (n0, (n1/2+1)/p, n2, n3)
     ASSERT_THROW(
         {
-          SharedPlanType plan_0_2_ax1(exec, u_0, u_hat_2_ax1, ax021, topology0,
-                                      topology2, MPI_COMM_WORLD);
+          SharedPlanType plan_0_2_ax021(exec, u_0, u_hat_2_ax021, ax021,
+                                        topology0, topology2, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1298,8 +1301,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // (n0, n1, n2, n3/p) -> ((n0/2+1)/p, n1, n2, n3)
     ASSERT_THROW(
         {
-          SharedPlanType plan_0_3_ax0(exec, u_0, u_hat_3_ax0, ax210, topology0,
-                                      topology3, MPI_COMM_WORLD);
+          SharedPlanType plan_0_3_ax210(exec, u_0, u_hat_3_ax210, ax210,
+                                        topology0, topology3, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1307,8 +1310,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // (n0, n1, n2/p, n3) -> (n0, n1/p, n2, n3/2+1)
     ASSERT_THROW(
         {
-          SharedPlanType plan_1_2_ax3(exec, u_1, u_hat_2_ax3, ax123, topology1,
-                                      topology2, MPI_COMM_WORLD);
+          SharedPlanType plan_1_2_ax123(exec, u_1, u_hat_2_ax123, ax123,
+                                        topology1, topology2, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1316,8 +1319,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // (n0, n1, n2/p, n3) -> (n0/p, n1, n2, n3/2+1)
     ASSERT_THROW(
         {
-          SharedPlanType plan_1_3_ax3(exec, u_1, u_hat_3_ax3, ax123, topology1,
-                                      topology3, MPI_COMM_WORLD);
+          SharedPlanType plan_1_3_ax123(exec, u_1, u_hat_3_ax123, ax123,
+                                        topology1, topology3, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1325,8 +1328,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // (n0, n1/p, n2, n3) -> (n0/p, n1, n2, n3/2+1)
     ASSERT_THROW(
         {
-          SharedPlanType plan_2_3_ax3(exec, u_2, u_hat_3_ax3, ax123, topology2,
-                                      topology3, MPI_COMM_WORLD);
+          SharedPlanType plan_2_3_ax123(exec, u_2, u_hat_3_ax123, ax123,
+                                        topology2, topology3, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1335,8 +1338,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // This is slab
     ASSERT_THROW(
         {
-          SharedPlanType plan_0_0_ax3(exec, u_0, u_hat_0_ax3, ax123, topology0,
-                                      topology0, MPI_COMM_WORLD);
+          SharedPlanType plan_0_0_ax123(exec, u_0, u_hat_0_ax123, ax123,
+                                        topology0, topology0, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1345,8 +1348,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // This is slab
     ASSERT_THROW(
         {
-          SharedPlanType plan_1_1_ax2(exec, u_1, u_hat_1_ax2, ax132, topology1,
-                                      topology1, MPI_COMM_WORLD);
+          SharedPlanType plan_1_1_ax132(exec, u_1, u_hat_1_ax132, ax132,
+                                        topology1, topology1, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1355,8 +1358,8 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // This is slab
     ASSERT_THROW(
         {
-          SharedPlanType plan_2_2_ax1(exec, u_2, u_hat_2_ax1, ax021, topology2,
-                                      topology2, MPI_COMM_WORLD);
+          SharedPlanType plan_2_2_ax021(exec, u_2, u_hat_2_ax021, ax021,
+                                        topology2, topology2, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1365,127 +1368,127 @@ void test_shared3D_view4D(std::size_t nprocs) {
     // This is slab
     ASSERT_THROW(
         {
-          SharedPlanType plan_3_3_ax0(exec, u_3, u_hat_3_ax0, ax210, topology3,
-                                      topology3, MPI_COMM_WORLD);
+          SharedPlanType plan_3_3_ax210(exec, u_3, u_hat_3_ax210, ax210,
+                                        topology3, topology3, MPI_COMM_WORLD);
         },
         std::runtime_error);
   }
 
   // topology0 (n0, n1, n2, n3/p) -> (n0/2+1, n1, n2, n3/p) axis {2, 1, 0}
-  SharedPlanType plan_0_0_ax0(exec, u_0, u_hat_0_ax0, ax210, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax0.forward(u_0, u_hat_0_ax0);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax0, ref_u_hat_0_ax0));
+  SharedPlanType plan_0_0_ax210(exec, u_0, u_hat_0_ax210, ax210, topology0,
+                                topology0, MPI_COMM_WORLD);
+  plan_0_0_ax210.forward(u_0, u_hat_0_ax210);
+  EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
 
-  plan_0_0_ax0.backward(u_hat_0_ax0, u_inv_0);
+  plan_0_0_ax210.backward(u_hat_0_ax210, u_inv_0);
   EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
   // topology0 (n0, n1, n2, n3/p) -> (n0, n1/2+1, n2, n3/p) axis {2, 0, 1}
-  SharedPlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1, ax201, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
+  SharedPlanType plan_0_0_ax201(exec, u_0, u_hat_0_ax201, ax201, topology0,
+                                topology0, MPI_COMM_WORLD);
+  plan_0_0_ax201.forward(u_0, u_hat_0_ax201);
+  EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
 
-  plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
+  plan_0_0_ax201.backward(u_hat_0_ax201, u_inv_0);
   EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
-  // topology0 (n0, n1, n2, n3/p) -> (n0, n1, n2/2+1, n3/p) axis {0, 1, 2}
-  SharedPlanType plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax012, topology0,
-                              topology0, MPI_COMM_WORLD);
-  plan_0_0_ax2.forward(u_0, u_hat_0_ax2);
-  EXPECT_TRUE(allclose(exec, u_hat_0_ax2, ref_u_hat_0_ax2));
+  // topology0 (n0, n1, n2, n3/p) -> (n0, n1, n2/2+1, n3/p) axis {1, 0, 2}
+  SharedPlanType plan_0_0_ax102(exec, u_0, u_hat_0_ax102, ax102, topology0,
+                                topology0, MPI_COMM_WORLD);
+  plan_0_0_ax102.forward(u_0, u_hat_0_ax102);
+  EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
 
-  plan_0_0_ax2.backward(u_hat_0_ax2, u_inv_0);
+  plan_0_0_ax102.backward(u_hat_0_ax102, u_inv_0);
   EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
   // topology1 (n0, n1, n2/p, n3) -> topology1 (n0/2+1, n1, n2/p, n3) axis {3,
   // 1, 0}
-  SharedPlanType plan_1_1_ax0(exec, u_1, u_hat_1_ax0, ax310, topology1,
-                              topology1, MPI_COMM_WORLD);
-  plan_1_1_ax0.forward(u_1, u_hat_1_ax0);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
+  SharedPlanType plan_1_1_ax310(exec, u_1, u_hat_1_ax310, ax310, topology1,
+                                topology1, MPI_COMM_WORLD);
+  plan_1_1_ax310.forward(u_1, u_hat_1_ax310);
+  EXPECT_TRUE(allclose(exec, u_hat_1_ax310, ref_u_hat_1_ax310));
 
-  plan_1_1_ax0.backward(u_hat_1_ax0, u_inv_1);
+  plan_1_1_ax310.backward(u_hat_1_ax310, u_inv_1);
   EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
 
   // topology1 (n0, n1, n2/p, n3) -> topology1 (n0, n1/2+1, n2/p, n3) axis {0,
   // 3, 1}
-  SharedPlanType plan_1_1_ax1(exec, u_1, u_hat_1_ax1, ax031, topology1,
-                              topology1, MPI_COMM_WORLD);
-  plan_1_1_ax1.forward(u_1, u_hat_1_ax1);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax1, ref_u_hat_1_ax1, 1.0e-5, 1.0e-6));
+  SharedPlanType plan_1_1_ax301(exec, u_1, u_hat_1_ax301, ax301, topology1,
+                                topology1, MPI_COMM_WORLD);
+  plan_1_1_ax301.forward(u_1, u_hat_1_ax301);
+  EXPECT_TRUE(allclose(exec, u_hat_1_ax301, ref_u_hat_1_ax301));
 
-  plan_1_1_ax1.backward(u_hat_1_ax1, u_inv_1);
+  plan_1_1_ax301.backward(u_hat_1_ax301, u_inv_1);
   EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
 
-  // topology1 (n0, n1, n2/p, n3) -> topology1 (n0, n1, n2/p, n3/2+1) axis {0,
-  // 1, 3}
-  SharedPlanType plan_1_1_ax3(exec, u_1, u_hat_1_ax3, ax013, topology1,
-                              topology1, MPI_COMM_WORLD);
-  plan_1_1_ax3.forward(u_1, u_hat_1_ax3);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax3, ref_u_hat_1_ax3, 1.0e-5, 1.0e-5));
+  // topology1 (n0, n1, n2/p, n3) -> topology1 (n0, n1, n2/p, n3/2+1)
+  // axis = {1, 0, 3}
+  SharedPlanType plan_1_1_ax103(exec, u_1, u_hat_1_ax103, ax103, topology1,
+                                topology1, MPI_COMM_WORLD);
+  plan_1_1_ax103.forward(u_1, u_hat_1_ax103);
+  EXPECT_TRUE(allclose(exec, u_hat_1_ax103, ref_u_hat_1_ax103));
 
-  plan_1_1_ax3.backward(u_hat_1_ax3, u_inv_1);
+  plan_1_1_ax103.backward(u_hat_1_ax103, u_inv_1);
   EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
 
   // topology2 (n0, n1/p, n2, n3) -> topology2 (n0/2+1, n1/p, n2, n3) axis {2,
   // 3, 0}
-  SharedPlanType plan_2_2_ax0(exec, u_2, u_hat_2_ax0, ax230, topology2,
-                              topology2, MPI_COMM_WORLD);
-  plan_2_2_ax0.forward(u_2, u_hat_2_ax0);
-  EXPECT_TRUE(allclose(exec, u_hat_2_ax0, ref_u_hat_2_ax0));
+  SharedPlanType plan_2_2_ax230(exec, u_2, u_hat_2_ax230, ax230, topology2,
+                                topology2, MPI_COMM_WORLD);
+  plan_2_2_ax230.forward(u_2, u_hat_2_ax230);
+  EXPECT_TRUE(allclose(exec, u_hat_2_ax230, ref_u_hat_2_ax230));
 
-  plan_2_2_ax0.backward(u_hat_2_ax0, u_inv_2);
+  plan_2_2_ax230.backward(u_hat_2_ax230, u_inv_2);
   EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
 
   // topology2 (n0, n1/p, n2, n3) -> topology2 (n0, n1/p, n2/2+1, n3) axis {3,
   // 0, 2}
-  SharedPlanType plan_2_2_ax2(exec, u_2, u_hat_2_ax2, ax302, topology2,
-                              topology2, MPI_COMM_WORLD);
-  plan_2_2_ax2.forward(u_2, u_hat_2_ax2);
-  EXPECT_TRUE(allclose(exec, u_hat_2_ax2, ref_u_hat_2_ax2));
+  SharedPlanType plan_2_2_ax302(exec, u_2, u_hat_2_ax302, ax302, topology2,
+                                topology2, MPI_COMM_WORLD);
+  plan_2_2_ax302.forward(u_2, u_hat_2_ax302);
+  EXPECT_TRUE(allclose(exec, u_hat_2_ax302, ref_u_hat_2_ax302));
 
-  plan_2_2_ax2.backward(u_hat_2_ax2, u_inv_2);
+  plan_2_2_ax302.backward(u_hat_2_ax302, u_inv_2);
   EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
 
   // topology2 (n0, n1/p, n2, n3) -> topology2 (n0, n1/p, n2, n3/2+1) axis {2,
   // 0, 3}
-  SharedPlanType plan_2_2_ax3(exec, u_2, u_hat_2_ax3, ax203, topology2,
-                              topology2, MPI_COMM_WORLD);
-  plan_2_2_ax3.forward(u_2, u_hat_2_ax3);
-  EXPECT_TRUE(allclose(exec, u_hat_2_ax3, ref_u_hat_2_ax3));
+  SharedPlanType plan_2_2_ax203(exec, u_2, u_hat_2_ax203, ax203, topology2,
+                                topology2, MPI_COMM_WORLD);
+  plan_2_2_ax203.forward(u_2, u_hat_2_ax203);
+  EXPECT_TRUE(allclose(exec, u_hat_2_ax203, ref_u_hat_2_ax203));
 
-  plan_2_2_ax3.backward(u_hat_2_ax3, u_inv_2);
+  plan_2_2_ax203.backward(u_hat_2_ax203, u_inv_2);
   EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
 
   // topology3 (n0/p, n1, n2, n3) -> topology3 (n0/p, n1/2+1, n2, n3) axis {2,
   // 3, 1}
-  SharedPlanType plan_3_3_ax1(exec, u_3, u_hat_3_ax1, ax231, topology3,
-                              topology3, MPI_COMM_WORLD);
-  plan_3_3_ax1.forward(u_3, u_hat_3_ax1);
-  EXPECT_TRUE(allclose(exec, u_hat_3_ax1, ref_u_hat_3_ax1, 1.0e-5, 1.0e-6));
+  SharedPlanType plan_3_3_ax321(exec, u_3, u_hat_3_ax321, ax321, topology3,
+                                topology3, MPI_COMM_WORLD);
+  plan_3_3_ax321.forward(u_3, u_hat_3_ax321);
+  EXPECT_TRUE(allclose(exec, u_hat_3_ax321, ref_u_hat_3_ax321));
 
-  plan_3_3_ax1.backward(u_hat_3_ax1, u_inv_3);
+  plan_3_3_ax321.backward(u_hat_3_ax321, u_inv_3);
   EXPECT_TRUE(allclose(exec, u_inv_3, ref_u_inv_3, 1.0e-5, 1.0e-6));
 
   // topology3 (n0/p, n1, n2, n3) -> topology3 (n0/p, n1, n2/2+1, n3) axis {3,
   // 1, 2}
-  SharedPlanType plan_3_3_ax2(exec, u_3, u_hat_3_ax2, ax312, topology3,
-                              topology3, MPI_COMM_WORLD);
-  plan_3_3_ax2.forward(u_3, u_hat_3_ax2);
-  EXPECT_TRUE(allclose(exec, u_hat_3_ax2, ref_u_hat_3_ax2));
+  SharedPlanType plan_3_3_ax312(exec, u_3, u_hat_3_ax312, ax312, topology3,
+                                topology3, MPI_COMM_WORLD);
+  plan_3_3_ax312.forward(u_3, u_hat_3_ax312);
+  EXPECT_TRUE(allclose(exec, u_hat_3_ax312, ref_u_hat_3_ax312));
 
-  plan_3_3_ax2.backward(u_hat_3_ax2, u_inv_3);
+  plan_3_3_ax312.backward(u_hat_3_ax312, u_inv_3);
   EXPECT_TRUE(allclose(exec, u_inv_3, ref_u_inv_3, 1.0e-5, 1.0e-6));
 
   // topology3 (n0/p, n1, n2, n3) -> topology2 (n0/p, n1, n2, n3/2+1) axis {1,
   // 2, 3}
-  SharedPlanType plan_3_3_ax3(exec, u_3, u_hat_3_ax3, ax123, topology3,
-                              topology3, MPI_COMM_WORLD);
-  plan_3_3_ax3.forward(u_3, u_hat_3_ax3);
-  EXPECT_TRUE(allclose(exec, u_hat_3_ax3, ref_u_hat_3_ax3));
+  SharedPlanType plan_3_3_ax123(exec, u_3, u_hat_3_ax123, ax123, topology3,
+                                topology3, MPI_COMM_WORLD);
+  plan_3_3_ax123.forward(u_3, u_hat_3_ax123);
+  EXPECT_TRUE(allclose(exec, u_hat_3_ax123, ref_u_hat_3_ax123));
 
-  plan_3_3_ax3.backward(u_hat_3_ax3, u_inv_3);
+  plan_3_3_ax123.backward(u_hat_3_ax123, u_inv_3);
   EXPECT_TRUE(allclose(exec, u_inv_3, ref_u_inv_3, 1.0e-5, 1.0e-6));
 }
 
