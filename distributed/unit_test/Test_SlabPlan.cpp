@@ -3406,7 +3406,6 @@ TYPED_TEST_SUITE(TestSlab1D, test_types);
 TYPED_TEST_SUITE(TestSlab2D, test_types);
 TYPED_TEST_SUITE(TestSlab3D, test_types);
 
-/*
 TYPED_TEST(TestSlab1D, View2D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
@@ -3420,7 +3419,6 @@ TYPED_TEST(TestSlab1D, View3D) {
 
   test_slab1D_view3D<float_type, layout_type>(this->m_nprocs);
 }
-*/
 
 TYPED_TEST(TestSlab2D, View2D) {
   using float_type  = typename TestFixture::float_type;
@@ -3429,7 +3427,6 @@ TYPED_TEST(TestSlab2D, View2D) {
   test_slab2D_view2D<float_type, layout_type>(this->m_nprocs);
 }
 
-/*
 TYPED_TEST(TestSlab2D, View3D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
@@ -3450,4 +3447,3 @@ TYPED_TEST(TestSlab3D, View4D) {
 
   test_slab3D_view4D<float_type, layout_type>(this->m_nprocs);
 }
-*/
