@@ -3387,6 +3387,28 @@ void test_slab3D_view4D(std::size_t nprocs) {
     plan_0_0_ax213.backward(u_hat_0_ax213, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
+    // topo 0 -> topo 1 with ax = {0, 1, 2}:
+    // (n0, n1, n2, n3/p) -> (n0, n1, n2/2+1, n3/p) -> (n0, n1, n2/p, n3)
+    // FFT3 ax = {0, 1, 2} -> Transpose topo 1
+    SlabPlanType plan_0_1_ax012(exec, u_0, u_hat_1_ax012, ax012, topology0,
+                                topology1, MPI_COMM_WORLD);
+    plan_0_1_ax012.forward(u_0, u_hat_1_ax012);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+
+    plan_0_1_ax012.backward(u_hat_1_ax012, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo 1 -> topo 0 with ax = {0, 1, 2}:
+    // (n0, n1, n2/p, n3) -> (n0, n1, n2, n3/p) -> (n0, n1, n2/2+1, n3/p)
+    // Transpose topo 0 -> FFT3 ax = {0, 1, 2}
+    SlabPlanType plan_1_0_ax012(exec, u_1, u_hat_0_ax012, ax012, topology1,
+                                topology0, MPI_COMM_WORLD);
+    plan_1_0_ax012.forward(u_1, u_hat_0_ax012);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
+
+    plan_1_0_ax012.backward(u_hat_0_ax012, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+
     // topo 2 -> topo 1 with ax = {1, 2, 3}:
     // (n0, n1/p, n2, n3) -> (n0, n1/p, n2, n3/2+1) -> (n0, n1, n2/p, n3/2+1)
     // FFT2 ax = {2, 3} -> Transpose -> FFT ax = {1}

@@ -4158,10 +4158,15 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
 }
 
 void test_decompose_axes(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, 1, nprocs};
-  topology_type topology1 = {1, nprocs, 1};
-  topology_type topology2 = {nprocs, 1, 1};
+  using topology_type  = std::array<std::size_t, 3>;
+  using topology_type2 = std::array<std::size_t, 4>;
+
+  // 3D topologies
+  topology_type topology0 = {1, 1, nprocs}, topology1 = {1, nprocs, 1},
+                topology2 = {nprocs, 1, 1};
+
+  // 4D topologies
+  topology_type2 topology3 = {1, 1, 1, nprocs}, topology4 = {1, 1, nprocs, 1};
 
   using axes_type     = std::array<std::size_t, 3>;
   using vec_axes_type = std::vector<std::size_t>;
@@ -4181,6 +4186,8 @@ void test_decompose_axes(std::size_t nprocs) {
   std::vector<topology_type> topologies_1_2   = {topology1, topology2};
   std::vector<topology_type> topologies_2_0_2 = {topology2, topology0,
                                                  topology2};
+  std::vector<topology_type2> topologies_3_4  = {topology3, topology4},
+                              topologies_4_3  = {topology4, topology3};
 
   if (nprocs == 1) {
     for (const auto& axes : all_axes) {
@@ -4188,18 +4195,36 @@ void test_decompose_axes(std::size_t nprocs) {
       auto all_axes_0_2   = decompose_axes(topologies_0_2, axes);
       auto all_axes_1_2   = decompose_axes(topologies_1_2, axes);
       auto all_axes_2_0_2 = decompose_axes(topologies_2_0_2, axes);
+      auto all_axes_3_4   = decompose_axes(topologies_3_4, axes);
+      auto all_axes_4_3   = decompose_axes(topologies_4_3, axes);
       std::vector<vec_axes_type> ref_all_axes2 = {to_vector(axes), {}},
-                                 ref_all_axes3 = {to_vector(axes), {}, {}};
+                                 ref_all_axes3 = {to_vector(axes), {}, {}},
+                                 ref_all_axes4 = {to_vector(axes), {}};
       EXPECT_EQ(all_axes_0_1, ref_all_axes2);
       EXPECT_EQ(all_axes_0_2, ref_all_axes2);
       EXPECT_EQ(all_axes_1_2, ref_all_axes2);
       EXPECT_EQ(all_axes_2_0_2, ref_all_axes3);
+      EXPECT_EQ(all_axes_3_4, ref_all_axes4);
+      EXPECT_EQ(all_axes_4_3, ref_all_axes4);
     }
   } else {
-    auto all_axes_2_0_2 = decompose_axes(topologies_2_0_2, axes021);
-    std::vector<vec_axes_type> ref_all_axes_2_0_2 = {
-        vec_axes_type{2, 1}, vec_axes_type{0}, vec_axes_type{}};
+    auto all_axes_2_0_2     = decompose_axes(topologies_2_0_2, axes021);
+    auto all_axes_3_4       = decompose_axes(topologies_3_4, axes012);
+    auto all_axes_4_3_ax210 = decompose_axes(topologies_4_3, axes210);
+    auto all_axes_4_3_ax012 = decompose_axes(topologies_4_3, axes012);
+    std::vector<vec_axes_type> ref_all_axes_2_0_2     = {vec_axes_type{2, 1},
+                                                         vec_axes_type{0},
+                                                         vec_axes_type{}},
+                               ref_all_axes_3_4       = {vec_axes_type{0, 1, 2},
+                                                         vec_axes_type{}},
+                               ref_all_axes_4_3_ax210 = {vec_axes_type{1, 0},
+                                                         vec_axes_type{2}},
+                               ref_all_axes_4_3_ax012 = {
+                                   vec_axes_type{}, vec_axes_type{0, 1, 2}};
     EXPECT_EQ(all_axes_2_0_2, ref_all_axes_2_0_2);
+    EXPECT_EQ(all_axes_3_4, ref_all_axes_3_4);
+    EXPECT_EQ(all_axes_4_3_ax210, ref_all_axes_4_3_ax210);
+    EXPECT_EQ(all_axes_4_3_ax012, ref_all_axes_4_3_ax012);
   }
 }
 
