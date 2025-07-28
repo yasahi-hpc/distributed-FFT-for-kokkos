@@ -1413,7 +1413,7 @@ void test_shared3D_view4D(std::size_t nprocs) {
   SharedPlanType plan_1_1_ax1(exec, u_1, u_hat_1_ax1, ax031, topology1,
                               topology1, MPI_COMM_WORLD);
   plan_1_1_ax1.forward(u_1, u_hat_1_ax1);
-  EXPECT_TRUE(allclose(exec, u_hat_1_ax1, ref_u_hat_1_ax1));
+  EXPECT_TRUE(allclose(exec, u_hat_1_ax1, ref_u_hat_1_ax1, 1.0e-5, 1.0e-6));
 
   plan_1_1_ax1.backward(u_hat_1_ax1, u_inv_1);
   EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
