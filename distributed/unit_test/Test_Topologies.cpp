@@ -508,7 +508,7 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
         topology0, topology2, topology0};
     EXPECT_EQ(all_slab_topologies_0_0_ax12, ref_all_slab_topologies_0_0_ax12);
     std::vector<topology_type> ref_all_slab_topologies_0_0_ax20 = {
-        topology0, topology1, topology0};
+        topology0, topology2, topology0};
     EXPECT_EQ(all_slab_topologies_0_0_ax20, ref_all_slab_topologies_0_0_ax20);
     std::vector<topology_type> ref_all_slab_topologies_0_0_ax21 = {
         topology0, topology2, topology0};
@@ -543,8 +543,8 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
     std::vector<topology_type> ref_all_slab_topologies_0_1_ax20 = {topology0,
                                                                    topology1};
     EXPECT_EQ(all_slab_topologies_0_1_ax20, ref_all_slab_topologies_0_1_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax21 = {
-        topology0, topology2, topology1};
+    std::vector<topology_type> ref_all_slab_topologies_0_1_ax21 = {topology0,
+                                                                   topology1};
     EXPECT_EQ(all_slab_topologies_0_1_ax21, ref_all_slab_topologies_0_1_ax21);
 
     // topology0 (XY-slab) to topology2 (YZ-slab)
@@ -573,8 +573,8 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
     std::vector<topology_type> ref_all_slab_topologies_0_2_ax12 = {topology0,
                                                                    topology2};
     EXPECT_EQ(all_slab_topologies_0_2_ax12, ref_all_slab_topologies_0_2_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax20 = {
-        topology0, topology1, topology2};
+    std::vector<topology_type> ref_all_slab_topologies_0_2_ax20 = {topology0,
+                                                                   topology2};
     EXPECT_EQ(all_slab_topologies_0_2_ax20, ref_all_slab_topologies_0_2_ax20);
     std::vector<topology_type> ref_all_slab_topologies_0_2_ax21 = {topology0,
                                                                    topology2};
@@ -603,8 +603,8 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
     std::vector<topology_type> ref_all_slab_topologies_1_0_ax10 = {topology1,
                                                                    topology0};
     EXPECT_EQ(all_slab_topologies_1_0_ax10, ref_all_slab_topologies_1_0_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax12 = {
-        topology1, topology2, topology0};
+    std::vector<topology_type> ref_all_slab_topologies_1_0_ax12 = {topology1,
+                                                                   topology0};
     EXPECT_EQ(all_slab_topologies_1_0_ax12, ref_all_slab_topologies_1_0_ax12);
     std::vector<topology_type> ref_all_slab_topologies_1_0_ax20 = {topology1,
                                                                    topology0};
@@ -633,7 +633,7 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
     std::vector<topology_type> ref_all_slab_topologies_1_1_ax02 = {topology1};
     EXPECT_EQ(all_slab_topologies_1_1_ax02, ref_all_slab_topologies_1_1_ax02);
     std::vector<topology_type> ref_all_slab_topologies_1_1_ax10 = {
-        topology1, topology0, topology1};
+        topology1, topology2, topology1};
     EXPECT_EQ(all_slab_topologies_1_1_ax10, ref_all_slab_topologies_1_1_ax10);
     std::vector<topology_type> ref_all_slab_topologies_1_1_ax12 = {
         topology1, topology2, topology1};
@@ -664,8 +664,8 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
     std::vector<topology_type> ref_all_slab_topologies_1_2_ax02 = {topology1,
                                                                    topology2};
     EXPECT_EQ(all_slab_topologies_1_2_ax02, ref_all_slab_topologies_1_2_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax10 = {
-        topology1, topology0, topology2};
+    std::vector<topology_type> ref_all_slab_topologies_1_2_ax10 = {topology1,
+                                                                   topology2};
     EXPECT_EQ(all_slab_topologies_1_2_ax10, ref_all_slab_topologies_1_2_ax10);
     std::vector<topology_type> ref_all_slab_topologies_1_2_ax12 = {topology1,
                                                                    topology2};
@@ -694,8 +694,8 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
     std::vector<topology_type> ref_all_slab_topologies_2_0_ax01 = {topology2,
                                                                    topology0};
     EXPECT_EQ(all_slab_topologies_2_0_ax01, ref_all_slab_topologies_2_0_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax02 = {
-        topology2, topology1, topology0};
+    std::vector<topology_type> ref_all_slab_topologies_2_0_ax02 = {topology2,
+                                                                   topology0};
     EXPECT_EQ(all_slab_topologies_2_0_ax02, ref_all_slab_topologies_2_0_ax02);
     std::vector<topology_type> ref_all_slab_topologies_2_0_ax10 = {topology2,
                                                                    topology0};
@@ -724,8 +724,8 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
     auto all_slab_topologies_2_1_ax21 =
         get_all_slab_topologies(topology2, topology1, axes21);
 
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax01 = {
-        topology2, topology0, topology1};
+    std::vector<topology_type> ref_all_slab_topologies_2_1_ax01 = {topology2,
+                                                                   topology1};
     EXPECT_EQ(all_slab_topologies_2_1_ax01, ref_all_slab_topologies_2_1_ax01);
     std::vector<topology_type> ref_all_slab_topologies_2_1_ax02 = {topology2,
                                                                    topology1};
@@ -758,7 +758,7 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
         get_all_slab_topologies(topology2, topology2, axes21);
 
     std::vector<topology_type> ref_all_slab_topologies_2_2_ax01 = {
-        topology2, topology0, topology2};
+        topology2, topology1, topology2};
     EXPECT_EQ(all_slab_topologies_2_2_ax01, ref_all_slab_topologies_2_2_ax01);
     std::vector<topology_type> ref_all_slab_topologies_2_2_ax02 = {
         topology2, topology1, topology2};

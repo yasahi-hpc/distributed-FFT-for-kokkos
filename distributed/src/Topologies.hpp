@@ -495,13 +495,55 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
     topologies.push_back(out_topology);
 
     return topologies;
-  } else {
+  } else if constexpr (FFT_DIM == 1) {
     for (std::size_t i = 0; i < DIM; ++i) {
       if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
         auto p         = get_size(in_topology);
         topology.at(i) = p;
         topologies.push_back(topology);
         break;
+      }
+    }
+
+    if (topologies.back() == out_topology) return topologies;
+    topologies.push_back(out_topology);
+
+    return topologies;
+  } else {
+    // First, remove the already ready axes
+    std::reverse(axes_reversed.begin(), axes_reversed.end());
+
+    // Get axes ready for transform
+    std::vector<iType> ready_axes;
+    for (auto axis : axes_reversed) {
+      if (in_topology.at(axis) > 1) break;
+      ready_axes.push_back(axis);
+    }
+
+    for (auto axis : ready_axes) {
+      auto it = std::find(axes_reversed.begin(), axes_reversed.end(), axis);
+      if (it != axes_reversed.end()) {
+        axes_reversed.erase(it);
+      }
+    }
+
+    // test if output is ready
+    bool is_ready = true;
+    for (const auto& axis : axes_reversed) {
+      if (out_topology.at(axis) > 1) is_ready = false;
+    }
+    if (is_ready) {
+      topologies.push_back(out_topology);
+    } else {
+      // Need to find a new topology
+      auto p = get_size(in_topology);
+      topology.fill(1);
+      for (std::size_t i = 0; i < DIM; ++i) {
+        if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
+          topology.at(i) = p;
+          topologies.push_back(topology);
+          break;
+        }
       }
     }
 
