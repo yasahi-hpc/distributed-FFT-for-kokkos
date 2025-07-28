@@ -1280,10 +1280,12 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
                        "Number blocks must be in [1, 5]");
 
     // Allocate buffer views
-    m_send_buffer_allocation = AllocationViewType(
-        "send_buffer_allocation", m_block_analyses->m_max_buffer_size);
-    m_recv_buffer_allocation = AllocationViewType(
-        "recv_buffer_allocation", m_block_analyses->m_max_buffer_size);
+    std::size_t complex_alloc_size =
+        (m_block_analyses->m_max_buffer_size + 1) / 2;
+    m_send_buffer_allocation =
+        AllocationViewType("send_buffer_allocation", complex_alloc_size);
+    m_recv_buffer_allocation =
+        AllocationViewType("recv_buffer_allocation", complex_alloc_size);
 
     switch (m_op_type) {
       case OperationType::F: {
@@ -1568,15 +1570,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
             m_map_backward_in.at(i) = block3.m_out_map.at(i);
           }
         }
-
-        // In this case, input data needed to be transposed locally
-        // if (block0.m_in_map != src_map) {
-        //  for (std::size_t i = 0; i < DIM; ++i) {
-        //    m_map_forward_in.at(i) = block0.m_in_map.at(i);
-        //    m_map_backward_out.at(i) =
-        //        KokkosFFT::Impl::get_index(block0.m_in_map, i);
-        //  }
-        //}
         break;
       }
       case OperationType::FTFT: {

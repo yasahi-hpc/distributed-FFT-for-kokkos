@@ -60,20 +60,24 @@ struct TestSlab3D : public ::testing::Test {
 
 template <typename T, typename LayoutType>
 void test_slab1D_view2D(std::size_t nprocs) {
-  using RealView2DType = Kokkos::View<T**, LayoutType, execution_space>;
+  using View2DType = Kokkos::View<T**, LayoutType, execution_space>;
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView2DType =
-      Kokkos::View<Kokkos::complex<T>**, LayoutType, execution_space>;
+      Kokkos::View<Kokkos::complex<float_type>**, LayoutType, execution_space>;
   using axes_type     = KokkosFFT::axis_type<1>;
   using extents_type  = std::array<std::size_t, 2>;
   using topology_type = std::array<std::size_t, 2>;
+
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
 
   topology_type topology0{1, nprocs};
   topology_type topology1{nprocs, 1};
 
   const std::size_t n0 = 8, n1 = 7;
-  extents_type global_in_extents{n0, n1},
-      global_out_extents_ax0{n0 / 2 + 1, n1},
-      global_out_extents_ax1{n0, n1 / 2 + 1};
+  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
+                    n1h = get_r2c_shape(n1, is_R2C);
+  extents_type global_in_extents{n0, n1}, global_out_extents_ax0{n0h, n1},
+      global_out_extents_ax1{n0, n1h};
 
   auto [in_extents_t0, in_starts_t0] =
       get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
@@ -89,13 +93,13 @@ void test_slab1D_view2D(std::size_t nprocs) {
       get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
-  RealView2DType gu("gu", n0, n1), gu_inv("gu_inv", n0, n1);
-  ComplexView2DType gu_hat_ax0("gu_hat_ax0", n0 / 2 + 1, n1),
-      gu_hat_ax1("gu_hat_ax1", n0, n1 / 2 + 1);
+  View2DType gu("gu", n0, n1), gu_inv("gu_inv", n0, n1);
+  ComplexView2DType gu_hat_ax0("gu_hat_ax0", n0h, n1),
+      gu_hat_ax1("gu_hat_ax1", n0, n1h);
 
   // Data in Topology 0 (X-slab)
-  RealView2DType u_0("u_0",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
+  View2DType u_0("u_0",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       u_inv_0("u_inv_0",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       ref_u_inv_0("ref_u_inv_0",
@@ -113,8 +117,8 @@ void test_slab1D_view2D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax1));
 
   // Data in Topology 1 (Y-slab)
-  RealView2DType u_1("u_1",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
+  View2DType u_1("u_1",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       u_inv_1("u_inv_1",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       ref_u_inv_1("ref_u_inv_1",
@@ -136,8 +140,15 @@ void test_slab1D_view2D(std::size_t nprocs) {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
   Kokkos::fill_random(gu, random_pool, 1.0);
 
-  KokkosFFT::rfft(exec, gu, gu_hat_ax0, KokkosFFT::Normalization::backward, 0);
-  KokkosFFT::rfft(exec, gu, gu_hat_ax1, KokkosFFT::Normalization::backward, 1);
+  if constexpr (is_R2C) {
+    KokkosFFT::rfft(exec, gu, gu_hat_ax0, KokkosFFT::Normalization::backward,
+                    0);
+    KokkosFFT::rfft(exec, gu, gu_hat_ax1, KokkosFFT::Normalization::backward,
+                    1);
+  } else {
+    KokkosFFT::fft(exec, gu, gu_hat_ax0, KokkosFFT::Normalization::backward, 0);
+    KokkosFFT::fft(exec, gu, gu_hat_ax1, KokkosFFT::Normalization::backward, 1);
+  }
 
   // Topo 0
   Kokkos::pair<std::size_t, std::size_t> range_gu0(
@@ -188,7 +199,7 @@ void test_slab1D_view2D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_1, u_1);
 
   using SlabPlanType =
-      SlabPlan<execution_space, RealView2DType, ComplexView2DType, 1>;
+      SlabPlan<execution_space, View2DType, ComplexView2DType, 1>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -284,22 +295,26 @@ void test_slab1D_view2D(std::size_t nprocs) {
 
 template <typename T, typename LayoutType>
 void test_slab1D_view3D(std::size_t nprocs) {
-  using RealView3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView3DType =
-      Kokkos::View<Kokkos::complex<T>***, LayoutType, execution_space>;
+      Kokkos::View<Kokkos::complex<float_type>***, LayoutType, execution_space>;
   using axes_type     = KokkosFFT::axis_type<1>;
   using extents_type  = std::array<std::size_t, 3>;
   using topology_type = std::array<std::size_t, 3>;
 
-  topology_type topology0{1, 1, nprocs};
-  topology_type topology1{1, nprocs, 1};
-  topology_type topology2{nprocs, 1, 1};
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+
+  topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
+      topology2{nprocs, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
+                    n1h = get_r2c_shape(n1, is_R2C),
+                    n2h = get_r2c_shape(n2, is_R2C);
   extents_type global_in_extents{n0, n1, n2},
-      global_out_extents_ax0{n0 / 2 + 1, n1, n2},
-      global_out_extents_ax1{n0, n1 / 2 + 1, n2},
-      global_out_extents_ax2{n0, n1, n2 / 2 + 1};
+      global_out_extents_ax0{n0h, n1, n2}, global_out_extents_ax1{n0, n1h, n2},
+      global_out_extents_ax2{n0, n1, n2h};
 
   axes_type ax0 = {0}, ax1 = {1}, ax2 = {2};
 
@@ -334,14 +349,14 @@ void test_slab1D_view3D(std::size_t nprocs) {
       get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
-  RealView3DType gu("gu", n0, n1, n2);
-  ComplexView3DType gu_hat_ax0("gu_hat_ax0", n0 / 2 + 1, n1, n2),
-      gu_hat_ax1("gu_hat_ax1", n0, n1 / 2 + 1, n2),
-      gu_hat_ax2("gu_hat_ax2", n0, n1, n2 / 2 + 1);
+  View3DType gu("gu", n0, n1, n2);
+  ComplexView3DType gu_hat_ax0("gu_hat_ax0", n0h, n1, n2),
+      gu_hat_ax1("gu_hat_ax1", n0, n1h, n2),
+      gu_hat_ax2("gu_hat_ax2", n0, n1, n2h);
 
   // Data in Topology 0 (XY-slab)
-  RealView3DType u_0("u_0",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
+  View3DType u_0("u_0",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       u_inv_0("u_inv_0",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       ref_u_inv_0("ref_u_inv_0",
@@ -364,8 +379,8 @@ void test_slab1D_view3D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax2));
 
   // Data in Topology 1 (XZ-slab)
-  RealView3DType u_1("u_1",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
+  View3DType u_1("u_1",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       u_inv_1("u_inv_1",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       ref_u_inv_1("ref_u_inv_1",
@@ -388,8 +403,8 @@ void test_slab1D_view3D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax2));
 
   // Data in Topology 2 (YZ-slab)
-  RealView3DType u_2("u_2",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
+  View3DType u_2("u_2",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       u_inv_2("u_inv_2",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       ref_u_inv_2("ref_u_inv_2",
@@ -416,9 +431,18 @@ void test_slab1D_view3D(std::size_t nprocs) {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
   Kokkos::fill_random(gu, random_pool, 1.0);
 
-  KokkosFFT::rfft(exec, gu, gu_hat_ax0, KokkosFFT::Normalization::backward, 0);
-  KokkosFFT::rfft(exec, gu, gu_hat_ax1, KokkosFFT::Normalization::backward, 1);
-  KokkosFFT::rfft(exec, gu, gu_hat_ax2, KokkosFFT::Normalization::backward, 2);
+  if constexpr (is_R2C) {
+    KokkosFFT::rfft(exec, gu, gu_hat_ax0, KokkosFFT::Normalization::backward,
+                    0);
+    KokkosFFT::rfft(exec, gu, gu_hat_ax1, KokkosFFT::Normalization::backward,
+                    1);
+    KokkosFFT::rfft(exec, gu, gu_hat_ax2, KokkosFFT::Normalization::backward,
+                    2);
+  } else {
+    KokkosFFT::fft(exec, gu, gu_hat_ax0, KokkosFFT::Normalization::backward, 0);
+    KokkosFFT::fft(exec, gu, gu_hat_ax1, KokkosFFT::Normalization::backward, 1);
+    KokkosFFT::fft(exec, gu, gu_hat_ax2, KokkosFFT::Normalization::backward, 2);
+  }
 
   // Topo 0
   Kokkos::pair<std::size_t, std::size_t> range_gu0(
@@ -522,7 +546,7 @@ void test_slab1D_view3D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_2, u_2);
 
   using SlabPlanType =
-      SlabPlan<execution_space, RealView3DType, ComplexView3DType, 1>;
+      SlabPlan<execution_space, View3DType, ComplexView3DType, 1>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -694,20 +718,23 @@ void test_slab1D_view3D(std::size_t nprocs) {
 
 template <typename T, typename LayoutType>
 void test_slab2D_view2D(std::size_t nprocs) {
-  using RealView2DType = Kokkos::View<T**, LayoutType, execution_space>;
+  using View2DType = Kokkos::View<T**, LayoutType, execution_space>;
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView2DType =
-      Kokkos::View<Kokkos::complex<T>**, LayoutType, execution_space>;
+      Kokkos::View<Kokkos::complex<float_type>**, LayoutType, execution_space>;
   using axes_type     = KokkosFFT::axis_type<2>;
   using extents_type  = std::array<std::size_t, 2>;
   using topology_type = std::array<std::size_t, 2>;
 
-  topology_type topology0{1, nprocs};
-  topology_type topology1{nprocs, 1};
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+
+  topology_type topology0{1, nprocs}, topology1{nprocs, 1};
 
   const std::size_t n0 = 8, n1 = 7;
-  extents_type global_in_extents{n0, n1},
-      global_out_extents_ax0{n0 / 2 + 1, n1},
-      global_out_extents_ax1{n0, n1 / 2 + 1};
+  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
+                    n1h = get_r2c_shape(n1, is_R2C);
+  extents_type global_in_extents{n0, n1}, global_out_extents_ax0{n0h, n1},
+      global_out_extents_ax1{n0, n1h};
 
   // All axes
   axes_type ax01 = {0, 1}, ax10 = {1, 0};
@@ -726,13 +753,13 @@ void test_slab2D_view2D(std::size_t nprocs) {
       get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
-  RealView2DType gu("gu", n0, n1), gu_inv("gu_inv", n0, n1);
-  ComplexView2DType gu_hat_ax01("gu_hat_ax01", n0, n1 / 2 + 1),
-      gu_hat_ax10("gu_hat_ax10", n0 / 2 + 1, n1);
+  View2DType gu("gu", n0, n1), gu_inv("gu_inv", n0, n1);
+  ComplexView2DType gu_hat_ax01("gu_hat_ax01", n0, n1h),
+      gu_hat_ax10("gu_hat_ax10", n0h, n1);
 
   // Data in Topology 0 (X-slab)
-  RealView2DType u_0("u_0",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
+  View2DType u_0("u_0",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       u_inv_0("u_inv_0",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       ref_u_inv_0("ref_u_inv_0",
@@ -750,8 +777,8 @@ void test_slab2D_view2D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax0));
 
   // Data in Topology 1 (Y-slab)
-  RealView2DType u_1("u_1",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
+  View2DType u_1("u_1",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       u_inv_1("u_inv_1",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       ref_u_inv_1("ref_u_inv_1",
@@ -773,10 +800,17 @@ void test_slab2D_view2D(std::size_t nprocs) {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
   Kokkos::fill_random(gu, random_pool, 1.0);
 
-  KokkosFFT::rfft2(exec, gu, gu_hat_ax01, KokkosFFT::Normalization::backward,
-                   ax01);
-  KokkosFFT::rfft2(exec, gu, gu_hat_ax10, KokkosFFT::Normalization::backward,
-                   ax10);
+  if constexpr (is_R2C) {
+    KokkosFFT::rfft2(exec, gu, gu_hat_ax01, KokkosFFT::Normalization::backward,
+                     ax01);
+    KokkosFFT::rfft2(exec, gu, gu_hat_ax10, KokkosFFT::Normalization::backward,
+                     ax10);
+  } else {
+    KokkosFFT::fft2(exec, gu, gu_hat_ax01, KokkosFFT::Normalization::backward,
+                    ax01);
+    KokkosFFT::fft2(exec, gu, gu_hat_ax10, KokkosFFT::Normalization::backward,
+                    ax10);
+  }
 
   // Topo 0
   Kokkos::pair<std::size_t, std::size_t> range_gu0(
@@ -831,7 +865,7 @@ void test_slab2D_view2D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_1, u_1);
 
   using SlabPlanType =
-      SlabPlan<execution_space, RealView2DType, ComplexView2DType, 2>;
+      SlabPlan<execution_space, View2DType, ComplexView2DType, 2>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -956,22 +990,26 @@ void test_slab2D_view2D(std::size_t nprocs) {
 
 template <typename T, typename LayoutType>
 void test_slab2D_view3D(std::size_t nprocs) {
-  using RealView3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView3DType =
-      Kokkos::View<Kokkos::complex<T>***, LayoutType, execution_space>;
+      Kokkos::View<Kokkos::complex<float_type>***, LayoutType, execution_space>;
   using axes_type     = KokkosFFT::axis_type<2>;
   using extents_type  = std::array<std::size_t, 3>;
   using topology_type = std::array<std::size_t, 3>;
 
-  topology_type topology0{1, 1, nprocs};
-  topology_type topology1{1, nprocs, 1};
-  topology_type topology2{nprocs, 1, 1};
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+
+  topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
+      topology2{nprocs, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
+                    n1h = get_r2c_shape(n1, is_R2C),
+                    n2h = get_r2c_shape(n2, is_R2C);
   extents_type global_in_extents{n0, n1, n2},
-      global_out_extents_ax0{n0 / 2 + 1, n1, n2},
-      global_out_extents_ax1{n0, n1 / 2 + 1, n2},
-      global_out_extents_ax2{n0, n1, n2 / 2 + 1};
+      global_out_extents_ax0{n0h, n1, n2}, global_out_extents_ax1{n0, n1h, n2},
+      global_out_extents_ax2{n0, n1, n2h};
 
   // All axes
   axes_type ax01 = {0, 1}, ax02 = {0, 2}, ax10 = {1, 0}, ax12 = {1, 2},
@@ -1008,17 +1046,17 @@ void test_slab2D_view3D(std::size_t nprocs) {
       get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
-  RealView3DType gu("gu", n0, n1, n2);
-  ComplexView3DType gu_hat_ax01("gu_hat_ax01", n0, n1 / 2 + 1, n2),
-      gu_hat_ax02("gu_hat_ax02", n0, n1, n2 / 2 + 1),
-      gu_hat_ax10("gu_hat_ax10", n0 / 2 + 1, n1, n2),
-      gu_hat_ax12("gu_hat_ax12", n0, n1, n2 / 2 + 1),
-      gu_hat_ax20("gu_hat_ax20", n0 / 2 + 1, n1, n2),
-      gu_hat_ax21("gu_hat_ax21", n0, n1 / 2 + 1, n2);
+  View3DType gu("gu", n0, n1, n2);
+  ComplexView3DType gu_hat_ax01("gu_hat_ax01", n0, n1h, n2),
+      gu_hat_ax02("gu_hat_ax02", n0, n1, n2h),
+      gu_hat_ax10("gu_hat_ax10", n0h, n1, n2),
+      gu_hat_ax12("gu_hat_ax12", n0, n1, n2h),
+      gu_hat_ax20("gu_hat_ax20", n0h, n1, n2),
+      gu_hat_ax21("gu_hat_ax21", n0, n1h, n2);
 
   // Data in Topology 0 (XY-slab)
-  RealView3DType u_0("u_0",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
+  View3DType u_0("u_0",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       u_inv_0("u_inv_0",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       ref_u_inv_0("ref_u_inv_0",
@@ -1056,8 +1094,8 @@ void test_slab2D_view3D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax1));
 
   // Data in Topology 1 (XZ-slab)
-  RealView3DType u_1("u_1",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
+  View3DType u_1("u_1",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       u_inv_1("u_inv_1",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       ref_u_inv_1("ref_u_inv_1",
@@ -1095,8 +1133,8 @@ void test_slab2D_view3D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax1));
 
   // Data in Topology 2 (YZ-slab)
-  RealView3DType u_2("u_2",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
+  View3DType u_2("u_2",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       u_inv_2("u_inv_2",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       ref_u_inv_2("ref_u_inv_2",
@@ -1138,18 +1176,33 @@ void test_slab2D_view3D(std::size_t nprocs) {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
   Kokkos::fill_random(gu, random_pool, 1.0);
 
-  KokkosFFT::rfft2(exec, gu, gu_hat_ax01, KokkosFFT::Normalization::backward,
-                   axes_type{0, 1});
-  KokkosFFT::rfft2(exec, gu, gu_hat_ax02, KokkosFFT::Normalization::backward,
-                   axes_type{0, 2});
-  KokkosFFT::rfft2(exec, gu, gu_hat_ax10, KokkosFFT::Normalization::backward,
-                   axes_type{1, 0});
-  KokkosFFT::rfft2(exec, gu, gu_hat_ax12, KokkosFFT::Normalization::backward,
-                   axes_type{1, 2});
-  KokkosFFT::rfft2(exec, gu, gu_hat_ax20, KokkosFFT::Normalization::backward,
-                   axes_type{2, 0});
-  KokkosFFT::rfft2(exec, gu, gu_hat_ax21, KokkosFFT::Normalization::backward,
-                   axes_type{2, 1});
+  if constexpr (is_R2C) {
+    KokkosFFT::rfft2(exec, gu, gu_hat_ax01, KokkosFFT::Normalization::backward,
+                     axes_type{0, 1});
+    KokkosFFT::rfft2(exec, gu, gu_hat_ax02, KokkosFFT::Normalization::backward,
+                     axes_type{0, 2});
+    KokkosFFT::rfft2(exec, gu, gu_hat_ax10, KokkosFFT::Normalization::backward,
+                     axes_type{1, 0});
+    KokkosFFT::rfft2(exec, gu, gu_hat_ax12, KokkosFFT::Normalization::backward,
+                     axes_type{1, 2});
+    KokkosFFT::rfft2(exec, gu, gu_hat_ax20, KokkosFFT::Normalization::backward,
+                     axes_type{2, 0});
+    KokkosFFT::rfft2(exec, gu, gu_hat_ax21, KokkosFFT::Normalization::backward,
+                     axes_type{2, 1});
+  } else {
+    KokkosFFT::fft2(exec, gu, gu_hat_ax01, KokkosFFT::Normalization::backward,
+                    axes_type{0, 1});
+    KokkosFFT::fft2(exec, gu, gu_hat_ax02, KokkosFFT::Normalization::backward,
+                    axes_type{0, 2});
+    KokkosFFT::fft2(exec, gu, gu_hat_ax10, KokkosFFT::Normalization::backward,
+                    axes_type{1, 0});
+    KokkosFFT::fft2(exec, gu, gu_hat_ax12, KokkosFFT::Normalization::backward,
+                    axes_type{1, 2});
+    KokkosFFT::fft2(exec, gu, gu_hat_ax20, KokkosFFT::Normalization::backward,
+                    axes_type{2, 0});
+    KokkosFFT::fft2(exec, gu, gu_hat_ax21, KokkosFFT::Normalization::backward,
+                    axes_type{2, 1});
+  }
 
   // Topo 0
   Kokkos::pair<std::size_t, std::size_t> range_gu0(
@@ -1298,7 +1351,7 @@ void test_slab2D_view3D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_2, u_2);
 
   using SlabPlanType =
-      SlabPlan<execution_space, RealView3DType, ComplexView3DType, 2>;
+      SlabPlan<execution_space, View3DType, ComplexView3DType, 2>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -1970,22 +2023,26 @@ void test_slab2D_view3D(std::size_t nprocs) {
 
 template <typename T, typename LayoutType>
 void test_slab3D_view3D(std::size_t nprocs) {
-  using RealView3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView3DType =
-      Kokkos::View<Kokkos::complex<T>***, LayoutType, execution_space>;
+      Kokkos::View<Kokkos::complex<float_type>***, LayoutType, execution_space>;
   using axes_type     = KokkosFFT::axis_type<3>;
   using extents_type  = std::array<std::size_t, 3>;
   using topology_type = std::array<std::size_t, 3>;
 
-  topology_type topology0{1, 1, nprocs};
-  topology_type topology1{1, nprocs, 1};
-  topology_type topology2{nprocs, 1, 1};
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+
+  topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
+      topology2{nprocs, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
+                    n1h = get_r2c_shape(n1, is_R2C),
+                    n2h = get_r2c_shape(n2, is_R2C);
   extents_type global_in_extents{n0, n1, n2},
-      global_out_extents_ax0{n0 / 2 + 1, n1, n2},
-      global_out_extents_ax1{n0, n1 / 2 + 1, n2},
-      global_out_extents_ax2{n0, n1, n2 / 2 + 1};
+      global_out_extents_ax0{n0h, n1, n2}, global_out_extents_ax1{n0, n1h, n2},
+      global_out_extents_ax2{n0, n1, n2h};
 
   // All axes
   axes_type ax012 = {0, 1, 2}, ax021 = {0, 2, 1}, ax102 = {1, 0, 2},
@@ -2022,17 +2079,17 @@ void test_slab3D_view3D(std::size_t nprocs) {
       get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
-  RealView3DType gu("gu", n0, n1, n2);
-  ComplexView3DType gu_hat_ax012("gu_hat_ax012", n0, n1, n2 / 2 + 1),
-      gu_hat_ax021("gu_hat_ax021", n0, n1 / 2 + 1, n2),
-      gu_hat_ax102("gu_hat_ax102", n0, n1, n2 / 2 + 1),
-      gu_hat_ax120("gu_hat_ax120", n0 / 2 + 1, n1, n2),
-      gu_hat_ax201("gu_hat_ax201", n0, n1 / 2 + 1, n2),
-      gu_hat_ax210("gu_hat_ax210", n0 / 2 + 1, n1, n2);
+  View3DType gu("gu", n0, n1, n2);
+  ComplexView3DType gu_hat_ax012("gu_hat_ax012", n0, n1, n2h),
+      gu_hat_ax021("gu_hat_ax021", n0, n1h, n2),
+      gu_hat_ax102("gu_hat_ax102", n0, n1, n2h),
+      gu_hat_ax120("gu_hat_ax120", n0h, n1, n2),
+      gu_hat_ax201("gu_hat_ax201", n0, n1h, n2),
+      gu_hat_ax210("gu_hat_ax210", n0h, n1, n2);
 
   // Data in Topology 0 (XY-slab)
-  RealView3DType u_0("u_0",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
+  View3DType u_0("u_0",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       u_inv_0("u_inv_0",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       ref_u_inv_0("ref_u_inv_0",
@@ -2070,8 +2127,8 @@ void test_slab3D_view3D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax0));
 
   // Data in Topology 1 (XZ-slab)
-  RealView3DType u_1("u_1",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
+  View3DType u_1("u_1",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       u_inv_1("u_inv_1",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       ref_u_inv_1("ref_u_inv_1",
@@ -2109,8 +2166,8 @@ void test_slab3D_view3D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax0));
 
   // Data in Topology 2 (YZ-slab)
-  RealView3DType u_2("u_2",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
+  View3DType u_2("u_2",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       u_inv_2("u_inv_2",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       ref_u_inv_2("ref_u_inv_2",
@@ -2152,18 +2209,33 @@ void test_slab3D_view3D(std::size_t nprocs) {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
   Kokkos::fill_random(gu, random_pool, 1.0);
 
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax012, ax012,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax021, ax021,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax102, ax102,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax120, ax120,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax201, ax201,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax210, ax210,
-                   KokkosFFT::Normalization::backward);
+  if constexpr (is_R2C) {
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax012, ax012,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax021, ax021,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax102, ax102,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax120, ax120,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax201, ax201,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax210, ax210,
+                     KokkosFFT::Normalization::backward);
+  } else {
+    KokkosFFT::fftn(exec, gu, gu_hat_ax012, ax012,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax021, ax021,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax102, ax102,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax120, ax120,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax201, ax201,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax210, ax210,
+                    KokkosFFT::Normalization::backward);
+  }
 
   auto h_gu = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu);
   auto h_gu_hat_ax012 =
@@ -2372,7 +2444,7 @@ void test_slab3D_view3D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_2, u_2);
 
   using SlabPlanType =
-      SlabPlan<execution_space, RealView3DType, ComplexView3DType, 3>;
+      SlabPlan<execution_space, View3DType, ComplexView3DType, 3>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -2656,22 +2728,29 @@ void test_slab3D_view3D(std::size_t nprocs) {
 
 template <typename T, typename LayoutType>
 void test_slab3D_view4D(std::size_t nprocs) {
-  using RealView4DType = Kokkos::View<T****, LayoutType, execution_space>;
-  using ComplexView4DType =
-      Kokkos::View<Kokkos::complex<T>****, LayoutType, execution_space>;
-  using axes_type     = KokkosFFT::axis_type<3>;
-  using extents_type  = std::array<std::size_t, 4>;
-  using topology_type = std::array<std::size_t, 4>;
+  using View4DType        = Kokkos::View<T****, LayoutType, execution_space>;
+  using float_type        = KokkosFFT::Impl::base_floating_point_type<T>;
+  using ComplexView4DType = Kokkos::View<Kokkos::complex<float_type>****,
+                                         LayoutType, execution_space>;
+  using axes_type         = KokkosFFT::axis_type<3>;
+  using extents_type      = std::array<std::size_t, 4>;
+  using topology_type     = std::array<std::size_t, 4>;
+
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
 
   topology_type topology0{1, 1, 1, nprocs}, topology1{1, 1, nprocs, 1},
       topology2{1, nprocs, 1, 1}, topology3{nprocs, 1, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5, n3 = 6;
+  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
+                    n1h = get_r2c_shape(n1, is_R2C),
+                    n2h = get_r2c_shape(n2, is_R2C),
+                    n3h = get_r2c_shape(n3, is_R2C);
   extents_type global_in_extents{n0, n1, n2, n3},
-      global_out_extents_ax0{n0 / 2 + 1, n1, n2, n3},
-      global_out_extents_ax1{n0, n1 / 2 + 1, n2, n3},
-      global_out_extents_ax2{n0, n1, n2 / 2 + 1, n3},
-      global_out_extents_ax3{n0, n1, n2, n3 / 2 + 1};
+      global_out_extents_ax0{n0h, n1, n2, n3},
+      global_out_extents_ax1{n0, n1h, n2, n3},
+      global_out_extents_ax2{n0, n1, n2h, n3},
+      global_out_extents_ax3{n0, n1, n2, n3h};
 
   // All axes
   axes_type ax012 = {0, 1, 2}, ax021 = {0, 2, 1}, ax102 = {1, 0, 2},
@@ -2720,20 +2799,20 @@ void test_slab3D_view4D(std::size_t nprocs) {
       get_local_extents(global_out_extents_ax3, topology3, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
-  RealView4DType gu("gu", n0, n1, n2, n3);
-  ComplexView4DType gu_hat_ax012("gu_hat_ax012", n0, n1, n2 / 2 + 1, n3),
-      gu_hat_ax021("gu_hat_ax021", n0, n1 / 2 + 1, n2, n3),
-      gu_hat_ax102("gu_hat_ax102", n0, n1, n2 / 2 + 1, n3),
-      gu_hat_ax120("gu_hat_ax120", n0 / 2 + 1, n1, n2, n3),
-      gu_hat_ax201("gu_hat_ax201", n0, n1 / 2 + 1, n2, n3),
-      gu_hat_ax210("gu_hat_ax210", n0 / 2 + 1, n1, n2, n3),
-      gu_hat_ax123("gu_hat_ax123", n0, n1, n2, n3 / 2 + 1),
-      gu_hat_ax132("gu_hat_ax132", n0, n1, n2 / 2 + 1, n3),
-      gu_hat_ax213("gu_hat_ax213", n0, n1, n2, n3 / 2 + 1);
+  View4DType gu("gu", n0, n1, n2, n3);
+  ComplexView4DType gu_hat_ax012("gu_hat_ax012", n0, n1, n2h, n3),
+      gu_hat_ax021("gu_hat_ax021", n0, n1h, n2, n3),
+      gu_hat_ax102("gu_hat_ax102", n0, n1, n2h, n3),
+      gu_hat_ax120("gu_hat_ax120", n0h, n1, n2, n3),
+      gu_hat_ax201("gu_hat_ax201", n0, n1h, n2, n3),
+      gu_hat_ax210("gu_hat_ax210", n0h, n1, n2, n3),
+      gu_hat_ax123("gu_hat_ax123", n0, n1, n2, n3h),
+      gu_hat_ax132("gu_hat_ax132", n0, n1, n2h, n3),
+      gu_hat_ax213("gu_hat_ax213", n0, n1, n2, n3h);
 
   // Data in Topology 0 (XYZ-slab)
-  RealView4DType u_0("u_0",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
+  View4DType u_0("u_0",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       u_inv_0("u_inv_0",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       ref_u_inv_0("ref_u_inv_0",
@@ -2786,8 +2865,8 @@ void test_slab3D_view4D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t0_ax3));
 
   // Data in Topology 1 (XYW-slab)
-  RealView4DType u_1("u_1",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
+  View4DType u_1("u_1",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       u_inv_1("u_inv_1",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t1)),
       ref_u_inv_1("ref_u_inv_1",
@@ -2840,8 +2919,8 @@ void test_slab3D_view4D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t1_ax3));
 
   // Data in Topology 2 (XZW-slab)
-  RealView4DType u_2("u_2",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
+  View4DType u_2("u_2",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       u_inv_2("u_inv_2",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t2)),
       ref_u_inv_2("ref_u_inv_2",
@@ -2894,8 +2973,8 @@ void test_slab3D_view4D(std::size_t nprocs) {
           KokkosFFT::Impl::create_layout<LayoutType>(out_extents_t2_ax3));
 
   // Data in Topology 3 (YZW-slab)
-  RealView4DType u_3("u_3",
-                     KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t3)),
+  View4DType u_3("u_3",
+                 KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t3)),
       u_inv_3("u_inv_3",
               KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t3)),
       ref_u_inv_3("ref_u_inv_3",
@@ -2953,24 +3032,45 @@ void test_slab3D_view4D(std::size_t nprocs) {
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed*/ 12345);
   Kokkos::fill_random(gu, random_pool, 1.0);
 
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax012, ax012,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax021, ax021,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax102, ax102,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax120, ax120,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax201, ax201,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax210, ax210,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax123, ax123,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax132, ax132,
-                   KokkosFFT::Normalization::backward);
-  KokkosFFT::rfftn(exec, gu, gu_hat_ax213, ax213,
-                   KokkosFFT::Normalization::backward);
+  if constexpr (is_R2C) {
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax012, ax012,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax021, ax021,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax102, ax102,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax120, ax120,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax201, ax201,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax210, ax210,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax123, ax123,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax132, ax132,
+                     KokkosFFT::Normalization::backward);
+    KokkosFFT::rfftn(exec, gu, gu_hat_ax213, ax213,
+                     KokkosFFT::Normalization::backward);
+  } else {
+    KokkosFFT::fftn(exec, gu, gu_hat_ax012, ax012,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax021, ax021,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax102, ax102,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax120, ax120,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax201, ax201,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax210, ax210,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax123, ax123,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax132, ax132,
+                    KokkosFFT::Normalization::backward);
+    KokkosFFT::fftn(exec, gu, gu_hat_ax213, ax213,
+                    KokkosFFT::Normalization::backward);
+  }
 
   // Topo 0
   Kokkos::pair<std::size_t, std::size_t> range_gu0(
@@ -3243,7 +3343,7 @@ void test_slab3D_view4D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_hat_3_ax213, sub_gu_hat_3_ax213);
 
   using SlabPlanType =
-      SlabPlan<execution_space, RealView4DType, ComplexView4DType, 3>;
+      SlabPlan<execution_space, View4DType, ComplexView4DType, 3>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -3357,7 +3457,8 @@ void test_slab3D_view4D(std::size_t nprocs) {
     SlabPlanType plan_0_0_ax123(exec, u_0, u_hat_0_ax123, ax123, topology0,
                                 topology0, MPI_COMM_WORLD);
     plan_0_0_ax123.forward(u_0, u_hat_0_ax123);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax123, ref_u_hat_0_ax123));
+    EXPECT_TRUE(
+        allclose(exec, u_hat_0_ax123, ref_u_hat_0_ax123, 1.0e-5, 1.0e-5));
 
     plan_0_0_ax123.backward(u_hat_0_ax123, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
@@ -3382,7 +3483,8 @@ void test_slab3D_view4D(std::size_t nprocs) {
     SlabPlanType plan_0_0_ax213(exec, u_0, u_hat_0_ax213, ax213, topology0,
                                 topology0, MPI_COMM_WORLD);
     plan_0_0_ax213.forward(u_0, u_hat_0_ax213);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax213, ref_u_hat_0_ax213));
+    EXPECT_TRUE(
+        allclose(exec, u_hat_0_ax213, ref_u_hat_0_ax213, 1.0e-5, 1.0e-6));
 
     plan_0_0_ax213.backward(u_hat_0_ax213, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
@@ -3415,7 +3517,8 @@ void test_slab3D_view4D(std::size_t nprocs) {
     SlabPlanType plan_2_1_ax123(exec, u_2, u_hat_1_ax123, ax123, topology2,
                                 topology1, MPI_COMM_WORLD);
     plan_2_1_ax123.forward(u_2, u_hat_1_ax123);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax123, ref_u_hat_1_ax123));
+    EXPECT_TRUE(
+        allclose(exec, u_hat_1_ax123, ref_u_hat_1_ax123, 1.0e-5, 1.0e-5));
 
     plan_2_1_ax123.backward(u_hat_1_ax123, u_inv_2);
     EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
@@ -3428,44 +3531,92 @@ TYPED_TEST_SUITE(TestSlab1D, test_types);
 TYPED_TEST_SUITE(TestSlab2D, test_types);
 TYPED_TEST_SUITE(TestSlab3D, test_types);
 
-TYPED_TEST(TestSlab1D, View2D) {
+TYPED_TEST(TestSlab1D, View2D_R2C) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
   test_slab1D_view2D<float_type, layout_type>(this->m_nprocs);
 }
 
-TYPED_TEST(TestSlab1D, View3D) {
+TYPED_TEST(TestSlab1D, View2D_C2C) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  test_slab1D_view2D<complex_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestSlab1D, View3D_R2C) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
   test_slab1D_view3D<float_type, layout_type>(this->m_nprocs);
 }
 
-TYPED_TEST(TestSlab2D, View2D) {
+TYPED_TEST(TestSlab1D, View3D_C2C) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  test_slab1D_view3D<complex_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestSlab2D, View2D_R2C) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
   test_slab2D_view2D<float_type, layout_type>(this->m_nprocs);
 }
 
-TYPED_TEST(TestSlab2D, View3D) {
+TYPED_TEST(TestSlab2D, View2D_C2C) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  test_slab2D_view2D<complex_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestSlab2D, View3D_R2C) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
   test_slab2D_view3D<float_type, layout_type>(this->m_nprocs);
 }
 
-TYPED_TEST(TestSlab3D, View3D) {
+TYPED_TEST(TestSlab2D, View3D_C2C) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  test_slab2D_view3D<complex_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestSlab3D, View3D_R2C) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
   test_slab3D_view3D<float_type, layout_type>(this->m_nprocs);
 }
 
-TYPED_TEST(TestSlab3D, View4D) {
+TYPED_TEST(TestSlab3D, View3D_C2C) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  test_slab3D_view3D<complex_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestSlab3D, View4D_R2C) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
   test_slab3D_view4D<float_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestSlab3D, View4D_C2C) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  test_slab3D_view4D<complex_type, layout_type>(this->m_nprocs);
 }
