@@ -71,7 +71,9 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
             -DCMAKE_CXX_COMPILER=${{ matrix.backend.compiler.cxx }} \
             ${{ matrix.backend.cmake_flags.kokkos }} \
-            ${{ matrix.backend.cmake_flags.kokkos_fft }}
+            ${{ matrix.backend.cmake_flags.kokkos_fft }} \
+            -DENABLE_TESTS=ON \
+            -DENABLE_EXAMPLES=ON
 
       - name: Build
         run: |
