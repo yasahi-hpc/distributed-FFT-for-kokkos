@@ -300,6 +300,53 @@ auto get_mapped_axes(const std::array<std::size_t, DIM>& axes,
   return mapped_axes;
 }
 
+/// \brief Get the larger extents. Larger one corresponds to
+/// the extents to FFT library. This is a helper for vendor library
+/// which supports 2D or 3D non-batched FFTs.
+///
+/// Example
+/// in extents: (8, 7, 8)
+/// out extents: (8, 7, 5)
+///
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] in_extents Extents of the global input View.
+/// \param[in] out_extents Extents of the global output View.
+/// \return A extents of the permuted view
+template <std::size_t DIM>
+auto get_fft_extents(const std::array<std::size_t, DIM>& in_extents,
+                     const std::array<std::size_t, DIM>& out_extents,
+                     const std::array<std::size_t, DIM>& axes) {
+  std::array<std::size_t, DIM> fft_extents;
+
+  for (std::size_t i = 0; i < fft_extents.size(); i++) {
+    std::size_t axis  = axes.at(i);
+    fft_extents.at(i) = std::max(in_extents.at(axis), out_extents.at(axis));
+  }
+
+  return fft_extents;
+}
+
+/// \brief Get padded extents from the extents in Fourier space
+///
+/// Example
+/// in extents: (8, 7, 8)
+/// out extents: (8, 7, 5)
+///
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] in_extents Extents of the global input View.
+/// \param[in] out_extents Extents of the global output View.
+/// \return A extents of the permuted view
+template <std::size_t DIM>
+auto get_padded_extents(const std::array<std::size_t, DIM>& extents) {
+  std::array<std::size_t, DIM> padded_extents = extents;
+  // auto last_axis = axes.back();
+  padded_extents.back() = padded_extents.back() * 2;
+
+  return padded_extents;
+}
+
 /// \brief Calculate the permuted axes based on the map
 ///
 /// Example

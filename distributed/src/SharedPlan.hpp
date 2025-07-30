@@ -18,9 +18,9 @@ class SharedPlan
       KokkosFFT::Plan<ExecutionSpace, OutViewType, InViewType, DIM>;
   FFTForwardPlanType m_forward_plan;
   FFTBackwardPlanType m_backward_plan;
-  KokkosFFT::Normalization m_norm;
 
   using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::get_norm;
 
  public:
   explicit SharedPlan(
@@ -34,8 +34,7 @@ class SharedPlan
         m_forward_plan(exec_space, in, out, KokkosFFT::Direction::forward,
                        axes),
         m_backward_plan(exec_space, out, in, KokkosFFT::Direction::backward,
-                        axes),
-        m_norm(norm) {
+                        axes) {
     KOKKOSFFT_THROW_IF(in_topology != out_topology,
                        "in_topology must be identical to out_topology.");
     for (auto axis : axes) {
@@ -48,13 +47,15 @@ class SharedPlan
 
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
-    KokkosFFT::execute(m_forward_plan, in, out, m_norm);
+    KokkosFFT::execute(m_forward_plan, in, out, get_norm());
   }
 
   void backward(const OutViewType& out, const InViewType& in) const override {
     good(in, out);
-    KokkosFFT::execute(m_backward_plan, out, in, m_norm);
+    KokkosFFT::execute(m_backward_plan, out, in, get_norm());
   }
+
+  std::string get_label() const { return std::string("SharedPlan"); }
 };
 
 #endif
