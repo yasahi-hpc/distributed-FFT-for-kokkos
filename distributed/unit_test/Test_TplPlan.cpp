@@ -115,14 +115,14 @@ void test_tpl1D_is_available(std::size_t nprocs) {
   // For 1D transform, this is not supported by tpls
   execution_space exec;
 
-  bool is_available_0_0_ax0 = is_tpl_available (exec, u_0,
-    u_hat_0_ax0, ax0, topology0, topology0);
-  bool is_available_0_0_ax1 = is_tpl_available (exec, u_0,
-    u_hat_0_ax1, ax1, topology0, topology0);
-  bool is_available_1_0_ax0 = is_tpl_available (exec, u_1,
-    u_hat_1_ax0, ax0, topology1, topology1);
-  bool is_available_1_0_ax1 = is_tpl_available (exec, u_1,
-    u_hat_1_ax1, ax1, topology1, topology1);
+  bool is_available_0_0_ax0 =
+      is_tpl_available(exec, u_0, u_hat_0_ax0, ax0, topology0, topology0);
+  bool is_available_0_0_ax1 =
+      is_tpl_available(exec, u_0, u_hat_0_ax1, ax1, topology0, topology0);
+  bool is_available_1_0_ax0 =
+      is_tpl_available(exec, u_1, u_hat_1_ax0, ax0, topology1, topology1);
+  bool is_available_1_0_ax1 =
+      is_tpl_available(exec, u_1, u_hat_1_ax1, ax1, topology1, topology1);
 
   EXPECT_FALSE(is_available_0_0_ax0);
   EXPECT_FALSE(is_available_0_0_ax1);
@@ -187,14 +187,14 @@ void test_tpl2D_is_available_View2D(std::size_t nprocs) {
   // Check availability
   // These 2D transforms on 2D Views are fully supported
   execution_space exec;
-  bool is_available_0_0_ax01 = is_tpl_available (exec, u_0,
-    u_hat_0_ax0, ax01, topology0, topology0);
-  bool is_available_0_0_ax10 = is_tpl_available (exec, u_0,
-    u_hat_0_ax1, ax10, topology0, topology0);
-  bool is_available_1_0_ax01 = is_tpl_available (exec, u_1,
-    u_hat_1_ax0, ax01, topology1, topology1);
-  bool is_available_1_0_ax10 = is_tpl_available (exec, u_1,
-    u_hat_1_ax1, ax10, topology1, topology1);
+  bool is_available_0_0_ax01 =
+      is_tpl_available(exec, u_0, u_hat_0_ax0, ax01, topology0, topology0);
+  bool is_available_0_0_ax10 =
+      is_tpl_available(exec, u_0, u_hat_0_ax1, ax10, topology0, topology0);
+  bool is_available_1_0_ax01 =
+      is_tpl_available(exec, u_1, u_hat_1_ax0, ax01, topology1, topology1);
+  bool is_available_1_0_ax10 =
+      is_tpl_available(exec, u_1, u_hat_1_ax1, ax10, topology1, topology1);
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -226,16 +226,16 @@ void test_tpl2D_is_available_View3D(std::size_t nprocs) {
 
   // 3D Topologies
   topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
-  topology2{nprocs, 1, 1};
+      topology2{nprocs, 1, 1};
 
   axes_type ax01 = {0, 1}, ax02 = {0, 2}, ax10 = {1, 0}, ax12 = {1, 2},
             ax20 = {2, 0}, ax21 = {2, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
   extents_type global_in_extents{n0, n1, n2},
-        global_out_extents_ax0{n0 / 2 + 1, n1, n2},
-        global_out_extents_ax1{n0, n1 / 2 + 1, n2},
-        global_out_extents_ax2{n0, n1, n2 / 2 + 1};
+      global_out_extents_ax0{n0 / 2 + 1, n1, n2},
+      global_out_extents_ax1{n0, n1 / 2 + 1, n2},
+      global_out_extents_ax2{n0, n1, n2 / 2 + 1};
 
   auto [in_extents_t0, in_starts_t0] =
       get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
@@ -332,31 +332,31 @@ void test_tpl2D_is_available_View3D(std::size_t nprocs) {
   // These 2D transforms on 3D+ Views are not supported
   execution_space exec;
 
-  bool is_available_0_0_ax01 = is_tpl_available (exec, u_0,
-    u_hat_0_ax01, ax01, topology0, topology0);
-  bool is_available_0_0_ax02 = is_tpl_available (exec, u_0,
-    u_hat_0_ax02, ax02, topology0, topology0);
-  bool is_available_0_0_ax10 = is_tpl_available (exec, u_0,
-    u_hat_0_ax10, ax10, topology0, topology0);
-  bool is_available_0_0_ax12 = is_tpl_available (exec, u_0,
-    u_hat_0_ax12, ax12, topology0, topology0);
-  bool is_available_0_0_ax20 = is_tpl_available (exec, u_0,
-    u_hat_0_ax20, ax20, topology0, topology0);
-  bool is_available_0_0_ax21 = is_tpl_available (exec, u_0,
-    u_hat_0_ax21, ax21, topology0, topology0);
+  bool is_available_0_0_ax01 =
+      is_tpl_available(exec, u_0, u_hat_0_ax01, ax01, topology0, topology0);
+  bool is_available_0_0_ax02 =
+      is_tpl_available(exec, u_0, u_hat_0_ax02, ax02, topology0, topology0);
+  bool is_available_0_0_ax10 =
+      is_tpl_available(exec, u_0, u_hat_0_ax10, ax10, topology0, topology0);
+  bool is_available_0_0_ax12 =
+      is_tpl_available(exec, u_0, u_hat_0_ax12, ax12, topology0, topology0);
+  bool is_available_0_0_ax20 =
+      is_tpl_available(exec, u_0, u_hat_0_ax20, ax20, topology0, topology0);
+  bool is_available_0_0_ax21 =
+      is_tpl_available(exec, u_0, u_hat_0_ax21, ax21, topology0, topology0);
 
-  bool is_available_0_1_ax01 = is_tpl_available (exec, u_0,
-    u_hat_0_ax01, ax01, topology0, topology1);
-  bool is_available_0_1_ax02 = is_tpl_available (exec, u_0,
-    u_hat_0_ax02, ax02, topology0, topology1);
-  bool is_available_0_1_ax10 = is_tpl_available (exec, u_0,
-    u_hat_0_ax10, ax10, topology0, topology1);
-  bool is_available_0_1_ax12 = is_tpl_available (exec, u_0,
-    u_hat_0_ax12, ax12, topology0, topology1);
-  bool is_available_0_1_ax20 = is_tpl_available (exec, u_0,
-    u_hat_0_ax20, ax20, topology0, topology1);
-  bool is_available_0_1_ax21 = is_tpl_available (exec, u_0,
-    u_hat_0_ax21, ax21, topology0, topology1);
+  bool is_available_0_1_ax01 =
+      is_tpl_available(exec, u_0, u_hat_0_ax01, ax01, topology0, topology1);
+  bool is_available_0_1_ax02 =
+      is_tpl_available(exec, u_0, u_hat_0_ax02, ax02, topology0, topology1);
+  bool is_available_0_1_ax10 =
+      is_tpl_available(exec, u_0, u_hat_0_ax10, ax10, topology0, topology1);
+  bool is_available_0_1_ax12 =
+      is_tpl_available(exec, u_0, u_hat_0_ax12, ax12, topology0, topology1);
+  bool is_available_0_1_ax20 =
+      is_tpl_available(exec, u_0, u_hat_0_ax20, ax20, topology0, topology1);
+  bool is_available_0_1_ax21 =
+      is_tpl_available(exec, u_0, u_hat_0_ax21, ax21, topology0, topology1);
 
   EXPECT_FALSE(is_available_0_0_ax01);
   EXPECT_FALSE(is_available_0_0_ax02);
@@ -389,16 +389,16 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
 
   // 3D Topologies
   topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
-  topology2{nprocs, 1, 1};
+      topology2{nprocs, 1, 1};
 
   axes_type ax012 = {0, 1, 2}, ax021 = {0, 2, 1}, ax102 = {1, 0, 2},
             ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
   extents_type global_in_extents{n0, n1, n2},
-        global_out_extents_ax0{n0 / 2 + 1, n1, n2},
-        global_out_extents_ax1{n0, n1 / 2 + 1, n2},
-        global_out_extents_ax2{n0, n1, n2 / 2 + 1};
+      global_out_extents_ax0{n0 / 2 + 1, n1, n2},
+      global_out_extents_ax1{n0, n1 / 2 + 1, n2},
+      global_out_extents_ax2{n0, n1, n2 / 2 + 1};
 
   auto [in_extents_t0, in_starts_t0] =
       get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
@@ -495,31 +495,31 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
   // These 3D transforms on 3D+ Views are not supported
   execution_space exec;
 
-  bool is_available_0_0_ax012 = is_tpl_available (exec, u_0,
-    u_hat_0_ax012, ax012, topology0, topology0);
-  bool is_available_0_0_ax021 = is_tpl_available (exec, u_0,
-    u_hat_0_ax021, ax021, topology0, topology0);
-  bool is_available_0_0_ax102 = is_tpl_available (exec, u_0,
-    u_hat_0_ax102, ax102, topology0, topology0);
-  bool is_available_0_0_ax120 = is_tpl_available (exec, u_0,
-    u_hat_0_ax120, ax120, topology0, topology0);
-  bool is_available_0_0_ax201 = is_tpl_available (exec, u_0,
-    u_hat_0_ax201, ax201, topology0, topology0);
-  bool is_available_0_0_ax210 = is_tpl_available (exec, u_0,
-    u_hat_0_ax210, ax210, topology0, topology0);
+  bool is_available_0_0_ax012 =
+      is_tpl_available(exec, u_0, u_hat_0_ax012, ax012, topology0, topology0);
+  bool is_available_0_0_ax021 =
+      is_tpl_available(exec, u_0, u_hat_0_ax021, ax021, topology0, topology0);
+  bool is_available_0_0_ax102 =
+      is_tpl_available(exec, u_0, u_hat_0_ax102, ax102, topology0, topology0);
+  bool is_available_0_0_ax120 =
+      is_tpl_available(exec, u_0, u_hat_0_ax120, ax120, topology0, topology0);
+  bool is_available_0_0_ax201 =
+      is_tpl_available(exec, u_0, u_hat_0_ax201, ax201, topology0, topology0);
+  bool is_available_0_0_ax210 =
+      is_tpl_available(exec, u_0, u_hat_0_ax210, ax210, topology0, topology0);
 
-  bool is_available_0_1_ax012 = is_tpl_available (exec, u_0,
-    u_hat_0_ax012, ax012, topology0, topology1);
-  bool is_available_0_1_ax021 = is_tpl_available (exec, u_0,
-    u_hat_0_ax021, ax021, topology0, topology1);
-  bool is_available_0_1_ax102 = is_tpl_available (exec, u_0,
-    u_hat_0_ax102, ax102, topology0, topology1);
-  bool is_available_0_1_ax120 = is_tpl_available (exec, u_0,
-    u_hat_0_ax120, ax120, topology0, topology1);
-  bool is_available_0_1_ax201 = is_tpl_available (exec, u_0,
-    u_hat_0_ax201, ax201, topology0, topology1);
-  bool is_available_0_1_ax210 = is_tpl_available (exec, u_0,
-    u_hat_0_ax210, ax210, topology0, topology1);
+  bool is_available_0_1_ax012 =
+      is_tpl_available(exec, u_0, u_hat_0_ax012, ax012, topology0, topology1);
+  bool is_available_0_1_ax021 =
+      is_tpl_available(exec, u_0, u_hat_0_ax021, ax021, topology0, topology1);
+  bool is_available_0_1_ax102 =
+      is_tpl_available(exec, u_0, u_hat_0_ax102, ax102, topology0, topology1);
+  bool is_available_0_1_ax120 =
+      is_tpl_available(exec, u_0, u_hat_0_ax120, ax120, topology0, topology1);
+  bool is_available_0_1_ax201 =
+      is_tpl_available(exec, u_0, u_hat_0_ax201, ax201, topology0, topology1);
+  bool is_available_0_1_ax210 =
+      is_tpl_available(exec, u_0, u_hat_0_ax210, ax210, topology0, topology1);
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -529,7 +529,7 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
     EXPECT_FALSE(is_available_0_0_ax120);
     EXPECT_FALSE(is_available_0_0_ax201);
     EXPECT_FALSE(is_available_0_0_ax210);
-  
+
     EXPECT_FALSE(is_available_0_1_ax012);
     EXPECT_FALSE(is_available_0_1_ax021);
     EXPECT_FALSE(is_available_0_1_ax102);
@@ -543,13 +543,13 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
     EXPECT_TRUE(is_available_0_0_ax120);
     EXPECT_TRUE(is_available_0_0_ax201);
     EXPECT_TRUE(is_available_0_0_ax210);
-  
+
     EXPECT_TRUE(is_available_0_1_ax012);
     EXPECT_TRUE(is_available_0_1_ax021);
     EXPECT_TRUE(is_available_0_1_ax102);
     EXPECT_TRUE(is_available_0_1_ax120);
     EXPECT_TRUE(is_available_0_1_ax201);
-    EXPECT_TRUE(is_available_0_1_ax210);    
+    EXPECT_TRUE(is_available_0_1_ax210);
   }
 }
 
@@ -561,7 +561,7 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
 template <typename T, typename LayoutType>
 void test_tpl2D_execute_View2D(std::size_t nprocs) {
   using View2DType = Kokkos::View<T**, LayoutType, execution_space>;
-  using float_type        = KokkosFFT::Impl::base_floating_point_type<T>;
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView2DType =
       Kokkos::View<Kokkos::complex<float_type>**, LayoutType, execution_space>;
   using axes_type     = KokkosFFT::axis_type<2>;
@@ -577,8 +577,7 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   const std::size_t n0 = 8, n1 = 8;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
                     n1h = get_r2c_shape(n1, is_R2C);
-  extents_type global_in_extents{n0, n1},
-      global_out_extents_ax0{n0h, n1},
+  extents_type global_in_extents{n0, n1}, global_out_extents_ax0{n0h, n1},
       global_out_extents_ax1{n0, n1h};
 
   auto [in_extents_t0, in_starts_t0] =
@@ -599,7 +598,7 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   ComplexView2DType gu_hat_ax01("gu_hat_ax01", n0, n1h),
       gu_hat_ax10("gu_hat_ax10", n0h, n1);
 
-// Data in Topology 0 (X-slab)
+  // Data in Topology 0 (X-slab)
   View2DType u_0("u_0",
                  KokkosFFT::Impl::create_layout<LayoutType>(in_extents_t0)),
       u_inv_0("u_inv_0",
@@ -711,32 +710,32 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
   // Do not support cases where the input/output topologies are the same
   ASSERT_THROW(
-        {
-          SlabPlanType plan_0_0_ax01(exec, u_0, u_hat_0_ax01, ax01, topology0,
-                               topology0, MPI_COMM_WORLD);
-        },
-        std::runtime_error);
+      {
+        SlabPlanType plan_0_0_ax01(exec, u_0, u_hat_0_ax01, ax01, topology0,
+                                   topology0, MPI_COMM_WORLD);
+      },
+      std::runtime_error);
 
   ASSERT_THROW(
-        {
-          SlabPlanType plan_0_0_ax10(exec, u_0, u_hat_0_ax10, ax10, topology0,
-                               topology0, MPI_COMM_WORLD);
-        },
-        std::runtime_error);
+      {
+        SlabPlanType plan_0_0_ax10(exec, u_0, u_hat_0_ax10, ax10, topology0,
+                                   topology0, MPI_COMM_WORLD);
+      },
+      std::runtime_error);
 
   ASSERT_THROW(
-        {
-          SlabPlanType plan_1_1_ax01(exec, u_1, u_hat_1_ax01, ax01, topology1,
-                               topology1, MPI_COMM_WORLD);
-        },
-        std::runtime_error);
+      {
+        SlabPlanType plan_1_1_ax01(exec, u_1, u_hat_1_ax01, ax01, topology1,
+                                   topology1, MPI_COMM_WORLD);
+      },
+      std::runtime_error);
 
   ASSERT_THROW(
-        {
-          SlabPlanType plan_1_1_ax10(exec, u_1, u_hat_1_ax10, ax10, topology1,
-                               topology1, MPI_COMM_WORLD);
-        },
-        std::runtime_error);
+      {
+        SlabPlanType plan_1_1_ax10(exec, u_1, u_hat_1_ax10, ax10, topology1,
+                                   topology1, MPI_COMM_WORLD);
+      },
+      std::runtime_error);
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -770,48 +769,14 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
     // -> (n0/p, n1/2+1)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
     // -> Transpose topo 1
-    //std::cout << "plan_0_1_ax01" << std::endl;
-    //SlabPlanType plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0,
-    //                           topology1, MPI_COMM_WORLD);
-//
-    //plan_0_1_ax01.forward(u_0, u_hat_1_ax01);
-    //std::cout << "forward" << std::endl;
+    SlabPlanType plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0,
+                               topology1, MPI_COMM_WORLD);
 
-    cufftHandle plan_c2c = 0;
-    cudaLibXtDesc *desc;
+    plan_0_1_ax01.forward(u_0, u_hat_1_ax01);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
 
-    cufftResult cufft_rt = cufftCreate(&plan_c2c);
-    cufft_rt = cufftMpAttachComm(plan_c2c, CUFFT_COMM_MPI, MPI_COMM_WORLD);
-    cufftSetStream(plan_c2c, exec.cuda_stream());
-
-    std::size_t workspace;
-    cufft_rt = cufftMakePlan2d(plan_c2c, n0, n1, CUFFT_C2C, &workspace);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan2d failed");
-
-    cufftXtSubFormat subformat_forward = CUFFT_XT_FORMAT_INPLACE;
-    cufft_rt = cufftXtMalloc(plan_c2c, &desc, subformat_forward);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftXtMalloc failed");
-
-    cufftXtExecDescriptor(plan_c2c, desc, desc, CUFFT_FORWARD);
-
-    cufftXtExecDescriptor(plan_c2c, desc, desc, CUFFT_INVERSE);
-
-    cufftXtFree(desc);
-
-    cufftDestroy(plan_c2c);
-
-
-    //int rank;
-    //::MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-//
-    //if (rank == 0) {
-      //nd_display(u_hat_1_ax01);
-      //nd_display(ref_u_hat_1_ax01);
-    //}
-    //EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
-
-    //plan_0_1_ax01.backward(u_hat_1_ax01, u_inv_0);
-    //EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
+    plan_0_1_ax01.backward(u_hat_1_ax01, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
 
     /*
     // topo0 -> topo1 with ax = {1, 0}:
@@ -873,14 +838,12 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   }
 }
 
-
 }  // namespace
 
 TYPED_TEST_SUITE(TestTplPlan1D, test_types);
 TYPED_TEST_SUITE(TestTplPlan2D, test_types);
 TYPED_TEST_SUITE(TestTplPlan3D, test_types);
 
-/*
 TYPED_TEST(TestTplPlan1D, IsAvailableView2D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
@@ -908,11 +871,10 @@ TYPED_TEST(TestTplPlan3D, IsAvailableView3D) {
 
   test_tpl3D_is_available_View3D<float_type, layout_type>(this->m_nprocs);
 }
-*/
 
 TYPED_TEST(TestTplPlan2D, ExecuteView2D_C2C) {
-  using float_type  = typename TestFixture::float_type;
-  using layout_type = typename TestFixture::layout_type;
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
   using complex_type = Kokkos::complex<float_type>;
 
   test_tpl2D_execute_View2D<complex_type, layout_type>(this->m_nprocs);
