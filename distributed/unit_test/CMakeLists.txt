@@ -1,4 +1,4 @@
-add_executable(unit-tests-mpi
+set(SOURCES
     Test_Main.cpp
     Test_All2All.cpp
     Test_Mapping.cpp
@@ -14,6 +14,11 @@ add_executable(unit-tests-mpi
     Test_SlabPlan.cpp
 )
 
+if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
+list(APPEND SOURCES Test_TplPlan.cpp)
+endif()
+
+add_executable(unit-tests-mpi ${SOURCES})
 find_package(MPI REQUIRED COMPONENTS CXX)
 
 target_compile_features(unit-tests-mpi PUBLIC cxx_std_17)

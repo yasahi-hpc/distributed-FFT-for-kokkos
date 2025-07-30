@@ -11,6 +11,10 @@
 #include "SharedPlan.hpp"
 #include "SlabPlan.hpp"
 
+#if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
+#include "TplPlan.hpp"
+#endif
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1>
 static std::unique_ptr<
@@ -22,6 +26,14 @@ internal_plan_factory(
     const KokkosFFT::shape_type<OutViewType::rank()>& out_topology,
     const MPI_Comm& comm,
     KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
+#if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
+  if (is_tpl_available(exec_space, in, out, axes, in_topology, out_topology)) {
+    return std::make_unique<
+        TplPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
+        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+  }
+#endif
+
   bool is_shared =
       is_shared_topology(in_topology) && is_shared_topology(out_topology);
   bool is_slab =

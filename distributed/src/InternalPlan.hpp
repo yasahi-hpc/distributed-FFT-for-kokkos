@@ -14,16 +14,20 @@ class InternalPlan {
 
   const extents_type m_in_extents, m_out_extents;
 
+ protected:
+  //! Normalization
+  KokkosFFT::Normalization m_norm;
+
  public:
   explicit InternalPlan(const ExecutionSpace& /*exec_space*/,
                         const InViewType& in, const OutViewType& out,
                         const axes_type& /*axes*/,
                         const topology_type& /*in_topology*/,
                         const topology_type& /*out_topology*/,
-                        const MPI_Comm& /*comm*/,
-                        KokkosFFT::Normalization /*norm*/)
+                        const MPI_Comm& /*comm*/, KokkosFFT::Normalization norm)
       : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
-        m_out_extents(KokkosFFT::Impl::extract_extents(out)) {}
+        m_out_extents(KokkosFFT::Impl::extract_extents(out)),
+        m_norm(norm) {}
 
   virtual ~InternalPlan() = default;
 
@@ -37,7 +41,11 @@ class InternalPlan {
   /// \param[in] Input view
   virtual void backward(const OutViewType& out, const InViewType& in) const = 0;
 
+  virtual std::string get_label() const = 0;
+
  protected:
+  KokkosFFT::Normalization get_norm() const { return m_norm; }
+
   void good(const InViewType& in, const OutViewType& out) const {
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
     auto out_extents = KokkosFFT::Impl::extract_extents(out);
