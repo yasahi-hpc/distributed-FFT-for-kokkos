@@ -55,7 +55,7 @@ class SharedPlan
     KokkosFFT::execute(m_backward_plan, out, in, get_norm());
   }
 
-  std::string get_label() const { return std::string("SharedPlan"); }
+  std::string get_label() const override { return std::string("SharedPlan"); }
 };
 
 #endif

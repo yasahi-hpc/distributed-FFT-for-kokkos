@@ -2063,7 +2063,7 @@ class SlabPlan
     m_internal_plan.backward(out, in);
   }
 
-  std::string get_label() const { return std::string("SlabPlan"); }
+  std::string get_label() const override { return std::string("SlabPlan"); }
 };
 
 #endif
