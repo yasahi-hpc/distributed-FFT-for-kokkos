@@ -336,11 +336,11 @@ struct Variables {
     auto h_u = Kokkos::create_mirror_view(m_u);
     auto h_v = Kokkos::create_mirror_view(m_v);
     auto h_w = Kokkos::create_mirror_view(m_w);
-    for (int iz = 0; iz < nin2; iz++) {
-      for (int iy = 0; iy < nin1; iy++) {
-        for (int ix = 0; ix < nin0; ix++) {
-          int giy = iy + grid.m_rx * nin1;  // Global index in y
-          int giz = iz + grid.m_ry * nin2;  // Global index in z
+    for (std::size_t iz = 0; iz < nin2; iz++) {
+      for (std::size_t iy = 0; iy < nin1; iy++) {
+        for (std::size_t ix = 0; ix < nin0; ix++) {
+          std::size_t giy = iy + grid.m_rx * nin1;  // Global index in y
+          std::size_t giz = iz + grid.m_ry * nin2;  // Global index in z
 
           double x = h_x(ix), y = h_y(giy), z = h_z(giz);
           h_u(ix, iy, iz) =
@@ -497,11 +497,6 @@ class NavierStokes {
   const int m_px, m_py;
   ///@}
 
-  ///@{
-  //! The number of grid points in each direction
-  const int m_nx, m_ny, m_nz;
-  ///@}
-
   //! The total number of iterations.
   const int m_nbiter;
 
@@ -549,9 +544,6 @@ class NavierStokes {
       : m_rank(rank),
         m_px(px),
         m_py(py),
-        m_nx(nx),
-        m_ny(nx),
-        m_nz(nx),
         m_nbiter(nbiter),
         m_dt(dt),
         m_nu(nu),
