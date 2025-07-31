@@ -3,6 +3,7 @@
 
 #include <numeric>
 #include <Kokkos_Core.hpp>
+#include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <KokkosFFT.hpp>
 #include "Mapping.hpp"
 
@@ -297,6 +298,7 @@ void pack(const ExecutionSpace& exec_space, const SrcViewType& src,
   static_assert(SrcViewType::rank() >= 2);
   static_assert(DstViewType::rank() == SrcViewType::rank() + 1);
 
+  Kokkos::Profiling::ScopedRegion region("pack");
   Kokkos::Array<std::size_t, DIM> src_array =
       KokkosFFT::Impl::to_array(src_map);
   if (src.span() >= std::size_t(std::numeric_limits<int>::max()) ||
@@ -316,6 +318,7 @@ void unpack(const ExecutionSpace& exec_space, const SrcViewType& src,
             std::size_t axis) {
   static_assert(DstViewType::rank() >= 2);
   static_assert(SrcViewType::rank() == DstViewType::rank() + 1);
+  Kokkos::Profiling::ScopedRegion region("unpack");
   Kokkos::Array<std::size_t, DIM> dst_array =
       KokkosFFT::Impl::to_array(dst_map);
   if (dst.span() >= std::size_t(std::numeric_limits<int>::max()) ||
