@@ -348,111 +348,9 @@ struct Variables {
   }
 };
 
-// \brief A class to represent the 4th order Runge-Kutta method for solving ODE
-// dy/dt = f(t, y) by
-// y^{n+1} = y^{n} + (k1 + 2*k2 + 2*k3 + k4)/6
-// t^{n+1} = t^{n} + h
-// where h is a time step and
-// k1 = f(t^{n}      , y^{n}     ) * h
-// k2 = f(t^{n} + h/2, y^{n}+k1/2) * h
-// k3 = f(t^{n} + h/2, y^{n}+k2/2) * h
-// k4 = f(t^{n} + h  , y^{n}+k3  ) * h
-//
-// \tparam BufferType The type of the view
-template <typename BufferType>
-class RK4th {
-  static_assert(BufferType::rank == 1, "RK4th: BufferType must have rank 1.");
-  using value_type = typename BufferType::non_const_value_type;
-  using float_type = KokkosFFT::Impl::base_floating_point_type<value_type>;
-
-  //! Order of the Runge-Kutta method
-  const int m_order = 4;
-
-  //! Time step size
-  const float_type m_h;
-
-  //! Size of the input View after flattening
-  std::size_t m_array_size;
-
-  //! Buffer views for intermediate results
-  BufferType m_y, m_k1, m_k2, m_k3;
-
- public:
-  // \brief Constructor of a RK4th class
-  // \param[in] y The variable to be solved
-  // \param[in] h Time step
-  RK4th(const BufferType& y, float_type h) : m_h(h) {
-    m_array_size = y.size();
-    m_y          = BufferType("y", m_array_size);
-    m_k1         = BufferType("k1", m_array_size);
-    m_k2         = BufferType("k2", m_array_size);
-    m_k3         = BufferType("k3", m_array_size);
-  }
-
-  auto order() { return m_order; }
-
-  // \brief Advances the solution by one step using the Runge-Kutta method.
-  // \tparam ViewType The type of the view
-  // \param[in] dydt The right-hand side of the ODE
-  // \param[in,out] y The current solution.
-  // \param[in] step The current step (0, 1, 2, or 3)
-  template <typename ViewType>
-  void advance(const ViewType& dydt, const ViewType& y, int step) {
-    static_assert(ViewType::rank == 1, "RK4th: ViewType must have rank 1.");
-    auto h      = m_h;
-    auto y_copy = m_y;
-    if (step == 0) {
-      auto k1 = m_k1;
-      Kokkos::parallel_for(
-          "rk_step0",
-          Kokkos::RangePolicy<execution_space, Kokkos::IndexType<std::size_t>>(
-              execution_space(), 0, m_array_size),
-          KOKKOS_LAMBDA(const std::size_t& i) {
-            y_copy(i) = y(i);
-            k1(i)     = dydt(i) * h;
-            y(i)      = y_copy(i) + k1(i) / 2.0;
-          });
-    } else if (step == 1) {
-      auto k2 = m_k2;
-      Kokkos::parallel_for(
-          "rk_step1",
-          Kokkos::RangePolicy<execution_space, Kokkos::IndexType<std::size_t>>(
-              execution_space(), 0, m_array_size),
-          KOKKOS_LAMBDA(const std::size_t& i) {
-            k2(i) = dydt(i) * h;
-            y(i)  = y_copy(i) + k2(i) / 2.0;
-          });
-    } else if (step == 2) {
-      auto k3 = m_k3;
-      Kokkos::parallel_for(
-          "rk_step2",
-          Kokkos::RangePolicy<execution_space, Kokkos::IndexType<std::size_t>>(
-              execution_space(), 0, m_array_size),
-          KOKKOS_LAMBDA(const std::size_t& i) {
-            k3(i) = dydt(i) * h;
-            y(i)  = y_copy(i) + k3(i);
-          });
-    } else if (step == 3) {
-      auto k1 = m_k1;
-      auto k2 = m_k2;
-      auto k3 = m_k3;
-      Kokkos::parallel_for(
-          "rk_step3",
-          Kokkos::RangePolicy<execution_space, Kokkos::IndexType<std::size_t>>(
-              execution_space(), 0, m_array_size),
-          KOKKOS_LAMBDA(const std::size_t& i) {
-            auto tmp_dy =
-                (k1(i) + 2.0 * k2(i) + 2.0 * k3(i) + dydt(i) * h) / 6.0;
-            y(i) = y_copy(i) + tmp_dy;
-          });
-    } else {
-      throw std::runtime_error("step should be 0, 1, 2, or 3");
-    }
-  }
-};
-
 class NavierStokes {
-  using OdeSolverType = RK4th<View1D<Kokkos::complex<double>>>;
+  using OdeSolverType =
+      Math::RK4th<execution_space, View1D<Kokkos::complex<double>>>;
   using DistributedPlanType =
       Plan<execution_space, View4D<double>, View4D<Kokkos::complex<double>>, 3>;
 
@@ -527,9 +425,10 @@ class NavierStokes {
         m_suppress_diag(suppress_diag),
         m_grid(rank, px, py, nx, nx, nx, lx, lx, lx),
         m_variables(m_grid) {
+    execution_space exec;
     View1D<Kokkos::complex<double>> uk_flatten(m_variables.m_uk.data(),
                                                m_variables.m_uk.size());
-    m_ode = std::make_unique<OdeSolverType>(uk_flatten, dt);
+    m_ode = std::make_unique<OdeSolverType>(exec, uk_flatten, dt);
 
     if (!m_suppress_diag) {
       namespace fs = std::filesystem;
@@ -548,7 +447,7 @@ class NavierStokes {
 
     // Create FFT plans
     m_plan = std::make_unique<DistributedPlanType>(
-        execution_space(), m_variables.m_u, m_variables.m_uk,
+        exec, m_variables.m_u, m_variables.m_uk,
         KokkosFFT::axis_type<3>{1, 2, 3}, m_grid.m_in_topology,
         m_grid.m_out_topology, MPI_COMM_WORLD);
 
@@ -574,7 +473,6 @@ class NavierStokes {
     m_k_vals = View1D<double>("k_vals", m_num_bins);
     m_E_spec = View1D<double>("E_spec", m_num_bins);
 
-    execution_space exec;
     m_k_bins =
         Math::linspace(exec, 0.0, k_max, m_num_bins + 1, /*endpoint=*/true);
     auto h_k_bins =
