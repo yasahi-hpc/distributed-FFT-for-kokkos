@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
+#include <Kokkos_Profiling_ScopedRegion.hpp>
 #include "MPI_Helper.hpp"
 
 template <typename ExecutionSpace, typename ViewType>
@@ -37,6 +38,7 @@ struct All2All {
   }
 
   void operator()(const ViewType& send, const ViewType& recv) const {
+    Kokkos::Profiling::ScopedRegion region("All2All");
     auto send_extents = KokkosFFT::Impl::extract_extents(send);
     auto recv_extents = KokkosFFT::Impl::extract_extents(recv);
 
