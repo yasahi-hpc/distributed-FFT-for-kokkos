@@ -152,6 +152,15 @@ std::vector<iType> find_ones(const std::array<iType, DIM>& a) {
   return ones;
 }
 
+template <typename iType>
+bool has_identical_non_ones(const std::vector<iType>& non_ones) {
+  if (non_ones.size() == 2 &&
+      std::set<iType>(non_ones.begin(), non_ones.end()).size() == 1) {
+    return true;
+  }
+  return false;
+}
+
 template <typename iType, std::size_t DIM = 1>
 std::array<iType, DIM> swap_elements(const std::array<iType, DIM>& arr, int i,
                                      int j) {

@@ -28,9 +28,11 @@ class SharedPlan
       const OutViewType& out, const axes_type& axes,
       const topology_type& in_topology, const topology_type& out_topology,
       const MPI_Comm& comm,
-      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward,
+      const bool is_same_order      = true)
       : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>(
-            exec_space, in, out, axes, in_topology, out_topology, comm, norm),
+            exec_space, in, out, axes, in_topology, out_topology, comm, norm,
+            is_same_order),
         m_forward_plan(exec_space, in, out, KokkosFFT::Direction::forward,
                        axes),
         m_backward_plan(exec_space, out, in, KokkosFFT::Direction::backward,

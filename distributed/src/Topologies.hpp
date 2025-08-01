@@ -563,13 +563,14 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 /// \param in_topology The input topology.
 /// \param out_topology The output topology.
 /// \param axes The axes along which the FFT is performed.
-/// \return A vector of all possible slab topologies that can be formed
-/// from the input and output topologies, considering the FFT axes.
+/// \param is_same_order If true, the in/out topologies are considered in the
+/// same order. \return A vector of all possible slab topologies that can be
+/// formed from the input and output topologies, considering the FFT axes.
 template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
 std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
     const std::array<std::size_t, DIM>& in_topology,
     const std::array<std::size_t, DIM>& out_topology,
-    const std::array<iType, FFT_DIM>& axes) {
+    const std::array<iType, FFT_DIM>& axes, bool is_same_order = true) {
   static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
   static_assert(DIM >= 3 && DIM >= FFT_DIM, "DIM >= 3 and DIM >= FFT_DIM");
 
@@ -578,9 +579,6 @@ std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
   KOKKOSFFT_THROW_IF(!is_pencil,
                      "Input and output topologies must be pencil topologies.");
 
-  std::vector<std::array<std::size_t, DIM>> topologies;
-  topologies.push_back(in_topology);
-
   std::vector<std::size_t> axes_reversed;
   for (std::size_t i = 0; i < axes.size(); ++i) {
     auto non_negative_axis =
@@ -588,6 +586,54 @@ std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     axes_reversed.push_back(unsigned_axis);
   }
+
+  auto non_ones                  = find_non_ones(in_topology);
+  bool has_same_non_one_elements = has_identical_non_ones(non_ones);
+
+  auto in_topology_tmp  = in_topology;
+  auto out_topology_tmp = out_topology;
+
+  if (has_same_non_one_elements) {
+    // If the elements are the same, the following startegy does not work
+    // Thus, we replace the element by dummy to manipulate
+    std::array<std::size_t, 2> dummies = {2, 3};
+    int count                          = 0;
+    for (std::size_t i = 0; i < DIM; i++) {
+      if (in_topology_tmp.at(i) > 1) {
+        in_topology_tmp.at(i) = dummies.at(count);
+        count++;
+      }
+    }
+    count = 0;
+    if (!is_same_order) {
+      std::reverse(dummies.begin(), dummies.end());
+    }
+    for (std::size_t i = 0; i < DIM; i++) {
+      if (out_topology_tmp.at(i) > 1) {
+        out_topology_tmp.at(i) = dummies.at(count);
+        count++;
+      }
+    }
+  }
+
+  auto to_original_topologies =
+      [&](const std::vector<std::array<std::size_t, DIM>>& topologies) {
+        if (has_same_non_one_elements) {
+          auto non_one             = non_ones.at(0);
+          auto original_topologies = topologies;
+          for (auto& topology : original_topologies) {
+            for (std::size_t i = 0; i < DIM; i++) {
+              if (topology.at(i) > 1) topology.at(i) = non_one;
+            }
+          }
+          return original_topologies;
+        } else {
+          return topologies;
+        }
+      };
+
+  std::vector<std::array<std::size_t, DIM>> topologies;
+  topologies.push_back(in_topology_tmp);
 
   // 3D case
   std::array<std::size_t, DIM> topology = {};
@@ -609,25 +655,26 @@ std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
     auto non_negative_axis =
         KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    auto dim                  = out_topology.at(unsigned_axis);
+    auto dim                  = out_topology_tmp.at(unsigned_axis);
     if (dim != 1) is_output_ready = false;
   }
 
   if (is_input_ready || is_output_ready) {
     try {
-      auto mid_topology = get_mid_array(topologies.back(), out_topology);
+      auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
       topologies.push_back(mid_topology);
     } catch (std::runtime_error& e) {
     }
-    if (topologies.back() != out_topology) topologies.push_back(out_topology);
-    return topologies;
+    if (topologies.back() != out_topology_tmp)
+      topologies.push_back(out_topology_tmp);
+    return to_original_topologies(topologies);
   }
 
   std::reverse(axes_reversed.begin(), axes_reversed.end());
-  std::array<std::size_t, DIM> shuffled_topology = in_topology;
-  if (in_topology == out_topology) {
+  std::array<std::size_t, DIM> shuffled_topology = in_topology_tmp;
+  if (in_topology_tmp == out_topology_tmp) {
     auto last_axis = axes_reversed.front();
-    auto first_dim = in_topology.at(last_axis);
+    auto first_dim = in_topology_tmp.at(last_axis);
     if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
     for (const auto& axis : axes_reversed) {
       std::size_t swap_idx = 0;
@@ -645,23 +692,26 @@ std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
       if (topologies.back() != shuffled_topology)
         topologies.push_back(shuffled_topology);
     }
-    if (topologies.back() == out_topology) return topologies;
+
+    if (topologies.back() == out_topology_tmp)
+      return to_original_topologies(topologies);
 
     try {
-      auto mid_topology = get_mid_array(topologies.back(), out_topology);
+      auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
       topologies.push_back(mid_topology);
     } catch (std::runtime_error& e) {
     }
 
-    if (topologies.back() == out_topology) return topologies;
-    topologies.push_back(out_topology);
-    return topologies;
+    if (topologies.back() == out_topology_tmp)
+      return to_original_topologies(topologies);
+    topologies.push_back(out_topology_tmp);
+    return to_original_topologies(topologies);
   }
 
   std::vector<std::size_t> diff_non_ones =
-      find_non_ones(in_topology, out_topology);
+      find_non_ones(in_topology_tmp, out_topology_tmp);
   auto last_axis = axes_reversed.front();
-  auto first_dim = in_topology.at(last_axis);
+  auto first_dim = in_topology_tmp.at(last_axis);
   if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
 
   for (const auto& axis : axes_reversed) {
@@ -687,17 +737,19 @@ std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
     if (topologies.back() != shuffled_topology)
       topologies.push_back(shuffled_topology);
   }
-  if (topologies.back() == out_topology) return topologies;
+  if (topologies.back() == out_topology_tmp)
+    return to_original_topologies(topologies);
 
   try {
-    auto mid_topology = get_mid_array(topologies.back(), out_topology);
+    auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
     topologies.push_back(mid_topology);
   } catch (std::runtime_error& e) {
   }
-  if (topologies.back() == out_topology) return topologies;
-  topologies.push_back(out_topology);
+  if (topologies.back() == out_topology_tmp)
+    return to_original_topologies(topologies);
+  topologies.push_back(out_topology_tmp);
 
-  return topologies;
+  return to_original_topologies(topologies);
 }
 
 #endif

@@ -25,7 +25,8 @@ internal_plan_factory(
     const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
     const KokkosFFT::shape_type<OutViewType::rank()>& out_topology,
     const MPI_Comm& comm,
-    KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
+    KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward,
+    bool is_same_order            = true) {
 #if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
   if (is_tpl_available(exec_space, in, out, axes, in_topology, out_topology)) {
     return std::make_unique<

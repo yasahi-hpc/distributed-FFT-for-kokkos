@@ -2831,16 +2831,14 @@ void test_get_shuffled_topologies3D(std::size_t nprocs) {
 
 void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, nprocs, 8};
-  topology_type topology1 = {nprocs, 1, 8};
-  topology_type topology2 = {8, nprocs, 1};
-  topology_type topology3 = {nprocs, 8, 1};
-  topology_type topology4 = {8, 1, nprocs};
+  using topologies_type   = std::vector<topology_type>;
+  std::size_t np0         = 4;
+  topology_type topology0 = {1, nprocs, np0}, topology1 = {nprocs, 1, np0},
+                topology2 = {np0, nprocs, 1}, topology3 = {nprocs, np0, 1},
+                topology4 = {np0, 1, nprocs};
 
   using axes_type = std::array<int, 1>;
-  axes_type axes0 = {0};
-  axes_type axes1 = {1};
-  axes_type axes2 = {2};
+  axes_type axes0 = {0}, axes1 = {1}, axes2 = {2};
 
   std::vector<axes_type> all_axes = {axes0, axes1, axes2};
 
@@ -2880,13 +2878,13 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
         get_all_pencil_topologies(topology0, topology0, axes1);
     auto shuffled_topologies_0_0_2 =
         get_all_pencil_topologies(topology0, topology0, axes2);
-    std::vector<topology_type> ref_shuffled_topologies_0_0_0 = {topology0};
+    topologies_type ref_shuffled_topologies_0_0_0 = {topology0};
     EXPECT_EQ(shuffled_topologies_0_0_0, ref_shuffled_topologies_0_0_0);
-    std::vector<topology_type> ref_shuffled_topologies_0_0_1 = {
-        topology0, topology1, topology0};
+    topologies_type ref_shuffled_topologies_0_0_1 = {topology0, topology1,
+                                                     topology0};
     EXPECT_EQ(shuffled_topologies_0_0_1, ref_shuffled_topologies_0_0_1);
-    std::vector<topology_type> ref_shuffled_topologies_0_0_2 = {
-        topology0, topology2, topology0};
+    topologies_type ref_shuffled_topologies_0_0_2 = {topology0, topology2,
+                                                     topology0};
     EXPECT_EQ(shuffled_topologies_0_0_2, ref_shuffled_topologies_0_0_2);
 
     // topology0 to topology1
@@ -2897,34 +2895,28 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
     auto shuffled_topologies_0_1_2 =
         get_all_pencil_topologies(topology0, topology1, axes2);
 
-    std::vector<topology_type> ref_shuffled_topologies_0_1_0 = {topology0,
-                                                                topology1};
+    topologies_type ref_shuffled_topologies_0_1_0 = {topology0, topology1};
     EXPECT_EQ(shuffled_topologies_0_1_0, ref_shuffled_topologies_0_1_0);
-    std::vector<topology_type> ref_shuffled_topologies_0_1_1 = {topology0,
-                                                                topology1};
+    topologies_type ref_shuffled_topologies_0_1_1 = {topology0, topology1};
     EXPECT_EQ(shuffled_topologies_0_1_1, ref_shuffled_topologies_0_1_1);
-    std::vector<topology_type> ref_shuffled_topologies_0_1_2 = {
-        topology0, topology_type{8, nprocs, 1}, topology_type{1, nprocs, 8},
-        topology1};
+    topologies_type ref_shuffled_topologies_0_1_2 = {topology0, topology2,
+                                                     topology0, topology1};
     EXPECT_EQ(shuffled_topologies_0_1_2, ref_shuffled_topologies_0_1_2);
 
     // topology0 to topology2
     auto shuffled_topologies_0_2_0 =
-        get_all_pencil_topologies(topology0, topology2, axes0);
+        get_all_pencil_topologies(topology0, topology2, axes0, false);
     auto shuffled_topologies_0_2_1 =
-        get_all_pencil_topologies(topology0, topology2, axes1);
+        get_all_pencil_topologies(topology0, topology2, axes1, false);
     auto shuffled_topologies_0_2_2 =
-        get_all_pencil_topologies(topology0, topology2, axes2);
+        get_all_pencil_topologies(topology0, topology2, axes2, false);
 
-    std::vector<topology_type> ref_shuffled_topologies_0_2_0 = {topology0,
-                                                                topology2};
+    topologies_type ref_shuffled_topologies_0_2_0 = {topology0, topology2};
     EXPECT_EQ(shuffled_topologies_0_2_0, ref_shuffled_topologies_0_2_0);
-    std::vector<topology_type> ref_shuffled_topologies_0_2_1 = {
-        topology0, topology_type{nprocs, 1, 8}, topology_type{1, nprocs, 8},
-        topology2};
+    topologies_type ref_shuffled_topologies_0_2_1 = {topology0, topology1,
+                                                     topology0, topology2};
     EXPECT_EQ(shuffled_topologies_0_2_1, ref_shuffled_topologies_0_2_1);
-    std::vector<topology_type> ref_shuffled_topologies_0_2_2 = {topology0,
-                                                                topology2};
+    topologies_type ref_shuffled_topologies_0_2_2 = {topology0, topology2};
     EXPECT_EQ(shuffled_topologies_0_2_2, ref_shuffled_topologies_0_2_2);
 
     // topology1 to topology0
@@ -2935,15 +2927,12 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
     auto shuffled_topologies_1_0_2 =
         get_all_pencil_topologies(topology1, topology0, axes2);
 
-    std::vector<topology_type> ref_shuffled_topologies_1_0_0 = {topology1,
-                                                                topology0};
+    topologies_type ref_shuffled_topologies_1_0_0 = {topology1, topology0};
     EXPECT_EQ(shuffled_topologies_1_0_0, ref_shuffled_topologies_1_0_0);
-    std::vector<topology_type> ref_shuffled_topologies_1_0_1 = {topology1,
-                                                                topology0};
+    topologies_type ref_shuffled_topologies_1_0_1 = {topology1, topology0};
     EXPECT_EQ(shuffled_topologies_1_0_1, ref_shuffled_topologies_1_0_1);
-    std::vector<topology_type> ref_shuffled_topologies_1_0_2 = {
-        topology1, topology_type{nprocs, 8, 1}, topology_type{nprocs, 1, 8},
-        topology0};
+    topologies_type ref_shuffled_topologies_1_0_2 = {topology1, topology3,
+                                                     topology1, topology0};
     EXPECT_EQ(shuffled_topologies_1_0_2, ref_shuffled_topologies_1_0_2);
 
     // topology1 to topology1
@@ -2953,22 +2942,22 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
         get_all_pencil_topologies(topology1, topology1, axes1);
     auto shuffled_topologies_1_1_2 =
         get_all_pencil_topologies(topology1, topology1, axes2);
-    std::vector<topology_type> ref_shuffled_topologies_1_1_0 = {
-        topology1, topology0, topology1};
+    topologies_type ref_shuffled_topologies_1_1_0 = {topology1, topology0,
+                                                     topology1};
     EXPECT_EQ(shuffled_topologies_1_1_0, ref_shuffled_topologies_1_1_0);
-    std::vector<topology_type> ref_shuffled_topologies_1_1_1 = {topology1};
+    topologies_type ref_shuffled_topologies_1_1_1 = {topology1};
     EXPECT_EQ(shuffled_topologies_1_1_1, ref_shuffled_topologies_1_1_1);
-    std::vector<topology_type> ref_shuffled_topologies_1_1_2 = {
-        topology1, topology3, topology1};
+    topologies_type ref_shuffled_topologies_1_1_2 = {topology1, topology3,
+                                                     topology1};
     EXPECT_EQ(shuffled_topologies_1_1_2, ref_shuffled_topologies_1_1_2);
 
     // topology1 to topology2
     auto shuffled_topologies_1_2_0 =
-        get_all_pencil_topologies(topology1, topology2, axes0);
+        get_all_pencil_topologies(topology1, topology2, axes0, false);
     auto shuffled_topologies_1_2_1 =
-        get_all_pencil_topologies(topology1, topology2, axes1);
+        get_all_pencil_topologies(topology1, topology2, axes1, false);
     auto shuffled_topologies_1_2_2 =
-        get_all_pencil_topologies(topology1, topology2, axes2);
+        get_all_pencil_topologies(topology1, topology2, axes2, false);
 
     std::vector<topology_type> ref_shuffled_topologies_1_2_0 = {
         topology1, topology0, topology2};
@@ -2982,11 +2971,11 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
 
     // topology2 to topology0
     auto shuffled_topologies_2_0_0 =
-        get_all_pencil_topologies(topology2, topology0, axes0);
+        get_all_pencil_topologies(topology2, topology0, axes0, false);
     auto shuffled_topologies_2_0_1 =
-        get_all_pencil_topologies(topology2, topology0, axes1);
+        get_all_pencil_topologies(topology2, topology0, axes1, false);
     auto shuffled_topologies_2_0_2 =
-        get_all_pencil_topologies(topology2, topology0, axes2);
+        get_all_pencil_topologies(topology2, topology0, axes2, false);
 
     std::vector<topology_type> ref_shuffled_topologies_2_0_0 = {topology2,
                                                                 topology0};
@@ -3000,11 +2989,11 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
 
     // topology2 to topology1
     auto shuffled_topologies_2_1_0 =
-        get_all_pencil_topologies(topology2, topology1, axes0);
+        get_all_pencil_topologies(topology2, topology1, axes0, false);
     auto shuffled_topologies_2_1_1 =
-        get_all_pencil_topologies(topology2, topology1, axes1);
+        get_all_pencil_topologies(topology2, topology1, axes1, false);
     auto shuffled_topologies_2_1_2 =
-        get_all_pencil_topologies(topology2, topology1, axes2);
+        get_all_pencil_topologies(topology2, topology1, axes2, false);
 
     std::vector<topology_type> ref_shuffled_topologies_2_1_0 = {
         topology2, topology0, topology1};
@@ -3036,20 +3025,15 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
 
 void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, nprocs, 8};
-  topology_type topology1 = {nprocs, 1, 8};
-  topology_type topology2 = {8, nprocs, 1};
-  topology_type topology3 = {nprocs, 8, 1};
-  topology_type topology4 = {8, 1, nprocs};
-  topology_type topology5 = {1, 8, nprocs};
+  using topologies_type   = std::vector<topology_type>;
+  std::size_t np0         = 4;
+  topology_type topology0 = {1, nprocs, np0}, topology1 = {nprocs, 1, np0},
+                topology2 = {np0, nprocs, 1}, topology3 = {nprocs, np0, 1},
+                topology4 = {np0, 1, nprocs}, topology5 = {1, np0, nprocs};
 
   using axes_type  = std::array<int, 2>;
-  axes_type axes01 = {0, 1};
-  axes_type axes02 = {0, 2};
-  axes_type axes10 = {1, 0};
-  axes_type axes12 = {1, 2};
-  axes_type axes20 = {2, 0};
-  axes_type axes21 = {2, 1};
+  axes_type axes01 = {0, 1}, axes02 = {0, 2}, axes10 = {1, 0}, axes12 = {1, 2},
+            axes20 = {2, 0}, axes21 = {2, 1};
 
   std::vector<axes_type> all_axes = {axes01, axes02, axes10,
                                      axes12, axes20, axes21};
@@ -3150,17 +3134,17 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
 
     // topology0 to topology2
     auto shuffled_topologies_0_2_02 =
-        get_all_pencil_topologies(topology0, topology2, axes02);
+        get_all_pencil_topologies(topology0, topology2, axes02, false);
     auto shuffled_topologies_0_2_01 =
-        get_all_pencil_topologies(topology0, topology2, axes01);
+        get_all_pencil_topologies(topology0, topology2, axes01, false);
     auto shuffled_topologies_0_2_10 =
-        get_all_pencil_topologies(topology0, topology2, axes10);
+        get_all_pencil_topologies(topology0, topology2, axes10, false);
     auto shuffled_topologies_0_2_12 =
-        get_all_pencil_topologies(topology0, topology2, axes12);
+        get_all_pencil_topologies(topology0, topology2, axes12, false);
     auto shuffled_topologies_0_2_20 =
-        get_all_pencil_topologies(topology0, topology2, axes20);
+        get_all_pencil_topologies(topology0, topology2, axes20, false);
     auto shuffled_topologies_0_2_21 =
-        get_all_pencil_topologies(topology0, topology2, axes21);
+        get_all_pencil_topologies(topology0, topology2, axes21, false);
 
     std::vector<topology_type> ref_shuffled_topologies_0_2_01 = {
         topology0, topology1, topology0, topology2};
@@ -3247,17 +3231,17 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
 
     // topology1 to topology2
     auto shuffled_topologies_1_2_01 =
-        get_all_pencil_topologies(topology1, topology2, axes01);
+        get_all_pencil_topologies(topology1, topology2, axes01, false);
     auto shuffled_topologies_1_2_02 =
-        get_all_pencil_topologies(topology1, topology2, axes02);
+        get_all_pencil_topologies(topology1, topology2, axes02, false);
     auto shuffled_topologies_1_2_10 =
-        get_all_pencil_topologies(topology1, topology2, axes10);
+        get_all_pencil_topologies(topology1, topology2, axes10, false);
     auto shuffled_topologies_1_2_12 =
-        get_all_pencil_topologies(topology1, topology2, axes12);
+        get_all_pencil_topologies(topology1, topology2, axes12, false);
     auto shuffled_topologies_1_2_20 =
-        get_all_pencil_topologies(topology1, topology2, axes20);
+        get_all_pencil_topologies(topology1, topology2, axes20, false);
     auto shuffled_topologies_1_2_21 =
-        get_all_pencil_topologies(topology1, topology2, axes21);
+        get_all_pencil_topologies(topology1, topology2, axes21, false);
     std::vector<topology_type> ref_shuffled_topologies_1_2_01 = {
         topology1, topology0, topology2};
     EXPECT_EQ(shuffled_topologies_1_2_01, ref_shuffled_topologies_1_2_01);
@@ -3279,17 +3263,17 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
 
     // topology2 to topology0
     auto shuffled_topologies_2_0_01 =
-        get_all_pencil_topologies(topology2, topology0, axes01);
+        get_all_pencil_topologies(topology2, topology0, axes01, false);
     auto shuffled_topologies_2_0_02 =
-        get_all_pencil_topologies(topology2, topology0, axes02);
+        get_all_pencil_topologies(topology2, topology0, axes02, false);
     auto shuffled_topologies_2_0_10 =
-        get_all_pencil_topologies(topology2, topology0, axes10);
+        get_all_pencil_topologies(topology2, topology0, axes10, false);
     auto shuffled_topologies_2_0_12 =
-        get_all_pencil_topologies(topology2, topology0, axes12);
+        get_all_pencil_topologies(topology2, topology0, axes12, false);
     auto shuffled_topologies_2_0_20 =
-        get_all_pencil_topologies(topology2, topology0, axes20);
+        get_all_pencil_topologies(topology2, topology0, axes20, false);
     auto shuffled_topologies_2_0_21 =
-        get_all_pencil_topologies(topology2, topology0, axes21);
+        get_all_pencil_topologies(topology2, topology0, axes21, false);
     std::vector<topology_type> ref_shuffled_topologies_2_0_01 = {
         topology2, topology4, topology5, topology0};
     EXPECT_EQ(shuffled_topologies_2_0_01, ref_shuffled_topologies_2_0_01);
@@ -3311,17 +3295,17 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
 
     // topology2 to topology1
     auto shuffled_topologies_2_1_01 =
-        get_all_pencil_topologies(topology2, topology1, axes01);
+        get_all_pencil_topologies(topology2, topology1, axes01, false);
     auto shuffled_topologies_2_1_02 =
-        get_all_pencil_topologies(topology2, topology1, axes02);
+        get_all_pencil_topologies(topology2, topology1, axes02, false);
     auto shuffled_topologies_2_1_10 =
-        get_all_pencil_topologies(topology2, topology1, axes10);
+        get_all_pencil_topologies(topology2, topology1, axes10, false);
     auto shuffled_topologies_2_1_12 =
-        get_all_pencil_topologies(topology2, topology1, axes12);
+        get_all_pencil_topologies(topology2, topology1, axes12, false);
     auto shuffled_topologies_2_1_20 =
-        get_all_pencil_topologies(topology2, topology1, axes20);
+        get_all_pencil_topologies(topology2, topology1, axes20, false);
     auto shuffled_topologies_2_1_21 =
-        get_all_pencil_topologies(topology2, topology1, axes21);
+        get_all_pencil_topologies(topology2, topology1, axes21, false);
     std::vector<topology_type> ref_shuffled_topologies_2_1_01 = {
         topology2, topology4, topology5, topology3, topology1};
     EXPECT_EQ(shuffled_topologies_2_1_01, ref_shuffled_topologies_2_1_01);
@@ -3377,20 +3361,15 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
 
 void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, nprocs, 8};
-  topology_type topology1 = {nprocs, 1, 8};
-  topology_type topology2 = {8, nprocs, 1};
-  topology_type topology3 = {nprocs, 8, 1};
-  topology_type topology4 = {8, 1, nprocs};
-  topology_type topology5 = {1, 8, nprocs};
+  using topologies_type   = std::vector<topology_type>;
+  std::size_t np0         = 4;
+  topology_type topology0 = {1, nprocs, np0}, topology1 = {nprocs, 1, np0},
+                topology2 = {np0, nprocs, 1}, topology3 = {nprocs, np0, 1},
+                topology4 = {np0, 1, nprocs}, topology5 = {1, np0, nprocs};
 
   using axes_type   = std::array<int, 3>;
-  axes_type axes012 = {0, 1, 2};
-  axes_type axes021 = {0, 2, 1};
-  axes_type axes102 = {1, 0, 2};
-  axes_type axes120 = {1, 2, 0};
-  axes_type axes201 = {2, 0, 1};
-  axes_type axes210 = {2, 1, 0};
+  axes_type axes012 = {0, 1, 2}, axes021 = {0, 2, 1}, axes102 = {1, 0, 2},
+            axes120 = {1, 2, 0}, axes201 = {2, 0, 1}, axes210 = {2, 1, 0};
 
   std::vector<axes_type> all_axes = {axes012, axes021, axes102,
                                      axes120, axes201, axes210};
@@ -3491,17 +3470,17 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
 
     // topology0 to topology2
     auto shuffled_topologies_0_2_012 =
-        get_all_pencil_topologies(topology0, topology2, axes012);
+        get_all_pencil_topologies(topology0, topology2, axes012, false);
     auto shuffled_topologies_0_2_021 =
-        get_all_pencil_topologies(topology0, topology2, axes021);
+        get_all_pencil_topologies(topology0, topology2, axes021, false);
     auto shuffled_topologies_0_2_102 =
-        get_all_pencil_topologies(topology0, topology2, axes102);
+        get_all_pencil_topologies(topology0, topology2, axes102, false);
     auto shuffled_topologies_0_2_120 =
-        get_all_pencil_topologies(topology0, topology2, axes120);
+        get_all_pencil_topologies(topology0, topology2, axes120, false);
     auto shuffled_topologies_0_2_201 =
-        get_all_pencil_topologies(topology0, topology2, axes201);
+        get_all_pencil_topologies(topology0, topology2, axes201, false);
     auto shuffled_topologies_0_2_210 =
-        get_all_pencil_topologies(topology0, topology2, axes210);
+        get_all_pencil_topologies(topology0, topology2, axes210, false);
 
     std::vector<topology_type> ref_shuffled_topologies_0_2_012 = {
         topology0, topology2, topology4, topology5, topology4, topology2};
@@ -3588,17 +3567,17 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
 
     // topology1 to topology2
     auto shuffled_topologies_1_2_012 =
-        get_all_pencil_topologies(topology1, topology2, axes012);
+        get_all_pencil_topologies(topology1, topology2, axes012, false);
     auto shuffled_topologies_1_2_021 =
-        get_all_pencil_topologies(topology1, topology2, axes021);
+        get_all_pencil_topologies(topology1, topology2, axes021, false);
     auto shuffled_topologies_1_2_102 =
-        get_all_pencil_topologies(topology1, topology2, axes102);
+        get_all_pencil_topologies(topology1, topology2, axes102, false);
     auto shuffled_topologies_1_2_120 =
-        get_all_pencil_topologies(topology1, topology2, axes120);
+        get_all_pencil_topologies(topology1, topology2, axes120, false);
     auto shuffled_topologies_1_2_201 =
-        get_all_pencil_topologies(topology1, topology2, axes201);
+        get_all_pencil_topologies(topology1, topology2, axes201, false);
     auto shuffled_topologies_1_2_210 =
-        get_all_pencil_topologies(topology1, topology2, axes210);
+        get_all_pencil_topologies(topology1, topology2, axes210, false);
     std::vector<topology_type> ref_shuffled_topologies_1_2_012 = {
         topology1, topology3, topology1, topology0, topology2};
     EXPECT_EQ(shuffled_topologies_1_2_012, ref_shuffled_topologies_1_2_012);
@@ -3620,17 +3599,17 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
 
     // topology2 to topology0
     auto shuffled_topologies_2_0_012 =
-        get_all_pencil_topologies(topology2, topology0, axes012);
+        get_all_pencil_topologies(topology2, topology0, axes012, false);
     auto shuffled_topologies_2_0_021 =
-        get_all_pencil_topologies(topology2, topology0, axes021);
+        get_all_pencil_topologies(topology2, topology0, axes021, false);
     auto shuffled_topologies_2_0_102 =
-        get_all_pencil_topologies(topology2, topology0, axes102);
+        get_all_pencil_topologies(topology2, topology0, axes102, false);
     auto shuffled_topologies_2_0_120 =
-        get_all_pencil_topologies(topology2, topology0, axes120);
+        get_all_pencil_topologies(topology2, topology0, axes120, false);
     auto shuffled_topologies_2_0_201 =
-        get_all_pencil_topologies(topology2, topology0, axes201);
+        get_all_pencil_topologies(topology2, topology0, axes201, false);
     auto shuffled_topologies_2_0_210 =
-        get_all_pencil_topologies(topology2, topology0, axes210);
+        get_all_pencil_topologies(topology2, topology0, axes210, false);
     std::vector<topology_type> ref_shuffled_topologies_2_0_012 = {
         topology2, topology4, topology5, topology0};
     EXPECT_EQ(shuffled_topologies_2_0_012, ref_shuffled_topologies_2_0_012);
@@ -3652,17 +3631,17 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
 
     // topology2 to topology1
     auto shuffled_topologies_2_1_012 =
-        get_all_pencil_topologies(topology2, topology1, axes012);
+        get_all_pencil_topologies(topology2, topology1, axes012, false);
     auto shuffled_topologies_2_1_021 =
-        get_all_pencil_topologies(topology2, topology1, axes021);
+        get_all_pencil_topologies(topology2, topology1, axes021, false);
     auto shuffled_topologies_2_1_102 =
-        get_all_pencil_topologies(topology2, topology1, axes102);
+        get_all_pencil_topologies(topology2, topology1, axes102, false);
     auto shuffled_topologies_2_1_120 =
-        get_all_pencil_topologies(topology2, topology1, axes120);
+        get_all_pencil_topologies(topology2, topology1, axes120, false);
     auto shuffled_topologies_2_1_201 =
-        get_all_pencil_topologies(topology2, topology1, axes201);
+        get_all_pencil_topologies(topology2, topology1, axes201, false);
     auto shuffled_topologies_2_1_210 =
-        get_all_pencil_topologies(topology2, topology1, axes210);
+        get_all_pencil_topologies(topology2, topology1, axes210, false);
     std::vector<topology_type> ref_shuffled_topologies_2_1_012 = {
         topology2, topology4, topology5, topology3, topology1};
     EXPECT_EQ(shuffled_topologies_2_1_012, ref_shuffled_topologies_2_1_012);
@@ -3717,29 +3696,25 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
 }
 
 void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 4>;
-  topology_type topology0 = {1, 1, nprocs, 8};
-  topology_type topology1 = {1, nprocs, 1, 8};
-  topology_type topology2 = {1, 8, nprocs, 1};
-  topology_type topology3 = {1, nprocs, 8, 1};
-  topology_type topology4 = {1, 8, 1, nprocs};
-  topology_type topology5 = {1, 1, 8, nprocs};
-  topology_type topology6 = {nprocs, 1, 1, 8};
-  topology_type topology7 = {8, 1, nprocs, 1};
-  topology_type topology8 = {nprocs, 1, 8, 1};
-  // topology_type topology9  = {8, 1, 1, nprocs};
-  topology_type topology10 = {8, nprocs, 1, 1};
-  topology_type topology11 = {nprocs, 8, 1, 1};
+  using topology_type      = std::array<std::size_t, 4>;
+  using topologies_type    = std::vector<topology_type>;
+  std::size_t np0          = 4;
+  topology_type topology0  = {1, 1, nprocs, np0},
+                topology1  = {1, nprocs, 1, np0},
+                topology2  = {1, np0, nprocs, 1},
+                topology3  = {1, nprocs, np0, 1},
+                topology4  = {1, np0, 1, nprocs},
+                topology5  = {1, 1, np0, nprocs},
+                topology6  = {nprocs, 1, 1, np0},
+                topology7  = {np0, 1, nprocs, 1},
+                topology8  = {nprocs, 1, np0, 1},
+                topology9  = {np0, nprocs, 1, 1},
+                topology10 = {nprocs, np0, 1, 1};
 
   using axes_type   = std::array<int, 3>;
-  axes_type axes012 = {0, 1, 2};
-  axes_type axes021 = {0, 2, 1};
-  axes_type axes102 = {1, 0, 2};
-  axes_type axes120 = {1, 2, 0};
-  axes_type axes201 = {2, 0, 1};
-  axes_type axes210 = {2, 1, 0};
-  axes_type axes123 = {1, 2, 3};
-  axes_type axes132 = {1, 3, 2};
+  axes_type axes012 = {0, 1, 2}, axes021 = {0, 2, 1}, axes102 = {1, 0, 2},
+            axes120 = {1, 2, 0}, axes201 = {2, 0, 1}, axes210 = {2, 1, 0},
+            axes123 = {1, 2, 3}, axes132 = {1, 3, 2};
 
   std::vector<axes_type> all_axes = {axes012, axes021, axes102, axes120,
                                      axes201, axes210, axes123, axes132};
@@ -3809,10 +3784,10 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
         topology0, topology6, topology0};
     EXPECT_EQ(shuffled_topologies_0_0_210, ref_shuffled_topologies_0_0_210);
     std::vector<topology_type> ref_shuffled_topologies_0_0_123 = {
-        topology0, topology7, topology10, topology7, topology0};
+        topology0, topology7, topology9, topology7, topology0};
     EXPECT_EQ(shuffled_topologies_0_0_123, ref_shuffled_topologies_0_0_123);
     std::vector<topology_type> ref_shuffled_topologies_0_0_132 = {
-        topology0, topology6, topology11, topology8, topology7, topology0};
+        topology0, topology6, topology10, topology8, topology7, topology0};
     EXPECT_EQ(shuffled_topologies_0_0_132, ref_shuffled_topologies_0_0_132);
 
     // topology0 to topology1
@@ -3860,21 +3835,21 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
 
     // topology0 to topology2
     auto shuffled_topologies_0_2_012 =
-        get_all_pencil_topologies(topology0, topology2, axes012);
+        get_all_pencil_topologies(topology0, topology2, axes012, false);
     auto shuffled_topologies_0_2_021 =
-        get_all_pencil_topologies(topology0, topology2, axes021);
+        get_all_pencil_topologies(topology0, topology2, axes021, false);
     auto shuffled_topologies_0_2_102 =
-        get_all_pencil_topologies(topology0, topology2, axes102);
+        get_all_pencil_topologies(topology0, topology2, axes102, false);
     auto shuffled_topologies_0_2_120 =
-        get_all_pencil_topologies(topology0, topology2, axes120);
+        get_all_pencil_topologies(topology0, topology2, axes120, false);
     auto shuffled_topologies_0_2_201 =
-        get_all_pencil_topologies(topology0, topology2, axes201);
+        get_all_pencil_topologies(topology0, topology2, axes201, false);
     auto shuffled_topologies_0_2_210 =
-        get_all_pencil_topologies(topology0, topology2, axes210);
+        get_all_pencil_topologies(topology0, topology2, axes210, false);
     auto shuffled_topologies_0_2_123 =
-        get_all_pencil_topologies(topology0, topology2, axes123);
+        get_all_pencil_topologies(topology0, topology2, axes123, false);
     auto shuffled_topologies_0_2_132 =
-        get_all_pencil_topologies(topology0, topology2, axes132);
+        get_all_pencil_topologies(topology0, topology2, axes132, false);
 
     std::vector<topology_type> ref_shuffled_topologies_0_2_012 = {
         topology0, topology1, topology0, topology2};
@@ -3981,29 +3956,29 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
         topology1, topology6, topology1};
     EXPECT_EQ(shuffled_topologies_1_1_210, ref_shuffled_topologies_1_1_210);
     std::vector<topology_type> ref_shuffled_topologies_1_1_123 = {
-        topology1, topology10, topology7, topology1};
+        topology1, topology9, topology7, topology1};
     EXPECT_EQ(shuffled_topologies_1_1_123, ref_shuffled_topologies_1_1_123);
     std::vector<topology_type> ref_shuffled_topologies_1_1_132 = {
-        topology1, topology10, topology7, topology1};
+        topology1, topology9, topology7, topology1};
     EXPECT_EQ(shuffled_topologies_1_1_132, ref_shuffled_topologies_1_1_132);
 
     // topology1 to topology2
     auto shuffled_topologies_1_2_012 =
-        get_all_pencil_topologies(topology1, topology2, axes012);
+        get_all_pencil_topologies(topology1, topology2, axes012, false);
     auto shuffled_topologies_1_2_021 =
-        get_all_pencil_topologies(topology1, topology2, axes021);
+        get_all_pencil_topologies(topology1, topology2, axes021, false);
     auto shuffled_topologies_1_2_102 =
-        get_all_pencil_topologies(topology1, topology2, axes102);
+        get_all_pencil_topologies(topology1, topology2, axes102, false);
     auto shuffled_topologies_1_2_120 =
-        get_all_pencil_topologies(topology1, topology2, axes120);
+        get_all_pencil_topologies(topology1, topology2, axes120, false);
     auto shuffled_topologies_1_2_201 =
-        get_all_pencil_topologies(topology1, topology2, axes201);
+        get_all_pencil_topologies(topology1, topology2, axes201, false);
     auto shuffled_topologies_1_2_210 =
-        get_all_pencil_topologies(topology1, topology2, axes210);
+        get_all_pencil_topologies(topology1, topology2, axes210, false);
     auto shuffled_topologies_1_2_123 =
-        get_all_pencil_topologies(topology1, topology2, axes123);
+        get_all_pencil_topologies(topology1, topology2, axes123, false);
     auto shuffled_topologies_1_2_132 =
-        get_all_pencil_topologies(topology1, topology2, axes132);
+        get_all_pencil_topologies(topology1, topology2, axes132, false);
     std::vector<topology_type> ref_shuffled_topologies_1_2_012 = {
         topology1, topology0, topology2};
     EXPECT_EQ(shuffled_topologies_1_2_012, ref_shuffled_topologies_1_2_012);
@@ -4031,21 +4006,21 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
 
     // topology2 to topology0
     auto shuffled_topologies_2_0_012 =
-        get_all_pencil_topologies(topology2, topology0, axes012);
+        get_all_pencil_topologies(topology2, topology0, axes012, false);
     auto shuffled_topologies_2_0_021 =
-        get_all_pencil_topologies(topology2, topology0, axes021);
+        get_all_pencil_topologies(topology2, topology0, axes021, false);
     auto shuffled_topologies_2_0_102 =
-        get_all_pencil_topologies(topology2, topology0, axes102);
+        get_all_pencil_topologies(topology2, topology0, axes102, false);
     auto shuffled_topologies_2_0_120 =
-        get_all_pencil_topologies(topology2, topology0, axes120);
+        get_all_pencil_topologies(topology2, topology0, axes120, false);
     auto shuffled_topologies_2_0_201 =
-        get_all_pencil_topologies(topology2, topology0, axes201);
+        get_all_pencil_topologies(topology2, topology0, axes201, false);
     auto shuffled_topologies_2_0_210 =
-        get_all_pencil_topologies(topology2, topology0, axes210);
+        get_all_pencil_topologies(topology2, topology0, axes210, false);
     auto shuffled_topologies_2_0_123 =
-        get_all_pencil_topologies(topology2, topology0, axes123);
+        get_all_pencil_topologies(topology2, topology0, axes123, false);
     auto shuffled_topologies_2_0_132 =
-        get_all_pencil_topologies(topology2, topology0, axes132);
+        get_all_pencil_topologies(topology2, topology0, axes132, false);
     std::vector<topology_type> ref_shuffled_topologies_2_0_012 = {
         topology2, topology4, topology5, topology0};
     EXPECT_EQ(shuffled_topologies_2_0_012, ref_shuffled_topologies_2_0_012);
@@ -4073,21 +4048,21 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
 
     // topology2 to topology1
     auto shuffled_topologies_2_1_012 =
-        get_all_pencil_topologies(topology2, topology1, axes012);
+        get_all_pencil_topologies(topology2, topology1, axes012, false);
     auto shuffled_topologies_2_1_021 =
-        get_all_pencil_topologies(topology2, topology1, axes021);
+        get_all_pencil_topologies(topology2, topology1, axes021, false);
     auto shuffled_topologies_2_1_102 =
-        get_all_pencil_topologies(topology2, topology1, axes102);
+        get_all_pencil_topologies(topology2, topology1, axes102, false);
     auto shuffled_topologies_2_1_120 =
-        get_all_pencil_topologies(topology2, topology1, axes120);
+        get_all_pencil_topologies(topology2, topology1, axes120, false);
     auto shuffled_topologies_2_1_201 =
-        get_all_pencil_topologies(topology2, topology1, axes201);
+        get_all_pencil_topologies(topology2, topology1, axes201, false);
     auto shuffled_topologies_2_1_210 =
-        get_all_pencil_topologies(topology2, topology1, axes210);
+        get_all_pencil_topologies(topology2, topology1, axes210, false);
     auto shuffled_topologies_2_1_123 =
-        get_all_pencil_topologies(topology2, topology1, axes123);
+        get_all_pencil_topologies(topology2, topology1, axes123, false);
     auto shuffled_topologies_2_1_132 =
-        get_all_pencil_topologies(topology2, topology1, axes132);
+        get_all_pencil_topologies(topology2, topology1, axes132, false);
     std::vector<topology_type> ref_shuffled_topologies_2_1_012 = {
         topology2, topology4, topology5, topology4, topology1};
     EXPECT_EQ(shuffled_topologies_2_1_012, ref_shuffled_topologies_2_1_012);
@@ -4131,28 +4106,28 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
     auto shuffled_topologies_2_2_132 =
         get_all_pencil_topologies(topology2, topology2, axes132);
     std::vector<topology_type> ref_shuffled_topologies_2_2_012 = {
-        topology2, topology11, topology8, topology3, topology2};
+        topology2, topology10, topology8, topology3, topology2};
     EXPECT_EQ(shuffled_topologies_2_2_012, ref_shuffled_topologies_2_2_012);
     std::vector<topology_type> ref_shuffled_topologies_2_2_021 = {
-        topology2, topology7, topology10, topology3, topology2};
+        topology2, topology7, topology9, topology3, topology2};
     EXPECT_EQ(shuffled_topologies_2_2_021, ref_shuffled_topologies_2_2_021);
     std::vector<topology_type> ref_shuffled_topologies_2_2_102 = {
-        topology2, topology11, topology2, topology7, topology2};
+        topology2, topology10, topology2, topology7, topology2};
     EXPECT_EQ(shuffled_topologies_2_2_102, ref_shuffled_topologies_2_2_102);
     std::vector<topology_type> ref_shuffled_topologies_2_2_120 = {
-        topology2, topology11, topology8, topology11, topology2};
+        topology2, topology10, topology8, topology10, topology2};
     EXPECT_EQ(shuffled_topologies_2_2_120, ref_shuffled_topologies_2_2_120);
     std::vector<topology_type> ref_shuffled_topologies_2_2_201 = {
-        topology2, topology7, topology2, topology11, topology2};
+        topology2, topology7, topology2, topology10, topology2};
     EXPECT_EQ(shuffled_topologies_2_2_201, ref_shuffled_topologies_2_2_201);
     std::vector<topology_type> ref_shuffled_topologies_2_2_210 = {
-        topology2, topology7, topology10, topology7, topology2};
+        topology2, topology7, topology9, topology7, topology2};
     EXPECT_EQ(shuffled_topologies_2_2_210, ref_shuffled_topologies_2_2_210);
     std::vector<topology_type> ref_shuffled_topologies_2_2_123 = {
-        topology2, topology11, topology8, topology11, topology2};
+        topology2, topology10, topology8, topology10, topology2};
     EXPECT_EQ(shuffled_topologies_2_2_123, ref_shuffled_topologies_2_2_123);
     std::vector<topology_type> ref_shuffled_topologies_2_2_132 = {
-        topology2, topology11, topology8, topology11, topology2};
+        topology2, topology10, topology8, topology10, topology2};
     EXPECT_EQ(shuffled_topologies_2_2_132, ref_shuffled_topologies_2_2_132);
   }
 }
@@ -4170,12 +4145,8 @@ void test_decompose_axes(std::size_t nprocs) {
 
   using axes_type     = std::array<std::size_t, 3>;
   using vec_axes_type = std::vector<std::size_t>;
-  axes_type axes012   = {0, 1, 2};
-  axes_type axes021   = {0, 2, 1};
-  axes_type axes102   = {1, 0, 2};
-  axes_type axes120   = {1, 2, 0};
-  axes_type axes201   = {2, 0, 1};
-  axes_type axes210   = {2, 1, 0};
+  axes_type axes012 = {0, 1, 2}, axes021 = {0, 2, 1}, axes102 = {1, 0, 2},
+            axes120 = {1, 2, 0}, axes201 = {2, 0, 1}, axes210 = {2, 1, 0};
 
   std::vector<axes_type> all_axes = {axes012, axes021, axes102,
                                      axes120, axes201, axes210};

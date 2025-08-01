@@ -24,7 +24,8 @@ class InternalPlan {
                         const axes_type& /*axes*/,
                         const topology_type& /*in_topology*/,
                         const topology_type& /*out_topology*/,
-                        const MPI_Comm& /*comm*/, KokkosFFT::Normalization norm)
+                        const MPI_Comm& /*comm*/, KokkosFFT::Normalization norm,
+                        const bool /*is_same_order*/)
       : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)),
         m_norm(norm) {}
