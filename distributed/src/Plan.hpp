@@ -25,7 +25,8 @@ internal_plan_factory(
     const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
     const KokkosFFT::shape_type<OutViewType::rank()>& out_topology,
     const MPI_Comm& comm,
-    KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
+    KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward,
+    bool is_same_order            = true) {
 #if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
   if (is_tpl_available(exec_space, in, out, axes, in_topology, out_topology)) {
     return std::make_unique<
@@ -44,11 +45,13 @@ internal_plan_factory(
   if (is_shared) {
     return std::make_unique<
         SharedPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
-        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+        exec_space, in, out, axes, in_topology, out_topology, comm, norm,
+        is_same_order);
   } else if (is_slab) {
     return std::make_unique<
         SlabPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
-        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+        exec_space, in, out, axes, in_topology, out_topology, comm, norm,
+        is_same_order);
   } else if (is_pencil) {
     // Pencil plans can be implemented similarly to slab plans
     // return std::make_unique<PencilPlan<ExecutionSpace, InViewType,
