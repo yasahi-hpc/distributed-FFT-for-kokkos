@@ -45,11 +45,13 @@ internal_plan_factory(
   if (is_shared) {
     return std::make_unique<
         SharedPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
-        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+        exec_space, in, out, axes, in_topology, out_topology, comm, norm,
+        is_same_order);
   } else if (is_slab) {
     return std::make_unique<
         SlabPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
-        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+        exec_space, in, out, axes, in_topology, out_topology, comm, norm,
+        is_same_order);
   } else if (is_pencil) {
     // Pencil plans can be implemented similarly to slab plans
     // return std::make_unique<PencilPlan<ExecutionSpace, InViewType,

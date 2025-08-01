@@ -2035,9 +2035,10 @@ class SlabPlan
       const extents_type& in_topology, const extents_type& out_topology,
       const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward,
-      const bool is_same_order = true)
+      const bool is_same_order      = true)
       : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>(
-            exec_space, in, out, axes, in_topology, out_topology, comm, norm, is_same_order),
+            exec_space, in, out, axes, in_topology, out_topology, comm, norm,
+            is_same_order),
         m_internal_plan(exec_space, in, out, axes, in_topology, out_topology,
                         comm, norm),
         m_in_extents(KokkosFFT::Impl::extract_extents(in)),
