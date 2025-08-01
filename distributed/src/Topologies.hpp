@@ -564,8 +564,9 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 /// \param out_topology The output topology.
 /// \param axes The axes along which the FFT is performed.
 /// \param is_same_order If true, the in/out topologies are considered in the
-/// same order. \return A vector of all possible slab topologies that can be
-/// formed from the input and output topologies, considering the FFT axes.
+/// same order.
+/// \return A vector of all possible slab topologies that can be formed from the
+/// input and output topologies, considering the FFT axes.
 template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
 std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
     const std::array<std::size_t, DIM>& in_topology,
@@ -595,7 +596,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_pencil_topologies(
 
   if (has_same_non_one_elements) {
     // If the elements are the same, the following startegy does not work
-    // Thus, we replace the element by dummy to manipulate
+    // Thus, we replace the elements by dummies to manipulate
     std::array<std::size_t, 2> dummies = {2, 3};
     int count                          = 0;
     for (std::size_t i = 0; i < DIM; i++) {
