@@ -26,11 +26,17 @@ void display_sum(ViewType& a) {
   std::cout << std::resetiosflags(std::ios_base::floatfield);
 }
 
-#include <iomanip>
-
 template <typename ViewType>
 void nd_display(ViewType& a) {
   auto label = a.label();
+
+  using value_type      = typename ViewType::non_const_value_type;
+  using execution_space = typename ViewType::execution_space;
+  using elem_type =
+      KokkosFFT::Impl::add_pointer_n_t<value_type, ViewType::rank()>;
+
+  // Kokkos::View<elem_type, Kokkos::LayoutRight, execution_space>
+  // a_contiguous("a", a.layout()); Kokkos::deep_copy(a_contiguous, a);
 
   auto h_a = Kokkos::create_mirror_view(a);
   Kokkos::deep_copy(h_a, a);

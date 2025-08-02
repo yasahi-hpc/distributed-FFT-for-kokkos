@@ -90,8 +90,8 @@ struct BlockInfo {
   //! The axes along which the FFT is performed
   axes_type m_axes;
 
-  //! The MPI communicator for the block
-  MPI_Comm m_comm = MPI_COMM_NULL;
+  //! The axis along which the MPI all2all is performed
+  std::size_t m_comm_axis = 0;
 
   //! The type of the block (Transpose, FFT, FFT2, TransposeAndFFT)
   BlockType m_block_type;
@@ -104,7 +104,7 @@ struct BlockInfo {
            m_buffer_extents == other.m_buffer_extents &&
            m_in_map == other.m_in_map && m_out_map == other.m_out_map &&
            m_in_axis == other.m_in_axis && m_out_axis == other.m_out_axis &&
-           m_axes == other.m_axes && m_comm == other.m_comm &&
+           m_axes == other.m_axes && m_comm_axis == other.m_comm_axis &&
            m_block_type == other.m_block_type;
   }
 

@@ -21,6 +21,7 @@ struct TestMPIHelper : public ::testing::Test {
 
   std::size_t m_rank   = 0;
   std::size_t m_nprocs = 1;
+  std::size_t m_npx    = 1;
 
   virtual void SetUp() {
     int rank, nprocs;
@@ -28,6 +29,7 @@ struct TestMPIHelper : public ::testing::Test {
     ::MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
     m_rank   = rank;
     m_nprocs = nprocs;
+    m_npx    = std::sqrt(m_nprocs);
   }
 };
 
@@ -264,6 +266,221 @@ void test_get_local_shape2D(std::size_t rank, std::size_t nprocs) {
   EXPECT_EQ(local_shape_t1, ref_local_shape_t1);
 }
 
+template <typename T, typename LayoutType>
+void test_get_local_extents3D(std::size_t rank, std::size_t npx,
+                              std::size_t npy) {
+  using extents_type = std::array<std::size_t, 3>;
+
+  extents_type topology0{1, npx, npy}, topology1{npx, 1, npy},
+      topology2{npx, npy, 1};
+
+  std::size_t rx = rank / npy, ry = rank % npy;
+
+  auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
+    std::size_t quotient  = n / t;
+    std::size_t remainder = n % t;
+    return r < remainder ? (quotient + 1) : quotient;
+  };
+
+  const std::size_t gn0 = 8, gn1 = 7, gn2 = 5;
+  const std::size_t n0_t0 = gn0;
+  const std::size_t n1_t0 = distribute_extents(gn1, rx, npx);
+  const std::size_t n2_t0 = distribute_extents(gn2, ry, npy);
+
+  const std::size_t n0_t1 = distribute_extents(gn0, rx, npx);
+  const std::size_t n1_t1 = gn1;
+  const std::size_t n2_t1 = distribute_extents(gn2, ry, npy);
+
+  const std::size_t n0_t2 = distribute_extents(gn0, rx, npx);
+  const std::size_t n1_t2 = distribute_extents(gn1, ry, npy);
+  const std::size_t n2_t2 = gn2;
+
+  const std::size_t n1_t0_p = (gn1 - 1) / npx + 1;
+  const std::size_t n2_t0_p = (gn2 - 1) / npy + 1;
+  const std::size_t n0_t1_p = (gn0 - 1) / npx + 1;
+  const std::size_t n2_t1_p = (gn2 - 1) / npy + 1;
+  const std::size_t n0_t2_p = (gn0 - 1) / npx + 1;
+  const std::size_t n1_t2_p = (gn1 - 1) / npy + 1;
+
+  extents_type global_shape{gn0, gn1, gn2};
+  extents_type ref_local_shape_t0{n0_t0, n1_t0, n2_t0},
+      ref_local_shape_t1{n0_t1, n1_t1, n2_t1},
+      ref_local_shape_t2{n0_t2, n1_t2, n2_t2};
+  extents_type ref_local_starts_t0{0, rx * n1_t0_p, ry * n2_t0_p},
+      ref_local_starts_t1{rx * n0_t1_p, 0, ry * n2_t1_p},
+      ref_local_starts_t2{rx * n0_t2_p, ry * n1_t2_p, 0};
+
+  auto [local_shape_t0, local_starts_t0] =
+      get_local_extents(global_shape, topology0, MPI_COMM_WORLD);
+  auto [local_shape_t1, local_starts_t1] =
+      get_local_extents(global_shape, topology1, MPI_COMM_WORLD);
+  auto [local_shape_t2, local_starts_t2] =
+      get_local_extents(global_shape, topology2, MPI_COMM_WORLD);
+
+  EXPECT_EQ(local_shape_t0, ref_local_shape_t0);
+  EXPECT_EQ(local_shape_t1, ref_local_shape_t1);
+  EXPECT_EQ(local_shape_t2, ref_local_shape_t2);
+
+  EXPECT_EQ(local_starts_t0, ref_local_starts_t0);
+  EXPECT_EQ(local_starts_t1, ref_local_starts_t1);
+  EXPECT_EQ(local_starts_t2, ref_local_starts_t2);
+}
+
+template <typename T, typename LayoutType>
+void test_get_next_extents2D(std::size_t rank, std::size_t nprocs) {
+  using extents_type = std::array<std::size_t, 2>;
+  using map_type     = std::array<std::size_t, 2>;
+
+  extents_type topology0{1, nprocs}, topology1{nprocs, 1};
+  map_type map0{0, 1}, map1{1, 0};
+
+  auto distribute_extents = [&](std::size_t n, std::size_t t) {
+    std::size_t quotient  = n / t;
+    std::size_t remainder = n % t;
+    return rank < remainder ? (quotient + 1) : quotient;
+  };
+
+  const std::size_t gn0 = 19, gn1 = 32;
+  const std::size_t n0_t0 = gn0;
+  const std::size_t n1_t0 = distribute_extents(gn1, nprocs);
+
+  const std::size_t n0_t1 = distribute_extents(gn0, nprocs);
+  const std::size_t n1_t1 = gn1;
+
+  extents_type global_shape{gn0, gn1};
+  extents_type ref_next_shape_t0_map0{n0_t0, n1_t0},
+      ref_next_shape_t0_map1{n1_t0, n0_t0},
+      ref_next_shape_t1_map0{n0_t1, n1_t1},
+      ref_next_shape_t1_map1{n1_t1, n0_t1};
+
+  auto next_shape_t0_map0 =
+      get_next_extents(global_shape, topology0, map0, MPI_COMM_WORLD);
+  auto next_shape_t0_map1 =
+      get_next_extents(global_shape, topology0, map1, MPI_COMM_WORLD);
+  auto next_shape_t1_map0 =
+      get_next_extents(global_shape, topology1, map0, MPI_COMM_WORLD);
+  auto next_shape_t1_map1 =
+      get_next_extents(global_shape, topology1, map1, MPI_COMM_WORLD);
+
+  EXPECT_EQ(next_shape_t0_map0, ref_next_shape_t0_map0);
+  EXPECT_EQ(next_shape_t0_map1, ref_next_shape_t0_map1);
+  EXPECT_EQ(next_shape_t1_map0, ref_next_shape_t1_map0);
+  EXPECT_EQ(next_shape_t1_map1, ref_next_shape_t1_map1);
+}
+
+template <typename T, typename LayoutType>
+void test_get_next_extents3D(std::size_t rank, std::size_t npx,
+                             std::size_t npy) {
+  using extents_type = std::array<std::size_t, 3>;
+  using map_type     = std::array<std::size_t, 3>;
+
+  extents_type topology0{1, npx, npy}, topology1{npx, 1, npy},
+      topology2{npx, npy, 1};
+  map_type map012{0, 1, 2}, map021{0, 2, 1}, map102{1, 0, 2}, map120{1, 2, 0},
+      map201{2, 0, 1}, map210{2, 1, 0};
+
+  std::size_t rx = rank / npy, ry = rank % npy;
+
+  auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
+    std::size_t quotient  = n / t;
+    std::size_t remainder = n % t;
+    return r < remainder ? (quotient + 1) : quotient;
+  };
+
+  const std::size_t gn0 = 8, gn1 = 7, gn2 = 5;
+  const std::size_t n0_t0 = gn0;
+  const std::size_t n1_t0 = distribute_extents(gn1, rx, npx);
+  const std::size_t n2_t0 = distribute_extents(gn2, ry, npy);
+
+  const std::size_t n0_t1 = distribute_extents(gn0, rx, npx);
+  const std::size_t n1_t1 = gn1;
+  const std::size_t n2_t1 = distribute_extents(gn2, ry, npy);
+
+  const std::size_t n0_t2 = distribute_extents(gn0, rx, npx);
+  const std::size_t n1_t2 = distribute_extents(gn1, ry, npy);
+  const std::size_t n2_t2 = gn2;
+
+  extents_type global_shape{gn0, gn1, gn2};
+  extents_type ref_next_shape_t0_map012{n0_t0, n1_t0, n2_t0},
+      ref_next_shape_t0_map021{n0_t0, n2_t0, n1_t0},
+      ref_next_shape_t0_map102{n1_t0, n0_t0, n2_t0},
+      ref_next_shape_t0_map120{n1_t0, n2_t0, n0_t0},
+      ref_next_shape_t0_map201{n2_t0, n0_t0, n1_t0},
+      ref_next_shape_t0_map210{n2_t0, n1_t0, n0_t0},
+      ref_next_shape_t1_map012{n0_t1, n1_t1, n2_t1},
+      ref_next_shape_t1_map021{n0_t1, n2_t1, n1_t1},
+      ref_next_shape_t1_map102{n1_t1, n0_t1, n2_t1},
+      ref_next_shape_t1_map120{n1_t1, n2_t1, n0_t1},
+      ref_next_shape_t1_map201{n2_t1, n0_t1, n1_t1},
+      ref_next_shape_t1_map210{n2_t1, n1_t1, n0_t1},
+      ref_next_shape_t2_map012{n0_t2, n1_t2, n2_t2},
+      ref_next_shape_t2_map021{n0_t2, n2_t2, n1_t2},
+      ref_next_shape_t2_map102{n1_t2, n0_t2, n2_t2},
+      ref_next_shape_t2_map120{n1_t2, n2_t2, n0_t2},
+      ref_next_shape_t2_map201{n2_t2, n0_t2, n1_t2},
+      ref_next_shape_t2_map210{n2_t2, n1_t2, n0_t2};
+
+  auto next_shape_t0_map012 =
+      get_next_extents(global_shape, topology0, map012, MPI_COMM_WORLD);
+  auto next_shape_t0_map021 =
+      get_next_extents(global_shape, topology0, map021, MPI_COMM_WORLD);
+  auto next_shape_t0_map102 =
+      get_next_extents(global_shape, topology0, map102, MPI_COMM_WORLD);
+  auto next_shape_t0_map120 =
+      get_next_extents(global_shape, topology0, map120, MPI_COMM_WORLD);
+  auto next_shape_t0_map201 =
+      get_next_extents(global_shape, topology0, map201, MPI_COMM_WORLD);
+  auto next_shape_t0_map210 =
+      get_next_extents(global_shape, topology0, map210, MPI_COMM_WORLD);
+
+  auto next_shape_t1_map012 =
+      get_next_extents(global_shape, topology1, map012, MPI_COMM_WORLD);
+  auto next_shape_t1_map021 =
+      get_next_extents(global_shape, topology1, map021, MPI_COMM_WORLD);
+  auto next_shape_t1_map102 =
+      get_next_extents(global_shape, topology1, map102, MPI_COMM_WORLD);
+  auto next_shape_t1_map120 =
+      get_next_extents(global_shape, topology1, map120, MPI_COMM_WORLD);
+  auto next_shape_t1_map201 =
+      get_next_extents(global_shape, topology1, map201, MPI_COMM_WORLD);
+  auto next_shape_t1_map210 =
+      get_next_extents(global_shape, topology1, map210, MPI_COMM_WORLD);
+
+  auto next_shape_t2_map012 =
+      get_next_extents(global_shape, topology2, map012, MPI_COMM_WORLD);
+  auto next_shape_t2_map021 =
+      get_next_extents(global_shape, topology2, map021, MPI_COMM_WORLD);
+  auto next_shape_t2_map102 =
+      get_next_extents(global_shape, topology2, map102, MPI_COMM_WORLD);
+  auto next_shape_t2_map120 =
+      get_next_extents(global_shape, topology2, map120, MPI_COMM_WORLD);
+  auto next_shape_t2_map201 =
+      get_next_extents(global_shape, topology2, map201, MPI_COMM_WORLD);
+  auto next_shape_t2_map210 =
+      get_next_extents(global_shape, topology2, map210, MPI_COMM_WORLD);
+
+  EXPECT_EQ(next_shape_t0_map012, ref_next_shape_t0_map012);
+  EXPECT_EQ(next_shape_t0_map021, ref_next_shape_t0_map021);
+  EXPECT_EQ(next_shape_t0_map102, ref_next_shape_t0_map102);
+  EXPECT_EQ(next_shape_t0_map120, ref_next_shape_t0_map120);
+  EXPECT_EQ(next_shape_t0_map201, ref_next_shape_t0_map201);
+  EXPECT_EQ(next_shape_t0_map210, ref_next_shape_t0_map210);
+
+  EXPECT_EQ(next_shape_t1_map012, ref_next_shape_t1_map012);
+  EXPECT_EQ(next_shape_t1_map021, ref_next_shape_t1_map021);
+  EXPECT_EQ(next_shape_t1_map102, ref_next_shape_t1_map102);
+  EXPECT_EQ(next_shape_t1_map120, ref_next_shape_t1_map120);
+  EXPECT_EQ(next_shape_t1_map201, ref_next_shape_t1_map201);
+  EXPECT_EQ(next_shape_t1_map210, ref_next_shape_t1_map210);
+
+  EXPECT_EQ(next_shape_t2_map012, ref_next_shape_t2_map012);
+  EXPECT_EQ(next_shape_t2_map021, ref_next_shape_t2_map021);
+  EXPECT_EQ(next_shape_t2_map102, ref_next_shape_t2_map102);
+  EXPECT_EQ(next_shape_t2_map120, ref_next_shape_t2_map120);
+  EXPECT_EQ(next_shape_t2_map201, ref_next_shape_t2_map201);
+  EXPECT_EQ(next_shape_t2_map210, ref_next_shape_t2_map210);
+}
+
 }  // namespace
 
 TYPED_TEST_SUITE(TestMPIHelper, test_types);
@@ -291,4 +508,36 @@ TYPED_TEST(TestMPIHelper, GetLocalShape2D) {
   using layout_type = typename TestFixture::layout_type;
 
   test_get_local_shape2D<float_type, layout_type>(this->m_rank, this->m_nprocs);
+}
+
+TYPED_TEST(TestMPIHelper, GetLocalShape3D) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  if (this->m_npx != 2) {
+    GTEST_SKIP() << "The number of MPI ranks should be 4";
+  }
+
+  test_get_local_extents3D<float_type, layout_type>(this->m_rank, this->m_npx,
+                                                    this->m_npx);
+}
+
+TYPED_TEST(TestMPIHelper, GetNextExtents2D) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  test_get_next_extents2D<float_type, layout_type>(this->m_rank,
+                                                   this->m_nprocs);
+}
+
+TYPED_TEST(TestMPIHelper, GetNextExtents3D) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  if (this->m_npx != 2) {
+    GTEST_SKIP() << "The number of MPI ranks should be 4";
+  }
+
+  test_get_next_extents3D<float_type, layout_type>(this->m_rank, this->m_npx,
+                                                   this->m_npx);
 }
