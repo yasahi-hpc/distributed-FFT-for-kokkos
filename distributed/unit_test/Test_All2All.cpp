@@ -29,7 +29,7 @@ template <typename T, typename LayoutType>
 void test_all2all_view2D(int rank, int nprocs) {
   using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
 
-  const std::size_t n0 = 8, n1 = 7;
+  const std::size_t n0 = 16, n1 = 15;
   const std::size_t n0_local = ((n0 - 1) / nprocs) + 1;
   const std::size_t n1_local = ((n1 - 1) / nprocs) + 1;
 
