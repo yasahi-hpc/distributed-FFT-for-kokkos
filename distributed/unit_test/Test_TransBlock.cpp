@@ -521,8 +521,9 @@ TYPED_TEST(TestTransBlock, View3D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  if (this->m_npx * this->m_npx != this->m_nprocs) {
-    GTEST_SKIP() << "The number of MPI ranks should be a perfect square ";
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
   }
 
   test_trans_block_view3D<float_type, layout_type>(this->m_npx, this->m_npx);
