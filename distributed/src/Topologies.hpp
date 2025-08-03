@@ -538,9 +538,8 @@ auto get_all_pencil_topologies(const std::array<std::size_t, DIM>& in_topology,
   static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
   static_assert(DIM >= 3 && DIM >= FFT_DIM, "DIM >= 3 and DIM >= FFT_DIM");
 
-  using topologies_type          = std::vector<std::array<std::size_t, DIM>>;
-  using axes_type                = std::vector<std::size_t>;
-  using topologies_and_axes_type = std::tuple<topologies_type, axes_type>;
+  using topologies_type = std::vector<std::array<std::size_t, DIM>>;
+  using axes_type       = std::vector<std::size_t>;
 
   bool is_pencil =
       is_pencil_topology(in_topology) && is_pencil_topology(out_topology);
