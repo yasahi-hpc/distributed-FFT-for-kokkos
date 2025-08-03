@@ -78,7 +78,7 @@ jobs:
       - name: Build
         run: |
           docker run -v ${{ github.workspace }}:/work ${{ matrix.backend.image }} \
-            cmake --build build -j 4
+            cmake --build build -j 2
 
       - name: Test
         run: |

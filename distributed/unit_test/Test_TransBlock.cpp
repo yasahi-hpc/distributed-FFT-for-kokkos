@@ -151,7 +151,7 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   // Define, x, y and z pencils
   topology_type topology0{1, npx, npy}, topology1{npx, 1, npy},
-      topology2{npx, npy, 1};
+      topology2{npx, npy, 1}, topology3{npy, npx, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
   extents_type global_extents{n0, n1, n2};
@@ -162,6 +162,8 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
       get_local_extents(global_extents, topology1, MPI_COMM_WORLD);
   auto [local_extents_t2, local_starts_t2] =
       get_local_extents(global_extents, topology2, MPI_COMM_WORLD);
+  auto [local_extents_t3, local_starts_t3] =
+      get_local_extents(global_extents, topology3, MPI_COMM_WORLD, false);
 
   View3DType gu("gu", n0, n1, n2);
 
@@ -258,21 +260,52 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
                   KokkosFFT::Impl::create_layout<LayoutType>(
                       get_mapped_extents(local_extents_t2, map210)));
 
+  // Data in Topology 3 (Z-pencil)
+  View3DType u_3_012(
+      "u_3_012", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t3)),
+      u_3_021("u_3_021", KokkosFFT::Impl::create_layout<LayoutType>(
+                             get_mapped_extents(local_extents_t3, map021))),
+      u_3_102("u_3_102", KokkosFFT::Impl::create_layout<LayoutType>(
+                             get_mapped_extents(local_extents_t3, map102))),
+      u_3_120("u_3_120", KokkosFFT::Impl::create_layout<LayoutType>(
+                             get_mapped_extents(local_extents_t3, map120))),
+      u_3_201("u_3_201", KokkosFFT::Impl::create_layout<LayoutType>(
+                             get_mapped_extents(local_extents_t3, map201))),
+      u_3_210("u_3_210", KokkosFFT::Impl::create_layout<LayoutType>(
+                             get_mapped_extents(local_extents_t3, map210))),
+      ref_u_3_012("ref_u_3_012",
+                  KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t3)),
+      ref_u_3_021("ref_u_3_021",
+                  KokkosFFT::Impl::create_layout<LayoutType>(
+                      get_mapped_extents(local_extents_t3, map021))),
+      ref_u_3_102("ref_u_3_102",
+                  KokkosFFT::Impl::create_layout<LayoutType>(
+                      get_mapped_extents(local_extents_t3, map102))),
+      ref_u_3_120("ref_u_3_120",
+                  KokkosFFT::Impl::create_layout<LayoutType>(
+                      get_mapped_extents(local_extents_t3, map120))),
+      ref_u_3_201("ref_u_3_201",
+                  KokkosFFT::Impl::create_layout<LayoutType>(
+                      get_mapped_extents(local_extents_t3, map201))),
+      ref_u_3_210("ref_u_3_210",
+                  KokkosFFT::Impl::create_layout<LayoutType>(
+                      get_mapped_extents(local_extents_t3, map210)));
+
   // Prepare buffer data
   auto buffer_01 =
       get_buffer_extents<LayoutType>(global_extents, topology0, topology1);
-  auto buffer_02 =
-      get_buffer_extents<LayoutType>(global_extents, topology0, topology2);
+  auto buffer_03 =
+      get_buffer_extents<LayoutType>(global_extents, topology0, topology3);
   auto buffer_12 =
       get_buffer_extents<LayoutType>(global_extents, topology1, topology2);
   View4DType send_buffer01(
       "send_buffer01", KokkosFFT::Impl::create_layout<LayoutType>(buffer_01));
   View4DType recv_buffer01(
       "recv_buffer01", KokkosFFT::Impl::create_layout<LayoutType>(buffer_01));
-  View4DType send_buffer02(
-      "send_buffer02", KokkosFFT::Impl::create_layout<LayoutType>(buffer_02));
-  View4DType recv_buffer02(
-      "recv_buffer02", KokkosFFT::Impl::create_layout<LayoutType>(buffer_02));
+  View4DType send_buffer03(
+      "send_buffer03", KokkosFFT::Impl::create_layout<LayoutType>(buffer_03));
+  View4DType recv_buffer03(
+      "recv_buffer03", KokkosFFT::Impl::create_layout<LayoutType>(buffer_03));
   View4DType send_buffer12(
       "send_buffer12", KokkosFFT::Impl::create_layout<LayoutType>(buffer_12));
   View4DType recv_buffer12(
@@ -328,6 +361,21 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
   safe_transpose(exec, u_2_012, ref_u_2_120, int_map120);
   safe_transpose(exec, u_2_012, ref_u_2_201, int_map201);
   safe_transpose(exec, u_2_012, ref_u_2_210, int_map210);
+
+  // Topo 3
+  Kokkos::pair<std::size_t, std::size_t> range_gu3_dim0(
+      local_starts_t3.at(0), local_starts_t3.at(0) + local_extents_t3.at(0)),
+      range_gu3_dim1(local_starts_t3.at(1),
+                     local_starts_t3.at(1) + local_extents_t3.at(1));
+  auto sub_gu_3 =
+      Kokkos::subview(gu, range_gu3_dim0, range_gu3_dim1, Kokkos::ALL);
+  Kokkos::deep_copy(u_3_012, sub_gu_3);
+  Kokkos::deep_copy(ref_u_3_012, sub_gu_3);
+  safe_transpose(exec, u_3_012, ref_u_3_021, int_map021);
+  safe_transpose(exec, u_3_012, ref_u_3_102, int_map102);
+  safe_transpose(exec, u_3_012, ref_u_3_120, int_map120);
+  safe_transpose(exec, u_3_012, ref_u_3_201, int_map201);
+  safe_transpose(exec, u_3_012, ref_u_3_210, int_map210);
 
   // Define cart comm
   std::vector<int> dims;
@@ -415,6 +463,84 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
     EXPECT_TRUE(allclose(exec, u_1_210, ref_u_1_210));
 
     trans_block_0_1(u_1_210, u_0_012, send_buffer01, recv_buffer01,
+                    KokkosFFT::Direction::backward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
+  }
+
+  {
+    TransBlock trans_block_0_3(exec, buffer_03, map012, 0, map012, 2, col_comm);
+    trans_block_0_3(u_0_012, u_3_012, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::forward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_3_012, ref_u_3_012));
+
+    trans_block_0_3(u_3_012, u_0_012, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::backward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
+  }
+
+  {
+    TransBlock trans_block_0_3(exec, buffer_03, map012, 0, map021, 2, col_comm);
+    trans_block_0_3(u_0_012, u_3_021, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::forward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_3_021, ref_u_3_021));
+
+    trans_block_0_3(u_3_021, u_0_012, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::backward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
+  }
+
+  {
+    TransBlock trans_block_0_3(exec, buffer_03, map012, 0, map102, 2, col_comm);
+    trans_block_0_3(u_0_012, u_3_102, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::forward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_3_102, ref_u_3_102));
+
+    trans_block_0_3(u_3_102, u_0_012, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::backward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
+  }
+
+  {
+    TransBlock trans_block_0_3(exec, buffer_03, map012, 0, map120, 2, col_comm);
+    trans_block_0_3(u_0_012, u_3_120, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::forward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_3_120, ref_u_3_120));
+
+    trans_block_0_3(u_3_120, u_0_012, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::backward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
+  }
+
+  {
+    TransBlock trans_block_0_3(exec, buffer_03, map012, 0, map201, 2, col_comm);
+    trans_block_0_3(u_0_012, u_3_201, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::forward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_3_201, ref_u_3_201));
+
+    trans_block_0_3(u_3_201, u_0_012, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::backward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
+  }
+
+  {
+    TransBlock trans_block_0_3(exec, buffer_03, map012, 0, map210, 2, col_comm);
+    trans_block_0_3(u_0_012, u_3_210, send_buffer03, recv_buffer03,
+                    KokkosFFT::Direction::forward);
+    exec.fence();
+    EXPECT_TRUE(allclose(exec, u_3_210, ref_u_3_210));
+
+    trans_block_0_3(u_3_210, u_0_012, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
