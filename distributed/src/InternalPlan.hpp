@@ -4,13 +4,18 @@
 #include <string>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include "Types.hpp"
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM = 1>
+          std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
 class InternalPlan {
-  using axes_type     = KokkosFFT::axis_type<DIM>;
-  using topology_type = KokkosFFT::shape_type<InViewType::rank()>;
-  using extents_type  = KokkosFFT::shape_type<InViewType::rank()>;
+  using axes_type    = KokkosFFT::axis_type<DIM>;
+  using extents_type = KokkosFFT::shape_type<InViewType::rank()>;
+  using in_topology_type =
+      Topology<std::size_t, InViewType::rank(), InLayoutType>;
+  using out_topology_type =
+      Topology<std::size_t, InViewType::rank(), OutLayoutType>;
 
   const extents_type m_in_extents, m_out_extents;
 
@@ -22,10 +27,19 @@ class InternalPlan {
   explicit InternalPlan(const ExecutionSpace& /*exec_space*/,
                         const InViewType& in, const OutViewType& out,
                         const axes_type& /*axes*/,
-                        const topology_type& /*in_topology*/,
-                        const topology_type& /*out_topology*/,
-                        const MPI_Comm& /*comm*/, KokkosFFT::Normalization norm,
-                        const bool /*is_same_order*/)
+                        const extents_type& /*in_topology*/,
+                        const extents_type& /*out_topology*/,
+                        const MPI_Comm& /*comm*/, KokkosFFT::Normalization norm)
+      : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
+        m_out_extents(KokkosFFT::Impl::extract_extents(out)),
+        m_norm(norm) {}
+
+  explicit InternalPlan(const ExecutionSpace& /*exec_space*/,
+                        const InViewType& in, const OutViewType& out,
+                        const axes_type& /*axes*/,
+                        const in_topology_type& /*in_topology*/,
+                        const out_topology_type& /*out_topology*/,
+                        const MPI_Comm& /*comm*/, KokkosFFT::Normalization norm)
       : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)),
         m_norm(norm) {}

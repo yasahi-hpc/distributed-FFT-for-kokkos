@@ -74,15 +74,16 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
   using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView3DType =
       Kokkos::View<Kokkos::complex<float_type>***, LayoutType, execution_space>;
-  using axes_type     = KokkosFFT::axis_type<1>;
-  using extents_type  = std::array<std::size_t, 3>;
-  using topology_type = std::array<std::size_t, 3>;
+  using axes_type       = KokkosFFT::axis_type<1>;
+  using extents_type    = std::array<std::size_t, 3>;
+  using topology_r_type = Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  using topology_l_type = Topology<std::size_t, 3, Kokkos::LayoutLeft>;
 
   constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
 
   // Define, x-pencil, y-pencil and z-pencil
-  topology_type topology0{1, npx, npy}, topology1{npx, 1, npy},
-      topology2{npy, npx, 1};
+  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy};
+  topology_l_type topology2{npy, npx, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
@@ -361,8 +362,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
   Kokkos::deep_copy(ref_u_inv_1, u_1);
   Kokkos::deep_copy(ref_u_inv_2, u_2);
 
-  using PencilPlanType =
-      PencilPlan<execution_space, View3DType, ComplexView3DType, 1>;
+  // using PencilPlanType =
+  //     PencilPlan<execution_space, View3DType, ComplexView3DType, 1>;
 
   // Not a pencil geometry
   if (npx == 1 || npy == 1) {
@@ -370,8 +371,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     ASSERT_THROW(
         {
-          PencilPlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0, ax0, topology0,
-                                      topology1, MPI_COMM_WORLD);
+          PencilPlan plan_0_1_ax0(exec, u_0, u_hat_1_ax0, ax0, topology0,
+                                  topology1, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -379,8 +380,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/py, (n1/2+1)/px, n2)
     ASSERT_THROW(
         {
-          PencilPlanType plan_0_2_ax1(exec, u_0, u_hat_2_ax1, ax1, topology0,
-                                      topology2, MPI_COMM_WORLD);
+          PencilPlan plan_0_2_ax1(exec, u_0, u_hat_2_ax1, ax1, topology0,
+                                  topology2, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -388,8 +389,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/py, n2/2+1)
     ASSERT_THROW(
         {
-          PencilPlanType plan_1_2_ax2(exec, u_1, u_hat_2_ax2, ax2, topology1,
-                                      topology2, MPI_COMM_WORLD);
+          PencilPlan plan_1_2_ax2(exec, u_1, u_hat_2_ax2, ax2, topology1,
+                                  topology2, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -397,8 +398,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0, n1/px, (n2/2+1)/py)
     ASSERT_THROW(
         {
-          PencilPlanType plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax2, topology0,
-                                      topology0, MPI_COMM_WORLD);
+          PencilPlan plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax2, topology0,
+                                  topology0, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -406,8 +407,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     ASSERT_THROW(
         {
-          PencilPlanType plan_1_1_ax1(exec, u_1, u_hat_1_ax1, ax1, topology1,
-                                      topology1, MPI_COMM_WORLD);
+          PencilPlan plan_1_1_ax1(exec, u_1, u_hat_1_ax1, ax1, topology1,
+                                  topology1, MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -415,8 +416,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1/py, n2) -> (n0/px, (n1/2+1)/py, n2)
     ASSERT_THROW(
         {
-          PencilPlanType plan_2_2_ax1(exec, u_2, u_hat_2_ax1, ax1, topology2,
-                                      topology2, MPI_COMM_WORLD);
+          PencilPlan plan_2_2_ax1(exec, u_2, u_hat_2_ax1, ax1, topology2,
+                                  topology2, MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
@@ -424,33 +425,37 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // topo 0 -> topo 0 with ax = {0}:
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // FFT ax = {0}
-    PencilPlanType plan_0_0_ax0(exec, u_0, u_hat_0_ax0, ax0, topology0,
-                                topology0, MPI_COMM_WORLD);
+    PencilPlan plan_0_0_ax0(exec, u_0, u_hat_0_ax0, ax0, topology0, topology0,
+                            MPI_COMM_WORLD);
     plan_0_0_ax0.forward(u_0, u_hat_0_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax0, ref_u_hat_0_ax0));
 
     plan_0_0_ax0.backward(u_hat_0_ax0, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
+    std::cout << "plan_0_0_ax0 OK" << std::endl;
+
     // [OK]
     // topo 0 -> topo 0 with ax = {1}:
     // (n0, n1/px, n2/py) -> (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     // -> (n0, (n1/2+1)/px, n2/py)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0
-    PencilPlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1, ax1, topology0,
-                                topology0, MPI_COMM_WORLD);
+    PencilPlan plan_0_0_ax1(exec, u_0, u_hat_0_ax1, ax1, topology0, topology0,
+                            MPI_COMM_WORLD);
     plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
 
     plan_0_0_ax1.backward(u_hat_0_ax1, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
+    std::cout << "plan_0_0_ax1 OK" << std::endl;
+
     // topo 0 -> topo 0 with ax = {2}:
     // (n0, n1/px, n2/py) -> (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1)
     // -> (n0, n1/px, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
-    PencilPlanType plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax2, topology0,
-                                topology0, MPI_COMM_WORLD);
+    PencilPlan plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax2, topology0, topology0,
+                            MPI_COMM_WORLD);
     plan_0_0_ax2.forward(u_0, u_hat_0_ax2);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax2, ref_u_hat_0_ax2));
 
@@ -472,16 +477,20 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     plan_0_0_ax2.backward(u_hat_0_ax2, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
+    std::cout << "plan_0_0_ax2 OK" << std::endl;
+
     // topo 0 -> topo 1 with ax = {0}:
     // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> (n0/2+1, n1/p, n2)
     // FFT ax = {0} + Transpose 1
-    PencilPlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0, ax0, topology0,
-                                topology1, MPI_COMM_WORLD);
+    PencilPlan plan_0_1_ax0(exec, u_0, u_hat_1_ax0, ax0, topology0, topology1,
+                            MPI_COMM_WORLD);
     plan_0_1_ax0.forward(u_0, u_hat_1_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
 
     plan_0_1_ax0.backward(u_hat_1_ax0, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    std::cout << "plan_0_1_ax0 OK" << std::endl;
 
     /*
     // topo 0 -> topo 1 with ax = {1}:

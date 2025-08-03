@@ -2,7 +2,12 @@
 #define TYPES_HPP
 
 #include <array>
+#include <cstddef>
+#include <initializer_list>
+#include <stdexcept>
+#include <utility>
 #include <vector>
+#include <Kokkos_Core.hpp>
 
 enum class TopologyType {
   Pencil,
@@ -109,6 +114,80 @@ struct BlockInfo {
   }
 
   bool operator!=(const BlockInfo& other) const { return !(*this == other); }
+};
+
+template <typename T, std::size_t N, typename LayoutType = Kokkos::LayoutRight>
+class Topology {
+ private:
+  std::array<T, N> m_data;
+
+ public:
+  // Default constructor
+  constexpr Topology() = default;
+
+  // Constructor from std::array
+  constexpr Topology(const std::array<T, N>& arr) : m_data{arr} {}
+
+  // Constructor from initializer list
+  constexpr Topology(std::initializer_list<T> init) {
+    if (init.size() != N) {
+      throw std::length_error("Initializer list size must match array size");
+    }
+    std::copy(init.begin(), init.end(), m_data.begin());
+  }
+
+  // Copy constructor
+  constexpr Topology(const Topology& other) = default;
+
+  // Move constructor
+  constexpr Topology(Topology&& other) noexcept = default;
+
+  // Copy assignment
+  constexpr Topology& operator=(const Topology& other) = default;
+
+  // Move assignment
+  constexpr Topology& operator=(Topology&& other) noexcept = default;
+
+  // Comparison operators
+  constexpr bool operator==(const Topology& other) const noexcept {
+    return m_data == other.m_data;
+  }
+
+  constexpr bool operator!=(const Topology& other) const noexcept {
+    return !(*this == other);
+  }
+
+  // Access element with bounds checking
+  constexpr T& at(std::size_t pos) { return m_data.at(pos); }
+
+  constexpr const T& at(std::size_t pos) const { return m_data.at(pos); }
+
+  // Access element without bounds checking
+  constexpr T& operator[](std::size_t pos) { return m_data[pos]; }
+
+  constexpr const T& operator[](std::size_t pos) const { return m_data[pos]; }
+
+  // Get the size of the array
+  constexpr std::size_t size() const noexcept { return N; }
+
+  // Get underlying data
+  constexpr const std::array<T, N>& array() const noexcept { return m_data; }
+
+  constexpr std::array<T, N>& array() noexcept { return m_data; }
+
+  // Iterators
+  constexpr auto begin() noexcept { return m_data.begin(); }
+  constexpr auto end() noexcept { return m_data.end(); }
+  constexpr auto begin() const noexcept { return m_data.begin(); }
+  constexpr auto end() const noexcept { return m_data.end(); }
+  constexpr auto cbegin() const noexcept { return m_data.cbegin(); }
+  constexpr auto cend() const noexcept { return m_data.cend(); }
+  constexpr auto rbegin() noexcept { return m_data.rbegin(); }
+  constexpr auto rend() noexcept { return m_data.rend(); }
+  constexpr auto rbegin() const noexcept { return m_data.rbegin(); }
+  constexpr auto rend() const noexcept { return m_data.rend(); }
+  constexpr auto crbegin() const noexcept { return m_data.crbegin(); }
+  constexpr auto crend() const noexcept { return m_data.crend(); }
 };
 
 #endif

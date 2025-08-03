@@ -130,30 +130,35 @@ void test_get_global_shape3D(std::size_t rank, std::size_t nprocs) {
 }
 
 void test_rank_to_coord() {
-  using topology1D_type = std::array<std::size_t, 1>;
-  using topology2D_type = std::array<std::size_t, 2>;
-  using topology3D_type = std::array<std::size_t, 3>;
-  using topology4D_type = std::array<std::size_t, 4>;
+  using topology_r_1D_type = Topology<std::size_t, 1>;
+  using topology_r_2D_type = Topology<std::size_t, 2>;
+  using topology_r_3D_type = Topology<std::size_t, 3>;
+  using topology_r_4D_type = Topology<std::size_t, 4>;
 
-  topology1D_type topology1{2};
-  topology2D_type topology2{1, 2}, topology2_2{4, 2};
-  topology3D_type topology3{1, 2, 1}, topology3_2{4, 2, 1};
-  topology4D_type topology4{1, 4, 1, 1}, topology4_2{1, 1, 4, 2};
+  using extents_1D_type = std::array<std::size_t, 1>;
+  using extents_2D_type = std::array<std::size_t, 2>;
+  using extents_3D_type = std::array<std::size_t, 3>;
+  using extents_4D_type = std::array<std::size_t, 4>;
 
-  topology1D_type ref_coord1_rank0{0}, ref_coord1_rank1{1};
-  topology2D_type ref_coord2_rank0{0, 0}, ref_coord2_rank1{0, 1};
-  topology2D_type ref_coord2_2_rank0{0, 0}, ref_coord2_2_rank1{0, 1},
+  topology_r_1D_type topology1{2};
+  topology_r_2D_type topology2{1, 2}, topology2_2{4, 2};
+  topology_r_3D_type topology3{1, 2, 1}, topology3_2{4, 2, 1};
+  topology_r_4D_type topology4{1, 4, 1, 1}, topology4_2{1, 1, 4, 2};
+
+  extents_1D_type ref_coord1_rank0{0}, ref_coord1_rank1{1};
+  extents_2D_type ref_coord2_rank0{0, 0}, ref_coord2_rank1{0, 1};
+  extents_2D_type ref_coord2_2_rank0{0, 0}, ref_coord2_2_rank1{0, 1},
       ref_coord2_2_rank2{1, 0}, ref_coord2_2_rank3{1, 1},
       ref_coord2_2_rank4{2, 0}, ref_coord2_2_rank5{2, 1},
       ref_coord2_2_rank6{3, 0}, ref_coord2_2_rank7{3, 1};
-  topology3D_type ref_coord3_rank0{0, 0, 0}, ref_coord3_rank1{0, 1, 0};
-  topology3D_type ref_coord3_2_rank0{0, 0, 0}, ref_coord3_2_rank1{0, 1, 0},
+  extents_3D_type ref_coord3_rank0{0, 0, 0}, ref_coord3_rank1{0, 1, 0};
+  extents_3D_type ref_coord3_2_rank0{0, 0, 0}, ref_coord3_2_rank1{0, 1, 0},
       ref_coord3_2_rank2{1, 0, 0}, ref_coord3_2_rank3{1, 1, 0},
       ref_coord3_2_rank4{2, 0, 0}, ref_coord3_2_rank5{2, 1, 0},
       ref_coord3_2_rank6{3, 0, 0}, ref_coord3_2_rank7{3, 1, 0};
-  topology4D_type ref_coord4_rank0{0, 0, 0, 0}, ref_coord4_rank1{0, 1, 0, 0},
+  extents_4D_type ref_coord4_rank0{0, 0, 0, 0}, ref_coord4_rank1{0, 1, 0, 0},
       ref_coord4_rank2{0, 2, 0, 0}, ref_coord4_rank3{0, 3, 0, 0};
-  topology4D_type ref_coord4_2_rank0{0, 0, 0, 0},
+  extents_4D_type ref_coord4_2_rank0{0, 0, 0, 0},
       ref_coord4_2_rank1{0, 0, 0, 1}, ref_coord4_2_rank2{0, 0, 1, 0},
       ref_coord4_2_rank3{0, 0, 1, 1}, ref_coord4_2_rank4{0, 0, 2, 0},
       ref_coord4_2_rank5{0, 0, 2, 1}, ref_coord4_2_rank6{0, 0, 3, 0},
@@ -269,9 +274,10 @@ void test_get_local_shape2D(std::size_t rank, std::size_t nprocs) {
 template <typename T, typename LayoutType>
 void test_get_local_extents3D(std::size_t rank, std::size_t npx,
                               std::size_t npy) {
-  using extents_type = std::array<std::size_t, 3>;
+  using extents_type    = std::array<std::size_t, 3>;
+  using topology_r_type = Topology<std::size_t, 3>;
 
-  extents_type topology0{1, npx, npy}, topology1{npx, 1, npy},
+  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy},
       topology2{npx, npy, 1};
 
   std::size_t rx = rank / npy, ry = rank % npy;
@@ -328,10 +334,11 @@ void test_get_local_extents3D(std::size_t rank, std::size_t npx,
 
 template <typename T, typename LayoutType>
 void test_get_next_extents2D(std::size_t rank, std::size_t nprocs) {
-  using extents_type = std::array<std::size_t, 2>;
-  using map_type     = std::array<std::size_t, 2>;
+  using extents_type    = std::array<std::size_t, 2>;
+  using topology_r_type = Topology<std::size_t, 2>;
+  using map_type        = std::array<std::size_t, 2>;
 
-  extents_type topology0{1, nprocs}, topology1{nprocs, 1};
+  topology_r_type topology0{1, nprocs}, topology1{nprocs, 1};
   map_type map0{0, 1}, map1{1, 0};
 
   auto distribute_extents = [&](std::size_t n, std::size_t t) {
@@ -371,11 +378,14 @@ void test_get_next_extents2D(std::size_t rank, std::size_t nprocs) {
 template <typename T, typename LayoutType>
 void test_get_next_extents3D(std::size_t rank, std::size_t npx,
                              std::size_t npy) {
-  using extents_type = std::array<std::size_t, 3>;
-  using map_type     = std::array<std::size_t, 3>;
+  using extents_type    = std::array<std::size_t, 3>;
+  using topology_r_type = Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  using topology_l_type = Topology<std::size_t, 3, Kokkos::LayoutLeft>;
+  using map_type        = std::array<std::size_t, 3>;
 
-  extents_type topology0{1, npx, npy}, topology1{npx, 1, npy},
-      topology2{npx, npy, 1}, topology3{npy, npx, 1};
+  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy},
+      topology2{npx, npy, 1};
+  topology_l_type topology3{npy, npx, 1};
   map_type map012{0, 1, 2}, map021{0, 2, 1}, map102{1, 0, 2}, map120{1, 2, 0},
       map201{2, 0, 1}, map210{2, 1, 0};
 
@@ -470,17 +480,17 @@ void test_get_next_extents3D(std::size_t rank, std::size_t npx,
       get_next_extents(global_shape, topology2, map210, MPI_COMM_WORLD);
 
   auto next_shape_t3_map012 =
-      get_next_extents(global_shape, topology3, map012, MPI_COMM_WORLD, false);
+      get_next_extents(global_shape, topology3, map012, MPI_COMM_WORLD);
   auto next_shape_t3_map021 =
-      get_next_extents(global_shape, topology3, map021, MPI_COMM_WORLD, false);
+      get_next_extents(global_shape, topology3, map021, MPI_COMM_WORLD);
   auto next_shape_t3_map102 =
-      get_next_extents(global_shape, topology3, map102, MPI_COMM_WORLD, false);
+      get_next_extents(global_shape, topology3, map102, MPI_COMM_WORLD);
   auto next_shape_t3_map120 =
-      get_next_extents(global_shape, topology3, map120, MPI_COMM_WORLD, false);
+      get_next_extents(global_shape, topology3, map120, MPI_COMM_WORLD);
   auto next_shape_t3_map201 =
-      get_next_extents(global_shape, topology3, map201, MPI_COMM_WORLD, false);
+      get_next_extents(global_shape, topology3, map201, MPI_COMM_WORLD);
   auto next_shape_t3_map210 =
-      get_next_extents(global_shape, topology3, map210, MPI_COMM_WORLD, false);
+      get_next_extents(global_shape, topology3, map210, MPI_COMM_WORLD);
 
   EXPECT_EQ(next_shape_t0_map012, ref_next_shape_t0_map012);
   EXPECT_EQ(next_shape_t0_map021, ref_next_shape_t0_map021);

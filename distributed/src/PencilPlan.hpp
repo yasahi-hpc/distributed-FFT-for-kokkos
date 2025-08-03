@@ -17,7 +17,7 @@
 #include "InternalPlan.hpp"
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM>
+          std::size_t DIM, typename InLayoutType, typename OutLayoutType>
 struct PencilInternalPlan;
 
 /// \brief Internal plan for 1D FFT with pencil decomposition
@@ -29,8 +29,10 @@ struct PencilInternalPlan;
 /// \tparam InViewType
 /// \tparam OutViewType
 
-template <typename ExecutionSpace, typename InViewType, typename OutViewType>
-struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
+template <typename ExecutionSpace, typename InViewType, typename OutViewType,
+          typename InLayoutType, typename OutLayoutType>
+struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
+                          InLayoutType, OutLayoutType> {
   using execSpace      = ExecutionSpace;
   using in_value_type  = typename InViewType::non_const_value_type;
   using out_value_type = typename OutViewType::non_const_value_type;
@@ -42,11 +44,15 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
 
   using axes_type     = KokkosFFT::axis_type<1>;
   using topology_type = KokkosFFT::shape_type<DIM>;
-  using int_map_type  = std::array<int, DIM>;
+  using in_topology_type =
+      Topology<std::size_t, InViewType::rank(), InLayoutType>;
+  using out_topology_type =
+      Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
+  using int_map_type = std::array<int, DIM>;
 
   using PencilBlockAnalysesType =
       PencilBlockAnalysesInternal<in_value_type, LayoutType, std::size_t, DIM,
-                                  1>;
+                                  1, InLayoutType, OutLayoutType>;
 
   using AllocationViewType =
       Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
@@ -61,8 +67,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
 
   execSpace m_exec_space;
   axes_type m_axes;
-  topology_type m_in_topology;
-  topology_type m_out_topology;
+  in_topology_type m_in_topology;
+  out_topology_type m_out_topology;
   MPI_Comm m_comm;
   KokkosFFT::Normalization m_normalization;
 
@@ -96,21 +102,20 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
   explicit PencilInternalPlan(const ExecutionSpace& exec_space,
                               const InViewType& in, const OutViewType& out,
                               const axes_type& axes,
-                              const topology_type& in_topology,
-                              const topology_type& out_topology,
+                              const in_topology_type& in_topology,
+                              const out_topology_type& out_topology,
                               const MPI_Comm& comm,
                               KokkosFFT::Normalization normalization =
-                                  KokkosFFT::Normalization::backward,
-                              const bool is_same_order = true)
+                                  KokkosFFT::Normalization::backward)
       : m_exec_space(exec_space),
         m_axes(axes),
         m_in_topology(in_topology),
         m_out_topology(out_topology),
         m_comm(comm),
         m_normalization(normalization) {
-    KOKKOSFFT_THROW_IF(
-        !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
-        "Extents are not valid");
+    KOKKOSFFT_THROW_IF(!are_valid_extents(in, out, axes, in_topology.array(),
+                                          out_topology.array(), comm),
+                       "Extents are not valid");
 
     // Create a cartesian communicator
     std::vector<int> dims;
@@ -148,15 +153,15 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
     auto out_extents = KokkosFFT::Impl::extract_extents(out);
 
-    auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
-    auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
+    auto gin_extents  = get_global_shape(in, m_in_topology.array(), m_comm);
+    auto gout_extents = get_global_shape(out, m_out_topology.array(), m_comm);
 
     auto non_negative_axes =
         convert_negative_axes<std::size_t, int, 1, DIM>(axes);
 
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm, is_same_order);
+        out_topology, non_negative_axes, m_comm);
     m_op_type = m_block_analyses->m_op_type;
 
     // std::cout << "m_block_analyses->m_block_infos.size(): " <<
@@ -2167,18 +2172,27 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 */
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM = 1>
-class PencilPlan
-    : public InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM> {
+          std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
+class PencilPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
+                                       DIM, InLayoutType, OutLayoutType> {
   using InternalPlanType =
-      PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
+      PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                         InLayoutType, OutLayoutType>;
   using extents_type = std::array<std::size_t, InViewType::rank()>;
-  using axes_type    = KokkosFFT::axis_type<DIM>;
+  using in_topology_type =
+      Topology<std::size_t, InViewType::rank(), InLayoutType>;
+  using out_topology_type =
+      Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
+  using axes_type = KokkosFFT::axis_type<DIM>;
 
   InternalPlanType m_internal_plan;
   extents_type m_in_extents, m_out_extents;
 
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>::good;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>::get_norm;
 
  public:
   explicit PencilPlan(
@@ -2186,13 +2200,23 @@ class PencilPlan
       const OutViewType& out, const axes_type& axes,
       const extents_type& in_topology, const extents_type& out_topology,
       const MPI_Comm& comm,
-      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward,
-      const bool is_same_order      = true)
-      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>(
-            exec_space, in, out, axes, in_topology, out_topology, comm, norm,
-            is_same_order),
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      : PencilPlan(exec_space, in, out, axes,
+                   Topology<std::size_t, InViewType::rank()>(in_topology),
+                   Topology<std::size_t, OutViewType::rank()>(out_topology),
+                   comm, norm) {}
+
+  explicit PencilPlan(
+      const ExecutionSpace& exec_space, const InViewType& in,
+      const OutViewType& out, const axes_type& axes,
+      const in_topology_type& in_topology,
+      const out_topology_type& out_topology, const MPI_Comm& comm,
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>(exec_space, in, out, axes, in_topology,
+                                    out_topology, comm, norm),
         m_internal_plan(exec_space, in, out, axes, in_topology, out_topology,
-                        comm, norm, is_same_order),
+                        comm, norm),
         m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
     auto in_size  = get_size(in_topology);
@@ -2207,6 +2231,7 @@ class PencilPlan
         !is_pencil, "Input and output topologies must be pencil topologies.");
   }
 
+  PencilPlan(const PencilPlan&) = default;
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
     m_internal_plan.forward(in, out);

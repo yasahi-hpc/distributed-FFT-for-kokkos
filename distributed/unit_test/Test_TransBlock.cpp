@@ -138,11 +138,12 @@ void test_trans_block_view2D(std::size_t nprocs, int order = 0) {
 
 template <typename T, typename LayoutType>
 void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
-  using View3DType    = Kokkos::View<T***, LayoutType, execution_space>;
-  using View4DType    = Kokkos::View<T****, LayoutType, execution_space>;
-  using map_type      = std::array<int, 3>;
-  using extents_type  = std::array<std::size_t, 3>;
-  using topology_type = std::array<std::size_t, 3>;
+  using View3DType      = Kokkos::View<T***, LayoutType, execution_space>;
+  using View4DType      = Kokkos::View<T****, LayoutType, execution_space>;
+  using map_type        = std::array<int, 3>;
+  using extents_type    = std::array<std::size_t, 3>;
+  using topology_r_type = Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  using topology_l_type = Topology<std::size_t, 3, Kokkos::LayoutLeft>;
 
   extents_type map012{0, 1, 2}, map021{0, 2, 1}, map102{1, 0, 2},
       map120{1, 2, 0}, map201{2, 0, 1}, map210{2, 1, 0};
@@ -150,8 +151,9 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
       int_map201{2, 0, 1}, int_map210{2, 1, 0};
 
   // Define, x, y and z pencils
-  topology_type topology0{1, npx, npy}, topology1{npx, 1, npy},
-      topology2{npx, npy, 1}, topology3{npy, npx, 1};
+  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy},
+      topology2{npx, npy, 1};
+  topology_l_type topology3{npy, npx, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
   extents_type global_extents{n0, n1, n2};
@@ -163,7 +165,7 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
   auto [local_extents_t2, local_starts_t2] =
       get_local_extents(global_extents, topology2, MPI_COMM_WORLD);
   auto [local_extents_t3, local_starts_t3] =
-      get_local_extents(global_extents, topology3, MPI_COMM_WORLD, false);
+      get_local_extents(global_extents, topology3, MPI_COMM_WORLD);
 
   View3DType gu("gu", n0, n1, n2);
 

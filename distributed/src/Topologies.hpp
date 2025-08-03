@@ -58,6 +58,12 @@ inline bool is_pencil_topology(const std::array<std::size_t, DIM>& topology) {
   return is_pencil;
 }
 
+template <std::size_t DIM = 1, typename LayoutType = Kokkos::LayoutRight>
+inline bool is_pencil_topology(
+    const Topology<std::size_t, DIM, LayoutType>& topology) {
+  return is_pencil_topology(topology.array());
+}
+
 // Can we also check that this is a slab?
 // Example
 // (1, Px, Py, 1) -> (Px, 1, Py, 1): 0-pencil to 1-pencil
@@ -90,6 +96,12 @@ auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
 
   std::tuple<std::size_t, std::size_t> pencil_array = {in_axis, out_axis};
   return pencil_array;
+}
+
+template <std::size_t DIM, typename LayoutType = Kokkos::LayoutRight>
+auto get_pencil(const Topology<std::size_t, DIM, LayoutType>& in_topology,
+                const Topology<std::size_t, DIM, LayoutType>& out_topology) {
+  return get_pencil(in_topology.array(), out_topology.array());
 }
 
 // Example
@@ -530,19 +542,21 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 /// same order.
 /// \return A vector of all possible slab topologies that can be formed from the
 /// input and output topologies, considering the FFT axes.
-template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
-auto get_all_pencil_topologies(const std::array<std::size_t, DIM>& in_topology,
-                               const std::array<std::size_t, DIM>& out_topology,
-                               const std::array<iType, FFT_DIM>& axes,
-                               bool is_same_order = true) {
+template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1,
+          typename InLayoutType  = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
+auto get_all_pencil_topologies(
+    const Topology<std::size_t, DIM, InLayoutType>& in_topology,
+    const Topology<std::size_t, DIM, OutLayoutType>& out_topology,
+    const std::array<iType, FFT_DIM>& axes) {
   static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
   static_assert(DIM >= 3 && DIM >= FFT_DIM, "DIM >= 3 and DIM >= FFT_DIM");
 
   using topologies_type = std::vector<std::array<std::size_t, DIM>>;
   using axes_type       = std::vector<std::size_t>;
 
-  bool is_pencil =
-      is_pencil_topology(in_topology) && is_pencil_topology(out_topology);
+  bool is_pencil = is_pencil_topology(in_topology.array()) &&
+                   is_pencil_topology(out_topology.array());
   KOKKOSFFT_THROW_IF(!is_pencil,
                      "Input and output topologies must be pencil topologies.");
 
@@ -554,11 +568,11 @@ auto get_all_pencil_topologies(const std::array<std::size_t, DIM>& in_topology,
     axes_reversed.push_back(unsigned_axis);
   }
 
-  auto non_ones                  = find_non_ones(in_topology);
+  auto non_ones                  = find_non_ones(in_topology.array());
   bool has_same_non_one_elements = has_identical_non_ones(non_ones);
 
-  auto in_topology_tmp  = in_topology;
-  auto out_topology_tmp = out_topology;
+  auto in_topology_tmp  = in_topology.array();
+  auto out_topology_tmp = out_topology.array();
 
   if (has_same_non_one_elements) {
     // If the elements are the same, the following startegy does not work
@@ -572,7 +586,7 @@ auto get_all_pencil_topologies(const std::array<std::size_t, DIM>& in_topology,
       }
     }
     count = 0;
-    if (!is_same_order) {
+    if (!std::is_same_v<InLayoutType, OutLayoutType>) {
       std::reverse(dummies.begin(), dummies.end());
     }
     for (std::size_t i = 0; i < DIM; i++) {
@@ -583,7 +597,9 @@ auto get_all_pencil_topologies(const std::array<std::size_t, DIM>& in_topology,
     }
   }
 
-  auto first_non_one = find_non_ones(in_topology_tmp).at(0);
+  auto first_non_one = std::is_same_v<InLayoutType, Kokkos::LayoutRight>
+                           ? find_non_ones(in_topology_tmp).at(0)
+                           : find_non_ones(in_topology_tmp).at(1);
 
   auto to_original_topologies = [&](const topologies_type& topologies,
                                     const axes_type& trans_axes) {

@@ -49,6 +49,39 @@ auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
   return buffer_extents;
 }
 
+/// \brief Calculate the buffer extents based on the global extents,
+/// the in-topology, and the out-topology.
+///
+/// Example
+/// Global View extents (n0, n1, n2, n3)
+/// in-topology = {1, p0, p1, 1} // X-pencil
+/// out-topology = {p0, 1, p1, 1} // Y-pencil
+/// Buffer View (p0, n0/p0, n1/p0, n2/p1, n3)
+///
+/// \tparam LayoutType The layout type of the view (e.g., Kokkos::LayoutRight).
+/// \tparam DIM The number of dimensions of the extents.
+/// \tparam InLayoutType The layout type of the in-topology (e.g.,
+/// Kokkos::LayoutRight). \tparam OutLayoutType The layout type of the
+/// out-topology (e.g., Kokkos::LayoutRight).
+///
+/// \param[in] extents Extents of the global View.
+/// \param[in] in_topology A topology representing the distribution of the input
+/// data.
+/// \param[in] out_topology A topology representing the distribution of
+/// the output data.
+/// \return A buffer extents of the view needed for the pencil
+/// transformation.
+template <typename LayoutType, std::size_t DIM = 1,
+          typename InLayoutType  = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
+auto get_buffer_extents(
+    const std::array<std::size_t, DIM> &extents,
+    const Topology<std::size_t, DIM, InLayoutType> &in_topology,
+    const Topology<std::size_t, DIM, OutLayoutType> &out_topology) {
+  return get_buffer_extents<LayoutType>(extents, in_topology.array(),
+                                        out_topology.array());
+}
+
 /// \brief Calculate the next extents based on the global extents,
 /// the topology, and the mapping.
 ///
