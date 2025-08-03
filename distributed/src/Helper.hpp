@@ -35,11 +35,14 @@ void nd_display(ViewType& a) {
   using elem_type =
       KokkosFFT::Impl::add_pointer_n_t<value_type, ViewType::rank()>;
 
-  // Kokkos::View<elem_type, Kokkos::LayoutRight, execution_space>
-  // a_contiguous("a", a.layout()); Kokkos::deep_copy(a_contiguous, a);
+  auto extents = KokkosFFT::Impl::extract_extents(a);
 
-  auto h_a = Kokkos::create_mirror_view(a);
-  Kokkos::deep_copy(h_a, a);
+  Kokkos::View<elem_type, Kokkos::LayoutRight, execution_space> a_contiguous(
+      "a", KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(extents));
+  Kokkos::deep_copy(a_contiguous, a);
+
+  auto h_a = Kokkos::create_mirror_view(a_contiguous);
+  Kokkos::deep_copy(h_a, a_contiguous);
 
   std::cout << std::scientific << std::setprecision(16) << std::flush;
 

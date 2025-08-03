@@ -13,7 +13,7 @@ set(SOURCES
     Test_Plan.cpp
     #Test_SlabBlockAnalyses.cpp
     Test_SlabPlan.cpp
-    #Test_PencilPlan.cpp
+    Test_PencilPlan.cpp
 )
 
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)

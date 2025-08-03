@@ -375,7 +375,7 @@ void test_get_next_extents3D(std::size_t rank, std::size_t npx,
   using map_type     = std::array<std::size_t, 3>;
 
   extents_type topology0{1, npx, npy}, topology1{npx, 1, npy},
-      topology2{npx, npy, 1};
+      topology2{npx, npy, 1}, topology3{npy, npx, 1};
   map_type map012{0, 1, 2}, map021{0, 2, 1}, map102{1, 0, 2}, map120{1, 2, 0},
       map201{2, 0, 1}, map210{2, 1, 0};
 
@@ -400,6 +400,10 @@ void test_get_next_extents3D(std::size_t rank, std::size_t npx,
   const std::size_t n1_t2 = distribute_extents(gn1, ry, npy);
   const std::size_t n2_t2 = gn2;
 
+  const std::size_t n0_t3 = distribute_extents(gn0, ry, npy);
+  const std::size_t n1_t3 = distribute_extents(gn1, rx, npx);
+  const std::size_t n2_t3 = gn2;
+
   extents_type global_shape{gn0, gn1, gn2};
   extents_type ref_next_shape_t0_map012{n0_t0, n1_t0, n2_t0},
       ref_next_shape_t0_map021{n0_t0, n2_t0, n1_t0},
@@ -418,7 +422,13 @@ void test_get_next_extents3D(std::size_t rank, std::size_t npx,
       ref_next_shape_t2_map102{n1_t2, n0_t2, n2_t2},
       ref_next_shape_t2_map120{n1_t2, n2_t2, n0_t2},
       ref_next_shape_t2_map201{n2_t2, n0_t2, n1_t2},
-      ref_next_shape_t2_map210{n2_t2, n1_t2, n0_t2};
+      ref_next_shape_t2_map210{n2_t2, n1_t2, n0_t2},
+      ref_next_shape_t3_map012{n0_t3, n1_t3, n2_t3},
+      ref_next_shape_t3_map021{n0_t3, n2_t3, n1_t3},
+      ref_next_shape_t3_map102{n1_t3, n0_t3, n2_t3},
+      ref_next_shape_t3_map120{n1_t3, n2_t3, n0_t3},
+      ref_next_shape_t3_map201{n2_t3, n0_t3, n1_t3},
+      ref_next_shape_t3_map210{n2_t3, n1_t3, n0_t3};
 
   auto next_shape_t0_map012 =
       get_next_extents(global_shape, topology0, map012, MPI_COMM_WORLD);
@@ -459,6 +469,19 @@ void test_get_next_extents3D(std::size_t rank, std::size_t npx,
   auto next_shape_t2_map210 =
       get_next_extents(global_shape, topology2, map210, MPI_COMM_WORLD);
 
+  auto next_shape_t3_map012 =
+      get_next_extents(global_shape, topology3, map012, MPI_COMM_WORLD, false);
+  auto next_shape_t3_map021 =
+      get_next_extents(global_shape, topology3, map021, MPI_COMM_WORLD, false);
+  auto next_shape_t3_map102 =
+      get_next_extents(global_shape, topology3, map102, MPI_COMM_WORLD, false);
+  auto next_shape_t3_map120 =
+      get_next_extents(global_shape, topology3, map120, MPI_COMM_WORLD, false);
+  auto next_shape_t3_map201 =
+      get_next_extents(global_shape, topology3, map201, MPI_COMM_WORLD, false);
+  auto next_shape_t3_map210 =
+      get_next_extents(global_shape, topology3, map210, MPI_COMM_WORLD, false);
+
   EXPECT_EQ(next_shape_t0_map012, ref_next_shape_t0_map012);
   EXPECT_EQ(next_shape_t0_map021, ref_next_shape_t0_map021);
   EXPECT_EQ(next_shape_t0_map102, ref_next_shape_t0_map102);
@@ -479,6 +502,13 @@ void test_get_next_extents3D(std::size_t rank, std::size_t npx,
   EXPECT_EQ(next_shape_t2_map120, ref_next_shape_t2_map120);
   EXPECT_EQ(next_shape_t2_map201, ref_next_shape_t2_map201);
   EXPECT_EQ(next_shape_t2_map210, ref_next_shape_t2_map210);
+
+  EXPECT_EQ(next_shape_t3_map012, ref_next_shape_t3_map012);
+  EXPECT_EQ(next_shape_t3_map021, ref_next_shape_t3_map021);
+  EXPECT_EQ(next_shape_t3_map102, ref_next_shape_t3_map102);
+  EXPECT_EQ(next_shape_t3_map120, ref_next_shape_t3_map120);
+  EXPECT_EQ(next_shape_t3_map201, ref_next_shape_t3_map201);
+  EXPECT_EQ(next_shape_t3_map210, ref_next_shape_t3_map210);
 }
 
 }  // namespace

@@ -92,15 +92,23 @@ auto get_global_shape(const ViewType &v,
 
 template <std::size_t DIM = 1>
 auto rank_to_coord(const std::array<std::size_t, DIM> &topology,
-                   const std::size_t rank) {
+                   const std::size_t rank, bool is_layout_right = true) {
   std::array<std::size_t, DIM> coord;
   std::size_t rank_tmp  = rank;
-  int64_t topology_size = topology.size() - 1;
+  int64_t topology_size = topology.size();
 
-  for (int64_t i = topology_size; i >= 0; i--) {
-    coord.at(i) = rank_tmp % topology.at(i);
-    rank_tmp /= topology.at(i);
+  if (is_layout_right) {
+    for (int64_t i = topology_size - 1; i >= 0; i--) {
+      coord.at(i) = rank_tmp % topology.at(i);
+      rank_tmp /= topology.at(i);
+    }
+  } else {
+    for (int64_t i = 0; i < topology_size; i++) {
+      coord.at(i) = rank_tmp % topology.at(i);
+      rank_tmp /= topology.at(i);
+    }
   }
+
   return coord;
 }
 
@@ -153,7 +161,8 @@ auto get_local_shape(const std::array<std::size_t, DIM> &extents,
 template <std::size_t DIM = 1>
 auto get_local_extents(const std::array<std::size_t, DIM> &extents,
                        const std::array<std::size_t, DIM> &topology,
-                       MPI_Comm comm, bool equal_extents = false) {
+                       MPI_Comm comm, bool is_layout_right = true,
+                       bool equal_extents = false) {
   // Check that topology includes two or less non-one elements
   std::array<std::size_t, DIM> local_extents = {};
   std::array<std::size_t, DIM> local_starts  = {};
@@ -168,7 +177,7 @@ auto get_local_extents(const std::array<std::size_t, DIM> &extents,
                      "topology size must be identical to mpi size.");
 
   std::array<std::size_t, DIM> coords =
-      rank_to_coord(topology, static_cast<std::size_t>(rank));
+      rank_to_coord(topology, static_cast<std::size_t>(rank), is_layout_right);
 
   for (std::size_t i = 0; i < extents.size(); i++) {
     if (topology.at(i) != 1) {
@@ -227,7 +236,7 @@ template <std::size_t DIM = 1>
 auto get_next_extents(const std::array<std::size_t, DIM> &extents,
                       const std::array<std::size_t, DIM> &topology,
                       const std::array<std::size_t, DIM> &map, MPI_Comm comm,
-                      bool equal_extents = false) {
+                      bool is_layout_right = true, bool equal_extents = false) {
   // Check that topology includes two or less non-one elements
   std::array<std::size_t, DIM> local_extents, next_extents;
   std::copy(extents.begin(), extents.end(), local_extents.begin());
@@ -241,7 +250,7 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
                      "topology size must be identical to mpi size.");
 
   std::array<std::size_t, DIM> coords =
-      rank_to_coord(topology, static_cast<std::size_t>(rank));
+      rank_to_coord(topology, static_cast<std::size_t>(rank), is_layout_right);
 
   for (std::size_t i = 0; i < extents.size(); i++) {
     if (topology.at(i) != 1) {
