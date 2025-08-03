@@ -6,11 +6,16 @@
 #include "InternalPlan.hpp"
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM = 1>
-class SharedPlan
-    : public InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM> {
-  using axes_type     = KokkosFFT::axis_type<DIM>;
-  using topology_type = KokkosFFT::shape_type<InViewType::rank()>;
+          std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
+class SharedPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
+                                       DIM, InLayoutType, OutLayoutType> {
+  using axes_type    = KokkosFFT::axis_type<DIM>;
+  using extents_type = KokkosFFT::shape_type<InViewType::rank()>;
+  using in_topology_type =
+      Topology<std::size_t, InViewType::rank(), InLayoutType>;
+  using out_topology_type =
+      Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
 
   using FFTForwardPlanType =
       KokkosFFT::Plan<ExecutionSpace, InViewType, OutViewType, DIM>;
@@ -19,20 +24,32 @@ class SharedPlan
   FFTForwardPlanType m_forward_plan;
   FFTBackwardPlanType m_backward_plan;
 
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::get_norm;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>::good;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>::get_norm;
 
  public:
   explicit SharedPlan(
       const ExecutionSpace& exec_space, const InViewType& in,
       const OutViewType& out, const axes_type& axes,
-      const topology_type& in_topology, const topology_type& out_topology,
+      const extents_type& in_topology, const extents_type& out_topology,
       const MPI_Comm& comm,
-      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward,
-      const bool is_same_order      = true)
-      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>(
-            exec_space, in, out, axes, in_topology, out_topology, comm, norm,
-            is_same_order),
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      : SharedPlan(exec_space, in, out, axes,
+                   Topology<std::size_t, InViewType::rank()>(in_topology),
+                   Topology<std::size_t, OutViewType::rank()>(out_topology),
+                   comm, norm) {}
+
+  explicit SharedPlan(
+      const ExecutionSpace& exec_space, const InViewType& in,
+      const OutViewType& out, const axes_type& axes,
+      const in_topology_type& in_topology,
+      const out_topology_type& out_topology, const MPI_Comm& comm,
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>(exec_space, in, out, axes, in_topology,
+                                    out_topology, comm, norm),
         m_forward_plan(exec_space, in, out, KokkosFFT::Direction::forward,
                        axes),
         m_backward_plan(exec_space, out, in, KokkosFFT::Direction::backward,

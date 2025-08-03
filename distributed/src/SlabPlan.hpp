@@ -2015,18 +2015,24 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 };
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM = 1>
-class SlabPlan
-    : public InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM> {
+          std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
+class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
+                                     DIM, InLayoutType, OutLayoutType> {
   using InternalPlanType =
       SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
   using extents_type = std::array<std::size_t, InViewType::rank()>;
-  using axes_type    = KokkosFFT::axis_type<DIM>;
+  using in_topology_type =
+      Topology<std::size_t, InViewType::rank(), InLayoutType>;
+  using out_topology_type =
+      Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
+  using axes_type = KokkosFFT::axis_type<DIM>;
 
   InternalPlanType m_internal_plan;
   extents_type m_in_extents, m_out_extents;
 
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>::good;
 
  public:
   explicit SlabPlan(
@@ -2034,13 +2040,23 @@ class SlabPlan
       const OutViewType& out, const axes_type& axes,
       const extents_type& in_topology, const extents_type& out_topology,
       const MPI_Comm& comm,
-      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward,
-      const bool is_same_order      = true)
-      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>(
-            exec_space, in, out, axes, in_topology, out_topology, comm, norm,
-            is_same_order),
-        m_internal_plan(exec_space, in, out, axes, in_topology, out_topology,
-                        comm, norm),
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      : SlabPlan(exec_space, in, out, axes,
+                 Topology<std::size_t, InViewType::rank()>(in_topology),
+                 Topology<std::size_t, OutViewType::rank()>(out_topology), comm,
+                 norm) {}
+
+  explicit SlabPlan(
+      const ExecutionSpace& exec_space, const InViewType& in,
+      const OutViewType& out, const axes_type& axes,
+      const in_topology_type& in_topology,
+      const out_topology_type& out_topology, const MPI_Comm& comm,
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>(exec_space, in, out, axes, in_topology,
+                                    out_topology, comm, norm),
+        m_internal_plan(exec_space, in, out, axes, in_topology.array(),
+                        out_topology.array(), comm, norm),
         m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
     auto in_size  = get_size(in_topology);
@@ -2049,8 +2065,8 @@ class SlabPlan
     KOKKOSFFT_THROW_IF(in_size != out_size,
                        "Input and output topologies must have the same size.");
 
-    bool is_slab =
-        is_slab_topology(in_topology) && is_slab_topology(out_topology);
+    bool is_slab = is_slab_topology(in_topology.array()) &&
+                   is_slab_topology(out_topology.array());
     KOKKOSFFT_THROW_IF(!is_slab,
                        "Input and output topologies must be slab topologies.");
   }

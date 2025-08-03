@@ -3,6 +3,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include "Types.hpp"
 
 template <typename SizeType, typename IntType, std::size_t DIM,
           std::size_t Rank>
@@ -169,8 +170,8 @@ std::array<iType, DIM> swap_elements(const std::array<iType, DIM>& arr, int i,
   return result;
 }
 
-template <std::size_t DIM>
-std::size_t get_size(const std::array<std::size_t, DIM>& topology) {
+template <typename ContainerType>
+std::size_t get_size(const ContainerType& topology) {
   return std::accumulate(topology.begin(), topology.end(), 1,
                          std::multiplies<std::size_t>());
 }
@@ -266,6 +267,42 @@ auto get_trans_axis(const std::array<iType, DIM>& in_topology,
     }
   }
   iType trans_axis = exchange_non_one == first_non_one ? 0 : 1;
+  return trans_axis;
+}
+
+template <typename iType, std::size_t DIM = 1,
+          typename InLayoutType  = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
+auto get_trans_axis(const Topology<iType, DIM, InLayoutType>& in_topology,
+                    const Topology<iType, DIM, OutLayoutType>& out_topology) {
+  auto in_non_ones  = find_non_ones(in_topology.array());
+  auto out_non_ones = find_non_ones(out_topology.array());
+  KOKKOSFFT_THROW_IF(
+      in_non_ones.size() != 2 || out_non_ones.size() != 2,
+      "Input and output topologies must have exactly two non-one "
+      "elements.");
+  KOKKOSFFT_THROW_IF(has_identical_non_ones(in_non_ones) ||
+                         has_identical_non_ones(out_non_ones),
+                     "Input and output topologies must not have identical "
+                     "non-one elements.");
+
+  std::vector<iType> diff_indices =
+      find_differences(in_topology.array(), out_topology.array());
+  KOKKOSFFT_THROW_IF(
+      diff_indices.size() != 2,
+      "Input and output topologies must differ exactly two positions");
+
+  iType exchange_non_one = 0;
+  for (auto diff_idx : diff_indices) {
+    if (in_topology.at(diff_idx) > 1) {
+      exchange_non_one = in_topology.at(diff_idx);
+      break;
+    }
+  }
+  iType first_non_one = std::is_same_v<InLayoutType, Kokkos::LayoutRight>
+                            ? in_non_ones.at(0)
+                            : in_non_ones.at(1);
+  iType trans_axis    = exchange_non_one == first_non_one ? 0 : 1;
   return trans_axis;
 }
 
