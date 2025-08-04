@@ -182,12 +182,13 @@ auto get_required_allocation_size(
  * + 1.
  */
 template <typename InViewType, typename OutViewType, typename SizeType,
-          std::size_t DIM = 1>
+          std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
 bool are_valid_extents(
     const InViewType &in, const OutViewType &out,
     KokkosFFT::axis_type<DIM> axes,
-    const std::array<SizeType, InViewType::rank()> &in_topology,
-    const std::array<SizeType, OutViewType::rank()> &out_topology,
+    const Topology<SizeType, InViewType::rank(), InLayoutType> &in_topology,
+    const Topology<SizeType, OutViewType::rank(), OutLayoutType> &out_topology,
     const MPI_Comm &comm = MPI_COMM_WORLD) {
   using in_value_type     = typename InViewType::non_const_value_type;
   using out_value_type    = typename OutViewType::non_const_value_type;
@@ -212,17 +213,6 @@ bool are_valid_extents(
   // Get global shape to define buffer and next shape
   auto gin_extents  = get_global_shape(in, in_topology, comm);
   auto gout_extents = get_global_shape(out, out_topology, comm);
-
-  // Get extents for the inner most axes in LayoutRight
-  // If we allow the FFT on the layoutLeft, this part should be modified
-  // std::vector<std::size_t> in_extents, out_extents;
-  // for (std::size_t i = 0; i < rank; i++) {
-  //  auto idx        = map.at(i);
-  //  auto in_extent  = gin_extents.at(idx);
-  //  auto out_extent = gout_extents.at(idx);
-  //  in_extents.push_back(in_extent);
-  //  out_extents.push_back(out_extent);
-  //}
 
   auto in_extents  = get_mapped_extents(gin_extents, map);
   auto out_extents = get_mapped_extents(gout_extents, map);
@@ -287,6 +277,49 @@ bool are_valid_extents(
             mismatched_extents());
   }
   return true;
+}
+
+/**
+ * @brief Check if input and output views have valid extents for the given axes,
+ * FFT topologies, and MPI communicator.
+ *
+ * @param in The input view.
+ * @param out The output view.
+ * @param axes The axes over which the FFT is performed.
+ * @param in_topology The FFT topology for the input view.
+ * @param out_topology The FFT topology for the output view.
+ * @param comm The MPI communicator. Default is MPI_COMM_WORLD.
+ *
+ * @return true if the input and output views have valid extents, false
+ * otherwise.
+ *
+ * Note: This function does not check if the FFT topologies are valid or not.
+ * It only checks the compatibility of the FFT topologies with the input and
+ * output views. Please use KokkosFFT::Impl::are_valid_axes to check if the FFT
+ * axes are valid for the input view.
+ *
+ * For C2C transform:
+ *   - The input and output views must have the same extent in all dimensions.
+ *
+ * For R2C transform:
+ *   - The 'output extent' of the transform must be equal to 'input extent'/2
+ * + 1.
+ *
+ * For C2R transform:
+ *   - The 'input extent' of the transform must be equal to 'output extent' / 2
+ * + 1.
+ */
+template <typename InViewType, typename OutViewType, typename SizeType,
+          std::size_t DIM = 1>
+bool are_valid_extents(
+    const InViewType &in, const OutViewType &out,
+    KokkosFFT::axis_type<DIM> axes,
+    const std::array<SizeType, InViewType::rank()> &in_topology,
+    const std::array<SizeType, OutViewType::rank()> &out_topology,
+    const MPI_Comm &comm = MPI_COMM_WORLD) {
+  return are_valid_extents(
+      in, out, axes, Topology<SizeType, InViewType::rank()>(in_topology),
+      Topology<SizeType, OutViewType::rank()>(out_topology), comm);
 }
 
 #endif
