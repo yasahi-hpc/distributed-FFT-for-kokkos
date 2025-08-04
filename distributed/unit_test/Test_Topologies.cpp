@@ -3106,13 +3106,13 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
         get_all_pencil_topologies(topology0, topology0, axes210);
 
     topologies_and_axes_type ref_topologies_and_axes_0_0_012 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo2, ref_topo4, ref_topo5, ref_topo0},
-        vec_axis_type{1, 0, 1, 1});
+        topologies_type{ref_topo0, ref_topo2, ref_topo4, ref_topo2, ref_topo0},
+        vec_axis_type{1, 0, 0, 1});
     EXPECT_EQ(topologies_and_axes_0_0_012, ref_topologies_and_axes_0_0_012);
 
     topologies_and_axes_type ref_topologies_and_axes_0_0_021 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo1, ref_topo3, ref_topo5, ref_topo0},
-        vec_axis_type{0, 1, 0, 1});
+        topologies_type{ref_topo0, ref_topo1, ref_topo3, ref_topo1, ref_topo0},
+        vec_axis_type{0, 1, 1, 0});
     EXPECT_EQ(topologies_and_axes_0_0_021, ref_topologies_and_axes_0_0_021);
 
     topologies_and_axes_type ref_topologies_and_axes_0_0_102 = std::make_tuple(
@@ -3167,8 +3167,8 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
     EXPECT_EQ(topologies_and_axes_0_1_102, ref_topologies_and_axes_0_1_102);
 
     topologies_and_axes_type ref_topologies_and_axes_0_1_120 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo2, ref_topo4, ref_topo1},
-        vec_axis_type{1, 0, 1});
+        topologies_type{ref_topo0, ref_topo2, ref_topo0, ref_topo1},
+        vec_axis_type{1, 1, 0});
     EXPECT_EQ(topologies_and_axes_0_1_120, ref_topologies_and_axes_0_1_120);
 
     topologies_and_axes_type ref_topologies_and_axes_0_1_201 =
@@ -3226,8 +3226,8 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
     EXPECT_EQ(topologies_and_axes_0_2_201, ref_topologies_and_axes_0_2_201);
 
     topologies_and_axes_type ref_topologies_and_axes_0_2_210 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo1, ref_topo3, ref_topo2},
-        vec_axis_type{0, 1, 0});
+        topologies_type{ref_topo0, ref_topo1, ref_topo0, ref_topo2},
+        vec_axis_type{0, 0, 1});
     EXPECT_EQ(topologies_and_axes_0_2_210, ref_topologies_and_axes_0_2_210);
 
     // topology1 to topology0
@@ -3250,8 +3250,8 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
     EXPECT_EQ(topologies_and_axes_1_0_012, ref_topologies_and_axes_1_0_012);
 
     topologies_and_axes_type ref_topologies_and_axes_1_0_021 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo3, ref_topo5, ref_topo0},
-        vec_axis_type{1, 0, 1});
+        topologies_type{ref_topo1, ref_topo3, ref_topo1, ref_topo0},
+        vec_axis_type{1, 1, 0});
     EXPECT_EQ(topologies_and_axes_1_0_021, ref_topologies_and_axes_1_0_021);
 
     topologies_and_axes_type ref_topologies_and_axes_1_0_102 =
@@ -3302,13 +3302,13 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
     EXPECT_EQ(topologies_and_axes_1_1_021, ref_topologies_and_axes_1_1_021);
 
     topologies_and_axes_type ref_topologies_and_axes_1_1_102 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo3, ref_topo5, ref_topo4, ref_topo1},
-        vec_axis_type{1, 0, 1, 1});
+        topologies_type{ref_topo1, ref_topo3, ref_topo5, ref_topo3, ref_topo1},
+        vec_axis_type{1, 0, 0, 1});
     EXPECT_EQ(topologies_and_axes_1_1_102, ref_topologies_and_axes_1_1_102);
 
     topologies_and_axes_type ref_topologies_and_axes_1_1_120 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo0, ref_topo2, ref_topo4, ref_topo1},
-        vec_axis_type{0, 1, 0, 1});
+        topologies_type{ref_topo1, ref_topo0, ref_topo2, ref_topo0, ref_topo1},
+        vec_axis_type{0, 1, 1, 0});
     EXPECT_EQ(topologies_and_axes_1_1_120, ref_topologies_and_axes_1_1_120);
 
     topologies_and_axes_type ref_topologies_and_axes_1_1_201 = std::make_tuple(
@@ -3360,8 +3360,8 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
     EXPECT_EQ(topologies_and_axes_1_2_201, ref_topologies_and_axes_1_2_201);
 
     topologies_and_axes_type ref_topologies_and_axes_1_2_210 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo0, ref_topo1, ref_topo3, ref_topo2},
-        vec_axis_type{0, 0, 1, 0});
+        topologies_type{ref_topo1, ref_topo0, ref_topo1, ref_topo0, ref_topo2},
+        vec_axis_type{0, 0, 0, 1});
     EXPECT_EQ(topologies_and_axes_1_2_210, ref_topologies_and_axes_1_2_210);
 
     // topology2 to topology0
@@ -3379,8 +3379,8 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
         get_all_pencil_topologies(topology2, topology0, axes210);
 
     topologies_and_axes_type ref_topologies_and_axes_2_0_012 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo4, ref_topo5, ref_topo0},
-        vec_axis_type{0, 1, 1});
+        topologies_type{ref_topo2, ref_topo4, ref_topo2, ref_topo0},
+        vec_axis_type{0, 0, 1});
     EXPECT_EQ(topologies_and_axes_2_0_012, ref_topologies_and_axes_2_0_012);
 
     topologies_and_axes_type ref_topologies_and_axes_2_0_021 = std::make_tuple(
@@ -3440,8 +3440,8 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
     EXPECT_EQ(topologies_and_axes_2_1_102, ref_topologies_and_axes_2_1_102);
 
     topologies_and_axes_type ref_topologies_and_axes_2_1_120 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo0, ref_topo2, ref_topo4, ref_topo1},
-        vec_axis_type{1, 1, 0, 1});
+        topologies_type{ref_topo2, ref_topo0, ref_topo2, ref_topo0, ref_topo1},
+        vec_axis_type{1, 1, 1, 0});
     EXPECT_EQ(topologies_and_axes_2_1_120, ref_topologies_and_axes_2_1_120);
 
     topologies_and_axes_type ref_topologies_and_axes_2_1_201 = std::make_tuple(
@@ -3489,13 +3489,13 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
     EXPECT_EQ(topologies_and_axes_2_2_120, ref_topologies_and_axes_2_2_120);
 
     topologies_and_axes_type ref_topologies_and_axes_2_2_201 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo4, ref_topo5, ref_topo3, ref_topo2},
-        vec_axis_type{0, 1, 0, 0});
+        topologies_type{ref_topo2, ref_topo4, ref_topo5, ref_topo4, ref_topo2},
+        vec_axis_type{0, 1, 1, 0});
     EXPECT_EQ(topologies_and_axes_2_2_201, ref_topologies_and_axes_2_2_201);
 
     topologies_and_axes_type ref_topologies_and_axes_2_2_210 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo0, ref_topo1, ref_topo3, ref_topo2},
-        vec_axis_type{1, 0, 1, 0});
+        topologies_type{ref_topo2, ref_topo0, ref_topo1, ref_topo0, ref_topo2},
+        vec_axis_type{1, 0, 0, 1});
     EXPECT_EQ(topologies_and_axes_2_2_210, ref_topologies_and_axes_2_2_210);
   }
 }
