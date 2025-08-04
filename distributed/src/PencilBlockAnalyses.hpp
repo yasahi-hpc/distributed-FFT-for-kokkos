@@ -17,8 +17,8 @@ struct PencilBlockAnalysesInternal;
 /// 1. FFT // E.g. {1, P0, P1}
 /// 2. FFT + Transpose // E.g. {1, P0, P1} FFT (ax=0) -> {P0, 1, P1}
 /// 3. Transpose + FFT // E.g. {P0, 1, P1} -> {1, P0, P1} FFT (ax=0)
-/// 4. Transpose + FFT + Transpose // E.g. {P0, 1, P1} -> {1, P0, P1} FFT (ax=0)
-/// -> {P0, 1, P1}
+/// 4. Transpose + FFT + Transpose
+/// E.g. {P0, 1, P1} -> {1, P0, P1} FFT (ax=0) -> {P0, 1, P1}
 template <typename ValueType, typename Layout, typename iType, std::size_t DIM,
           typename InLayoutType, typename OutLayoutType>
 struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
@@ -54,7 +54,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
     std::vector<std::size_t> all_max_buffer_sizes;
 
     std::size_t nb_topologies = all_topologies.size();
-    // std::cout << "Number of topologies: " << nb_topologies << std::endl;
     if (nb_topologies == 1) {
       // FFT batched
       // E.g. {1, Px, Py} + FFT ax=0
@@ -64,8 +63,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block.m_out_map     = map;
       block.m_in_extents  = get_mapped_extents(in_extents, map);
       block.m_out_extents = get_mapped_extents(out_extents, map);
-      // get_next_extents(gout_extents, in_topology, map, comm);
-      block.m_block_type = BlockType::FFT;
+      block.m_block_type  = BlockType::FFT;
       block.m_axes = get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block);
 
@@ -144,8 +142,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
         block1.m_out_axis  = out_axis1;
         block1.m_comm_axis = all_trans_axes.at(0);
 
-        block1.m_in_topology    = in_topology.array();
-        block1.m_out_topology   = out_topology.array();
         block1.m_in_extents     = block0.m_out_extents;
         block1.m_out_extents    = out_extents;
         block1.m_buffer_extents = get_buffer_extents<Layout>(
@@ -173,11 +169,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block0.m_in_axis           = in_axis0;
       block0.m_out_axis          = out_axis0;
       block0.m_comm_axis         = all_trans_axes.at(0);
-
-      // Do we really need this?
-      // block0.m_in_topology  = in_topology;
-      // block0.m_out_topology = mid_topology;
-      block0.m_in_extents = in_extents;
+      block0.m_in_extents        = in_extents;
 
       bool is_layout_right = block0.m_comm_axis == 0;
       if (is_layout_right) {
@@ -189,9 +181,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
         block0.m_out_extents =
             get_next_extents(gin_extents, mid_topology, block0.m_out_map, comm);
       }
-      // block0.m_out_extents = get_next_extents(
-      //     gin_extents, mid_topology, block0.m_out_map, comm,
-      //     is_layout_right);
       block0.m_buffer_extents = get_buffer_extents<Layout>(
           gin_extents, in_topology.array(), mid_topo);
 
@@ -217,13 +206,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
                                                 block0.m_out_map, comm);
       }
 
-      // block1.m_out_extents = get_mapped_extents(out_extents,
-      // block0.m_out_map); get_next_extents(
-      //     gout_extents, mid_topology, block0.m_out_map, comm,
-      //     is_layout_right);
       block1.m_block_type = BlockType::FFT;
-      block1.m_axes =  // to_vector(get_mapped_axes(axes, block0.m_out_map));
-          get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
+      block1.m_axes = get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block1);
 
       all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
@@ -249,28 +233,32 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 4) {
-      /*
-      m_op_type          = OperationType::TFTT;
-      auto mid_topology0 = all_topologies.at(1),
-           mid_topology1 = all_topologies.at(2);
+      m_op_type      = OperationType::TFTT;
+      auto mid_topo0 = all_topologies.at(1), mid_topo1 = all_topologies.at(2);
       // E.g. {1, Px, Py} -> {Py, Px, 1} + FFT (ax=2) -> {1, Px, Py}
       // -> {Px, 1, Py}
       BlockInfoType block0;
-      auto [in_axis0, out_axis0] = get_pencil(in_topology, mid_topology0);
+      auto [in_axis0, out_axis0] = get_pencil(in_topology.array(), mid_topo0);
       block0.m_in_map            = src_map;
       block0.m_out_map           = get_dst_map<Layout, DIM>(src_map, out_axis0);
       block0.m_in_axis           = in_axis0;
       block0.m_out_axis          = out_axis0;
       block0.m_comm_axis         = all_trans_axes.at(0);
+      block0.m_in_extents        = in_extents;
 
-      // Do we really need this?
-      block0.m_in_topology  = in_topology;
-      block0.m_out_topology = mid_topology0;
-      block0.m_in_extents   = in_extents;
-      block0.m_out_extents =
-          get_next_extents(gin_extents, mid_topology0, block0.m_out_map, comm);
-      block0.m_buffer_extents =
-          get_buffer_extents<Layout>(gin_extents, in_topology, mid_topology0);
+      bool is_layout_right = block0.m_comm_axis == 0;
+      if (is_layout_right) {
+        Topology<std::size_t, DIM, Kokkos::LayoutRight> mid_topology(mid_topo0);
+        block0.m_out_extents =
+            get_next_extents(gin_extents, mid_topology, block0.m_out_map, comm);
+      } else {
+        Topology<std::size_t, DIM, Kokkos::LayoutLeft> mid_topology(mid_topo0);
+        block0.m_out_extents =
+            get_next_extents(gin_extents, mid_topology, block0.m_out_map, comm);
+      }
+
+      block0.m_buffer_extents = get_buffer_extents<Layout>(
+          gin_extents, in_topology.array(), mid_topo0);
 
       block0.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block0);
@@ -284,29 +272,43 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
 
       BlockInfoType block1;
       block1.m_in_extents = block0.m_out_extents;
-      block1.m_out_extents =
-          get_next_extents(gout_extents, mid_topology0, block0.m_out_map, comm);
+      if (is_layout_right) {
+        Topology<std::size_t, DIM, Kokkos::LayoutRight> mid_topology(mid_topo0);
+        block1.m_out_extents = get_next_extents(gout_extents, mid_topology,
+                                                block0.m_out_map, comm);
+      } else {
+        Topology<std::size_t, DIM, Kokkos::LayoutLeft> mid_topology(mid_topo0);
+        block1.m_out_extents = get_next_extents(gout_extents, mid_topology,
+                                                block0.m_out_map, comm);
+      }
+
       block1.m_block_type = BlockType::FFT;
-      block1.m_axes =  // to_vector(get_mapped_axes(axes, block0.m_out_map));
-          get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
+      block1.m_axes = get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block1);
 
       all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
-      auto [in_axis2, out_axis2] = get_pencil(mid_topology0, mid_topology1);
+      auto [in_axis2, out_axis2] = get_pencil(mid_topo0, mid_topo1);
       block2.m_in_map            = block0.m_out_map;
       block2.m_out_map           = block2.m_in_map;
       block2.m_in_axis           = in_axis2;
       block2.m_out_axis          = out_axis2;
       block2.m_comm_axis         = all_trans_axes.at(1);
-      block2.m_in_topology       = mid_topology0;
-      block2.m_out_topology      = mid_topology1;
-      block2.m_in_extents =
-          get_next_extents(gout_extents, mid_topology1, block2.m_out_map, comm);
-      block2.m_out_extents    = out_extents;
-      block2.m_buffer_extents = get_buffer_extents<Layout>(
-          gout_extents, mid_topology0, mid_topology1);
+      block2.m_in_extents        = block1.m_out_extents;
+      if (block2.m_comm_axis == block0.m_comm_axis) {
+        Topology<std::size_t, DIM, Kokkos::LayoutRight> mid_topology1(
+            mid_topo1);
+        block2.m_out_extents = get_next_extents(gout_extents, mid_topology1,
+                                                block2.m_out_map, comm);
+      } else {
+        Topology<std::size_t, DIM, Kokkos::LayoutLeft> mid_topology1(mid_topo1);
+        block2.m_out_extents = get_next_extents(gout_extents, mid_topology1,
+                                                block2.m_out_map, comm);
+      }
+
+      block2.m_buffer_extents =
+          get_buffer_extents<Layout>(gout_extents, mid_topo0, mid_topo1);
       block2.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block2);
 
@@ -315,18 +317,16 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
 
       BlockInfoType block3;
-      auto [in_axis3, out_axis3] = get_pencil(mid_topology1, out_topology);
+      auto [in_axis3, out_axis3] = get_pencil(mid_topo1, out_topology.array());
       block3.m_in_map            = block2.m_out_map;
       block3.m_out_map           = src_map;
       block3.m_in_axis           = in_axis3;
       block3.m_out_axis          = out_axis3;
       block3.m_comm_axis         = all_trans_axes.at(2);
-      block3.m_in_topology       = mid_topology1;
-      block3.m_out_topology      = out_topology;
       block3.m_in_extents        = block2.m_out_extents;
       block3.m_out_extents       = out_extents;
-      block3.m_buffer_extents =
-          get_buffer_extents<Layout>(gout_extents, mid_topology1, out_topology);
+      block3.m_buffer_extents    = get_buffer_extents<Layout>(
+          gout_extents, mid_topo1, out_topology.array());
       block3.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block3);
 
@@ -335,7 +335,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
 
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
-      */
     }
   }
 };

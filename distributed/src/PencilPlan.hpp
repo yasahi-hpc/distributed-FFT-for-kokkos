@@ -82,7 +82,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
 
   // Buffer view types
   InViewType m_in_T;
-  OutViewType m_out_T;
+  OutViewType m_out_T, m_out_T2;
 
   // Buffer Allocations
   AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation;
@@ -113,9 +113,9 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
         m_out_topology(out_topology),
         m_comm(comm),
         m_normalization(normalization) {
-    KOKKOSFFT_THROW_IF(!are_valid_extents(in, out, axes, in_topology.array(),
-                                          out_topology.array(), comm),
-                       "Extents are not valid");
+    KOKKOSFFT_THROW_IF(
+        !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
+        "Extents are not valid");
 
     // Create a cartesian communicator
     std::vector<int> dims;
@@ -145,16 +145,14 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
     ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
 
     m_cart_comms = {row_comm, col_comm};
-    // m_cart_comms = {col_comm, row_comm};
-
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
     auto out_extents = KokkosFFT::Impl::extract_extents(out);
 
-    auto gin_extents  = get_global_shape(in, m_in_topology.array(), m_comm);
-    auto gout_extents = get_global_shape(out, m_out_topology.array(), m_comm);
+    auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
+    auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
 
     auto non_negative_axes =
         convert_negative_axes<std::size_t, int, 1, DIM>(axes);
@@ -163,9 +161,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
         out_topology, non_negative_axes, m_comm);
     m_op_type = m_block_analyses->m_op_type;
-
-    // std::cout << "m_block_analyses->m_block_infos.size(): " <<
-    // m_block_analyses->m_block_infos.size() << std::endl;
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 4),
@@ -280,9 +275,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
         break;
       }
       case OperationType::TFT: {
-        int rank = 0, nprocs = 1;
-        ::MPI_Comm_size(m_comm, &nprocs);
-        ::MPI_Comm_rank(m_comm, &rank);
         auto block0 = m_block_analyses->m_block_infos.at(0);
 
         m_in_T = InViewType(
@@ -292,73 +284,37 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
             m_exec_space, block0.m_buffer_extents, block0.m_in_map,
             block0.m_in_axis, block0.m_out_map, block0.m_out_axis,
             m_cart_comms.at(block0.m_comm_axis)));
-        /*
-        ::MPI_Barrier(m_comm);
-        if (rank == 0) {
-          std::cout << "gin_extents" << std::endl;
-          for (std::size_t i = 0; i <gin_extents.size(); ++i) {
-            std::cout << gin_extents[i] << " ";
-          }
-          std::cout << std::endl;
-          std::cout << "gout_extents" << std::endl;
-          for (std::size_t i = 0; i < gout_extents.size(); ++i) {
-            std::cout << gout_extents[i] << " ";
-          }
-          std::cout << std::endl;
-        }
-        ::MPI_Barrier(m_comm);
 
-        for (int i = 0; i < nprocs; i++) {
-            if (rank == i) {
-                std::cout << "Rank " << rank << "\n";
-                std::cout << "block0.m_in_extents" << std::endl;
-                for (std::size_t i = 0; i < block0.m_in_extents.size(); ++i) {
-                    std::cout << block0.m_in_extents[i] << " ";
-                }
-                std::cout << "block0.m_out_extents" << std::endl;
-                for (std::size_t i = 0; i < block0.m_out_extents.size(); ++i) {
-                    std::cout << block0.m_out_extents[i] << " ";
-                }
-                std::cout << std::endl;
-            }
-            ::MPI_Barrier(m_comm);
-        }
-            */
+        auto block1 = m_block_analyses->m_block_infos.at(1);
 
-        /*
-        if (rank == 0) {
-          std::cout << "block0.m_out_extents" << std::endl;
-          for (std::size_t i = 0; i < block0.m_out_extents.size(); ++i) {
-            std::cout << block0.m_out_extents[i] << " ";
-          }
-          std::cout << std::endl;
+        m_out_T = OutViewType(
+            m_recv_buffer_allocation.data(),
+            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
 
-          std::cout << "block0.m_buffer_extents" << std::endl;
-          for (std::size_t i = 0; i < block0.m_buffer_extents.size(); ++i) {
-            std::cout << block0.m_buffer_extents[i] << " ";
-          }
-          std::cout << std::endl;
+        m_forward_plan = std::make_unique<FFTForwardPlanType>(
+            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
+            to_array<int, std::size_t, 1>(block1.m_axes));
+        m_backward_plan = std::make_unique<FFTBackwardPlanType>(
+            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
+            to_array<int, std::size_t, 1>(block1.m_axes));
 
-          std::cout << "block0.m_in_map" << std::endl;
-          for (std::size_t i = 0; i < block0.m_in_map.size(); ++i) {
-            std::cout << block0.m_in_map[i] << " ";
-          }
-          std::cout << std::endl;
-          std::cout << "block0.m_in_axis: " << block0.m_in_axis << std::endl;
+        auto block2 = m_block_analyses->m_block_infos.at(2);
+        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
+            m_exec_space, block2.m_buffer_extents, block2.m_in_map,
+            block2.m_in_axis, block2.m_out_map, block2.m_out_axis,
+            m_cart_comms.at(block2.m_comm_axis)));
+        break;
+      }
+      case OperationType::TFTT: {
+        auto block0 = m_block_analyses->m_block_infos.at(0);
 
-          std::cout << "block0.m_out_map" << std::endl;
-          for (std::size_t i = 0; i < block0.m_out_map.size(); ++i) {
-            std::cout << block0.m_out_map[i] << " ";
-          }
-          std::cout << std::endl;
-          std::cout << "block0.m_out_axis: " << block0.m_out_axis << std::endl;
-          std::cout << std::endl;
-
-          std::cout << std::endl;
-          std::cout << "block0.m_comm_axis: " << block0.m_comm_axis <<
-        std::endl; std::cout << std::endl;
-        }
-          */
+        m_in_T = InViewType(
+            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
+            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
+        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
+            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
+            block0.m_in_axis, block0.m_out_map, block0.m_out_axis,
+            m_cart_comms.at(block0.m_comm_axis)));
 
         auto block1 = m_block_analyses->m_block_infos.at(1);
 
@@ -379,42 +335,16 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
             block2.m_in_axis, block2.m_out_map, block2.m_out_axis,
             m_cart_comms.at(block2.m_comm_axis)));
 
-        /*
-        if (rank == 0) {
-          std::cout << "block1.m_in_extents" << std::endl;
-          for (std::size_t i = 0; i < block1.m_in_extents.size(); ++i) {
-            std::cout << block1.m_in_extents[i] << " ";
-          }
-          std::cout << std::endl;
-          std::cout << "block1.m_out_extents" << std::endl;
-          for (std::size_t i = 0; i < block1.m_out_extents.size(); ++i) {
-            std::cout << block1.m_out_extents[i] << " ";
-          }
-          std::cout << std::endl;
+        m_out_T2 = OutViewType(
+            m_send_buffer_allocation.data(),
+            KokkosFFT::Impl::create_layout<LayoutType>(block2.m_out_extents));
 
-          std::cout << "block1.m_axes" << std::endl;
-          for (std::size_t i = 0; i < block1.m_axes.size(); ++i) {
-            std::cout << block1.m_axes[i] << " ";
-          }
-          std::cout << std::endl;
+        auto block3 = m_block_analyses->m_block_infos.at(3);
+        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
+            m_exec_space, block3.m_buffer_extents, block3.m_in_map,
+            block3.m_in_axis, block3.m_out_map, block3.m_out_axis,
+            m_cart_comms.at(block3.m_comm_axis)));
 
-          std::cout << "block2.m_in_map" << std::endl;
-          for (std::size_t i = 0; i < block2.m_in_map.size(); ++i) {
-            std::cout << block2.m_in_map[i] << " ";
-          }
-          std::cout << std::endl;
-          std::cout << "block2.m_in_axis: " << block2.m_in_axis << std::endl;
-
-          std::cout << "block2.m_out_map" << std::endl;
-          for (std::size_t i = 0; i < block2.m_out_map.size(); ++i) {
-            std::cout << block2.m_out_map[i] << " ";
-          }
-          std::cout << std::endl;
-          std::cout << "block2.m_out_axis: " << block2.m_out_axis << std::endl;
-          std::cout << "block2.m_comm_axis: " << block2.m_comm_axis <<
-        std::endl;
-        }
-          */
         break;
       }
       default:  // No Operation
@@ -469,6 +399,19 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
                                 KokkosFFT::Direction::forward);
         break;
       }
+      case OperationType::TFTT: {
+        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
+                                m_recv_buffer_allocation,
+                                KokkosFFT::Direction::forward);
+        KokkosFFT::execute(*m_forward_plan, m_in_T, m_out_T, m_normalization);
+        (*m_trans_blocks.at(1))(m_out_T, m_out_T2, m_send_buffer_allocation,
+                                m_recv_buffer_allocation,
+                                KokkosFFT::Direction::forward);
+        (*m_trans_blocks.at(2))(m_out_T2, out, m_recv_buffer_allocation,
+                                m_send_buffer_allocation,
+                                KokkosFFT::Direction::forward);
+        break;
+      }
       default: break;
     };
   }
@@ -515,6 +458,19 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
       }
       case OperationType::TFT: {
         (*m_trans_blocks.at(1))(out, m_out_T, m_recv_buffer_allocation,
+                                m_send_buffer_allocation,
+                                KokkosFFT::Direction::backward);
+        KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T, m_normalization);
+        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
+                                m_send_buffer_allocation,
+                                KokkosFFT::Direction::backward);
+        break;
+      }
+      case OperationType::TFTT: {
+        (*m_trans_blocks.at(2))(out, m_out_T2, m_send_buffer_allocation,
+                                m_recv_buffer_allocation,
+                                KokkosFFT::Direction::backward);
+        (*m_trans_blocks.at(1))(m_out_T2, m_out_T, m_recv_buffer_allocation,
                                 m_send_buffer_allocation,
                                 KokkosFFT::Direction::backward);
         KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T, m_normalization);

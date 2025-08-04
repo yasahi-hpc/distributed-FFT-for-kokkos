@@ -38,8 +38,7 @@ void test_get_global_shape2D(std::size_t rank, std::size_t nprocs) {
   using topology_type = std::array<std::size_t, 2>;
   using ViewType      = Kokkos::View<T**, LayoutType, execution_space>;
 
-  topology_type topology0{1, nprocs};
-  topology_type topology1{nprocs, 1};
+  topology_type topology0{1, nprocs}, topology1{nprocs, 1};
 
   const std::size_t gn0 = 19, gn1 = 32;
   const std::size_t n0_t0           = gn0;
@@ -67,51 +66,35 @@ void test_get_global_shape2D(std::size_t rank, std::size_t nprocs) {
 }
 
 template <typename T, typename LayoutType>
-void test_get_global_shape3D(std::size_t rank, std::size_t nprocs) {
-  using topology_type = std::array<std::size_t, 3>;
-  using ViewType      = Kokkos::View<T***, LayoutType, execution_space>;
+void test_get_global_shape3D(std::size_t rank, std::size_t npx,
+                             std::size_t npy) {
+  using extents_type    = std::array<std::size_t, 3>;
+  using topology_r_type = Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  using topology_l_type = Topology<std::size_t, 3, Kokkos::LayoutLeft>;
+  using ViewType        = Kokkos::View<T***, LayoutType, execution_space>;
 
-  std::size_t nprocs_1D = std::sqrt(nprocs);
-  if (nprocs_1D * nprocs_1D != nprocs) {
-    GTEST_SKIP() << "The number of MPI ranks should be a perfect square ";
-  }
+  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy};
+  topology_l_type topology2{npy, npx, 1};
 
-  topology_type topology0{1, nprocs_1D, nprocs_1D};
-  topology_type topology1{nprocs_1D, 1, nprocs_1D};
-  topology_type topology2{nprocs_1D, nprocs_1D, 1};
+  std::size_t rx = rank / npy, ry = rank % npy;
 
-  std::size_t rank0 = rank / nprocs_1D;
-  std::size_t rank1 = rank % nprocs_1D;
+  auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
+    std::size_t quotient  = n / t;
+    std::size_t remainder = n % t;
+    return r < remainder ? (quotient + 1) : quotient;
+  };
 
   const std::size_t gn0 = 19, gn1 = 32, gn2 = 25;
-  const std::size_t n0_t0           = gn0;
-  const std::size_t n1_t0_quotient  = (gn1 - 1) / nprocs_1D + 1;
-  const std::size_t n1_t0_remainder = gn1 - n1_t0_quotient * (nprocs_1D - 1);
-  const std::size_t n1_t0 =
-      rank0 != (nprocs_1D - 1) ? n1_t0_quotient : n1_t0_remainder;
-  const std::size_t n2_t0_quotient  = (gn2 - 1) / nprocs_1D + 1;
-  const std::size_t n2_t0_remainder = gn2 - n2_t0_quotient * (nprocs_1D - 1);
-  const std::size_t n2_t0 =
-      rank1 != (nprocs_1D - 1) ? n2_t0_quotient : n2_t0_remainder;
+  const std::size_t n0_t0 = gn0;
+  const std::size_t n1_t0 = distribute_extents(gn1, rx, npx);
+  const std::size_t n2_t0 = distribute_extents(gn2, ry, npy);
 
-  const std::size_t n0_t1_quotient  = (gn0 - 1) / nprocs_1D + 1;
-  const std::size_t n0_t1_remainder = gn0 - n0_t1_quotient * (nprocs_1D - 1);
-  const std::size_t n0_t1 =
-      rank0 != (nprocs_1D - 1) ? n0_t1_quotient : n0_t1_remainder;
-  const std::size_t n1_t1           = gn1;
-  const std::size_t n2_t1_quotient  = (gn2 - 1) / nprocs_1D + 1;
-  const std::size_t n2_t1_remainder = gn2 - n2_t1_quotient * (nprocs_1D - 1);
-  const std::size_t n2_t1 =
-      rank1 != (nprocs_1D - 1) ? n2_t1_quotient : n2_t1_remainder;
+  const std::size_t n0_t1 = distribute_extents(gn0, rx, npx);
+  const std::size_t n1_t1 = gn1;
+  const std::size_t n2_t1 = distribute_extents(gn2, ry, npy);
 
-  const std::size_t n0_t2_quotient  = (gn0 - 1) / nprocs_1D + 1;
-  const std::size_t n0_t2_remainder = gn0 - n0_t2_quotient * (nprocs_1D - 1);
-  const std::size_t n0_t2 =
-      rank0 != (nprocs_1D - 1) ? n0_t2_quotient : n0_t2_remainder;
-  const std::size_t n1_t2_quotient  = (gn1 - 1) / nprocs_1D + 1;
-  const std::size_t n1_t2_remainder = gn1 - n1_t2_quotient * (nprocs_1D - 1);
-  const std::size_t n1_t2 =
-      rank1 != (nprocs_1D - 1) ? n1_t2_quotient : n1_t2_remainder;
+  const std::size_t n0_t2 = distribute_extents(gn0, ry, npy);
+  const std::size_t n1_t2 = distribute_extents(gn1, rx, npx);
   const std::size_t n2_t2 = gn2;
 
   ViewType v0("v0", n0_t0, n1_t0, n2_t0);
@@ -122,7 +105,7 @@ void test_get_global_shape3D(std::size_t rank, std::size_t nprocs) {
   auto global_shape_t1 = get_global_shape(v1, topology1, MPI_COMM_WORLD);
   auto global_shape_t2 = get_global_shape(v2, topology2, MPI_COMM_WORLD);
 
-  topology_type ref_global_shape{gn0, gn1, gn2};
+  extents_type ref_global_shape{gn0, gn1, gn2};
 
   EXPECT_EQ(global_shape_t0, ref_global_shape);
   EXPECT_EQ(global_shape_t1, ref_global_shape);
@@ -537,8 +520,13 @@ TYPED_TEST(TestMPIHelper, GetGlobalShape3D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_get_global_shape3D<float_type, layout_type>(this->m_rank,
-                                                   this->m_nprocs);
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+
+  test_get_global_shape3D<float_type, layout_type>(this->m_rank, this->m_npx,
+                                                   this->m_npx);
 }
 
 TEST(TestRankToCoord, 1Dto4D) { test_rank_to_coord(); }
@@ -554,8 +542,9 @@ TYPED_TEST(TestMPIHelper, GetLocalShape3D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  if (this->m_npx != 2) {
-    GTEST_SKIP() << "The number of MPI ranks should be 4";
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
   }
 
   test_get_local_extents3D<float_type, layout_type>(this->m_rank, this->m_npx,
@@ -574,8 +563,9 @@ TYPED_TEST(TestMPIHelper, GetNextExtents3D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  if (this->m_npx != 2) {
-    GTEST_SKIP() << "The number of MPI ranks should be 4";
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
   }
 
   test_get_next_extents3D<float_type, layout_type>(this->m_rank, this->m_npx,
