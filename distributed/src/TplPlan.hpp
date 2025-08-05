@@ -11,10 +11,17 @@
 #include "CufftMp_Transform.hpp"
 #endif
 
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+#include "RocfftMPI_Types.hpp"
+#include "RocfftMPI_Plan.hpp"
+#include "RocfftMPI_Transform.hpp"
+#endif
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM = 1>
-class TplPlan
-    : public InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM> {
+          std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
+class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
+                                    DIM, InLayoutType, OutLayoutType> {
  private:
   using in_value_type  = typename InViewType::non_const_value_type;
   using out_value_type = typename OutViewType::non_const_value_type;
@@ -72,12 +79,12 @@ class TplPlan
 
     std::tie(m_in_map, m_out_map) = KokkosFFT::Impl::get_map_axes(in, axes);
 
-    m_out_desc_extents = get_mapped_extents(m_out_extents, m_in_map);
-    if constexpr (KokkosFFT::Impl::is_real_v<in_value_type>) {
-      m_in_desc_extents = get_padded_extents(m_out_desc_extents);
-    } else {
-      m_in_desc_extents = get_mapped_extents(m_in_extents, m_in_map);
-    }
+    // m_out_desc_extents = get_mapped_extents(m_out_extents, m_in_map);
+    // if constexpr (KokkosFFT::Impl::is_real_v<in_value_type>) {
+    //   m_in_desc_extents = get_padded_extents(m_out_desc_extents);
+    // } else {
+    //   m_in_desc_extents = get_mapped_extents(m_in_extents, m_in_map);
+    // }
 
     // Only support 2D or 3D FFTs
     m_fft_size = create_plan(m_exec_space, m_plan, in, out, axes, in_topology,
