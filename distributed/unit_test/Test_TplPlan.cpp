@@ -876,7 +876,7 @@ TYPED_TEST(TestTplPlan2D, ExecuteView2D_C2C) {
   using float_type   = typename TestFixture::float_type;
   using layout_type  = typename TestFixture::layout_type;
   using complex_type = Kokkos::complex<float_type>;
-  if (std::is_same_v<layout_type, Kokkos::LayoutLeft> {
+  if (std::is_same_v<layout_type, Kokkos::LayoutLeft>) {
     GTEST_SKIP() << "TPL plan supports LayoutRight only" << std::endl;
   }
   test_tpl2D_execute_View2D<complex_type, layout_type>(this->m_nprocs);

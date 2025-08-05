@@ -42,12 +42,16 @@ class MPITestEventListener : public ::testing::EmptyTestEventListener {
 };
 
 int main(int argc, char* argv[]) {
-  // Initialize MPI first
+// Initialize MPI first
+#if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
+  MPI_Init(&argc, &argv);
+#else
   int provided;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
   if (provided != MPI_THREAD_MULTIPLE) {
     throw std::runtime_error("MPI_THREAD_MULTIPLE is needed");
   }
+#endif
 
   // Initialize google test
   ::testing::InitGoogleTest(&argc, argv);
