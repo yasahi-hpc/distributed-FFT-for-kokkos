@@ -18,6 +18,8 @@ set(SOURCES
 
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
 list(APPEND SOURCES Test_TplPlan.cpp)
+elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
+list(APPEND SOURCES Test_TplPlan.cpp)
 endif()
 
 add_executable(unit-tests-mpi ${SOURCES})

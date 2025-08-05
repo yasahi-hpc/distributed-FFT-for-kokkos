@@ -15,6 +15,7 @@ add_subdirectory(tpls/kokkos-fft)
 option(ENABLE_TESTS "Build tests" OFF)
 option(ENABLE_EXAMPLES "Build examples" OFF)
 option(ENABLE_CUFFT_MP "Enable cufft-mp as a KokkosFFT backend on NVIDIA GPUs" OFF)
+option(ENABLE_ROCFFT_MPI "Enable rocfft-mpi as a KokkosFFT backend on AMD GPUs" OFF)
 
 # googletest
 if(ENABLE_TESTS)
