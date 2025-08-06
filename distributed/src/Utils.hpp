@@ -604,7 +604,8 @@ struct SafeTranspose {
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1>
 void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
-                    const OutViewType& out, KokkosFFT::axis_type<DIM> map) {
+                    const OutViewType& out,
+                    const KokkosFFT::axis_type<DIM>& map) {
   static_assert(
       KokkosFFT::Impl::are_operatable_views_v<ExecutionSpace, InViewType,
                                               OutViewType>,
@@ -623,9 +624,36 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
 
   auto in_extents  = KokkosFFT::Impl::extract_extents(in);
   auto out_extents = KokkosFFT::Impl::extract_extents(out);
+
+  auto mismatched_extents = [&]() -> std::string {
+    std::string message;
+    message += "in (";
+    message += std::to_string(in_extents.at(0));
+    for (std::size_t r = 1; r < in_extents.size(); r++) {
+      message += ",";
+      message += std::to_string(in_extents.at(r));
+    }
+    message += "), ";
+    message += "out (";
+    message += std::to_string(out_extents.at(0));
+    for (std::size_t r = 1; r < out_extents.size(); r++) {
+      message += ",";
+      message += std::to_string(out_extents.at(r));
+    }
+    message += "), with map (";
+    message += std::to_string(map.at(0));
+    for (std::size_t i = 1; i < map.size(); i++) {
+      message += ",";
+      message += std::to_string(map.at(i));
+    }
+    message += ")";
+    return message;
+  };
+
   KOKKOSFFT_THROW_IF(get_mapped_extents(in_extents, map) != out_extents,
                      "transpose: input and output extents do not match after "
-                     "applying the transpose map");
+                     "applying the transpose map: " +
+                         mismatched_extents());
   std::array<std::size_t, DIM> non_negative_map =
       convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(map);
   Kokkos::Array<std::size_t, InViewType::rank()> map_array =

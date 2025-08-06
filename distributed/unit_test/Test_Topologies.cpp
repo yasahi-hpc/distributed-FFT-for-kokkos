@@ -3939,7 +3939,7 @@ ref_shuffled_topologies_1_1_132);
 }
 */
 
-void test_decompose_axes(std::size_t nprocs) {
+void test_decompose_axes_slab(std::size_t nprocs) {
   using topology_type  = std::array<std::size_t, 3>;
   using topology_type2 = std::array<std::size_t, 4>;
 
@@ -4003,6 +4003,113 @@ void test_decompose_axes(std::size_t nprocs) {
     EXPECT_EQ(all_axes_3_4, ref_all_axes_3_4);
     EXPECT_EQ(all_axes_4_3_ax210, ref_all_axes_4_3_ax210);
     EXPECT_EQ(all_axes_4_3_ax012, ref_all_axes_4_3_ax012);
+  }
+}
+
+void test_decompose_axes_pencil(std::size_t nprocs) {
+  using topology_type = std::array<std::size_t, 3>;
+  std::size_t np0     = 4;
+
+  // 3D topologies
+  topology_type topology0 = {1, nprocs, np0}, topology1 = {nprocs, 1, np0},
+                topology2 = {np0, nprocs, 1}, topology3 = {nprocs, np0, 1},
+                topology4 = {np0, 1, nprocs};
+
+  using axes_type     = std::array<std::size_t, 3>;
+  using vec_axes_type = std::vector<std::size_t>;
+  axes_type axes012 = {0, 1, 2}, axes021 = {0, 2, 1}, axes102 = {1, 0, 2},
+            axes120 = {1, 2, 0}, axes201 = {2, 0, 1}, axes210 = {2, 1, 0};
+
+  std::vector<axes_type> all_axes = {axes012, axes021, axes102,
+                                     axes120, axes201, axes210};
+
+  // All topologies
+  std::vector<topology_type> topologies_02420 = {topology0, topology2,
+                                                 topology4, topology2,
+                                                 topology0},
+                             topologies_01310 = {topology0, topology1,
+                                                 topology3, topology1,
+                                                 topology0},
+                             topologies_02010 = {topology0, topology2,
+                                                 topology0, topology1,
+                                                 topology0},
+                             topologies_01020 = {topology0, topology1,
+                                                 topology0, topology2,
+                                                 topology0},
+                             topologies_0201 = {topology0, topology2, topology0,
+                                                topology1};
+
+  if (nprocs == 1) {
+    // Slab geometry
+    auto all_axes_02420_axes012 = decompose_axes(topologies_02420, axes012);
+    auto all_axes_01310_axes021 = decompose_axes(topologies_01310, axes021);
+    auto all_axes_02010_axes102 = decompose_axes(topologies_02010, axes102);
+    auto all_axes_01020_axes201 = decompose_axes(topologies_01020, axes201);
+    auto all_axes_0201_axes102  = decompose_axes(topologies_0201, axes102);
+    std::vector<vec_axes_type>
+        ref_all_axes_02420_axes012 = {{},
+                                      vec_axes_type{1, 2},
+                                      {},
+                                      {},
+                                      vec_axes_type{0}},
+        ref_all_axes_01310_axes021 = {vec_axes_type{1},
+                                      {},
+                                      vec_axes_type{0, 2},
+                                      {},
+                                      {}},
+        ref_all_axes_02010_axes102 = {{},
+                                      vec_axes_type{2},
+                                      vec_axes_type{1, 0},
+                                      {},
+                                      {}},
+        ref_all_axes_01020_axes201 = {vec_axes_type{0, 1},
+                                      {},
+                                      {},
+                                      vec_axes_type{2},
+                                      {}},
+        ref_all_axes_0201_axes102  = {
+            {}, vec_axes_type{2}, vec_axes_type{1, 0}, {}};
+    EXPECT_EQ(all_axes_02420_axes012, ref_all_axes_02420_axes012);
+    EXPECT_EQ(all_axes_01310_axes021, ref_all_axes_01310_axes021);
+    EXPECT_EQ(all_axes_02010_axes102, ref_all_axes_02010_axes102);
+    EXPECT_EQ(all_axes_01020_axes201, ref_all_axes_01020_axes201);
+    EXPECT_EQ(all_axes_0201_axes102, ref_all_axes_0201_axes102);
+  } else {
+    // Pencil geometry
+    auto all_axes_02420_axes012 = decompose_axes(topologies_02420, axes012);
+    auto all_axes_01310_axes021 = decompose_axes(topologies_01310, axes021);
+    auto all_axes_02010_axes102 = decompose_axes(topologies_02010, axes102);
+    auto all_axes_01020_axes201 = decompose_axes(topologies_01020, axes201);
+    auto all_axes_0201_axes102  = decompose_axes(topologies_0201, axes102);
+    std::vector<vec_axes_type> ref_all_axes_02420_axes012 = {{},
+                                                             vec_axes_type{2},
+                                                             vec_axes_type{1},
+                                                             {},
+                                                             vec_axes_type{0}},
+                               ref_all_axes_01310_axes021 = {{},
+                                                             vec_axes_type{1},
+                                                             vec_axes_type{2},
+                                                             {},
+                                                             vec_axes_type{0}},
+                               ref_all_axes_02010_axes102 = {{},
+                                                             vec_axes_type{2},
+                                                             vec_axes_type{0},
+                                                             vec_axes_type{1},
+                                                             {}},
+                               ref_all_axes_01020_axes201 = {{},
+                                                             vec_axes_type{1},
+                                                             vec_axes_type{0},
+                                                             vec_axes_type{2},
+                                                             {}},
+                               ref_all_axes_0201_axes102  = {{},
+                                                             vec_axes_type{2},
+                                                             vec_axes_type{0},
+                                                             vec_axes_type{1}};
+    EXPECT_EQ(all_axes_02420_axes012, ref_all_axes_02420_axes012);
+    EXPECT_EQ(all_axes_01310_axes021, ref_all_axes_01310_axes021);
+    EXPECT_EQ(all_axes_02010_axes102, ref_all_axes_02010_axes102);
+    EXPECT_EQ(all_axes_01020_axes201, ref_all_axes_01020_axes201);
+    EXPECT_EQ(all_axes_0201_axes102, ref_all_axes_0201_axes102);
   }
 }
 
@@ -4110,9 +4217,14 @@ TEST_P(TopologyParamTests, IsTopology) {
   test_is_topology(n0);
 }
 
-TEST_P(TopologyParamTests, DecomposeAxes) {
+TEST_P(TopologyParamTests, DecomposeAxesSlab) {
   int n0 = GetParam();
-  test_decompose_axes(n0);
+  test_decompose_axes_slab(n0);
+}
+
+TEST_P(TopologyParamTests, DecomposeAxesPencil) {
+  int n0 = GetParam();
+  test_decompose_axes_pencil(n0);
 }
 
 INSTANTIATE_TEST_SUITE_P(TopologyTests, TopologyParamTests,
