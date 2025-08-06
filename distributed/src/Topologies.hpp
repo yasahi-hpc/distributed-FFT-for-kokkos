@@ -665,9 +665,12 @@ auto get_all_pencil_topologies(
   std::reverse(axes_reversed.begin(), axes_reversed.end());
   std::array<std::size_t, DIM> shuffled_topology = in_topology_tmp;
   if (in_topology_tmp == out_topology_tmp) {
-    auto last_axis = axes_reversed.front();
-    auto first_dim = in_topology_tmp.at(last_axis);
+    auto last_axis  = axes_reversed.front();
+    auto first_axis = axes_reversed.back();
+    auto first_dim  = in_topology_tmp.at(last_axis);
+    auto last_dim   = out_topology_tmp.at(first_axis);
     if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
+    if (last_dim == 1 && !axes_reversed.empty()) axes_reversed.pop_back();
     for (const auto& axis : axes_reversed) {
       // std::cout << "axis" << axis << std::endl;
       std::size_t swap_idx = 0;
@@ -686,7 +689,7 @@ auto get_all_pencil_topologies(
       // std::cout << "shuffled_topology" << std::endl;
       // for (std::size_t t=0; t<shuffled_topology.size(); t++) {
       //  std::cout << "t: " << shuffled_topology.at(t) << std::endl;
-      //}
+      // }
       if (topologies.back() != shuffled_topology) {
         trans_axes.push_back(get_trans_axis(topologies.back(),
                                             shuffled_topology, first_non_one));
@@ -698,12 +701,12 @@ auto get_all_pencil_topologies(
     // auto bac = topologies.back();
     // for (std::size_t t=0; t<bac.size(); t++) {
     //    std::cout << "t: " << bac.at(t) << std::endl;
-    //  }
+    // }
 
     // std::cout << "out_topology_tmp" << std::endl;
     // for (std::size_t t=0; t<out_topology_tmp.size(); t++) {
-    //    std::cout << "t: " << out_topology_tmp.at(t) << std::endl;
-    //  }
+    //   std::cout << "t: " << out_topology_tmp.at(t) << std::endl;
+    // }
     //
     if (topologies.back() == out_topology_tmp) {
       return to_original_topologies(topologies, trans_axes);
@@ -734,10 +737,12 @@ auto get_all_pencil_topologies(
 
   std::vector<std::size_t> diff_non_ones =
       find_non_ones(in_topology_tmp, out_topology_tmp);
-  auto last_axis = axes_reversed.front();
-  auto first_dim = in_topology_tmp.at(last_axis);
+  auto last_axis  = axes_reversed.front();
+  auto first_axis = axes_reversed.back();
+  auto first_dim  = in_topology_tmp.at(last_axis);
+  auto last_dim   = out_topology_tmp.at(first_axis);
   if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
-
+  if (last_dim == 1 && !axes_reversed.empty()) axes_reversed.pop_back();
   for (const auto& axis : axes_reversed) {
     std::size_t swap_idx = 0;
     auto non_negative_axis =
