@@ -145,24 +145,12 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
   std::set<iType> diffs            = diff_sets(in, out);
   std::vector<iType> diff_non_ones = find_non_ones(in, out);
 
-  // std::cout << "diff_non_ones.size() " << diff_non_ones.size() << std::endl;
-  // std::cout << "diff_indices.size() " << diff_indices.size() << std::endl;
-  // std::cout << "diffs.size() " << diffs.size() << std::endl;
-
   KOKKOSFFT_THROW_IF(diff_non_ones.size() < 3,
                      "The total number of non-one elements either in Input and "
                      "output topologies must be three.");
   KOKKOSFFT_THROW_IF(
       diff_indices.size() < 3 && diffs.size() == 3,
       "Input and output topologies must differ exactly three positions.");
-  /*
-  KOKKOSFFT_THROW_IF(diff_non_ones.size() != 3,
-                     "The total number of non-one elements either in Input and "
-                     "output topologies must be three.");
-  KOKKOSFFT_THROW_IF(
-      diff_indices.size() != 3 && diffs.size() == 3,
-      "Input and output topologies must differ exactly three positions.");
-  */
 
   // Only copy the exchangable indices from original arrays in and out
   std::array<iType, DIM> in_trimed = {}, out_trimed = {};
@@ -177,13 +165,26 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
   // Try all combinations of 2 indices for a single valid swap
   for (size_t i = 0; i < diff_non_ones.size(); ++i) {
     for (size_t j = i + 1; j < diff_non_ones.size(); ++j) {
-      iType idx_in               = diff_non_ones.at(i);
-      iType idx_out              = diff_non_ones.at(j);
+      iType idx_in  = diff_non_ones.at(i);
+      iType idx_out = diff_non_ones.at(j);
+
       std::array<iType, DIM> mid = swap_elements(in, idx_in, idx_out);
       iType idx_one_mid          = KokkosFFT::Impl::get_index(mid, iType(1));
-      if ((find_differences(mid, out).size() == 2) &&
+
+      auto mid_in_diff_indices  = find_differences(mid, in);
+      auto mid_out_diff_indices = find_differences(mid, out);
+      if ((mid_in_diff_indices.size() == 2) &&
+          (mid_out_diff_indices.size() == 2) &&
           !(idx_one_mid == idx_one_in || idx_one_mid == idx_one_out)) {
-        return mid;
+        // Do not allow exchange two non-one elements
+        auto mid_in_diff0  = mid.at(mid_in_diff_indices.at(0));
+        auto mid_in_diff1  = mid.at(mid_in_diff_indices.at(1));
+        auto mid_out_diff0 = mid.at(mid_out_diff_indices.at(0));
+        auto mid_out_diff1 = mid.at(mid_out_diff_indices.at(1));
+        if ((mid_in_diff0 == 1 || mid_in_diff1 == 1) &&
+            (mid_out_diff0 == 1 || mid_out_diff1 == 1)) {
+          return mid;
+        }
       }
     }
   }
