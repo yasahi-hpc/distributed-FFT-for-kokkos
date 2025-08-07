@@ -2022,11 +2022,11 @@ void test_get_mid_array_pencil_4D(std::size_t nprocs) {
     auto mid25 = get_mid_array(topology2, topology5);
     auto mid34 = get_mid_array(topology3, topology4);
     EXPECT_EQ(mid03, topology1);
-    EXPECT_EQ(mid04, topology1);
+    EXPECT_EQ(mid04, topology2);
     EXPECT_EQ(mid12, topology0);
-    EXPECT_EQ(mid15, topology0);
-    EXPECT_EQ(mid25, topology3);
-    EXPECT_EQ(mid34, topology2);
+    EXPECT_EQ(mid15, topology3);
+    EXPECT_EQ(mid25, topology4);
+    EXPECT_EQ(mid34, topology5);
   }
 }
 
