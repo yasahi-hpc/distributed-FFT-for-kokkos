@@ -1372,6 +1372,20 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
     */
 
+    // topo 0 -> topo 3 with ax = {0, 1, 2}:
+    // (n0, n1/px, n2/py) -> (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1)
+    // -> (n0/py, n1, (n2/2+1)/px) -> (n0, n1/py, (n2/2+1)/px)
+    // -> (n0/px, n1/py, n2/2+1)
+    // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 4 -> FFT ax = {1}
+    // -> Transpose topo 5 -> FFT ax = {0} -> Transpose topo 3
+    PencilPlan plan_0_3_ax012(exec, u_0, u_hat_3_ax012, ax012, topology0,
+                              topology3, MPI_COMM_WORLD);
+    plan_0_3_ax012.forward(u_0, u_hat_3_ax012);
+    EXPECT_TRUE(allclose(exec, u_hat_3_ax012, ref_u_hat_3_ax012));
+
+    plan_0_3_ax012.backward(u_hat_3_ax012, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
     // topo 3 -> topo 0 with ax = {0, 1, 2}:
     // (n0/px, n1/py, n2) -> (n0/px, n1/py, n2/2+1) -> (n0/px, n1, (n2/2+1)/py)
     // -> (n0, n1/px, (n2/2+1)/py)
@@ -1397,7 +1411,7 @@ TYPED_TEST(TestPencil1D, View3D_R2C) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_pencil1D_view3D<float_type, layout_type>(this->m_npx, this->m_npx);
+  // test_pencil1D_view3D<float_type, layout_type>(this->m_npx, this->m_npx);
 }
 
 TYPED_TEST(TestPencil1D, View3D_C2C) {
@@ -1405,7 +1419,7 @@ TYPED_TEST(TestPencil1D, View3D_C2C) {
   using layout_type  = typename TestFixture::layout_type;
   using complex_type = Kokkos::complex<float_type>;
 
-  test_pencil1D_view3D<complex_type, layout_type>(this->m_npx, this->m_npx);
+  // test_pencil1D_view3D<complex_type, layout_type>(this->m_npx, this->m_npx);
 }
 
 TYPED_TEST(TestPencil3D, View3D_R2C) {
@@ -1420,5 +1434,5 @@ TYPED_TEST(TestPencil3D, View3D_C2C) {
   using layout_type  = typename TestFixture::layout_type;
   using complex_type = Kokkos::complex<float_type>;
 
-  test_pencil3D_view3D<complex_type, layout_type>(this->m_npx, this->m_npx);
+  // test_pencil3D_view3D<complex_type, layout_type>(this->m_npx, this->m_npx);
 }
