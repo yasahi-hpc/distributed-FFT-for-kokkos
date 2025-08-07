@@ -4177,15 +4177,17 @@ TEST_P(PencilParamTests, GetMidArray4D) {
   test_get_mid_array_pencil_4D(n0);
 }
 
+/*
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_3DView) {
   int n0 = GetParam();
-  // test_get_all_pencil_topologies1D_3DView(n0);
+  test_get_all_pencil_topologies1D_3DView(n0);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_3DView) {
   int n0 = GetParam();
-  // test_get_all_pencil_topologies2D_3DView(n0);
+  test_get_all_pencil_topologies2D_3DView(n0);
 }
+*/
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_3DView) {
   int n0 = GetParam();
