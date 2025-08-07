@@ -552,8 +552,10 @@ auto get_all_pencil_topologies(
   static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
   static_assert(DIM >= 3 && DIM >= FFT_DIM, "DIM >= 3 and DIM >= FFT_DIM");
 
-  using topologies_type = std::vector<std::array<std::size_t, DIM>>;
+  using topology_type   = std::array<std::size_t, DIM>;
+  using topologies_type = std::vector<topology_type>;
   using axes_type       = std::vector<std::size_t>;
+  using layouts_type    = std::vector<std::size_t>;
 
   bool is_pencil = is_pencil_topology(in_topology.array()) &&
                    is_pencil_topology(out_topology.array());
@@ -597,12 +599,15 @@ auto get_all_pencil_topologies(
     }
   }
 
+  // If LayoutRight, (1, px, py, 1): first_non_one is px
+  // If LayoutLeft, (1, py, px, 1): first_non_one is px
   auto first_non_one = std::is_same_v<InLayoutType, Kokkos::LayoutRight>
                            ? find_non_ones(in_topology_tmp).at(0)
                            : find_non_ones(in_topology_tmp).at(1);
 
   auto to_original_topologies = [&](const topologies_type& topologies,
-                                    const axes_type& trans_axes) {
+                                    const axes_type& trans_axes,
+                                    const layouts_type& layouts) {
     if (has_same_non_one_elements) {
       auto non_one             = non_ones.at(0);
       auto original_topologies = topologies;
@@ -611,16 +616,25 @@ auto get_all_pencil_topologies(
           if (topology.at(i) > 1) topology.at(i) = non_one;
         }
       }
-      return std::make_tuple(original_topologies, trans_axes);
+      return std::make_tuple(original_topologies, trans_axes, layouts);
     } else {
-      return std::make_tuple(topologies, trans_axes);
+      return std::make_tuple(topologies, trans_axes, layouts);
     }
+  };
+
+  auto get_layout = [&](const topology_type& topology) {
+    // If this condition is satisified, it means layout right
+    std::size_t is_layout_right =
+        find_non_ones(topology).at(0) == first_non_one;
+    return is_layout_right;
   };
 
   topologies_type topologies;
   axes_type trans_axes;
+  layouts_type layouts;
 
   topologies.push_back(in_topology_tmp);
+  layouts.push_back(get_layout(in_topology_tmp));
 
   // 3D case
   std::array<std::size_t, DIM> topology = {};
@@ -652,14 +666,16 @@ auto get_all_pencil_topologies(
       trans_axes.push_back(
           get_trans_axis(topologies.back(), mid_topology, first_non_one));
       topologies.push_back(mid_topology);
+      layouts.push_back(get_layout(mid_topology));
     } catch (std::runtime_error& e) {
     }
     if (topologies.back() != out_topology_tmp) {
       trans_axes.push_back(
           get_trans_axis(topologies.back(), out_topology_tmp, first_non_one));
       topologies.push_back(out_topology_tmp);
+      layouts.push_back(get_layout(out_topology_tmp));
     }
-    return to_original_topologies(topologies, trans_axes);
+    return to_original_topologies(topologies, trans_axes, layouts);
   }
 
   std::reverse(axes_reversed.begin(), axes_reversed.end());
@@ -694,6 +710,7 @@ auto get_all_pencil_topologies(
         trans_axes.push_back(get_trans_axis(topologies.back(),
                                             shuffled_topology, first_non_one));
         topologies.push_back(shuffled_topology);
+        layouts.push_back(get_layout(shuffled_topology));
       }
     }
 
@@ -709,7 +726,7 @@ auto get_all_pencil_topologies(
     // }
     //
     if (topologies.back() == out_topology_tmp) {
-      return to_original_topologies(topologies, trans_axes);
+      return to_original_topologies(topologies, trans_axes, layouts);
     }
 
     // std::cout << "after check" << std::endl;
@@ -723,16 +740,18 @@ auto get_all_pencil_topologies(
       trans_axes.push_back(
           get_trans_axis(topologies.back(), mid_topology, first_non_one));
       topologies.push_back(mid_topology);
+      layouts.push_back(get_layout(mid_topology));
     } catch (std::runtime_error& e) {
     }
 
     if (topologies.back() == out_topology_tmp)
-      return to_original_topologies(topologies, trans_axes);
+      return to_original_topologies(topologies, trans_axes, layouts);
 
     trans_axes.push_back(
         get_trans_axis(topologies.back(), out_topology_tmp, first_non_one));
     topologies.push_back(out_topology_tmp);
-    return to_original_topologies(topologies, trans_axes);
+    layouts.push_back(get_layout(out_topology_tmp));
+    return to_original_topologies(topologies, trans_axes, layouts);
   }
 
   std::vector<std::size_t> diff_non_ones =
@@ -761,26 +780,29 @@ auto get_all_pencil_topologies(
       trans_axes.push_back(
           get_trans_axis(topologies.back(), shuffled_topology, first_non_one));
       topologies.push_back(shuffled_topology);
+      layouts.push_back(get_layout(shuffled_topology));
     }
   }
   if (topologies.back() == out_topology_tmp)
-    return to_original_topologies(topologies, trans_axes);
+    return to_original_topologies(topologies, trans_axes, layouts);
 
   try {
     auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
     trans_axes.push_back(
         get_trans_axis(topologies.back(), mid_topology, first_non_one));
     topologies.push_back(mid_topology);
+    layouts.push_back(get_layout(mid_topology));
   } catch (std::runtime_error& e) {
   }
   if (topologies.back() == out_topology_tmp)
-    return to_original_topologies(topologies, trans_axes);
+    return to_original_topologies(topologies, trans_axes, layouts);
 
   trans_axes.push_back(
       get_trans_axis(topologies.back(), out_topology_tmp, first_non_one));
   topologies.push_back(out_topology_tmp);
+  layouts.push_back(get_layout(out_topology_tmp));
 
-  return to_original_topologies(topologies, trans_axes);
+  return to_original_topologies(topologies, trans_axes, layouts);
 }
 
 #endif
