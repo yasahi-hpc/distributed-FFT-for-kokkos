@@ -717,10 +717,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1),
            axes2 = all_axes.at(2);
 
-      std::cout << "axes0.size(): " << axes0.size() << std::endl;
-      std::cout << "axes1.size(): " << axes1.size() << std::endl;
-      std::cout << "axes2.size(): " << axes2.size() << std::endl;
-
       BlockInfoType block0;
       block0.m_in_map     = map;
       block0.m_out_map    = map;
@@ -1078,7 +1074,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block0.m_comm_axis  = all_trans_axes.at(0);
         block0.m_in_extents = in_extents;
 
-        bool is_layout_right0 = block0.m_comm_axis == 0;
+        // bool is_layout_right0 = block0.m_comm_axis == 0;
+        bool is_layout_right0 = all_layouts.at(1);
         block0.m_out_extents  = get_next_extents(
             gin_extents, mid_topo0, block0.m_out_map, comm, is_layout_right0);
         block0.m_buffer_extents = get_buffer_extents<Layout>(
@@ -1110,13 +1107,11 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block2.m_in_map            = block0.m_out_map;
         block2.m_out_map = get_dst_map<Layout, DIM>(block2.m_in_map, out_axis2);
         block2.m_in_axis = in_axis2;
-        block2.m_out_axis  = out_axis2;
-        block2.m_comm_axis = all_trans_axes.at(1);
-        bool is_layout_right2 =
-            block2.m_comm_axis == 0 ? is_layout_right0 : !is_layout_right0;
-
-        block2.m_in_extents  = block1.m_out_extents;
-        block2.m_out_extents = get_next_extents(
+        block2.m_out_axis     = out_axis2;
+        block2.m_comm_axis    = all_trans_axes.at(1);
+        bool is_layout_right2 = all_layouts.at(2);
+        block2.m_in_extents   = block1.m_out_extents;
+        block2.m_out_extents  = get_next_extents(
             gout_extents, mid_topo1, block2.m_out_map, comm, is_layout_right2);
         block2.m_buffer_extents =
             get_buffer_extents<Layout>(gout_extents, mid_topo0, mid_topo1);
@@ -1142,13 +1137,11 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block4.m_in_map            = block2.m_out_map;
         block4.m_out_map = get_dst_map<Layout, DIM>(block4.m_in_map, out_axis4);
         block4.m_in_axis = in_axis4;
-        block4.m_out_axis  = out_axis4;
-        block4.m_comm_axis = all_trans_axes.at(2);
-        bool is_layout_right4 =
-            block4.m_comm_axis == 0 ? is_layout_right2 : !is_layout_right2;
-
-        block4.m_in_extents  = block3.m_out_extents;
-        block4.m_out_extents = get_next_extents(
+        block4.m_out_axis     = out_axis4;
+        block4.m_comm_axis    = all_trans_axes.at(2);
+        bool is_layout_right4 = all_layouts.at(3);
+        block4.m_in_extents   = block3.m_out_extents;
+        block4.m_out_extents  = get_next_extents(
             gout_extents, mid_topo2, block4.m_out_map, comm, is_layout_right4);
         block4.m_buffer_extents =
             get_buffer_extents<Layout>(gout_extents, mid_topo1, mid_topo2);
@@ -1205,13 +1198,11 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block5.m_in_map = block4.m_out_map;
           block5.m_out_map =
               get_dst_map<Layout, DIM>(block5.m_in_map, out_axis5);
-          block5.m_in_axis   = in_axis5;
-          block5.m_out_axis  = out_axis5;
-          block5.m_comm_axis = all_trans_axes.at(3);
-          bool is_layout_right5 =
-              block5.m_comm_axis == 0 ? is_layout_right4 : !is_layout_right4;
-
-          block5.m_in_extents = block5.m_out_extents;
+          block5.m_in_axis      = in_axis5;
+          block5.m_out_axis     = out_axis5;
+          block5.m_comm_axis    = all_trans_axes.at(3);
+          bool is_layout_right5 = all_layouts.at(4);
+          block5.m_in_extents   = block5.m_out_extents;
           block5.m_out_extents =
               get_next_extents(gout_extents, out_topology.array(),
                                block5.m_out_map, comm, is_layout_right5);
