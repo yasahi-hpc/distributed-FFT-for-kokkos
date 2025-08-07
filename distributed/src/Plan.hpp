@@ -10,20 +10,23 @@
 #include "InternalPlan.hpp"
 #include "SharedPlan.hpp"
 #include "SlabPlan.hpp"
+#include "PencilPlan.hpp"
 
 #if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
 #include "TplPlan.hpp"
 #endif
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM = 1>
-static std::unique_ptr<
-    InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>>
+          std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
+static std::unique_ptr<InternalPlan<ExecutionSpace, InViewType, OutViewType,
+                                    DIM, InLayoutType, OutLayoutType>>
 internal_plan_factory(
     const ExecutionSpace& exec_space, const InViewType& in,
     const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
-    const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
-    const KokkosFFT::shape_type<OutViewType::rank()>& out_topology,
+    const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
+    const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
+        out_topology,
     const MPI_Comm& comm,
     KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
 #if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
@@ -34,12 +37,11 @@ internal_plan_factory(
   }
 #endif
 
-  bool is_shared =
-      is_shared_topology(in_topology) && is_shared_topology(out_topology);
-  bool is_slab =
-      is_slab_topology(in_topology) && is_slab_topology(out_topology);
-  bool is_pencil =
-      is_pencil_topology(in_topology) && is_pencil_topology(out_topology);
+  auto in_topo = in_topology.array(), out_topo = out_topology.array();
+
+  bool is_shared = is_shared_topology(in_topo) && is_shared_topology(out_topo);
+  bool is_slab   = is_slab_topology(in_topo) && is_slab_topology(out_topo);
+  bool is_pencil = is_pencil_topology(in_topo) && is_pencil_topology(out_topo);
 
   if (is_shared) {
     return std::make_unique<
@@ -50,11 +52,15 @@ internal_plan_factory(
         SlabPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
         exec_space, in, out, axes, in_topology, out_topology, comm, norm);
   } else if (is_pencil) {
-    // Pencil plans can be implemented similarly to slab plans
-    // return std::make_unique<PencilPlan<ExecutionSpace, InViewType,
-    // OutViewType, DIM>>(exec_space, in, out, axes, in_topology, out_topology,
-    // comm);
-    throw std::runtime_error("Pencil plans are not yet implemented.");
+    if constexpr (InViewType::rank() >= 3) {
+      return std::make_unique<
+          PencilPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>>(exec_space, in, out, axes, in_topology,
+                                     out_topology, comm, norm);
+    } else {
+      throw std::runtime_error(
+          "Pencil plan supports 3D or higher dimensional Views");
+    }
   } else {
     // Default case for unsupported topologies
     throw std::runtime_error("Unsupported topology for FFT plan.");
@@ -62,14 +68,19 @@ internal_plan_factory(
 }
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM = 1>
+          std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
 class Plan {
   static_assert(DIM >= 1 && DIM <= 3,
                 "Plan: the Rank of FFT axes must be between 1 and 3");
   using InternalPlanType =
       InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
-  using axes_type     = KokkosFFT::axis_type<DIM>;
-  using topology_type = KokkosFFT::shape_type<InViewType::rank()>;
+  using axes_type = KokkosFFT::axis_type<DIM>;
+  using in_topology_type =
+      Topology<std::size_t, InViewType::rank(), InLayoutType>;
+  using out_topology_type =
+      Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
+  using extents_type = std::array<std::size_t, InViewType::rank()>;
 
   std::unique_ptr<InternalPlanType> m_internal_plan;
 
@@ -77,8 +88,18 @@ class Plan {
   explicit Plan(
       const ExecutionSpace& exec_space, const InViewType& in,
       const OutViewType& out, const axes_type& axes,
-      const topology_type& in_topology, const topology_type& out_topology,
+      const extents_type& in_topology, const extents_type& out_topology,
       const MPI_Comm& comm,
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      : Plan(exec_space, in, out, axes,
+             Topology<std::size_t, InViewType::rank()>(in_topology),
+             Topology<std::size_t, OutViewType::rank()>(out_topology), comm,
+             norm) {}
+  explicit Plan(
+      const ExecutionSpace& exec_space, const InViewType& in,
+      const OutViewType& out, const axes_type& axes,
+      const in_topology_type& in_topology,
+      const out_topology_type& out_topology, const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
     m_internal_plan = internal_plan_factory(
         exec_space, in, out, axes, in_topology, out_topology, comm, norm);
