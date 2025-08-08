@@ -27,7 +27,11 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   using out_value_type = typename OutViewType::non_const_value_type;
   using axes_type      = KokkosFFT::axis_type<DIM>;
   using extents_type   = KokkosFFT::shape_type<InViewType::rank()>;
-  using map_type       = KokkosFFT::axis_type<InViewType::rank()>;
+  using in_topology_type =
+      Topology<std::size_t, InViewType::rank(), InLayoutType>;
+  using out_topology_type =
+      Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
+  using map_type = KokkosFFT::axis_type<InViewType::rank()>;
 
   //! The type of fft plan
   using fft_plan_type =
@@ -49,11 +53,6 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   extents_type m_in_extents, m_out_extents;
   ///@}
 
-  ///@{
-  //! extents of in/out desc views
-  extents_type m_in_desc_extents, m_out_desc_extents;
-  ///@}
-
   std::string m_label;
 
   std::size_t m_fft_size;
@@ -68,27 +67,30 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       const extents_type& in_topology, const extents_type& out_topology,
       const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
+      : TplPlan(exec_space, in, out, axes,
+                Topology<std::size_t, InViewType::rank()>(in_topology),
+                Topology<std::size_t, OutViewType::rank()>(out_topology), comm,
+                norm) {}
+
+  explicit TplPlan(
+      const ExecutionSpace& exec_space, const InViewType& in,
+      const OutViewType& out, const axes_type& axes,
+      const in_topology_type& in_topology,
+      const out_topology_type& out_topology, const MPI_Comm& comm,
+      KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
       : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>(
             exec_space, in, out, axes, in_topology, out_topology, comm, norm),
-        m_exec_space(exec_space) {
+        m_exec_space(exec_space),
+        m_in_extents(KokkosFFT::Impl::extract_extents(in)),
+        m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
     auto non_negative_axes =
         convert_negative_axes<std::size_t, int, DIM, DIM>(axes);
 
-    m_in_extents  = KokkosFFT::Impl::extract_extents(in);
-    m_out_extents = KokkosFFT::Impl::extract_extents(out);
-
     std::tie(m_in_map, m_out_map) = KokkosFFT::Impl::get_map_axes(in, axes);
 
-    // m_out_desc_extents = get_mapped_extents(m_out_extents, m_in_map);
-    // if constexpr (KokkosFFT::Impl::is_real_v<in_value_type>) {
-    //   m_in_desc_extents = get_padded_extents(m_out_desc_extents);
-    // } else {
-    //   m_in_desc_extents = get_mapped_extents(m_in_extents, m_in_map);
-    // }
-
     // Only support 2D or 3D FFTs
-    m_fft_size = create_plan(m_exec_space, m_plan, in, out, axes, in_topology,
-                             out_topology, comm);
+    m_fft_size = create_plan(m_exec_space, m_plan, in, out, axes,
+                             in_topology.array(), out_topology.array(), comm);
   }
 
   ~TplPlan() noexcept = default;
@@ -101,14 +103,14 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
 
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
-    execute_impl(*m_plan, in, out, m_in_desc_extents, m_out_desc_extents,
-                 m_in_map, m_out_map, KokkosFFT::Direction::forward);
+    execute_impl(*m_plan, in, out, m_in_extents, m_out_extents,
+                 KokkosFFT::Direction::forward);
   }
 
   void backward(const OutViewType& out, const InViewType& in) const override {
     good(in, out);
-    execute_impl(*m_plan, out, in, m_out_desc_extents, m_in_desc_extents,
-                 m_out_map, m_in_map, KokkosFFT::Direction::backward);
+    execute_impl(*m_plan, out, in, m_out_extents, m_in_extents,
+                 KokkosFFT::Direction::backward);
   }
 
   std::string get_label() const override { return m_label; }
@@ -117,11 +119,9 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   template <typename PlanType, typename InView, typename OutView>
   void execute_impl(const PlanType& plan, const InView& in, const OutView& out,
                     const extents_type& in_extents,
-                    const extents_type& out_extents, const map_type& in_map,
-                    const map_type& out_map,
+                    const extents_type& out_extents,
                     KokkosFFT::Direction direction) const {
-    exec_plan(m_exec_space, plan, in, out, in_extents, out_extents, in_map,
-              out_map, direction);
+    exec_plan(m_exec_space, plan, in, out, in_extents, out_extents, direction);
     KokkosFFT::Impl::normalize(m_exec_space, out, direction, get_norm(),
                                m_fft_size);
   }

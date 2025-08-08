@@ -8,25 +8,35 @@
 #include "Utils.hpp"
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t DIM>
+          std::size_t DIM, typename InLayoutType = Kokkos::LayoutRight,
+          typename OutLayoutType = Kokkos::LayoutRight>
 bool is_tpl_available(
     const ExecutionSpace& exec_space, const InViewType& in,
     const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
-    const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
-    const KokkosFFT::shape_type<OutViewType::rank()>& out_topology) {
-  auto last_axis          = axes.back();
-  auto in_first_dim       = in_topology.at(last_axis),
-       out_first_dim      = out_topology.at(last_axis);
-  bool is_first_dim_ready = in_first_dim == 1 && out_first_dim == 1;
-  bool is_slab =
-      is_slab_topology(in_topology) && is_slab_topology(out_topology);
-  bool is_pencil =
-      is_pencil_topology(in_topology) && is_pencil_topology(out_topology);
+    const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
+    const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
+        out_topology) {
+  using InLayout  = typename InViewType::array_layout;
+  using OutLayout = typename OutViewType::array_layout;
+  if constexpr (!std::is_same_v<InLayout, Kokkos::LayoutRight> ||
+                !std::is_same_v<OutLayout, Kokkos::LayoutRight>) {
+    return false;
+  }
+
+  [[maybe_unused]] auto [map, map_inv] =
+      KokkosFFT::Impl::get_map_axes(in, axes);
+  bool is_transpose_needed = KokkosFFT::Impl::is_transpose_needed(map);
+  if (is_transpose_needed) return false;
+
+  auto in_topo = in_topology.array(), out_topo = out_topology.array();
+
+  bool is_slab   = is_slab_topology(in_topo) && is_slab_topology(out_topo);
+  bool is_pencil = is_pencil_topology(in_topo) && is_pencil_topology(out_topo);
+
   if constexpr (InViewType::rank() == 2 && DIM == 2) {
     if (is_slab) return true;
   } else if constexpr (InViewType::rank() == 3 && DIM == 3) {
-    // Only X- or Y- slab allowed
-    if (is_slab && is_first_dim_ready) return true;
+    if (is_slab || is_pencil) return true;
   }
 
   return false;
