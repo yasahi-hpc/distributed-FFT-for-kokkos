@@ -281,8 +281,9 @@ struct Variables {
   // \brief Constructor of a Variables class
   // Taylor-Green vortex is used as the initial condition.
   // \param[in] grid Grid in Fourier space
+  // \param[in] suppress_diag If true, suppresses value initialization.
   // \param[in] v0 Initial velocity magnitude. Defaults to 1.0.
-  Variables(const Grid& grid, double v0 = 1.0) {
+  Variables(const Grid& grid, bool suppress_diag, double v0 = 1.0) {
     auto h_x =
         Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), grid.m_x);
     auto h_y =
@@ -338,14 +339,18 @@ struct Variables {
     }
     Kokkos::deep_copy(m_u, h_u);
 
-    using execution_space = Kokkos::DefaultExecutionSpace;
-    execution_space exec;
-    Plan plan(exec, m_u, m_uk, KokkosFFT::axis_type<3>{1, 2, 3},
-              grid.m_in_topology, grid.m_out_topology, MPI_COMM_WORLD);
+    // If suppress_diag is true, we do not initialize values
+    // This allows outputs from kokkos-tools simpler
+    if (!suppress_diag) {
+      using execution_space = Kokkos::DefaultExecutionSpace;
+      execution_space exec;
+      Plan plan(exec, m_u, m_uk, KokkosFFT::axis_type<3>{1, 2, 3},
+                grid.m_in_topology, grid.m_out_topology, MPI_COMM_WORLD);
 
-    execute(plan, m_u, m_uk, KokkosFFT::Direction::forward);
-    dealias(m_uk, grid.m_alias_mask);
-    projection(grid, m_uk);
+      execute(plan, m_u, m_uk, KokkosFFT::Direction::forward);
+      dealias(m_uk, grid.m_alias_mask);
+      projection(grid, m_uk);
+    }
   }
 };
 
@@ -425,7 +430,7 @@ class NavierStokes {
         m_base_out_dir(out_dir),
         m_suppress_diag(suppress_diag),
         m_grid(rank, px, py, nx, nx, nx, lx, lx, lx),
-        m_variables(m_grid) {
+        m_variables(m_grid, suppress_diag) {
     execution_space exec;
     View1D<Kokkos::complex<double>> uk_flatten(m_variables.m_uk.data(),
                                                m_variables.m_uk.size());

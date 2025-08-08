@@ -115,14 +115,16 @@ struct Grid {
 
     // Wavenumbers
     auto [out_extents, out_starts] =
-      get_local_extents(extents_type({std::size_t(nx), std::size_t(ny), std::size_t(nz/2+1)}), m_out_topology, MPI_COMM_WORLD);
+        get_local_extents(extents_type({std::size_t(nx), std::size_t(ny),
+                                        std::size_t(nz / 2 + 1)}),
+                          m_out_topology, MPI_COMM_WORLD);
     auto [nkx, nky, nkz] = out_extents;
-    m_kx         = View1D<double>("kx", nkx);
-    m_ky         = View1D<double>("ky", nky);
-    m_kzh        = View1D<double>("kzh", nkz);
-    m_ksq        = View3D<double>("ksq", nkx, nky, nkz);
-    m_inv_ksq    = View3D<double>("inv_ksq", nkx, nky, nkz);
-    m_alias_mask = View3D<double>("alias_mask", nkx, nky, nkz);
+    m_kx                 = View1D<double>("kx", nkx);
+    m_ky                 = View1D<double>("ky", nky);
+    m_kzh                = View1D<double>("kzh", nkz);
+    m_ksq                = View3D<double>("ksq", nkx, nky, nkz);
+    m_inv_ksq            = View3D<double>("inv_ksq", nkx, nky, nkz);
+    m_alias_mask         = View3D<double>("alias_mask", nkx, nky, nkz);
 
     host_execution_space host_exec;
 
@@ -135,7 +137,7 @@ struct Grid {
     auto h_gky = KokkosFFT::fftfreq(host_exec, ny, dky);
 
     // [0, dkz, 2*dkz, ..., nkz * dkz]
-    double dkz = lz / static_cast<double>(2 * nz);
+    double dkz  = lz / static_cast<double>(2 * nz);
     auto h_gkzh = KokkosFFT::rfftfreq(host_exec, nz, dkz);
 
     // kx**2 + ky**2 + kz**2
@@ -147,7 +149,7 @@ struct Grid {
           int giky             = iky + out_starts.at(1);  // Global index in y
           int gikz             = ikz + out_starts.at(2);  // Global index in z
           h_ksq(ikx, iky, ikz) = h_kx(ikx) * h_kx(ikx) +
-                                +h_gky(giky) * h_gky(giky) +
+                                 +h_gky(giky) * h_gky(giky) +
                                  h_gkzh(gikz) * h_gkzh(gikz);
           h_inv_ksq(ikx, iky, ikz) = (ikx == 0 && giky == 0 && gikz == 0)
                                          ? 0.0
@@ -173,8 +175,8 @@ struct Grid {
     for (int ikz = 0; ikz < h_alias_mask.extent_int(2); ikz++) {
       for (int iky = 0; iky < h_alias_mask.extent_int(1); iky++) {
         for (int ikx = 0; ikx < h_alias_mask.extent_int(0); ikx++) {
-          int giky             = iky + out_starts.at(1);  // Global index in y
-          int gikz             = ikz + out_starts.at(2);  // Global index in z
+          int giky    = iky + out_starts.at(1);  // Global index in y
+          int gikz    = ikz + out_starts.at(2);  // Global index in z
           bool cutoff = (Kokkos::abs(h_kx_ind(ikx) * nx) > cutoff_x) ||
                         (Kokkos::abs(h_ky_ind(giky) * ny) > cutoff_y) ||
                         (Kokkos::abs(h_kz_ind(gikz) * nz) > cutoff_z);
@@ -183,14 +185,14 @@ struct Grid {
       }
     }
 
-    auto h_ky = Kokkos::create_mirror_view(m_ky);
+    auto h_ky  = Kokkos::create_mirror_view(m_ky);
     auto h_kzh = Kokkos::create_mirror_view(m_kzh);
     for (int iky = 0; iky < m_ky.extent_int(0); iky++) {
       int giky  = iky + out_starts.at(1);  // Global index in y
       h_ky(iky) = h_gky(giky);
     }
     for (int ikz = 0; ikz < m_kzh.extent_int(0); ikz++) {
-      int gikz  = ikz + out_starts.at(2);  // Global index in z
+      int gikz   = ikz + out_starts.at(2);  // Global index in z
       h_kzh(ikz) = h_gkzh(gikz);
     }
 
@@ -275,8 +277,9 @@ struct Variables {
   // \brief Constructor of a Variables class
   // Taylor-Green vortex is used as the initial condition.
   // \param[in] grid Grid in Fourier space
+  // \param[in] suppress_diag If true, suppresses value initialization.
   // \param[in] v0 Initial velocity magnitude. Defaults to 1.0.
-  Variables(const Grid& grid, double v0 = 1.0) {
+  Variables(const Grid& grid, bool suppress_diag, double v0 = 1.0) {
     auto h_x =
         Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), grid.m_x);
     auto h_y =
@@ -350,20 +353,24 @@ struct Variables {
     Kokkos::deep_copy(m_v, h_v);
     Kokkos::deep_copy(m_w, h_w);
 
-    using execution_space = Kokkos::DefaultExecutionSpace;
-    execution_space exec;
-    Plan plan(exec, m_u, m_uk, KokkosFFT::axis_type<3>{0, 1, 2},
-              grid.m_in_topology, grid.m_out_topology, MPI_COMM_WORLD);
+    // If suppress_diag is true, we do not initialize values
+    // This allows outputs from kokkos-tools simpler
+    if (!suppress_diag) {
+      using execution_space = Kokkos::DefaultExecutionSpace;
+      execution_space exec;
+      Plan plan(exec, m_u, m_uk, KokkosFFT::axis_type<3>{0, 1, 2},
+                grid.m_in_topology, grid.m_out_topology, MPI_COMM_WORLD);
 
-    execute(plan, m_u, m_uk, KokkosFFT::Direction::forward);
-    execute(plan, m_v, m_vk, KokkosFFT::Direction::forward);
-    execute(plan, m_w, m_wk, KokkosFFT::Direction::forward);
+      execute(plan, m_u, m_uk, KokkosFFT::Direction::forward);
+      execute(plan, m_v, m_vk, KokkosFFT::Direction::forward);
+      execute(plan, m_w, m_wk, KokkosFFT::Direction::forward);
 
-    dealias(m_uk, grid.m_alias_mask);
-    dealias(m_vk, grid.m_alias_mask);
-    dealias(m_wk, grid.m_alias_mask);
+      dealias(m_uk, grid.m_alias_mask);
+      dealias(m_vk, grid.m_alias_mask);
+      dealias(m_wk, grid.m_alias_mask);
 
-    projection(grid, m_uk, m_vk, m_wk);
+      projection(grid, m_uk, m_vk, m_wk);
+    }
   }
 };
 
@@ -443,7 +450,7 @@ class NavierStokes {
         m_base_out_dir(out_dir),
         m_suppress_diag(suppress_diag),
         m_grid(rank, px, py, nx, nx, nx, lx, lx, lx),
-        m_variables(m_grid) {
+        m_variables(m_grid, suppress_diag) {
     execution_space exec;
     View1D<Kokkos::complex<double>> uk_flatten(m_variables.m_uk.data(),
                                                m_variables.m_uk.size());
