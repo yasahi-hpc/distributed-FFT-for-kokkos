@@ -689,7 +689,6 @@ auto get_all_pencil_topologies(
     if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
     if (last_dim == 1 && !axes_reversed.empty()) axes_reversed.pop_back();
     for (const auto& axis : axes_reversed) {
-      // std::cout << "axis" << axis << std::endl;
       std::size_t swap_idx = 0;
       auto non_negative_axis =
           KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
@@ -703,10 +702,6 @@ auto get_all_pencil_topologies(
       shuffled_topology =
           swap_elements(shuffled_topology, unsigned_axis, swap_idx);
 
-      // std::cout << "shuffled_topology" << std::endl;
-      // for (std::size_t t=0; t<shuffled_topology.size(); t++) {
-      //  std::cout << "t: " << shuffled_topology.at(t) << std::endl;
-      // }
       if (topologies.back() != shuffled_topology) {
         trans_axes.push_back(get_trans_axis(topologies.back(),
                                             shuffled_topology, first_non_one));
@@ -715,29 +710,12 @@ auto get_all_pencil_topologies(
       }
     }
 
-    // std::cout << "topologies.back()" << std::endl;
-    // auto bac = topologies.back();
-    // for (std::size_t t=0; t<bac.size(); t++) {
-    //    std::cout << "t: " << bac.at(t) << std::endl;
-    // }
-
-    // std::cout << "out_topology_tmp" << std::endl;
-    // for (std::size_t t=0; t<out_topology_tmp.size(); t++) {
-    //   std::cout << "t: " << out_topology_tmp.at(t) << std::endl;
-    // }
-    //
     if (topologies.back() == out_topology_tmp) {
       return to_original_topologies(topologies, trans_axes, layouts);
     }
 
-    // std::cout << "after check" << std::endl;
-
     try {
       auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
-      // std::cout << "mid_topology" << std::endl;
-      // for (std::size_t t=0; t<mid_topology.size(); t++) {
-      //   std::cout << "t: " << mid_topology.at(t) << std::endl;
-      // }
       trans_axes.push_back(
           get_trans_axis(topologies.back(), mid_topology, first_non_one));
       topologies.push_back(mid_topology);
