@@ -17,13 +17,18 @@ set(SOURCES
 )
 
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
-list(APPEND SOURCES Test_TplPlan.cpp)
+    list(APPEND SOURCES Test_TplPlan.cpp)
 elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
-list(APPEND SOURCES Test_TplPlan.cpp)
+    list(APPEND SOURCES Test_TplPlan.cpp)
 endif()
 
 add_executable(unit-tests-mpi ${SOURCES})
 find_package(MPI REQUIRED COMPONENTS CXX)
+
+if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
+    target_include_directories(unit-tests-mpi PUBLIC ${cuFFTMp_INCLUDE_DIRS})
+    target_link_libraries(unit-tests-mpi PUBLIC ${cuFFTMp_LIBRARIES})
+endif()
 
 target_compile_features(unit-tests-mpi PUBLIC cxx_std_17)
 target_compile_options(unit-tests-mpi PUBLIC -std=c++17)
