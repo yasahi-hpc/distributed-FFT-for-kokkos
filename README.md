@@ -46,6 +46,7 @@ ctest --output-on-failure
 To run an example, please run the following command for 16 GPUs with 2 nodes.
 
 ```bash
+export MPICH_GPU_SUPPORT_ENABLED=1
 cd build
 srun --ntasks-per-node 8 --cpus-per-task 1 --threads-per-core 1 --gpu-bind closest examples/navier-stokes-MPI-batched/navier-stokes-MPI-batched -px 16 -Re 1600 -dt 0.001 -nx 1024 -nbiter 10
 ```
