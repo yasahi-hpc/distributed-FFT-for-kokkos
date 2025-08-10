@@ -11,7 +11,8 @@ target_link_libraries(distributed
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
   find_package(cuFFTMp REQUIRED)
   target_include_directories(distributed INTERFACE ${cuFFTMp_INCLUDE_DIRS})
-  # We link cuFFTMp before and after KokkosFFT to ensure that it will be linked before cuFFT
+  # We add cuFFTMp to the link libraries before and after KokkosFFT to ensure that cuFFTMp will
+  # appear before cuFFT on the linker command line
   target_link_libraries(distributed INTERFACE ${cuFFTMp_LIBRARIES})
   target_link_libraries(distributed INTERFACE KokkosFFT::fft)
   target_link_libraries(distributed INTERFACE ${cuFFTMp_LIBRARIES})
