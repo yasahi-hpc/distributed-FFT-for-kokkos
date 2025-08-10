@@ -404,6 +404,25 @@ auto get_fft_extents(const std::array<std::size_t, DIM>& in_extents,
   return fft_extents;
 }
 
+template <typename ExecutionSpace, typename InViewType, typename OutViewType,
+          std::size_t... Is>
+void crop_or_pad_impl(const ExecutionSpace& exec_space, const InViewType& in,
+                      const OutViewType& out, std::index_sequence<Is...>) {
+  constexpr std::size_t rank = InViewType::rank();
+  using extents_type         = std::array<std::size_t, rank>;
+
+  extents_type extents;
+  for (std::size_t i = 0; i < rank; i++) {
+    extents.at(i) = std::min(in.extent(i), out.extent(i));
+  }
+
+  auto sub_in = Kokkos::subview(
+      in, std::make_pair(std::size_t(0), std::get<Is>(extents))...);
+  auto sub_out = Kokkos::subview(
+      out, std::make_pair(std::size_t(0), std::get<Is>(extents))...);
+  Kokkos::deep_copy(exec_space, sub_out, sub_in);
+}
+
 /// \brief Get padded extents from the extents in Fourier space
 ///
 /// Example
@@ -414,12 +433,14 @@ auto get_fft_extents(const std::array<std::size_t, DIM>& in_extents,
 ///
 /// \param[in] in_extents Extents of the global input View.
 /// \param[in] out_extents Extents of the global output View.
+/// \param[in] axes Axes of the transform
 /// \return A extents of the permuted view
 template <std::size_t DIM>
-auto get_padded_extents(const std::array<std::size_t, DIM>& extents) {
+auto get_padded_extents(const std::array<std::size_t, DIM>& extents,
+                        const std::array<std::size_t, DIM>& axes) {
   std::array<std::size_t, DIM> padded_extents = extents;
-  // auto last_axis = axes.back();
-  padded_extents.back() = padded_extents.back() * 2;
+  auto last_axis                              = axes.back();
+  padded_extents.at(last_axis) = padded_extents.at(last_axis) * 2;
 
   return padded_extents;
 }
@@ -607,20 +628,38 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
                     const OutViewType& out,
                     const KokkosFFT::axis_type<DIM>& map) {
   static_assert(
-      KokkosFFT::Impl::are_operatable_views_v<ExecutionSpace, InViewType,
-                                              OutViewType>,
-      "transpose: InViewType and OutViewType must have the same base floating "
-      "point "
-      "type (float/double), the same layout (LayoutLeft/LayoutRight), and the "
-      "same rank. ExecutionSpace must be accessible to the data in InViewType "
-      "and OutViewType.");
+      KokkosFFT::Impl::is_operatable_view_v<ExecutionSpace, InViewType>,
+      "safe_transpose: In View value type must be float, double, "
+      "Kokkos::Complex<float>, or Kokkos::Complex<double>. "
+      "Layout must be either LayoutLeft or LayoutRight. "
+      "ExecutionSpace must be able to access data in ViewType");
+
+  static_assert(
+      KokkosFFT::Impl::is_operatable_view_v<ExecutionSpace, OutViewType>,
+      "safe_transpose: Out View value type must be float, double, "
+      "Kokkos::Complex<float>, or Kokkos::Complex<double>. "
+      "Layout must be either LayoutLeft or LayoutRight. "
+      "ExecutionSpace must be able to access data in ViewType");
+
+  static_assert(KokkosFFT::Impl::have_same_rank_v<InViewType, OutViewType>,
+                "safe_transpose: In and Out View must have the same rank.");
+
+  static_assert(
+      KokkosFFT::Impl::have_same_base_floating_point_type_v<InViewType,
+                                                            OutViewType>,
+      "safe_transpose: In and Out View must have the same base floating point "
+      "type.");
 
   static_assert(InViewType::rank() == DIM,
                 "transpose: Rank of View must be equal to Rank of "
                 "transpose axes.");
 
-  KOKKOSFFT_THROW_IF(!KokkosFFT::Impl::is_transpose_needed(map),
-                     "transpose: transpose not necessary");
+  if (!KokkosFFT::Impl::is_transpose_needed(map)) {
+    // Just perform deep_copy (Layout change)
+    crop_or_pad_impl(exec_space, in, out,
+                     std::make_index_sequence<InViewType::rank()>{});
+    return;
+  }
 
   auto in_extents  = KokkosFFT::Impl::extract_extents(in);
   auto out_extents = KokkosFFT::Impl::extract_extents(out);
@@ -650,10 +689,11 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
     return message;
   };
 
-  KOKKOSFFT_THROW_IF(get_mapped_extents(in_extents, map) != out_extents,
-                     "transpose: input and output extents do not match after "
-                     "applying the transpose map: " +
-                         mismatched_extents());
+  // KOKKOSFFT_THROW_IF(get_mapped_extents(in_extents, map) != out_extents,
+  //                    "transpose: input and output extents do not match after
+  //                    " "applying the transpose map: " +
+  //                        mismatched_extents());
+
   std::array<std::size_t, DIM> non_negative_map =
       convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(map);
   Kokkos::Array<std::size_t, InViewType::rank()> map_array =
