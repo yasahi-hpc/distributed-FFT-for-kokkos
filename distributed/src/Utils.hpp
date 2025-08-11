@@ -661,6 +661,7 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
     return;
   }
 
+  /*
   auto in_extents  = KokkosFFT::Impl::extract_extents(in);
   auto out_extents = KokkosFFT::Impl::extract_extents(out);
 
@@ -689,10 +690,11 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
     return message;
   };
 
-  // KOKKOSFFT_THROW_IF(get_mapped_extents(in_extents, map) != out_extents,
-  //                    "transpose: input and output extents do not match after
-  //                    " "applying the transpose map: " +
-  //                        mismatched_extents());
+  KOKKOSFFT_THROW_IF(get_mapped_extents(in_extents, map) != out_extents,
+                     "transpose: input and output extents do not match after
+                     " "applying the transpose map: " +
+                         mismatched_extents());
+  */
 
   std::array<std::size_t, DIM> non_negative_map =
       convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(map);

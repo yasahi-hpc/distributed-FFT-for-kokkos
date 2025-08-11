@@ -717,7 +717,6 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_0, u_0);
   Kokkos::deep_copy(ref_u_inv_1, u_1);
 
-  /*
   // Do not support cases where the input/output topologies are the same
   ASSERT_THROW(
       {
@@ -746,7 +745,6 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
                               topology1, MPI_COMM_WORLD);
       },
       std::runtime_error);
-      */
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -801,8 +799,6 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     plan_0_1_ax10.backward(u_hat_1_ax10, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
-
-    std::cout << "plan_0_1_ax10" << std::endl;
 
     // topo1 -> topo0 with ax = {0, 1}:
     // (n0/p, n1) -> (n0/p, n1/2+1) -> (n0, (n1/2+1)/p)
