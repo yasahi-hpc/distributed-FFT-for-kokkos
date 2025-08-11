@@ -74,6 +74,83 @@ struct ScopedCufftMpPlan {
     KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftXtMalloc failed");
   }
 
+  ScopedCufftMpPlan(const std::vector<int> &fft_extents,
+                    const std::vector<long long int> &lower_input,
+                    const std::vector<long long int> &upper_input,
+                    const std::vector<long long int> &lower_output,
+                    const std::vector<long long int> &upper_output,
+                    const std::vector<long long int> &strides_input,
+                    const std::vector<long long int> &strides_output,
+                    const MPI_Comm &comm)
+      : m_comm(comm) {
+    int rank             = fft_extents.size();
+    cufftResult cufft_rt = cufftCreate(&m_plan_f);
+    if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
+      cufft_rt = cufftCreate(&m_plan_b);
+      cufft_rt = cufftMpAttachComm(m_plan_f, CUFFT_COMM_MPI, &m_comm);
+      cufft_rt = cufftMpAttachComm(m_plan_b, CUFFT_COMM_MPI, &m_comm);
+
+      cufft_rt = cufftXtSetDistribution(
+          m_plan_f, rank, lower_input.data(), upper_input.data(),
+          lower_output.data(), upper_output.data(), strides_input.data(),
+          strides_output.data());
+      cufft_rt = cufftXtSetDistribution(
+          m_plan_b, rank, lower_input.data(), upper_input.data(),
+          lower_output.data(), upper_output.data(), strides_input.data(),
+          strides_output.data());
+      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS,
+                         "cufftXtSetDistribution failed");
+
+      auto r2c_type =
+          KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
+      auto c2r_type =
+          KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
+      std::size_t workspace;
+      if (rank == 2) {
+        cufft_rt = cufftMakePlan2d(m_plan_f, fft_extents[0], fft_extents[1],
+                                   r2c_type, &workspace);
+        cufft_rt = cufftMakePlan2d(m_plan_b, fft_extents[0], fft_extents[1],
+                                   c2r_type, &workspace);
+        KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan2d failed");
+      } else if (rank == 3) {
+        cufft_rt = cufftMakePlan3d(m_plan_f, fft_extents[0], fft_extents[1],
+                                   fft_extents[2], r2c_type, &workspace);
+        cufft_rt = cufftMakePlan3d(m_plan_b, fft_extents[0], fft_extents[1],
+                                   fft_extents[2], c2r_type, &workspace);
+        KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan3d failed");
+      } else {
+        KOKKOSFFT_THROW_IF(true, "Unsupported rank for cufftMpPlan");
+      }
+    } else {
+      cufft_rt = cufftMpAttachComm(m_plan_f, CUFFT_COMM_MPI, &m_comm);
+
+      cufft_rt = cufftXtSetDistribution(
+          m_plan_f, rank, lower_input.data(), upper_input.data(),
+          lower_output.data(), upper_output.data(), strides_input.data(),
+          strides_output.data());
+
+      auto c2c_type =
+          KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
+      std::size_t workspace;
+
+      if (rank == 2) {
+        cufft_rt = cufftMakePlan2d(m_plan_f, fft_extents[0], fft_extents[1],
+                                   c2c_type, &workspace);
+        KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan2d failed");
+      } else if (rank == 3) {
+        cufft_rt = cufftMakePlan3d(m_plan_f, fft_extents[0], fft_extents[1],
+                                   fft_extents[2], c2c_type, &workspace);
+        KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan3d failed");
+      } else {
+        KOKKOSFFT_THROW_IF(true, "Unsupported rank for cufftMpPlan");
+      }
+    }
+
+    cufft_rt =
+        cufftXtMalloc(m_plan_f, &m_desc, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT);
+    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftXtMalloc failed");
+  }
+
   ScopedCufftMpPlan()                                     = delete;
   ScopedCufftMpPlan(const ScopedCufftMpPlan &)            = delete;
   ScopedCufftMpPlan &operator=(const ScopedCufftMpPlan &) = delete;

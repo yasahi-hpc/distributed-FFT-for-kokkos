@@ -30,10 +30,14 @@ internal_plan_factory(
     const MPI_Comm& comm,
     KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
 #if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
-  if (is_tpl_available(exec_space, in, out, axes, in_topology, out_topology)) {
-    return std::make_unique<
-        TplPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
-        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+  if constexpr ((InViewType::rank() == 2 && DIM == 2) ||
+                (InViewType::rank() == 3 && DIM == 3)) {
+    if (is_tpl_available(exec_space, in, out, axes, in_topology,
+                         out_topology)) {
+      return std::make_unique<
+          TplPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
+          exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+    }
   }
 #endif
 
