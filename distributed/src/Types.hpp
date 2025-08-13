@@ -109,6 +109,9 @@ struct BlockInfo {
   //! The type of the block (Transpose, FFT, FFT2, TransposeAndFFT)
   BlockType m_block_type;
 
+  //! The idx of the transpose or FFT block in the plan
+  std::size_t m_block_idx = 0;
+
   bool operator==(const BlockInfo& other) const {
     return m_in_topology == other.m_in_topology &&
            m_out_topology == other.m_out_topology &&
@@ -118,7 +121,8 @@ struct BlockInfo {
            m_in_map == other.m_in_map && m_out_map == other.m_out_map &&
            m_in_axis == other.m_in_axis && m_out_axis == other.m_out_axis &&
            m_axes == other.m_axes && m_comm_axis == other.m_comm_axis &&
-           m_block_type == other.m_block_type;
+           m_block_type == other.m_block_type &&
+           m_block_idx == other.m_block_idx;
   }
 
   bool operator!=(const BlockInfo& other) const { return !(*this == other); }

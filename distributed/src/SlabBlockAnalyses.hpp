@@ -197,6 +197,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       block2.m_buffer_extents =
           get_buffer_extents<Layout>(gout_extents, mid_topology, out_topology);
       block2.m_block_type = BlockType::Transpose;
+      block2.m_block_idx  = 1;
       m_block_infos.push_back(block2);
 
       all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);

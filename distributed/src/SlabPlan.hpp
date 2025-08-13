@@ -268,108 +268,123 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {
-    switch (m_op_type) {
-      case OperationType::F: {
-        if (m_map_forward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_forward_plan, in, out, m_normalization);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_forward_plan, m_in_T, m_out_T, m_normalization);
-          safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::FT: {
-        if (m_map_forward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_forward_plan, in, m_out_T, m_normalization);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_forward_plan, m_in_T, m_out_T, m_normalization);
-        }
-        (*m_trans_blocks.at(0))(m_out_T, out, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      case OperationType::TF: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        if (m_map_forward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_forward_plan, m_in_T, out, m_normalization);
-        } else {
-          KokkosFFT::execute(*m_forward_plan, m_in_T, m_out_T, m_normalization);
-          safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
-        }
-
-        break;
-      }
-      case OperationType::TFT: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        KokkosFFT::execute(*m_forward_plan, m_in_T, m_out_T, m_normalization);
-        (*m_trans_blocks.at(1))(m_out_T, out, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      default: break;
-    };
+    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
+    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
+      forward_impl(in, out, block_idx);
+    }
   }
 
   void backward(const OutViewType& out, const InViewType& in) const {
-    switch (m_op_type) {
-      case OperationType::F: {
-        if (m_map_backward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_backward_plan, out, in, m_normalization);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-          KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T,
-                             m_normalization);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::FT: {
-        (*m_trans_blocks.at(0))(out, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        if (m_map_backward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_backward_plan, m_out_T, in, m_normalization);
-        } else {
-          KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T,
-                             m_normalization);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::TF: {
-        if (m_map_backward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_backward_plan, out, m_in_T, m_normalization);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-          KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T,
-                             m_normalization);
-        }
+    int64_t nb_blocks = m_block_analyses->m_block_infos.size();
+    for (int64_t block_idx = nb_blocks - 1; block_idx >= 0; --block_idx) {
+      backward_impl(out, in, block_idx);
+    }
+  }
 
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
+  template <typename InType, typename OutType>
+  void forward_fft(const InType& in, const OutType& out) const {
+    if (m_map_forward_in == int_map_type{} &&
+        m_map_forward_out == int_map_type{}) {
+      KokkosFFT::execute(*m_forward_plan, in, out, m_normalization);
+    } else if (m_map_forward_in == int_map_type{} &&
+               m_map_forward_out != int_map_type{}) {
+      KokkosFFT::execute(*m_forward_plan, in, m_out_T, m_normalization);
+      safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
+    } else if (m_map_forward_in != int_map_type{} &&
+               m_map_forward_out == int_map_type{}) {
+      safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
+      KokkosFFT::execute(*m_forward_plan, m_in_T, out, m_normalization);
+    } else if (m_map_forward_in != int_map_type{} &&
+               m_map_forward_out != int_map_type{}) {
+      safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
+      KokkosFFT::execute(*m_forward_plan, m_in_T, m_out_T, m_normalization);
+      safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
+    }
+  }
+
+  template <typename InType, typename OutType>
+  void backward_fft(const OutType& out, const InType& in) const {
+    if (m_map_backward_in == int_map_type{} &&
+        m_map_backward_out == int_map_type{}) {
+      KokkosFFT::execute(*m_backward_plan, out, in, m_normalization);
+    } else if (m_map_backward_in == int_map_type{} &&
+               m_map_backward_out != int_map_type{}) {
+      KokkosFFT::execute(*m_backward_plan, out, m_in_T, m_normalization);
+      safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
+    } else if (m_map_backward_in != int_map_type{} &&
+               m_map_backward_out == int_map_type{}) {
+      safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
+      KokkosFFT::execute(*m_backward_plan, m_out_T, in, m_normalization);
+    } else if (m_map_backward_in != int_map_type{} &&
+               m_map_backward_out != int_map_type{}) {
+      safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
+      KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T, m_normalization);
+      safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
+    }
+  }
+
+  template <typename InType, typename OutType>
+  void forward_impl(const InType& in, const OutType& out,
+                    const std::size_t block_idx) const {
+    auto block           = m_block_analyses->m_block_infos.at(block_idx);
+    auto block_type      = block.m_block_type;
+    InViewType in_view   = m_in_T;
+    OutViewType out_view = m_out_T, out_view_T = m_out_T;
+
+    if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
+      out_view   = block_type == BlockType::FFT ? out : m_out_T;
+      out_view_T = out;
+    }
+
+    if (block_idx == 0) {
+      if (block_type == BlockType::FFT) {
+        forward_fft(in, out_view);
+      } else if (block_type == BlockType::Transpose) {
+        (*m_trans_blocks.at(block.m_block_idx))(
+            in, in_view, m_send_buffer_allocation, m_recv_buffer_allocation,
+            KokkosFFT::Direction::forward);
       }
-      case OperationType::TFT: {
-        (*m_trans_blocks.at(1))(out, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T, m_normalization);
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
+    } else {
+      if (block_type == BlockType::FFT) {
+        forward_fft(in_view, out_view);
+      } else if (block_type == BlockType::Transpose) {
+        (*m_trans_blocks.at(block.m_block_idx))(
+            out_view, out_view_T, m_send_buffer_allocation,
+            m_recv_buffer_allocation, KokkosFFT::Direction::forward);
       }
-      default: break;
-    };
+    }
+  }
+
+  template <typename InType, typename OutType>
+  void backward_impl(const OutType& out, const InType& in,
+                     const std::size_t block_idx) const {
+    auto block         = m_block_analyses->m_block_infos.at(block_idx);
+    auto block_type    = block.m_block_type;
+    InViewType in_view = m_in_T, in_view_T = m_in_T;
+    OutViewType out_view = m_out_T;
+
+    if (block_idx == 0) {
+      in_view   = block_type == BlockType::FFT ? in : m_in_T;
+      in_view_T = in;
+    }
+
+    if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
+      if (block_type == BlockType::FFT) {
+        backward_fft(out, in_view);
+      } else if (block_type == BlockType::Transpose) {
+        (*m_trans_blocks.at(block.m_block_idx))(
+            out, out_view, m_recv_buffer_allocation, m_send_buffer_allocation,
+            KokkosFFT::Direction::backward);
+      }
+    } else {
+      if (block_type == BlockType::FFT) {
+        backward_fft(out_view, in_view);
+      } else if (block_type == BlockType::Transpose) {
+        (*m_trans_blocks.at(block.m_block_idx))(
+            in_view, in_view_T, m_recv_buffer_allocation,
+            m_send_buffer_allocation, KokkosFFT::Direction::backward);
+      }
+    }
   }
 };
 
