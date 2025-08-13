@@ -2,7 +2,7 @@
 
 The distributed FFT interface for kokkos users based on [kokkos](https://github.com/kokkos/kokkos) and [kokkos-fft](https://github.com/kokkos/kokkos-fft).
 
-## Using Mini-MDFT
+## Using
 First of all, you need to clone this repo.
 
 ```bash
