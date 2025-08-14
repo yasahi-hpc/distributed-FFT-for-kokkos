@@ -2548,8 +2548,9 @@ void test_slab3D_view3D(std::size_t nprocs) {
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
     // topo 0 -> topo 0 with ax = {2, 0, 1}:
-    // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2) -> (n0,
-    // n1/2+1, n2/p) FFT2 ax = {0, 1} -> Transpose topo 1 -> FFT ax = {2} ->
+    // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
+    // -> (n0, n1/2+1, n2/p)
+    // FFT2 ax = {0, 1} -> Transpose topo 1 -> FFT ax = {2} ->
     // Transpose
     SlabPlanType plan_0_0_ax201(exec, u_0, u_hat_0_ax201, ax201, topology0,
                                 topology0, MPI_COMM_WORLD);
