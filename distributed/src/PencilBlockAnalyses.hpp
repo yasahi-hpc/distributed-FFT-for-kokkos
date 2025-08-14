@@ -223,6 +223,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block2.m_buffer_extents    = get_buffer_extents<Layout>(
           gout_extents, mid_topo, out_topology.array());
       block2.m_block_type = BlockType::Transpose;
+      block2.m_block_idx = 1;
       m_block_infos.push_back(block2);
 
       all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
@@ -307,6 +308,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block2.m_buffer_extents =
           get_buffer_extents<Layout>(gout_extents, mid_topo0, mid_topo1);
       block2.m_block_type = BlockType::Transpose;
+      block2.m_block_idx = 1;
       m_block_infos.push_back(block2);
 
       all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
@@ -325,6 +327,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block3.m_buffer_extents    = get_buffer_extents<Layout>(
           gout_extents, mid_topo1, out_topology.array());
       block3.m_block_type = BlockType::Transpose;
+      block3.m_block_idx = 2;
       m_block_infos.push_back(block3);
 
       all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
