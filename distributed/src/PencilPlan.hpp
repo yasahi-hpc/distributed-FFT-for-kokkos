@@ -750,14 +750,15 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
 
   template <typename InType, typename OutType>
   void forward_impl(const InType& in, const OutType& out,
-                    const std::size_t block_idx) const {
+                    const int64_t block_idx) const {
     auto block      = m_block_analyses->m_block_infos.at(block_idx);
     auto block_type = block.m_block_type;
 
+    int64_t last_block_idx = m_block_analyses->m_block_infos.size() - 1;
     if (block_idx == 0) {
       if (block_type == BlockType::FFT) {
         OutViewType out_view = m_out_T;
-        if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
+        if (block_idx == last_block_idx) {
           out_view = out;
         }
         forward_fft<0>(in, out_view);
@@ -770,7 +771,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
       if (block_type == BlockType::FFT) {
         if (block.m_block_idx == 0) {
           OutViewType out_view = m_out_T;
-          if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
+          if (block_idx == last_block_idx) {
             out_view = out;
           }
           forward_fft<0>(m_in_T, out_view);
@@ -781,7 +782,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
               KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
 
           OutViewType cout_view = cin_view;
-          if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
+          if (block_idx == last_block_idx) {
             if (m_map_forward_out == int_map_type{}) {
               cin_view = out;
             }
@@ -799,8 +800,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
             current_out,
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
 
-        if ((block_idx == m_block_analyses->m_block_infos.size() - 1) ||
-            (block_idx == m_block_analyses->m_block_infos.size() - 2 &&
+        if ((block_idx == last_block_idx) ||
+            ((block_idx == (last_block_idx - 1)) &&
              m_map_forward_out == int_map_type{} &&
              m_block_analyses->m_block_infos.back().m_block_type ==
                  BlockType::FFT)) {
@@ -825,15 +826,14 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
 
   template <typename InType, typename OutType>
   void backward_impl(const OutType& out, const InType& in,
-                     const std::size_t block_idx) const {
+                     const int64_t block_idx) const {
     auto block      = m_block_analyses->m_block_infos.at(block_idx);
     auto block_type = block.m_block_type;
 
+    int64_t last_block_idx = m_block_analyses->m_block_infos.size() - 1;
     if (block_idx == 0) {
       if (block_type == BlockType::FFT) {
-        OutViewType out_view =
-            block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                    : m_out_T;
+        OutViewType out_view = block_idx == last_block_idx ? out : m_out_T;
         backward_fft<0>(out_view, in);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
@@ -843,9 +843,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
     } else {
       if (block_type == BlockType::FFT) {
         if (block.m_block_idx == 0) {
-          OutViewType out_view =
-              block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                      : m_out_T;
+          OutViewType out_view = block_idx == last_block_idx ? out : m_out_T;
           backward_fft<0>(out_view, m_in_T);
         } else {
           auto* current_out = m_in_out_ptr.at(block_idx).second;
@@ -853,7 +851,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
               current_out,
               KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
           OutViewType cout_view = cin_view;
-          if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
+          if (block_idx == last_block_idx) {
             cout_view = out;
             if (m_map_backward_in == int_map_type{}) {
               cin_view = out;
@@ -872,11 +870,11 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
             current_out,
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
 
-        if ((block_idx == m_block_analyses->m_block_infos.size() - 1) ||
-            (block_idx == m_block_analyses->m_block_infos.size() - 2 &&
-             m_map_backward_in == int_map_type{}) &&
-                m_block_analyses->m_block_infos.back().m_block_type ==
-                    BlockType::FFT) {
+        if ((block_idx == last_block_idx) ||
+            ((block_idx == (last_block_idx - 1)) &&
+             m_map_backward_in == int_map_type{} &&
+             m_block_analyses->m_block_infos.back().m_block_type ==
+                 BlockType::FFT)) {
           out_view2 = out;
         }
 
