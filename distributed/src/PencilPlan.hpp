@@ -526,7 +526,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
     ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
 
     m_cart_comms = {row_comm, col_comm};
-    auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
