@@ -3615,8 +3615,8 @@ TYPED_TEST(TestPencil1D, View3D_R2C) {
 }
 
 TYPED_TEST(TestPencil1D, View3D_C2C) {
-  using float_type  = typename TestFixture::float_type;
-  using layout_type = typename TestFixture::layout_type;
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
   using complex_type = Kokkos::complex<float_type>;
 
   test_pencil1D_view3D<complex_type, layout_type>(this->m_npx, this->m_npx);
