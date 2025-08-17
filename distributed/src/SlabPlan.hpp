@@ -67,7 +67,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
-  OperationType m_op_type;
 
   // Buffer view types
   InViewType m_in_T;
@@ -119,7 +118,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
         out_topology, non_negative_axes, m_comm);
-    m_op_type = m_block_analyses->m_op_type;
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 3),
@@ -368,7 +366,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
-  OperationType m_op_type;
   std::size_t first_FFT_dim = 1;
 
   // Buffer view types
@@ -425,7 +422,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
         out_topology, non_negative_axes, m_comm);
-    m_op_type = m_block_analyses->m_op_type;
 
     KOKKOSFFT_THROW_IF(m_block_analyses->m_block_infos.size() > 5,
                        "Maximum five blocks are expected");
@@ -805,7 +801,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
-  OperationType m_op_type;
   std::size_t first_FFT_dim = 1;
 
   // Buffer view types
@@ -865,7 +860,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
         out_topology, non_negative_axes, m_comm);
-    m_op_type = m_block_analyses->m_op_type;
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 5),

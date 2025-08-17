@@ -28,7 +28,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
   using extents_type  = std::array<std::size_t, DIM>;
   std::vector<BlockInfoType> m_block_infos;
   std::size_t m_max_buffer_size;
-  OperationType m_op_type;
 
   SlabBlockAnalysesInternal(
       const extents_type& in_extents, const extents_type& out_extents,
@@ -48,7 +47,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
     std::size_t nb_topologies = all_topologies.size();
     if (nb_topologies == 1) {
       // E.g. {1, 1, P} + FFT ax=0
-      m_op_type = OperationType::F;
       BlockInfoType block;
       block.m_in_map     = map;
       block.m_out_map    = map;
@@ -66,7 +64,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       auto last_axis = axes.back();
       auto first_dim = in_topology.at(last_axis);
       if (first_dim != 1) {
-        m_op_type = OperationType::TF;
         // E.g. {P, 1, 1} -> {1, 1, P} + FFT (ax=0)
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, out_topology);
@@ -107,7 +104,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
-        m_op_type = OperationType::FT;
         // E.g. {1, 1, P} + FFT (ax=0) -> {P, 1, 1}
         BlockInfoType block0;
         block0.m_in_map     = map;
@@ -144,7 +140,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
     } else if (nb_topologies == 3) {
-      m_op_type         = OperationType::TFT;
       auto mid_topology = all_topologies.at(1);
       // E.g. {P, 1, 1} -> {1, 1, P} + FFT (ax=0) -> {P, 1, 1}
       BlockInfoType block0;
@@ -228,7 +223,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
   using extents_type  = std::array<std::size_t, DIM>;
   std::vector<BlockInfoType> m_block_infos;
   std::size_t m_max_buffer_size;
-  OperationType m_op_type;
 
   SlabBlockAnalysesInternal(
       const extents_type& in_extents, const extents_type& out_extents,
@@ -251,7 +245,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       // 1. FFT2 with axes = {ax=0,1}
       // E.g. {1, 1, P} + FFT2 {ax=0,1}
 
-      m_op_type = OperationType::F;
       BlockInfoType block;
 
       block.m_in_map     = map;
@@ -281,7 +274,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       if (axes0.size() == 0) {
         // TF
         // E.g. {1,1,P} -> {P,1,1} + FFT2 {ax=1,2}
-        m_op_type = OperationType::TF;
 
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, out_topology);
@@ -323,14 +315,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // FT or FTF
-        if (axes1.size() == 0) {
-          // FFT2 {ax=0,1} + T
-          m_op_type = OperationType::FT;
-        } else {
-          // FFT + T + FFT
-          m_op_type = OperationType::FTF;
-        }
-
         BlockInfoType block0;
         block0.m_in_map     = map;
         block0.m_out_map    = map;
@@ -399,14 +383,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
 
       if (axes0.size() == 0) {
         // TFT or TFTF
-        if (axes2.size() == 0) {
-          // 0. Transpose + FFT + Transpose
-          m_op_type = OperationType::TFT;
-        } else {
-          // 1. Transpose + FFT + Transpose + FFT
-          m_op_type = OperationType::TFTF;
-        }
-
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology);
         block0.m_in_map            = src_map;
@@ -481,8 +457,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // FTFT
-        m_op_type = OperationType::FTFT;
-
         BlockInfoType block0;
         block0.m_in_map     = map;
         block0.m_out_map    = map;
@@ -555,7 +529,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       // 1. Transpose + FFT + Transpose + FFT + Transpose
       // E.g. {1, P} -> {P, 1} + FFT (ax=1)
       // -> {1, P} + FFT (ax=0) -> {P, 1}
-      m_op_type          = OperationType::TFTFT;
       auto mid_topology0 = all_topologies.at(1),
            mid_topology1 = all_topologies.at(2);
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1),
@@ -679,7 +652,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
   using extents_type  = std::array<std::size_t, DIM>;
   std::vector<BlockInfoType> m_block_infos;
   std::size_t m_max_buffer_size;
-  OperationType m_op_type;
 
   SlabBlockAnalysesInternal(const std::array<std::size_t, DIM>& in_extents,
                             const std::array<std::size_t, DIM>& out_extents,
@@ -706,7 +678,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       // 1. FFT3 with axes = {0,1,2}
       // E.g. {1, 1, 1, P} + FFT {ax=0,1,2}
 
-      m_op_type = OperationType::F;
       BlockInfoType block;
       block.m_in_map     = map;
       block.m_out_map    = map;
@@ -737,7 +708,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
 
       if (axes0.size() == 0) {
         // T + FFT3
-        m_op_type = OperationType::TF;
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, out_topology);
         block0.m_in_map            = src_map;
@@ -777,14 +747,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
-        if (axes1.size() == 0) {
-          // FFT3 {ax=0,1,2} + T
-          m_op_type = OperationType::FT;
-        } else {
-          // FFT2 {ax=0,1} + T + FFT {ax=2}
-          m_op_type = OperationType::FTF;
-        }
-
+        // 1.  FFT3 {ax=0,1,2} + T
+        // 2. FFT2 {ax=0,1} + T + FFT {ax=2}
         BlockInfoType block0;
         block0.m_in_map     = map;
         block0.m_out_map    = map;
@@ -850,13 +814,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1),
            axes2 = all_axes.at(2);
       if (axes0.size() == 0) {
-        if (axes2.size() == 0) {
-          // 0. Transpose + FFT + Transpose
-          m_op_type = OperationType::TFT;
-        } else {
-          // 1. Transpose + FFT + Transpose + FFT
-          m_op_type = OperationType::TFTF;
-        }
+        // 0. Transpose + FFT + Transpose
+        // 1. Transpose + FFT + Transpose + FFT
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology);
         block0.m_in_map            = src_map;
@@ -923,8 +882,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         // 2. FFT + Transpose + FFT + Transpose
         /// E.g. {1, 1, P} -> {1, 1, P} with ax = {1, 2, 0}
         /// {1, 1, P} + FFT {ax=0} -> {P, 1, 1} + FFT2 {ax=1,2} -> {1, 1, P}
-        m_op_type = OperationType::FTFT;
-
         BlockInfoType block0;
         block0.m_in_map     = map;
         block0.m_out_map    = map;
@@ -1001,8 +958,6 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       // -> {P, 1, 1} + FFT ax = {1} -> {1, P, 1}
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1),
            axes2 = all_axes.at(2);
-      m_op_type  = OperationType::TFTFT;
-
       BlockInfoType block0;
       auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology0);
       block0.m_in_map            = src_map;
