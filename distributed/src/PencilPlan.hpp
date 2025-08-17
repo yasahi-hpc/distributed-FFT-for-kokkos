@@ -7,7 +7,7 @@
 #include <sstream>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "Block.hpp"
+#include "TransBlock.hpp"
 #include "Mapping.hpp"
 #include "MPI_Helper.hpp"
 #include "Helper.hpp"
