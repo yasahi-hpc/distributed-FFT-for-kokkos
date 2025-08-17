@@ -974,15 +974,16 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
   // Analyse topology
   std::unique_ptr<PencilBlockAnalysesType> m_block_analyses;
   OperationType m_op_type;
-  std::size_t first_FFT_dim             = 1;
   std::array<std::size_t, 3> m_fft_dims = {};
 
   // Buffer view types
   InViewType m_in_T;
-  OutViewType m_out_T, m_out_T2, m_out_T3, m_out_T4;
+  OutViewType m_out_T, m_fft_view0, m_fft_view1;
 
   // Buffer Allocations
+  using ptr_pair_type = std::pair<complex_type*, complex_type*>;
   AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation;
+  std::vector<ptr_pair_type> m_in_out_ptr;
 
   // Internal transpose blocks
   std::vector<std::unique_ptr<TransBlockType>> m_trans_blocks;
@@ -1052,7 +1053,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
     ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
 
     m_cart_comms = {row_comm, col_comm};
-    auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
@@ -1081,1659 +1081,30 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
     m_recv_buffer_allocation =
         AllocationViewType("recv_buffer_allocation", complex_alloc_size);
 
-    switch (m_op_type) {
-      case OperationType::F: {
-        // Only perform batched FFT3D
-        auto block0      = m_block_analyses->m_block_infos.at(0);
-        m_fft_dims.at(0) = 3;
-
-        m_in_T = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-
-        m_fft3_plan0 = std::make_unique<FFT3ForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 3>(block0.m_axes));
-        m_ifft3_plan0 = std::make_unique<FFT3BackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 3>(block0.m_axes));
-
-        // In this case, output data needed to be transposed locally
-        if (block0.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_out_map, i);
-            m_map_backward_in.at(i) = block0.m_out_map.at(i);
-          }
-        }
-
-        // In this case, input data needed to be transposed locally
-        if (block0.m_in_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_in.at(i) = block0.m_in_map.at(i);
-            m_map_backward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_in_map, i);
-          }
-        }
-
-        break;
-      }
-      case OperationType::FT: {
-        auto block0      = m_block_analyses->m_block_infos.at(0);
-        m_fft_dims.at(0) = 3;
-        m_in_T           = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-
-        m_fft3_plan0 = std::make_unique<FFT3ForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 3>(block0.m_axes));
-        m_ifft3_plan0 = std::make_unique<FFT3BackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 3>(block0.m_axes));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block1.m_buffer_extents, block1.m_in_map,
-            block1.m_in_axis, block1.m_out_map, block1.m_out_axis, m_comm));
-
-        // In this case, input data needed to be transposed locally
-        if (block0.m_in_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_in.at(i) = block0.m_in_map.at(i);
-            m_map_backward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_in_map, i);
-          }
-        }
-        break;
-      }
-      case OperationType::FTF: {
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-
-        m_in_T = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-
-        first_FFT_dim = block0.m_axes.size();
-        if (block0.m_axes.size() == 1) {
-          // Then FFT1 + Transpose + FFT2
-          m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block0.m_axes));
-          m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block0.m_axes));
-        } else {
-          // Then FFT2 + Transpose + FFT1
-          m_fft2_plan0 = std::make_unique<FFT2ForwardPlanType0>(
-              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block0.m_axes));
-          m_ifft2_plan0 = std::make_unique<FFT2BackwardPlanType0>(
-              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block0.m_axes));
-        }
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-        m_out_T2    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block1.m_buffer_extents, block1.m_in_map,
-            block1.m_in_axis, block1.m_out_map, block1.m_out_axis, m_comm));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        if (block2.m_axes.size() == 1) {
-          // FFT along the final axis
-          m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block2.m_axes));
-          m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block2.m_axes));
-        } else {
-          // FFT2 along the final axeis
-          m_fft2_plan1 = std::make_unique<FFT2ForwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block2.m_axes));
-          m_ifft2_plan1 = std::make_unique<FFT2BackwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block2.m_axes));
-        }
-
-        // In this case, output data needed to be transposed locally
-        if (block1.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block1.m_out_map, i);
-            m_map_backward_in.at(i) = block1.m_out_map.at(i);
-          }
-        }
-
-        // In this case, input data needed to be transposed locally
-        if (block0.m_in_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_in.at(i) = block0.m_in_map.at(i);
-            m_map_backward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_in_map, i);
-          }
-        }
-
-        break;
-      }
-      case OperationType::TF: {
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
-            block0.m_in_axis, block0.m_out_map, block0.m_out_axis, m_comm));
-
-        auto block1   = m_block_analyses->m_block_infos.at(1);
-        first_FFT_dim = block1.m_axes.size();
-        m_out_T       = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-        m_fft3_plan0 = std::make_unique<FFT3ForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 3>(block1.m_axes));
-        m_ifft3_plan0 = std::make_unique<FFT3BackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 3>(block1.m_axes));
-
-        if (block1.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block1.m_out_map, i);
-            m_map_backward_in.at(i) = block1.m_out_map.at(i);
-          }
-        }
-        break;
-      }
-      case OperationType::TFT: {
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-
-        m_in_T = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
-            block0.m_in_axis, block0.m_out_map, block0.m_out_axis, m_comm));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-
-        first_FFT_dim = block1.m_axes.size();
-
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        m_fft3_plan0 = std::make_unique<FFT3ForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 3>(block1.m_axes));
-        m_ifft3_plan0 = std::make_unique<FFT3BackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 3>(block1.m_axes));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block2.m_buffer_extents, block2.m_in_map,
-            block2.m_in_axis, block2.m_out_map, block2.m_out_axis, m_comm));
-
-        break;
-      }
-
-      case OperationType::TFTF: {
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-
-        m_in_T = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
-            block0.m_in_axis, block0.m_out_map, block0.m_out_axis, m_comm));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        first_FFT_dim = block1.m_axes.size();
-        // Not sure block1.m_axes.size() == 1 is satisfied
-        if (block1.m_axes.size() == 1) {
-          // Then FFT1 + Transpose + FFT2
-          m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block1.m_axes));
-          m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block1.m_axes));
-        } else {
-          // Then FFT2 + Transpose + FFT1
-          m_fft2_plan0 = std::make_unique<FFT2ForwardPlanType0>(
-              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block1.m_axes));
-          m_ifft2_plan0 = std::make_unique<FFT2BackwardPlanType0>(
-              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block1.m_axes));
-        }
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_out_T2    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block2.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block2.m_buffer_extents, block2.m_in_map,
-            block2.m_in_axis, block2.m_out_map, block2.m_out_axis, m_comm));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-
-        if (block3.m_axes.size() == 1) {
-          // FFT along the final axis
-          m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block3.m_axes));
-          m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block3.m_axes));
-        } else {
-          // FFT2 along the final axes
-          m_fft2_plan1 = std::make_unique<FFT2ForwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block3.m_axes));
-          m_ifft2_plan1 = std::make_unique<FFT2BackwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block3.m_axes));
-        }
-
-        // In this case, output data needed to be transposed locally
-        if (block3.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block3.m_out_map, i);
-            m_map_backward_in.at(i) = block3.m_out_map.at(i);
-          }
-        }
-        break;
-      }
-      case OperationType::FTFT: {
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-
-        m_in_T = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-
-        first_FFT_dim = block0.m_axes.size();
-        if (block0.m_axes.size() == 1) {
-          // Then FFT1 + Transpose + FFT2 + Transpose
-          m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block0.m_axes));
-          m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block0.m_axes));
-        } else {
-          // Then FFT2 + Transpose + FFT1 + Transpose
-          m_fft2_plan0 = std::make_unique<FFT2ForwardPlanType0>(
-              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block0.m_axes));
-          m_ifft2_plan0 = std::make_unique<FFT2BackwardPlanType0>(
-              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block0.m_axes));
-        }
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block1.m_buffer_extents, block1.m_in_map,
-            block1.m_in_axis, block1.m_out_map, block1.m_out_axis, m_comm));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_out_T2    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block2.m_out_extents));
-
-        // Cannot make this in-place
-        if (block2.m_axes.size() == 1) {
-          // FFT along the final axis
-          m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block2.m_axes));
-          m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block2.m_axes));
-        } else {
-          // FFT2 along the final axeis
-          m_fft2_plan1 = std::make_unique<FFT2ForwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block2.m_axes));
-          m_ifft2_plan1 = std::make_unique<FFT2BackwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block2.m_axes));
-        }
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block3.m_buffer_extents, block3.m_in_map,
-            block3.m_in_axis, block3.m_out_map, block3.m_out_axis, m_comm));
-
-        // In this case, output data needed to be transposed locally
-        if (block3.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block3.m_out_map, i);
-            m_map_backward_in.at(i) = block3.m_out_map.at(i);
-          }
-        }
-
-        // In this case, input data needed to be transposed locally
-        if (block0.m_in_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_in.at(i) = block0.m_in_map.at(i);
-            m_map_backward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_in_map, i);
-          }
-        }
-        break;
-      }
-      case OperationType::TFTFT: {
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
-            block0.m_in_axis, block0.m_out_map, block0.m_out_axis, m_comm));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        // Not sure block1.m_axes.size() == 1 is satisfied
-        first_FFT_dim = block1.m_axes.size();
-        if (block1.m_axes.size() == 1) {
-          // Then FFT1 + Transpose + FFT2
-          m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block1.m_axes));
-          m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block1.m_axes));
-        } else {
-          // Then FFT2 + Transpose + FFT1
-          m_fft2_plan0 = std::make_unique<FFT2ForwardPlanType0>(
-              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block1.m_axes));
-          m_ifft2_plan0 = std::make_unique<FFT2BackwardPlanType0>(
-              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block1.m_axes));
-        }
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_out_T2    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block2.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block2.m_buffer_extents, block2.m_in_map,
-            block2.m_in_axis, block2.m_out_map, block2.m_out_axis, m_comm));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        if (block3.m_axes.size() == 1) {
-          // FFT along the final axis
-          m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block3.m_axes));
-          m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block3.m_axes));
-        } else {
-          // FFT2 along the final axes
-          m_fft2_plan1 = std::make_unique<FFT2ForwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block3.m_axes));
-          m_ifft2_plan1 = std::make_unique<FFT2BackwardPlanType1>(
-              m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block3.m_axes));
-        }
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block4.m_buffer_extents, block4.m_in_map,
-            block4.m_in_axis, block4.m_out_map, block4.m_out_axis, m_comm));
-
-        break;
-      }
-      case OperationType::TFTFTTF: {
-        m_fft_dims.fill(1);
-
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
-            block0.m_in_axis, block0.m_out_map, block0.m_out_axis,
-            m_cart_comms.at(block0.m_comm_axis)));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-        m_out_T     = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-        m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block1.m_axes));
-        m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block1.m_axes));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block2.m_buffer_extents, block2.m_in_map,
-            block2.m_in_axis, block2.m_out_map, block2.m_out_axis,
-            m_cart_comms.at(block2.m_comm_axis)));
-
-        m_out_T2 = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block2.m_out_extents));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block3.m_axes));
-        m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block3.m_axes));
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block4.m_buffer_extents, block4.m_in_map,
-            block4.m_in_axis, block4.m_out_map, block4.m_out_axis,
-            m_cart_comms.at(block4.m_comm_axis)));
-
-        m_out_T3 = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block4.m_out_extents));
-
-        auto block5 = m_block_analyses->m_block_infos.at(5);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block5.m_buffer_extents, block5.m_in_map,
-            block5.m_in_axis, block5.m_out_map, block5.m_out_axis,
-            m_cart_comms.at(block5.m_comm_axis)));
-
-        m_out_T4 = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block5.m_out_extents));
-
-        auto block6 = m_block_analyses->m_block_infos.at(6);
-        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T4, m_out_T4, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block6.m_axes));
-        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T4, m_out_T4, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block6.m_axes));
-        if (block6.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block6.m_out_map, i);
-            m_map_backward_in.at(i) = block6.m_out_map.at(i);
-          }
-        }
-
-        break;
-      }
-      case OperationType::TFTFTFT: {
-        m_fft_dims.fill(1);
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
-            block0.m_in_axis, block0.m_out_map, block0.m_out_axis,
-            m_cart_comms.at(block0.m_comm_axis)));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block1.m_axes));
-        m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block1.m_axes));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block2.m_buffer_extents, block2.m_in_map,
-            block2.m_in_axis, block2.m_out_map, block2.m_out_axis,
-            m_cart_comms.at(block2.m_comm_axis)));
-
-        m_out_T2 = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block2.m_out_extents));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block3.m_axes));
-        m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block3.m_axes));
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block4.m_buffer_extents, block4.m_in_map,
-            block4.m_in_axis, block4.m_out_map, block4.m_out_axis,
-            m_cart_comms.at(block4.m_comm_axis)));
-
-        m_out_T3 = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block4.m_out_extents));
-
-        auto block5 = m_block_analyses->m_block_infos.at(5);
-        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block5.m_axes));
-        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block5.m_axes));
-
-        auto block6 = m_block_analyses->m_block_infos.at(6);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block6.m_buffer_extents, block6.m_in_map,
-            block6.m_in_axis, block6.m_out_map, block6.m_out_axis,
-            m_cart_comms.at(block6.m_comm_axis)));
-
-        break;
-      }
-      case OperationType::TFTFTF: {
-        m_fft_dims.fill(1);
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
-            block0.m_in_axis, block0.m_out_map, block0.m_out_axis,
-            m_cart_comms.at(block0.m_comm_axis)));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block1.m_axes));
-        m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block1.m_axes));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block2.m_buffer_extents, block2.m_in_map,
-            block2.m_in_axis, block2.m_out_map, block2.m_out_axis,
-            m_cart_comms.at(block2.m_comm_axis)));
-
-        m_out_T2 = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block2.m_out_extents));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block3.m_axes));
-        m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block3.m_axes));
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block4.m_buffer_extents, block4.m_in_map,
-            block4.m_in_axis, block4.m_out_map, block4.m_out_axis,
-            m_cart_comms.at(block4.m_comm_axis)));
-
-        m_out_T3 = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block4.m_out_extents));
-
-        auto block5 = m_block_analyses->m_block_infos.at(5);
-        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block5.m_axes));
-        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block5.m_axes));
-
-        if (block5.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block5.m_out_map, i);
-            m_map_backward_in.at(i) = block5.m_out_map.at(i);
-          }
-        }
-
-        break;
-      }
-      case OperationType::TFTFTFTT: {
-        m_fft_dims.fill(1);
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block0.m_buffer_extents, block0.m_in_map,
-            block0.m_in_axis, block0.m_out_map, block0.m_out_axis,
-            m_cart_comms.at(block0.m_comm_axis)));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block1.m_axes));
-        m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block1.m_axes));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block2.m_buffer_extents, block2.m_in_map,
-            block2.m_in_axis, block2.m_out_map, block2.m_out_axis,
-            m_cart_comms.at(block2.m_comm_axis)));
-
-        m_out_T2 = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block2.m_out_extents));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block3.m_axes));
-        m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block3.m_axes));
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block4.m_buffer_extents, block4.m_in_map,
-            block4.m_in_axis, block4.m_out_map, block4.m_out_axis,
-            m_cart_comms.at(block4.m_comm_axis)));
-
-        m_out_T3 = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block4.m_out_extents));
-
-        auto block5 = m_block_analyses->m_block_infos.at(5);
-        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block5.m_axes));
-        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block5.m_axes));
-
-        auto block6 = m_block_analyses->m_block_infos.at(6);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block6.m_buffer_extents, block6.m_in_map,
-            block6.m_in_axis, block6.m_out_map, block6.m_out_axis,
-            m_cart_comms.at(block6.m_comm_axis)));
-
-        m_out_T4 = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block6.m_out_extents));
-
-        auto block7 = m_block_analyses->m_block_infos.at(7);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block7.m_buffer_extents, block7.m_in_map,
-            block7.m_in_axis, block7.m_out_map, block7.m_out_axis,
-            m_cart_comms.at(block7.m_comm_axis)));
-
-        break;
-      }
-
-      case OperationType::FTFTF: {
-        m_fft_dims.fill(1);
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block0.m_axes));
-        m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block0.m_axes));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-        m_out_T2    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block1.m_buffer_extents, block1.m_in_map,
-            block1.m_in_axis, block1.m_out_map, block1.m_out_axis,
-            m_cart_comms.at(block1.m_comm_axis)));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block2.m_axes));
-        m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block2.m_axes));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_out_T3    = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block3.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block3.m_buffer_extents, block3.m_in_map,
-            block3.m_in_axis, block3.m_out_map, block3.m_out_axis,
-            m_cart_comms.at(block3.m_comm_axis)));
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-
-        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block4.m_axes));
-        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block4.m_axes));
-
-        if (block4.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block4.m_out_map, i);
-            m_map_backward_in.at(i) = block4.m_out_map.at(i);
-          }
-        }
-
-        if (block0.m_in_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_in.at(i) = block0.m_in_map.at(i);
-            m_map_backward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_in_map, i);
-          }
-        }
-        break;
-      }
-
-      case OperationType::FTFTFT: {
-        m_fft_dims.fill(1);
-
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block0.m_axes));
-        m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block0.m_axes));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-        m_out_T2    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block1.m_buffer_extents, block1.m_in_map,
-            block1.m_in_axis, block1.m_out_map, block1.m_out_axis,
-            m_cart_comms.at(block1.m_comm_axis)));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block2.m_axes));
-        m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block2.m_axes));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_out_T3    = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block3.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block3.m_buffer_extents, block3.m_in_map,
-            block3.m_in_axis, block3.m_out_map, block3.m_out_axis,
-            m_cart_comms.at(block3.m_comm_axis)));
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block4.m_axes));
-        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block4.m_axes));
-
-        auto block5 = m_block_analyses->m_block_infos.at(5);
-        m_out_T4    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block5.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block5.m_buffer_extents, block5.m_in_map,
-            block5.m_in_axis, block5.m_out_map, block5.m_out_axis,
-            m_cart_comms.at(block5.m_comm_axis)));
-
-        if (block0.m_in_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_in.at(i) = block0.m_in_map.at(i);
-            m_map_backward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_in_map, i);
-          }
-        }
-        break;
-      }
-      case OperationType::FTFTTF: {
-        m_fft_dims.fill(1);
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block0.m_axes));
-        m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block0.m_axes));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-        m_out_T2    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block1.m_buffer_extents, block1.m_in_map,
-            block1.m_in_axis, block1.m_out_map, block1.m_out_axis,
-            m_cart_comms.at(block1.m_comm_axis)));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block2.m_axes));
-        m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block2.m_axes));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_out_T3    = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block3.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block3.m_buffer_extents, block3.m_in_map,
-            block3.m_in_axis, block3.m_out_map, block3.m_out_axis,
-            m_cart_comms.at(block3.m_comm_axis)));
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-        m_out_T4    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block4.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block4.m_buffer_extents, block4.m_in_map,
-            block4.m_in_axis, block4.m_out_map, block4.m_out_axis,
-            m_cart_comms.at(block4.m_comm_axis)));
-
-        auto block5 = m_block_analyses->m_block_infos.at(5);
-
-        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T4, m_out_T4, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block5.m_axes));
-        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T4, m_out_T4, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block5.m_axes));
-
-        if (block5.m_out_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_out.at(i) =
-                KokkosFFT::Impl::get_index(block5.m_out_map, i);
-            m_map_backward_in.at(i) = block5.m_out_map.at(i);
-          }
-        }
-
-        if (block0.m_in_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_in.at(i) = block0.m_in_map.at(i);
-            m_map_backward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_in_map, i);
-          }
-        }
-        break;
-      }
-      case OperationType::FTFTFTT: {
-        m_fft_dims.fill(1);
-        auto block0 = m_block_analyses->m_block_infos.at(0);
-        m_in_T      = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block0.m_out_extents));
-        m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
-            m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block0.m_axes));
-        m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
-            m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block0.m_axes));
-
-        auto block1 = m_block_analyses->m_block_infos.at(1);
-        m_out_T2    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block1.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block1.m_buffer_extents, block1.m_in_map,
-            block1.m_in_axis, block1.m_out_map, block1.m_out_axis,
-            m_cart_comms.at(block1.m_comm_axis)));
-
-        auto block2 = m_block_analyses->m_block_infos.at(2);
-        m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block2.m_axes));
-        m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block2.m_axes));
-
-        auto block3 = m_block_analyses->m_block_infos.at(3);
-        m_out_T3    = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block3.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block3.m_buffer_extents, block3.m_in_map,
-            block3.m_in_axis, block3.m_out_map, block3.m_out_axis,
-            m_cart_comms.at(block3.m_comm_axis)));
-
-        auto block4 = m_block_analyses->m_block_infos.at(4);
-        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block4.m_axes));
-        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
-            m_exec_space, m_out_T3, m_out_T3, KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block4.m_axes));
-
-        auto block5 = m_block_analyses->m_block_infos.at(5);
-        m_out_T4    = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block5.m_out_extents));
-
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block5.m_buffer_extents, block5.m_in_map,
-            block5.m_in_axis, block5.m_out_map, block5.m_out_axis,
-            m_cart_comms.at(block5.m_comm_axis)));
-
-        auto block6 = m_block_analyses->m_block_infos.at(6);
-        m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-            m_exec_space, block6.m_buffer_extents, block6.m_in_map,
-            block6.m_in_axis, block6.m_out_map, block6.m_out_axis,
-            m_cart_comms.at(block6.m_comm_axis)));
-
-        if (block0.m_in_map != src_map) {
-          for (std::size_t i = 0; i < DIM; ++i) {
-            m_map_forward_in.at(i) = block0.m_in_map.at(i);
-            m_map_backward_out.at(i) =
-                KokkosFFT::Impl::get_index(block0.m_in_map, i);
-          }
-        }
-        break;
-      }
-      default:  // No Operation
-        break;
-    };
+    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
+    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
+      set_block_impl(block_idx);
+    }
+
+    KOKKOSFFT_THROW_IF(m_in_T.size() == 0 || m_out_T.size() == 0,
+                       "Internal views are not set");
+
+    KOKKOSFFT_THROW_IF(m_in_out_ptr.size() != nb_blocks,
+                       "m_in_out_ptr must have the size of nb_blocks");
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {
-    switch (m_op_type) {
-      case OperationType::F: {
-        if (m_map_forward_in == int_map_type{}) {
-          forward_fft<0>(in, out);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          forward_fft<0>(m_in_T, m_out_T);
-          safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::FT: {
-        if (m_map_forward_in == int_map_type{}) {
-          forward_fft<0>(in, m_out_T);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          forward_fft<0>(m_in_T, m_out_T);
-        }
-        (*m_trans_blocks.at(0))(m_out_T, out, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      case OperationType::TF: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        if (m_map_forward_out == int_map_type{}) {
-          forward_fft<0>(m_in_T, out);
-        } else {
-          forward_fft<0>(m_in_T, m_out_T);
-          safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::FTF: {
-        if (m_map_forward_in == int_map_type{}) {
-          forward_fft<0>(in, m_out_T);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          forward_fft<0>(m_in_T, m_out_T);
-        }
-
-        if (m_map_forward_out == int_map_type{}) {
-          (*m_trans_blocks.at(0))(m_out_T, out, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<1>(out, out);
-        } else {
-          (*m_trans_blocks.at(0))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<1>(m_out_T2, m_out_T2);
-          safe_transpose(m_exec_space, m_out_T2, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::TFT: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-
-        forward_fft<0>(m_in_T, m_out_T);
-        (*m_trans_blocks.at(1))(m_out_T, out, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      case OperationType::TFTF: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-
-        forward_fft<0>(m_in_T, m_out_T);
-        if (m_map_forward_out == int_map_type{}) {
-          (*m_trans_blocks.at(1))(m_out_T, out, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<1>(out, out);
-        } else {
-          (*m_trans_blocks.at(1))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<1>(m_out_T2, m_out_T2);
-          safe_transpose(m_exec_space, m_out_T2, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::FTFT: {
-        if (m_map_forward_in == int_map_type{}) {
-          forward_fft<0>(in, m_out_T);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          forward_fft<0>(m_in_T, m_out_T);
-        }
-        (*m_trans_blocks.at(0))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, out, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      case OperationType::TFTFT: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<0>(m_in_T, m_out_T);
-        (*m_trans_blocks.at(1))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(2))(m_out_T2, out, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      case OperationType::TFTFTF: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<0>(m_in_T, m_out_T);
-        (*m_trans_blocks.at(1))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-
-        if (m_map_forward_out == int_map_type{}) {
-          (*m_trans_blocks.at(2))(m_out_T2, out, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<2>(out, out);
-        } else {
-          (*m_trans_blocks.at(2))(m_out_T2, m_out_T3, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<2>(m_out_T3, m_out_T3);
-          safe_transpose(m_exec_space, m_out_T3, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::TFTFTTF: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<0>(m_in_T, m_out_T);
-        (*m_trans_blocks.at(1))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(2))(m_out_T2, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        if (m_map_forward_out == int_map_type{}) {
-          (*m_trans_blocks.at(3))(m_out_T3, out, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<2>(out, out);
-        } else {
-          (*m_trans_blocks.at(3))(m_out_T3, m_out_T4, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<2>(m_out_T4, m_out_T4);
-          safe_transpose(m_exec_space, m_out_T4, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::TFTFTFT: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<0>(m_in_T, m_out_T);
-        (*m_trans_blocks.at(1))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(2))(m_out_T2, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<2>(m_out_T3, m_out_T3);
-        (*m_trans_blocks.at(3))(m_out_T3, out, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      case OperationType::TFTFTFTT: {
-        (*m_trans_blocks.at(0))(in, m_in_T, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<0>(m_in_T, m_out_T);
-        (*m_trans_blocks.at(1))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(2))(m_out_T2, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<2>(m_out_T3, m_out_T3);
-        (*m_trans_blocks.at(3))(m_out_T3, m_out_T4, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        (*m_trans_blocks.at(4))(m_out_T4, out, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      case OperationType::FTFTFT: {
-        if (m_map_forward_in == int_map_type{}) {
-          forward_fft<0>(in, m_out_T);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          forward_fft<0>(m_in_T, m_out_T);
-        }
-        (*m_trans_blocks.at(0))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<2>(m_out_T3, m_out_T3);
-        (*m_trans_blocks.at(2))(m_out_T3, out, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      case OperationType::FTFTF: {
-        if (m_map_forward_in == int_map_type{}) {
-          forward_fft<0>(in, m_out_T);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          forward_fft<0>(m_in_T, m_out_T);
-        }
-        (*m_trans_blocks.at(0))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-
-        if (m_map_forward_out == int_map_type{}) {
-          (*m_trans_blocks.at(1))(m_out_T2, out, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<2>(out, out);
-        } else {
-          (*m_trans_blocks.at(1))(m_out_T2, m_out_T3, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<2>(m_out_T3, m_out_T3);
-          safe_transpose(m_exec_space, m_out_T3, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::FTFTTF: {
-        if (m_map_forward_in == int_map_type{}) {
-          forward_fft<0>(in, m_out_T);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          forward_fft<0>(m_in_T, m_out_T);
-        }
-        (*m_trans_blocks.at(0))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-
-        if (m_map_forward_out == int_map_type{}) {
-          (*m_trans_blocks.at(2))(m_out_T3, out, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<2>(out, out);
-        } else {
-          (*m_trans_blocks.at(2))(m_out_T3, m_out_T4, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::forward);
-          forward_fft<2>(m_out_T4, m_out_T4);
-          safe_transpose(m_exec_space, m_out_T4, out, m_map_forward_out);
-        }
-        break;
-      }
-      case OperationType::FTFTFTT: {
-        if (m_map_forward_in == int_map_type{}) {
-          forward_fft<0>(in, m_out_T);
-        } else {
-          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          forward_fft<0>(m_in_T, m_out_T);
-        }
-        (*m_trans_blocks.at(0))(m_out_T, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        forward_fft<2>(m_out_T3, m_out_T3);
-        (*m_trans_blocks.at(2))(m_out_T3, m_out_T4, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        (*m_trans_blocks.at(3))(m_out_T4, out, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::forward);
-        break;
-      }
-      default: break;
-    };
+    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
+    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
+      forward_impl(in, out, block_idx);
+    }
   }
 
   void backward(const OutViewType& out, const InViewType& in) const {
-    switch (m_op_type) {
-      case OperationType::F: {
-        if (m_map_backward_in == int_map_type{}) {
-          backward_fft<0>(out, in);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-          backward_fft<0>(m_out_T, m_in_T);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::FT: {
-        (*m_trans_blocks.at(0))(out, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        if (m_map_backward_out == int_map_type{}) {
-          backward_fft<0>(m_out_T, in);
-        } else {
-          backward_fft<0>(m_out_T, m_in_T);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::TF: {
-        if (m_map_backward_in == int_map_type{}) {
-          backward_fft<0>(out, m_in_T);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-          backward_fft<0>(m_out_T, m_in_T);
-        }
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
-      }
-      case OperationType::FTF: {
-        if (m_map_backward_in == int_map_type{}) {
-          backward_fft<1>(out, out);
-          (*m_trans_blocks.at(0))(out, m_out_T, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T2, m_map_backward_in);
-          backward_fft<1>(m_out_T2, m_out_T2);
-          (*m_trans_blocks.at(0))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        }
-
-        if (m_map_backward_out == int_map_type{}) {
-          backward_fft<0>(m_out_T, in);
-        } else {
-          backward_fft<0>(m_out_T, m_in_T);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::TFT: {
-        (*m_trans_blocks.at(1))(out, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<0>(m_out_T, m_in_T);
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
-      }
-      case OperationType::TFTF: {
-        if (m_map_backward_in == int_map_type{}) {
-          backward_fft<1>(out, out);
-          (*m_trans_blocks.at(1))(out, m_out_T, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T2, m_map_backward_in);
-          backward_fft<1>(m_out_T2, m_out_T2);
-          (*m_trans_blocks.at(1))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        }
-        backward_fft<0>(m_out_T, m_in_T);
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
-      }
-      case OperationType::FTFT: {
-        (*m_trans_blocks.at(1))(out, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(0))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-
-        if (m_map_backward_out == int_map_type{}) {
-          backward_fft<0>(m_out_T, in);
-        } else {
-          backward_fft<0>(m_out_T, m_in_T);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::TFTFT: {
-        (*m_trans_blocks.at(2))(out, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<0>(m_out_T, m_in_T);
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
-      }
-      case OperationType::TFTFTF: {
-        if (m_map_backward_in == int_map_type{}) {
-          backward_fft<2>(out, out);
-          (*m_trans_blocks.at(2))(out, m_out_T2, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T3, m_map_backward_in);
-          backward_fft<2>(m_out_T3, m_out_T3);
-          (*m_trans_blocks.at(2))(m_out_T3, m_out_T2, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        }
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<0>(m_out_T, m_in_T);
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
-      }
-      case OperationType::TFTFTTF: {
-        if (m_map_backward_in == int_map_type{}) {
-          backward_fft<2>(out, out);
-          (*m_trans_blocks.at(3))(out, m_out_T3, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T4, m_map_backward_in);
-          backward_fft<2>(m_out_T4, m_out_T4);
-          (*m_trans_blocks.at(3))(m_out_T4, m_out_T3, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        }
-
-        (*m_trans_blocks.at(2))(m_out_T3, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<0>(m_out_T, m_in_T);
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
-      }
-      case OperationType::TFTFTFT: {
-        (*m_trans_blocks.at(3))(out, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<2>(m_out_T3, m_out_T3);
-        (*m_trans_blocks.at(2))(m_out_T3, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<0>(m_out_T, m_in_T);
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
-      }
-      case OperationType::TFTFTFTT: {
-        (*m_trans_blocks.at(4))(out, m_out_T4, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        (*m_trans_blocks.at(3))(m_out_T4, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<2>(m_out_T3, m_out_T3);
-        (*m_trans_blocks.at(2))(m_out_T3, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(1))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<0>(m_out_T, m_in_T);
-        (*m_trans_blocks.at(0))(m_in_T, in, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        break;
-      }
-      case OperationType::FTFTFT: {
-        (*m_trans_blocks.at(2))(out, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<2>(m_out_T3, m_out_T3);
-        (*m_trans_blocks.at(1))(m_out_T3, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(0))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        if (m_map_backward_out == int_map_type{}) {
-          backward_fft<0>(m_out_T, in);
-        } else {
-          backward_fft<0>(m_out_T, m_in_T);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::FTFTF: {
-        if (m_map_backward_in == int_map_type{}) {
-          backward_fft<2>(out, out);
-          (*m_trans_blocks.at(1))(out, m_out_T2, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T3, m_map_backward_in);
-          backward_fft<2>(m_out_T3, m_out_T3);
-          (*m_trans_blocks.at(1))(m_out_T3, m_out_T2, m_send_buffer_allocation,
-                                  m_recv_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        }
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(0))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        if (m_map_backward_out == int_map_type{}) {
-          backward_fft<0>(m_out_T, in);
-        } else {
-          backward_fft<0>(m_out_T, m_in_T);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::FTFTTF: {
-        if (m_map_backward_in == int_map_type{}) {
-          backward_fft<2>(out, out);
-          (*m_trans_blocks.at(2))(out, m_out_T3, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        } else {
-          safe_transpose(m_exec_space, out, m_out_T4, m_map_backward_in);
-          backward_fft<2>(m_out_T4, m_out_T4);
-          (*m_trans_blocks.at(2))(m_out_T4, m_out_T3, m_recv_buffer_allocation,
-                                  m_send_buffer_allocation,
-                                  KokkosFFT::Direction::backward);
-        }
-
-        (*m_trans_blocks.at(1))(m_out_T3, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(0))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        if (m_map_backward_out == int_map_type{}) {
-          backward_fft<0>(m_out_T, in);
-        } else {
-          backward_fft<0>(m_out_T, m_in_T);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      case OperationType::FTFTFTT: {
-        (*m_trans_blocks.at(3))(out, m_out_T4, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        (*m_trans_blocks.at(2))(m_out_T4, m_out_T3, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<2>(m_out_T3, m_out_T3);
-        (*m_trans_blocks.at(1))(m_out_T3, m_out_T2, m_send_buffer_allocation,
-                                m_recv_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        backward_fft<1>(m_out_T2, m_out_T2);
-        (*m_trans_blocks.at(0))(m_out_T2, m_out_T, m_recv_buffer_allocation,
-                                m_send_buffer_allocation,
-                                KokkosFFT::Direction::backward);
-        if (m_map_backward_out == int_map_type{}) {
-          backward_fft<0>(m_out_T, in);
-        } else {
-          backward_fft<0>(m_out_T, m_in_T);
-          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
-        }
-        break;
-      }
-      default: break;
-    };
+    int64_t nb_blocks = m_block_analyses->m_block_infos.size();
+    for (int64_t block_idx = nb_blocks - 1; block_idx >= 0; --block_idx) {
+      backward_impl(out, in, block_idx);
+    }
   }
 
  private:
@@ -2741,41 +1112,410 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
   void forward_fft(const InType& in, const OutType& out) const {
     if constexpr (STEP == 0) {
       if (m_fft_dims.at(STEP) == 1) {
-        KokkosFFT::execute(*m_fft_plan0, in, out, m_normalization);
+        if (m_map_forward_in == int_map_type{}) {
+          KokkosFFT::execute(*m_fft_plan0, in, out, m_normalization);
+        } else {
+          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
+          KokkosFFT::execute(*m_fft_plan0, m_in_T, out, m_normalization);
+        }
       } else if (m_fft_dims.at(STEP) == 2) {
-        KokkosFFT::execute(*m_fft2_plan0, in, out, m_normalization);
+        if (m_map_forward_in == int_map_type{}) {
+          KokkosFFT::execute(*m_fft2_plan0, in, out, m_normalization);
+        } else {
+          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
+          KokkosFFT::execute(*m_fft2_plan0, m_in_T, out, m_normalization);
+        }
       } else if (m_fft_dims.at(STEP) == 3) {
-        KokkosFFT::execute(*m_fft3_plan0, in, out, m_normalization);
+        if (m_map_forward_in == int_map_type{} &&
+            m_map_forward_out == int_map_type{}) {
+          KokkosFFT::execute(*m_fft3_plan0, in, out, m_normalization);
+        } else if (m_map_forward_in == int_map_type{} &&
+                   m_map_forward_out != int_map_type{}) {
+          KokkosFFT::execute(*m_fft3_plan0, m_in_T, m_out_T, m_normalization);
+          safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
+        } else if (m_map_forward_in != int_map_type{} &&
+                   m_map_forward_out == int_map_type{}) {
+          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
+          KokkosFFT::execute(*m_fft3_plan0, m_in_T, out, m_normalization);
+        } else {
+          safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
+          KokkosFFT::execute(*m_fft3_plan0, m_in_T, m_out_T, m_normalization);
+          safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
+        }
       }
     } else if constexpr (STEP == 1) {
       if (m_fft_dims.at(STEP) == 1) {
-        KokkosFFT::execute(*m_fft_plan1, in, out, m_normalization);
+        if (m_fft_dims.at(2) == 0) {
+          if (m_map_forward_out == int_map_type{}) {
+            KokkosFFT::execute(*m_fft_plan1, in, out, m_normalization);
+          } else {
+            KokkosFFT::execute(*m_fft_plan1, in, m_fft_view0, m_normalization);
+            safe_transpose(m_exec_space, m_fft_view0, out, m_map_forward_out);
+          }
+        } else {
+          KokkosFFT::execute(*m_fft_plan1, in, out, m_normalization);
+        }
       } else if (m_fft_dims.at(STEP) == 2) {
-        KokkosFFT::execute(*m_fft2_plan1, in, out, m_normalization);
+        if (m_map_forward_out == int_map_type{}) {
+          KokkosFFT::execute(*m_fft2_plan1, in, out, m_normalization);
+        } else {
+          KokkosFFT::execute(*m_fft2_plan1, in, m_fft_view0, m_normalization);
+          safe_transpose(m_exec_space, m_fft_view0, out, m_map_forward_out);
+        }
       }
     } else if constexpr (STEP == 2) {
-      KokkosFFT::execute(*m_fft_plan2, in, out, m_normalization);
+      if (m_map_forward_out == int_map_type{}) {
+        KokkosFFT::execute(*m_fft_plan2, in, out, m_normalization);
+      } else {
+        KokkosFFT::execute(*m_fft_plan2, in, m_fft_view1, m_normalization);
+        safe_transpose(m_exec_space, m_fft_view1, out, m_map_forward_out);
+      }
     }
   }
 
   template <std::size_t STEP, typename InType, typename OutType>
-  void backward_fft(const InType& in, const OutType& out) const {
+  void backward_fft(const OutType& out, const InType& in) const {
     if constexpr (STEP == 0) {
       if (m_fft_dims.at(STEP) == 1) {
-        KokkosFFT::execute(*m_ifft_plan0, in, out, m_normalization);
+        if (m_map_backward_out == int_map_type{}) {
+          KokkosFFT::execute(*m_ifft_plan0, out, in, m_normalization);
+        } else {
+          KokkosFFT::execute(*m_ifft_plan0, out, m_in_T, m_normalization);
+          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
+        }
       } else if (m_fft_dims.at(STEP) == 2) {
-        KokkosFFT::execute(*m_ifft2_plan0, in, out, m_normalization);
+        if (m_map_backward_out == int_map_type{}) {
+          KokkosFFT::execute(*m_ifft2_plan0, out, in, m_normalization);
+        } else {
+          KokkosFFT::execute(*m_ifft2_plan0, out, m_in_T, m_normalization);
+          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
+        }
       } else if (m_fft_dims.at(STEP) == 3) {
-        KokkosFFT::execute(*m_ifft3_plan0, in, out, m_normalization);
+        if (m_map_backward_in == int_map_type{} &&
+            m_map_backward_out == int_map_type{}) {
+          KokkosFFT::execute(*m_ifft3_plan0, out, in, m_normalization);
+        } else if (m_map_backward_in == int_map_type{} &&
+                   m_map_backward_out != int_map_type{}) {
+          KokkosFFT::execute(*m_ifft3_plan0, out, m_in_T, m_normalization);
+          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
+        } else if (m_map_backward_in != int_map_type{} &&
+                   m_map_backward_out == int_map_type{}) {
+          safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
+          KokkosFFT::execute(*m_ifft3_plan0, m_out_T, in, m_normalization);
+        } else if (m_map_backward_in != int_map_type{} &&
+                   m_map_backward_out != int_map_type{}) {
+          safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
+          KokkosFFT::execute(*m_ifft3_plan0, m_out_T, m_in_T, m_normalization);
+          safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
+        }
       }
     } else if constexpr (STEP == 1) {
       if (m_fft_dims.at(STEP) == 1) {
-        KokkosFFT::execute(*m_ifft_plan1, in, out, m_normalization);
+        if (m_fft_dims.at(2) == 0) {
+          if (m_map_forward_out == int_map_type{}) {
+            KokkosFFT::execute(*m_ifft_plan1, out, in, m_normalization);
+          } else {
+            safe_transpose(m_exec_space, out, m_fft_view0, m_map_forward_out);
+            KokkosFFT::execute(*m_ifft_plan1, m_fft_view0, in, m_normalization);
+          }
+        } else {
+          KokkosFFT::execute(*m_ifft_plan1, out, in, m_normalization);
+        }
       } else if (m_fft_dims.at(STEP) == 2) {
-        KokkosFFT::execute(*m_ifft2_plan1, in, out, m_normalization);
+        if (m_map_backward_in == int_map_type{}) {
+          KokkosFFT::execute(*m_ifft2_plan1, out, in, m_normalization);
+        } else {
+          safe_transpose(m_exec_space, out, m_fft_view0, m_map_backward_in);
+          KokkosFFT::execute(*m_ifft2_plan1, m_fft_view0, in, m_normalization);
+        }
       }
     } else if constexpr (STEP == 2) {
-      KokkosFFT::execute(*m_ifft_plan2, in, out, m_normalization);
+      if (m_map_backward_in == int_map_type{}) {
+        KokkosFFT::execute(*m_ifft_plan2, out, in, m_normalization);
+      } else {
+        safe_transpose(m_exec_space, out, m_fft_view1, m_map_backward_in);
+        KokkosFFT::execute(*m_ifft_plan2, m_fft_view1, in, m_normalization);
+      }
+    }
+  }
+
+  void set_block_impl(const std::size_t block_idx) {
+    auto src_map    = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
+    auto block      = m_block_analyses->m_block_infos.at(block_idx);
+    auto block_type = block.m_block_type;
+
+    if (block_type == BlockType::FFT) {
+      if (block.m_block_idx == 0) {
+        m_fft_dims.at(0) = block.m_axes.size();
+        m_in_T           = InViewType(
+            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
+            KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
+        m_out_T = OutViewType(
+            m_recv_buffer_allocation.data(),
+            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
+
+        if (block.m_axes.size() == 1) {
+          m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
+              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
+              to_array<int, std::size_t, 1>(block.m_axes));
+          m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
+              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
+              to_array<int, std::size_t, 1>(block.m_axes));
+        } else if (block.m_axes.size() == 2) {
+          m_fft2_plan0 = std::make_unique<FFT2ForwardPlanType0>(
+              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
+              to_array<int, std::size_t, 2>(block.m_axes));
+          m_ifft2_plan0 = std::make_unique<FFT2BackwardPlanType0>(
+              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
+              to_array<int, std::size_t, 2>(block.m_axes));
+        } else {
+          m_fft3_plan0 = std::make_unique<FFT3ForwardPlanType0>(
+              m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
+              to_array<int, std::size_t, 3>(block.m_axes));
+          m_ifft3_plan0 = std::make_unique<FFT3BackwardPlanType0>(
+              m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
+              to_array<int, std::size_t, 3>(block.m_axes));
+        }
+        m_in_out_ptr.push_back(ptr_pair_type{nullptr, m_out_T.data()});
+      } else if (block.m_block_idx == 1) {
+        m_fft_dims.at(1) = block.m_axes.size();
+        auto* last_ptr   = m_in_out_ptr.back().second;
+
+        m_fft_view0 = OutViewType(
+            last_ptr,
+            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
+
+        if (block.m_axes.size() == 1) {
+          m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
+              m_exec_space, m_fft_view0, m_fft_view0,
+              KokkosFFT::Direction::forward,
+              to_array<int, std::size_t, 1>(block.m_axes));
+          m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
+              m_exec_space, m_fft_view0, m_fft_view0,
+              KokkosFFT::Direction::backward,
+              to_array<int, std::size_t, 1>(block.m_axes));
+        } else {
+          m_fft2_plan1 = std::make_unique<FFT2ForwardPlanType1>(
+              m_exec_space, m_fft_view0, m_fft_view0,
+              KokkosFFT::Direction::forward,
+              to_array<int, std::size_t, 2>(block.m_axes));
+          m_ifft2_plan1 = std::make_unique<FFT2BackwardPlanType1>(
+              m_exec_space, m_fft_view0, m_fft_view0,
+              KokkosFFT::Direction::backward,
+              to_array<int, std::size_t, 2>(block.m_axes));
+        }
+        m_in_out_ptr.push_back(
+            ptr_pair_type{m_fft_view0.data(), m_fft_view0.data()});
+      } else {
+        m_fft_dims.at(2) = block.m_axes.size();
+        auto* last_ptr   = m_in_out_ptr.back().second;
+
+        m_fft_view1 = OutViewType(
+            last_ptr,
+            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
+        m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
+            m_exec_space, m_fft_view1, m_fft_view1,
+            KokkosFFT::Direction::forward,
+            to_array<int, std::size_t, 1>(block.m_axes));
+        m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
+            m_exec_space, m_fft_view1, m_fft_view1,
+            KokkosFFT::Direction::backward,
+            to_array<int, std::size_t, 1>(block.m_axes));
+        m_in_out_ptr.push_back(
+            ptr_pair_type{m_fft_view1.data(), m_fft_view1.data()});
+      }
+
+      if (block_idx == 0) {
+        // In this case, input data needed to be transposed locally
+        if (block.m_in_map != src_map) {
+          for (std::size_t i = 0; i < DIM; ++i) {
+            m_map_forward_in.at(i) = block.m_in_map.at(i);
+            m_map_backward_out.at(i) =
+                KokkosFFT::Impl::get_index(block.m_in_map, i);
+          }
+        }
+      }
+
+      if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
+        if (block.m_out_map != src_map) {
+          for (std::size_t i = 0; i < DIM; ++i) {
+            m_map_forward_out.at(i) =
+                KokkosFFT::Impl::get_index(block.m_out_map, i);
+            m_map_backward_in.at(i) = block.m_out_map.at(i);
+          }
+        }
+      }
+    } else {
+      m_trans_blocks.push_back(std::make_unique<TransBlockType>(
+          m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
+          block.m_out_map, block.m_out_axis,
+          m_cart_comms.at(block.m_comm_axis)));
+
+      if (m_in_out_ptr.size() == 0) {
+        m_in_out_ptr.push_back(
+            ptr_pair_type{nullptr, m_send_buffer_allocation.data()});
+      } else {
+        auto* last_out = m_in_out_ptr.back().second;
+        auto* next_out = KokkosFFT::Impl::are_aliasing(
+                             last_out, m_send_buffer_allocation.data())
+                             ? m_recv_buffer_allocation.data()
+                             : m_send_buffer_allocation.data();
+        m_in_out_ptr.push_back(ptr_pair_type{last_out, next_out});
+      }
+    }
+  }
+
+  template <typename InType, typename OutType>
+  void forward_impl(const InType& in, const OutType& out,
+                    const int64_t block_idx) const {
+    auto block      = m_block_analyses->m_block_infos.at(block_idx);
+    auto block_type = block.m_block_type;
+
+    int64_t last_block_idx = m_block_analyses->m_block_infos.size() - 1;
+    if (block_idx == 0) {
+      if (block_type == BlockType::FFT) {
+        OutViewType out_view = m_out_T;
+        if (block_idx == last_block_idx) {
+          out_view = out;
+        }
+        forward_fft<0>(in, out_view);
+      } else if (block_type == BlockType::Transpose) {
+        (*m_trans_blocks.at(block.m_block_idx))(
+            in, m_in_T, m_send_buffer_allocation, m_recv_buffer_allocation,
+            KokkosFFT::Direction::forward);
+      }
+    } else {
+      if (block_type == BlockType::FFT) {
+        if (block.m_block_idx == 0) {
+          OutViewType out_view = m_out_T;
+          if (block_idx == last_block_idx) {
+            out_view = out;
+          }
+          forward_fft<0>(m_in_T, out_view);
+        } else {
+          auto* current_in = m_in_out_ptr.at(block_idx).first;
+          OutViewType cin_view(
+              current_in,
+              KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
+
+          OutViewType cout_view = cin_view;
+          if (block_idx == last_block_idx) {
+            if (m_map_forward_out == int_map_type{}) {
+              cin_view = out;
+            }
+            cout_view = out;
+          }
+          if (block.m_block_idx == 1) {
+            forward_fft<1>(cin_view, cout_view);
+          } else {
+            forward_fft<2>(cin_view, cout_view);
+          }
+        }
+      } else if (block_type == BlockType::Transpose) {
+        auto *current_in  = m_in_out_ptr.at(block_idx).first,
+             *current_out = m_in_out_ptr.at(block_idx).second;
+        OutViewType out_view(
+            current_in,
+            KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
+        OutViewType out_view2(
+            current_out,
+            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
+
+        if ((block_idx == last_block_idx) ||
+            ((block_idx == (last_block_idx - 1)) &&
+             m_map_forward_out == int_map_type{} &&
+             m_block_analyses->m_block_infos.back().m_block_type ==
+                 BlockType::FFT)) {
+          out_view2 = out;
+        }
+
+        AllocationViewType send_buffer = m_send_buffer_allocation,
+                           recv_buffer = m_recv_buffer_allocation;
+
+        if (KokkosFFT::Impl::are_aliasing(out_view.data(),
+                                          send_buffer.data())) {
+          send_buffer = m_recv_buffer_allocation;
+          recv_buffer = m_send_buffer_allocation;
+        }
+
+        (*m_trans_blocks.at(block.m_block_idx))(out_view, out_view2,
+                                                send_buffer, recv_buffer,
+                                                KokkosFFT::Direction::forward);
+      }
+    }
+  }
+
+  template <typename InType, typename OutType>
+  void backward_impl(const OutType& out, const InType& in,
+                     const int64_t block_idx) const {
+    auto block      = m_block_analyses->m_block_infos.at(block_idx);
+    auto block_type = block.m_block_type;
+
+    int64_t last_block_idx = m_block_analyses->m_block_infos.size() - 1;
+    if (block_idx == 0) {
+      if (block_type == BlockType::FFT) {
+        OutViewType out_view = block_idx == last_block_idx ? out : m_out_T;
+        backward_fft<0>(out_view, in);
+      } else if (block_type == BlockType::Transpose) {
+        (*m_trans_blocks.at(block.m_block_idx))(
+            m_in_T, in, m_recv_buffer_allocation, m_send_buffer_allocation,
+            KokkosFFT::Direction::backward);
+      }
+    } else {
+      if (block_type == BlockType::FFT) {
+        if (block.m_block_idx == 0) {
+          OutViewType out_view = block_idx == last_block_idx ? out : m_out_T;
+          backward_fft<0>(out_view, m_in_T);
+        } else {
+          auto* current_out = m_in_out_ptr.at(block_idx).second;
+          OutViewType cin_view(
+              current_out,
+              KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
+          OutViewType cout_view = cin_view;
+          if (block_idx == last_block_idx) {
+            cout_view = out;
+            if (m_map_backward_in == int_map_type{}) {
+              cin_view = out;
+            }
+          }
+          if (block.m_block_idx == 1) {
+            backward_fft<1>(cout_view, cin_view);
+          } else {
+            backward_fft<2>(cout_view, cin_view);
+          }
+        }
+      } else if (block_type == BlockType::Transpose) {
+        auto *current_in  = m_in_out_ptr.at(block_idx).first,
+             *current_out = m_in_out_ptr.at(block_idx).second;
+
+        OutViewType out_view(
+            current_in,
+            KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
+        OutViewType out_view2(
+            current_out,
+            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
+
+        if ((block_idx == last_block_idx) ||
+            ((block_idx == (last_block_idx - 1)) &&
+             m_map_backward_in == int_map_type{} &&
+             m_block_analyses->m_block_infos.back().m_block_type ==
+                 BlockType::FFT)) {
+          out_view2 = out;
+        }
+
+        AllocationViewType send_buffer = m_send_buffer_allocation,
+                           recv_buffer = m_recv_buffer_allocation;
+
+        if (KokkosFFT::Impl::are_aliasing(out_view.data(),
+                                          recv_buffer.data())) {
+          send_buffer = m_recv_buffer_allocation;
+          recv_buffer = m_send_buffer_allocation;
+        }
+
+        (*m_trans_blocks.at(block.m_block_idx))(out_view2, out_view,
+                                                send_buffer, recv_buffer,
+                                                KokkosFFT::Direction::backward);
+      }
     }
   }
 };
