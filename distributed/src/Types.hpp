@@ -19,41 +19,6 @@ enum class TopologyType {
 enum class BlockType {
   Transpose,
   FFT,
-  FFT2,
-  TransposeAndFFT,
-};
-
-enum class OperationType {
-  F,
-  FT,
-  FFT,
-  FTF,
-  FTFT,
-  FTFTF,
-  FTF2,
-  FTF2T,
-  FTFTTF,
-  FTFTFT,
-  FTFTFTT,
-  TF,
-  TFT,
-  TFTT,
-  TFTF,
-  TFTFT,
-  TFTFTF,
-  TFTFTFT,
-  TFTFTTF,
-  TFTFTFTT,
-  F2,
-  F2T,
-  F2TF,
-  F2TFT,
-  TF2,
-  TF2T,
-  TF2TF,
-  TFTF2,
-  TF2TFT,
-  TFTF2T
 };
 
 /// \brief BlockInfo is a structure that holds information about a block

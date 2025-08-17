@@ -29,7 +29,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
   using out_topology_type = Topology<std::size_t, DIM, OutLayoutType>;
   std::vector<BlockInfoType> m_block_infos;
   std::size_t m_max_buffer_size;
-  OperationType m_op_type;
 
   PencilBlockAnalysesInternal(const std::array<std::size_t, DIM>& in_extents,
                               const std::array<std::size_t, DIM>& out_extents,
@@ -54,7 +53,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
     if (nb_topologies == 1) {
       // FFT batched
       // E.g. {1, Px, Py} + FFT ax=0
-      m_op_type = OperationType::F;
       BlockInfoType block;
       block.m_in_map      = map;
       block.m_out_map     = map;
@@ -71,7 +69,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       auto last_axis = axes.back();
       auto first_dim = in_topology.at(last_axis);
       if (first_dim != 1) {
-        m_op_type = OperationType::TF;
         // T + FFT
         // E.g. {Px, 1, Py} -> {1, Px, Py} + FFT (ax=0)
         BlockInfoType block0;
@@ -115,7 +112,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
         all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
-        m_op_type = OperationType::FT;
         // FFT + T
         // E.g. {1, Px, Py} + FFT (ax=0) -> {Px, 1, Py}
         BlockInfoType block0;
@@ -153,7 +149,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
     } else if (nb_topologies == 3) {
-      m_op_type = OperationType::TFT;
       // T + FFT + T
       // E.g. {1,Px,Py} -> {Px,1,Py} + FFT (ax=1) -> {1,Px,Py}
 
@@ -216,7 +211,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 4) {
-      m_op_type      = OperationType::TFTT;
       auto mid_topo0 = all_topologies.at(1), mid_topo1 = all_topologies.at(2);
       // E.g. {1, Px, Py} -> {Py, Px, 1} + FFT (ax=2) -> {1, Px, Py}
       // -> {Px, 1, Py}
@@ -320,7 +314,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
   using out_topology_type = Topology<std::size_t, DIM, OutLayoutType>;
   std::vector<BlockInfoType> m_block_infos;
   std::size_t m_max_buffer_size;
-  OperationType m_op_type;
 
   PencilBlockAnalysesInternal(const std::array<std::size_t, DIM>& in_extents,
                               const std::array<std::size_t, DIM>& out_extents,
@@ -346,7 +339,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
     if (nb_topologies == 1) {
       // FFT batched
       // E.g. {1, 1, Px, Py} + FFT2 {ax=0, 1}
-      m_op_type = OperationType::F;
       BlockInfoType block;
       block.m_in_map      = map;
       block.m_out_map     = map;
@@ -365,7 +357,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       // 2. FFT + T + FFT
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1);
       if (axes0.size() == 0) {
-        m_op_type = OperationType::TF;
         // T + FFT
         // E.g. {Px, 1, Py} -> {1, Px, Py} + FFT (ax=0)
         BlockInfoType block0;
@@ -409,7 +400,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
-        m_op_type = OperationType::FT;
         // FFT + T
         // FFT + T + FFT
         // E.g. {1, Px, Py} + FFT (ax=0) -> {Px, 1, Py}
@@ -492,7 +482,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       // 3. T + FFT + T
       // 4. T + FFT + T + FFT
 
-      m_op_type = OperationType::TFT;
       // T + FFT + T
       // E.g. {1,Px,Py} -> {Px,1,Py} + FFT (ax=1) -> {1,Px,Py}
 
@@ -1166,7 +1155,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
   using out_topology_type = Topology<std::size_t, DIM, OutLayoutType>;
   std::vector<BlockInfoType> m_block_infos;
   std::size_t m_max_buffer_size;
-  OperationType m_op_type;
 
   PencilBlockAnalysesInternal(const std::array<std::size_t, DIM>& in_extents,
                               const std::array<std::size_t, DIM>& out_extents,
@@ -1192,7 +1180,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
     if (nb_topologies == 1) {
       // 0. FFT batched
       // E.g. {1, 1, 1, Px, Py} + FFT3 {ax=0, 1, 2}
-      m_op_type = OperationType::F;
       BlockInfoType block;
       block.m_in_map      = map;
       block.m_out_map     = map;
@@ -1213,7 +1200,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1);
 
       if (axes0.size() == 0) {
-        m_op_type = OperationType::TF;
         // T + FFT
         // E.g. {Px, 1, Py} -> {1, Px, Py} + FFT (ax=0)
         BlockInfoType block0;
@@ -1257,7 +1243,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
-        m_op_type = OperationType::FT;
         // FFT + T
         // E.g. {1, Px, Py} + FFT (ax=0) -> {Px, 1, Py}
         BlockInfoType block0;
@@ -1332,7 +1317,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
     } else if (nb_topologies == 3) {
-      m_op_type = OperationType::FTFTF;
       // 0. FFT + T + FFT + T + FFT
       // 1. FFT + T + FFT + T
       // e.g. (n0, n1, n2/px, n3/py) -> (n0/px, n1, n2, n3/py) -> (n0, n1,
@@ -1538,7 +1522,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
            axes2 = all_axes.at(2), axes3 = all_axes.at(3);
 
       if (axes0.size() == 0) {
-        m_op_type = OperationType::TFTFTF;
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_pencil(in_topology.array(), mid_topo0);
         block0.m_in_map            = src_map;
@@ -1740,7 +1723,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         if (axes3.size() == 0) {
           // 0. FFT + T + FFT + T + FFT + T
-          m_op_type = OperationType::FTFTFT;
           BlockInfoType block4;
           block4.m_in_extents = block3.m_out_extents;
           block4.m_out_extents =
@@ -1777,8 +1759,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         } else {
           // 1. FFT + T + FFT + T + T + FFT
-          m_op_type = OperationType::FTFTTF;
-
           BlockInfoType block4;
           auto [in_axis4, out_axis4] =
               get_pencil(mid_topo1, out_topology.array());
@@ -1928,8 +1908,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         if (axes3.size() != 0) {
           // 1. T + FFT + T + FFT + T + FFT + T
-          m_op_type = OperationType::TFTFTFT;
-
           BlockInfoType block5;
           block5.m_in_extents = block4.m_out_extents;
           block5.m_out_extents =
@@ -1990,8 +1968,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
             all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
           } else {
             // 2. T + FFT + T + FFT + T + T + FFT
-            m_op_type = OperationType::TFTFTTF;
-
             BlockInfoType block5;
             auto [in_axis5, out_axis5] =
                 get_pencil(mid_topo2, out_topology.array());
@@ -2035,8 +2011,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // 0. FFT + T + FFT + T + FFT + T + T
-        m_op_type = OperationType::FTFTFTT;
-
         BlockInfoType block0;
         block0.m_in_map     = map;
         block0.m_out_map    = map;
@@ -2165,8 +2139,6 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       }
     } else if (nb_topologies == 6) {
       // 0. T + FFT + T + FFT + T + FFT + T + T
-      m_op_type = OperationType::TFTFTFTT;
-
       auto mid_topo0 = all_topologies.at(1), mid_topo1 = all_topologies.at(2),
            mid_topo2 = all_topologies.at(3), mid_topo3 = all_topologies.at(4);
 

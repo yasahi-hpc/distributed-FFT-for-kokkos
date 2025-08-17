@@ -318,11 +318,6 @@ void test_slab1D_view3D(std::size_t nprocs) {
 
   axes_type ax0 = {0}, ax1 = {1}, ax2 = {2};
 
-  // Available combinations
-  // Topology 0 -> Topology 1 with all axes
-  // Topology 0 -> Topology 2 with all axes
-  // Topology 1 -> Topology 2 with all axes
-
   auto [in_extents_t0, in_starts_t0] =
       get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
@@ -1014,11 +1009,6 @@ void test_slab2D_view3D(std::size_t nprocs) {
   // All axes
   axes_type ax01 = {0, 1}, ax02 = {0, 2}, ax10 = {1, 0}, ax12 = {1, 2},
             ax20 = {2, 0}, ax21 = {2, 1};
-
-  // Available combinations
-  // Topology 0 -> Topology 1 with all axes
-  // Topology 0 -> Topology 2 with all axes
-  // Topology 1 -> Topology 2 with all axes
 
   auto [in_extents_t0, in_starts_t0] =
       get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
@@ -2048,11 +2038,6 @@ void test_slab3D_view3D(std::size_t nprocs) {
   axes_type ax012 = {0, 1, 2}, ax021 = {0, 2, 1}, ax102 = {1, 0, 2},
             ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
 
-  // Available combinations
-  // Topology 0 -> Topology 1 with all axes
-  // Topology 0 -> Topology 2 with all axes
-  // Topology 1 -> Topology 2 with all axes
-
   auto [in_extents_t0, in_starts_t0] =
       get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
@@ -2237,58 +2222,23 @@ void test_slab3D_view3D(std::size_t nprocs) {
                     KokkosFFT::Normalization::backward);
   }
 
-  auto h_gu = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu);
-  auto h_gu_hat_ax012 =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu_hat_ax012);
-  auto h_gu_hat_ax021 =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu_hat_ax021);
-  auto h_gu_hat_ax102 =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu_hat_ax102);
-  auto h_gu_hat_ax120 =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu_hat_ax120);
-  auto h_gu_hat_ax201 =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu_hat_ax201);
-  auto h_gu_hat_ax210 =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gu_hat_ax210);
-  auto h_u_0               = Kokkos::create_mirror_view(u_0);
-  auto h_u_1               = Kokkos::create_mirror_view(u_1);
-  auto h_u_2               = Kokkos::create_mirror_view(u_2);
-  auto h_ref_u_hat_0_ax012 = Kokkos::create_mirror_view(ref_u_hat_0_ax012);
-  auto h_ref_u_hat_0_ax021 = Kokkos::create_mirror_view(ref_u_hat_0_ax021);
-  auto h_ref_u_hat_0_ax102 = Kokkos::create_mirror_view(ref_u_hat_0_ax102);
-  auto h_ref_u_hat_0_ax120 = Kokkos::create_mirror_view(ref_u_hat_0_ax120);
-  auto h_ref_u_hat_0_ax201 = Kokkos::create_mirror_view(ref_u_hat_0_ax201);
-  auto h_ref_u_hat_0_ax210 = Kokkos::create_mirror_view(ref_u_hat_0_ax210);
-  auto h_ref_u_hat_1_ax012 = Kokkos::create_mirror_view(ref_u_hat_1_ax012);
-  auto h_ref_u_hat_1_ax021 = Kokkos::create_mirror_view(ref_u_hat_1_ax021);
-  auto h_ref_u_hat_1_ax102 = Kokkos::create_mirror_view(ref_u_hat_1_ax102);
-  auto h_ref_u_hat_1_ax120 = Kokkos::create_mirror_view(ref_u_hat_1_ax120);
-  auto h_ref_u_hat_1_ax201 = Kokkos::create_mirror_view(ref_u_hat_1_ax201);
-  auto h_ref_u_hat_1_ax210 = Kokkos::create_mirror_view(ref_u_hat_1_ax210);
-  auto h_ref_u_hat_2_ax012 = Kokkos::create_mirror_view(ref_u_hat_2_ax012);
-  auto h_ref_u_hat_2_ax021 = Kokkos::create_mirror_view(ref_u_hat_2_ax021);
-  auto h_ref_u_hat_2_ax102 = Kokkos::create_mirror_view(ref_u_hat_2_ax102);
-  auto h_ref_u_hat_2_ax120 = Kokkos::create_mirror_view(ref_u_hat_2_ax120);
-  auto h_ref_u_hat_2_ax201 = Kokkos::create_mirror_view(ref_u_hat_2_ax201);
-  auto h_ref_u_hat_2_ax210 = Kokkos::create_mirror_view(ref_u_hat_2_ax210);
-
   // Topo 0
   Kokkos::pair<std::size_t, std::size_t> range_gu0(
       in_starts_t0.at(2), in_starts_t0.at(2) + in_extents_t0.at(2));
-  auto h_sub_gu_0 = Kokkos::subview(h_gu, Kokkos::ALL, Kokkos::ALL, range_gu0);
-  Kokkos::deep_copy(h_u_0, h_sub_gu_0);
+  auto sub_gu_0 = Kokkos::subview(gu, Kokkos::ALL, Kokkos::ALL, range_gu0);
+  Kokkos::deep_copy(u_0, sub_gu_0);
 
   // Topo 1
   Kokkos::pair<std::size_t, std::size_t> range_gu1(
       in_starts_t1.at(1), in_starts_t1.at(1) + in_extents_t1.at(1));
-  auto h_sub_gu_1 = Kokkos::subview(h_gu, Kokkos::ALL, range_gu1, Kokkos::ALL);
-  Kokkos::deep_copy(h_u_1, h_sub_gu_1);
+  auto sub_gu_1 = Kokkos::subview(gu, Kokkos::ALL, range_gu1, Kokkos::ALL);
+  Kokkos::deep_copy(u_1, sub_gu_1);
 
   // Topo 2
   Kokkos::pair<std::size_t, std::size_t> range_gu2(
       in_starts_t2.at(0), in_starts_t2.at(0) + in_extents_t2.at(0));
-  auto h_sub_gu_2 = Kokkos::subview(h_gu, range_gu2, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(h_u_2, h_sub_gu_2);
+  auto sub_gu_2 = Kokkos::subview(gu, range_gu2, Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(u_2, sub_gu_2);
 
   // Define ranges for topology 0 (XY-slab)
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax0(
@@ -2302,34 +2252,34 @@ void test_slab3D_view3D(std::size_t nprocs) {
       out_starts_t0_ax2.at(2) + out_extents_t0_ax2.at(2));
 
   // Topo 0 ax = {0, 1, 2}
-  auto h_sub_gu_hat_0_ax012 = Kokkos::subview(h_gu_hat_ax012, Kokkos::ALL,
-                                              Kokkos::ALL, range_gu_hat_0_ax2);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax012, h_sub_gu_hat_0_ax012);
+  auto sub_gu_hat_0_ax012 = Kokkos::subview(gu_hat_ax012, Kokkos::ALL,
+                                            Kokkos::ALL, range_gu_hat_0_ax2);
+  Kokkos::deep_copy(ref_u_hat_0_ax012, sub_gu_hat_0_ax012);
 
   // Topo 0 ax = {0, 2, 1}
-  auto h_sub_gu_hat_0_ax021 = Kokkos::subview(h_gu_hat_ax021, Kokkos::ALL,
-                                              Kokkos::ALL, range_gu_hat_0_ax1);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax021, h_sub_gu_hat_0_ax021);
+  auto sub_gu_hat_0_ax021 = Kokkos::subview(gu_hat_ax021, Kokkos::ALL,
+                                            Kokkos::ALL, range_gu_hat_0_ax1);
+  Kokkos::deep_copy(ref_u_hat_0_ax021, sub_gu_hat_0_ax021);
 
   // Topo 0 ax = {1, 0, 2}
-  auto h_sub_gu_hat_0_ax102 = Kokkos::subview(h_gu_hat_ax102, Kokkos::ALL,
-                                              Kokkos::ALL, range_gu_hat_0_ax2);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax102, h_sub_gu_hat_0_ax102);
+  auto sub_gu_hat_0_ax102 = Kokkos::subview(gu_hat_ax102, Kokkos::ALL,
+                                            Kokkos::ALL, range_gu_hat_0_ax2);
+  Kokkos::deep_copy(ref_u_hat_0_ax102, sub_gu_hat_0_ax102);
 
   // Topo 0 ax = {1, 2, 0}
-  auto h_sub_gu_hat_0_ax120 = Kokkos::subview(h_gu_hat_ax120, Kokkos::ALL,
-                                              Kokkos::ALL, range_gu_hat_0_ax0);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax120, h_sub_gu_hat_0_ax120);
+  auto sub_gu_hat_0_ax120 = Kokkos::subview(gu_hat_ax120, Kokkos::ALL,
+                                            Kokkos::ALL, range_gu_hat_0_ax0);
+  Kokkos::deep_copy(ref_u_hat_0_ax120, sub_gu_hat_0_ax120);
 
   // Topo 0 ax = {2, 0, 1}
-  auto h_sub_gu_hat_0_ax201 = Kokkos::subview(h_gu_hat_ax201, Kokkos::ALL,
-                                              Kokkos::ALL, range_gu_hat_0_ax1);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax201, h_sub_gu_hat_0_ax201);
+  auto sub_gu_hat_0_ax201 = Kokkos::subview(gu_hat_ax201, Kokkos::ALL,
+                                            Kokkos::ALL, range_gu_hat_0_ax1);
+  Kokkos::deep_copy(ref_u_hat_0_ax201, sub_gu_hat_0_ax201);
 
   // Topo 0 ax = {2, 1, 0}
-  auto h_sub_gu_hat_0_ax210 = Kokkos::subview(h_gu_hat_ax210, Kokkos::ALL,
-                                              Kokkos::ALL, range_gu_hat_0_ax0);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax210, h_sub_gu_hat_0_ax210);
+  auto sub_gu_hat_0_ax210 = Kokkos::subview(gu_hat_ax210, Kokkos::ALL,
+                                            Kokkos::ALL, range_gu_hat_0_ax0);
+  Kokkos::deep_copy(ref_u_hat_0_ax210, sub_gu_hat_0_ax210);
 
   // Define ranges for topology 1 (XZ-slab)
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax0(
@@ -2343,34 +2293,34 @@ void test_slab3D_view3D(std::size_t nprocs) {
       out_starts_t1_ax2.at(1) + out_extents_t1_ax2.at(1));
 
   // Topo 1 ax = {0, 1, 2}
-  auto h_sub_gu_hat_1_ax012 = Kokkos::subview(h_gu_hat_ax012, Kokkos::ALL,
-                                              range_gu_hat_1_ax2, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax012, h_sub_gu_hat_1_ax012);
+  auto sub_gu_hat_1_ax012 = Kokkos::subview(gu_hat_ax012, Kokkos::ALL,
+                                            range_gu_hat_1_ax2, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax012, sub_gu_hat_1_ax012);
 
   // Topo 1 ax = {0, 2, 1}
-  auto h_sub_gu_hat_1_ax021 = Kokkos::subview(h_gu_hat_ax021, Kokkos::ALL,
-                                              range_gu_hat_1_ax1, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax021, h_sub_gu_hat_1_ax021);
+  auto sub_gu_hat_1_ax021 = Kokkos::subview(gu_hat_ax021, Kokkos::ALL,
+                                            range_gu_hat_1_ax1, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax021, sub_gu_hat_1_ax021);
 
   // Topo 1 ax = {1, 0, 2}
-  auto h_sub_gu_hat_1_ax102 = Kokkos::subview(h_gu_hat_ax102, Kokkos::ALL,
-                                              range_gu_hat_1_ax2, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax102, h_sub_gu_hat_1_ax102);
+  auto sub_gu_hat_1_ax102 = Kokkos::subview(gu_hat_ax102, Kokkos::ALL,
+                                            range_gu_hat_1_ax2, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax102, sub_gu_hat_1_ax102);
 
   // Topo 1 ax = {1, 2, 0}
-  auto h_sub_gu_hat_1_ax120 = Kokkos::subview(h_gu_hat_ax120, Kokkos::ALL,
-                                              range_gu_hat_1_ax0, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax120, h_sub_gu_hat_1_ax120);
+  auto sub_gu_hat_1_ax120 = Kokkos::subview(gu_hat_ax120, Kokkos::ALL,
+                                            range_gu_hat_1_ax0, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax120, sub_gu_hat_1_ax120);
 
   // Topo 1 ax = {2, 0, 1}
-  auto h_sub_gu_hat_1_ax201 = Kokkos::subview(h_gu_hat_ax201, Kokkos::ALL,
-                                              range_gu_hat_1_ax1, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax201, h_sub_gu_hat_1_ax201);
+  auto sub_gu_hat_1_ax201 = Kokkos::subview(gu_hat_ax201, Kokkos::ALL,
+                                            range_gu_hat_1_ax1, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax201, sub_gu_hat_1_ax201);
 
   // Topo 1 ax = {2, 1, 0}
-  auto h_sub_gu_hat_1_ax210 = Kokkos::subview(h_gu_hat_ax210, Kokkos::ALL,
-                                              range_gu_hat_1_ax0, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax210, h_sub_gu_hat_1_ax210);
+  auto sub_gu_hat_1_ax210 = Kokkos::subview(gu_hat_ax210, Kokkos::ALL,
+                                            range_gu_hat_1_ax0, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax210, sub_gu_hat_1_ax210);
 
   // Define ranges for topology 2 (YZ-slab)
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_2_ax0(
@@ -2384,59 +2334,34 @@ void test_slab3D_view3D(std::size_t nprocs) {
       out_starts_t2_ax2.at(0) + out_extents_t2_ax2.at(0));
 
   // Topo 2 ax = {0, 1, 2}
-  auto h_sub_gu_hat_2_ax012 = Kokkos::subview(
-      h_gu_hat_ax012, range_gu_hat_2_ax2, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_2_ax012, h_sub_gu_hat_2_ax012);
+  auto sub_gu_hat_2_ax012 = Kokkos::subview(gu_hat_ax012, range_gu_hat_2_ax2,
+                                            Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax012, sub_gu_hat_2_ax012);
 
   // Topo 2 ax = {0, 2, 1}
-  auto h_sub_gu_hat_2_ax021 = Kokkos::subview(
-      h_gu_hat_ax021, range_gu_hat_2_ax1, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_2_ax021, h_sub_gu_hat_2_ax021);
+  auto sub_gu_hat_2_ax021 = Kokkos::subview(gu_hat_ax021, range_gu_hat_2_ax1,
+                                            Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax021, sub_gu_hat_2_ax021);
 
   // Topo 2 ax = {1, 0, 2}
-  auto h_sub_gu_hat_2_ax102 = Kokkos::subview(
-      h_gu_hat_ax102, range_gu_hat_2_ax2, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_2_ax102, h_sub_gu_hat_2_ax102);
+  auto sub_gu_hat_2_ax102 = Kokkos::subview(gu_hat_ax102, range_gu_hat_2_ax2,
+                                            Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax102, sub_gu_hat_2_ax102);
 
   // Topo 2 ax = {1, 2, 0}
-  auto h_sub_gu_hat_2_ax120 = Kokkos::subview(
-      h_gu_hat_ax120, range_gu_hat_2_ax0, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_2_ax120, h_sub_gu_hat_2_ax120);
+  auto sub_gu_hat_2_ax120 = Kokkos::subview(gu_hat_ax120, range_gu_hat_2_ax0,
+                                            Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax120, sub_gu_hat_2_ax120);
 
   // Topo 2 ax = {2, 0, 1}
-  auto h_sub_gu_hat_2_ax201 = Kokkos::subview(
-      h_gu_hat_ax201, range_gu_hat_2_ax1, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_2_ax201, h_sub_gu_hat_2_ax201);
+  auto sub_gu_hat_2_ax201 = Kokkos::subview(gu_hat_ax201, range_gu_hat_2_ax1,
+                                            Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax201, sub_gu_hat_2_ax201);
 
   // Topo 2 ax = {2, 1, 0}
-  auto h_sub_gu_hat_2_ax210 = Kokkos::subview(
-      h_gu_hat_ax210, range_gu_hat_2_ax0, Kokkos::ALL, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_2_ax210, h_sub_gu_hat_2_ax210);
-
-  Kokkos::deep_copy(u_0, h_u_0);
-  Kokkos::deep_copy(u_1, h_u_1);
-  Kokkos::deep_copy(u_2, h_u_2);
-
-  Kokkos::deep_copy(ref_u_hat_0_ax012, h_ref_u_hat_0_ax012);
-  Kokkos::deep_copy(ref_u_hat_0_ax021, h_ref_u_hat_0_ax021);
-  Kokkos::deep_copy(ref_u_hat_0_ax102, h_ref_u_hat_0_ax102);
-  Kokkos::deep_copy(ref_u_hat_0_ax120, h_ref_u_hat_0_ax120);
-  Kokkos::deep_copy(ref_u_hat_0_ax201, h_ref_u_hat_0_ax201);
-  Kokkos::deep_copy(ref_u_hat_0_ax210, h_ref_u_hat_0_ax210);
-
-  Kokkos::deep_copy(ref_u_hat_1_ax012, h_ref_u_hat_1_ax012);
-  Kokkos::deep_copy(ref_u_hat_1_ax021, h_ref_u_hat_1_ax021);
-  Kokkos::deep_copy(ref_u_hat_1_ax102, h_ref_u_hat_1_ax102);
-  Kokkos::deep_copy(ref_u_hat_1_ax120, h_ref_u_hat_1_ax120);
-  Kokkos::deep_copy(ref_u_hat_1_ax201, h_ref_u_hat_1_ax201);
-  Kokkos::deep_copy(ref_u_hat_1_ax210, h_ref_u_hat_1_ax210);
-
-  Kokkos::deep_copy(ref_u_hat_2_ax012, h_ref_u_hat_2_ax012);
-  Kokkos::deep_copy(ref_u_hat_2_ax021, h_ref_u_hat_2_ax021);
-  Kokkos::deep_copy(ref_u_hat_2_ax102, h_ref_u_hat_2_ax102);
-  Kokkos::deep_copy(ref_u_hat_2_ax120, h_ref_u_hat_2_ax120);
-  Kokkos::deep_copy(ref_u_hat_2_ax201, h_ref_u_hat_2_ax201);
-  Kokkos::deep_copy(ref_u_hat_2_ax210, h_ref_u_hat_2_ax210);
+  auto sub_gu_hat_2_ax210 = Kokkos::subview(gu_hat_ax210, range_gu_hat_2_ax0,
+                                            Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_2_ax210, sub_gu_hat_2_ax210);
 
   // For inverse transform
   Kokkos::deep_copy(ref_u_inv_0, u_0);

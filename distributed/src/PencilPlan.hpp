@@ -7,7 +7,7 @@
 #include <sstream>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "Block.hpp"
+#include "TransBlock.hpp"
 #include "Mapping.hpp"
 #include "MPI_Helper.hpp"
 #include "Helper.hpp"
@@ -78,7 +78,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
 
   // Analyse topology
   std::unique_ptr<PencilBlockAnalysesType> m_block_analyses;
-  OperationType m_op_type;
 
   // Buffer view types
   InViewType m_in_T;
@@ -159,7 +158,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
         out_topology, non_negative_axes, m_comm);
-    m_op_type = m_block_analyses->m_op_type;
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 4),
@@ -452,7 +450,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
 
   // Analyse topology
   std::unique_ptr<PencilBlockAnalysesType> m_block_analyses;
-  OperationType m_op_type;
   std::array<std::size_t, 3> m_fft_dims = {};
 
   // Buffer view types
@@ -540,7 +537,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
         out_topology, non_negative_axes, m_comm);
-    m_op_type = m_block_analyses->m_op_type;
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 6),
@@ -973,7 +969,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
 
   // Analyse topology
   std::unique_ptr<PencilBlockAnalysesType> m_block_analyses;
-  OperationType m_op_type;
   std::array<std::size_t, 3> m_fft_dims = {};
 
   // Buffer view types
@@ -1067,7 +1062,6 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
         out_topology, non_negative_axes, m_comm);
-    m_op_type = m_block_analyses->m_op_type;
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 8),

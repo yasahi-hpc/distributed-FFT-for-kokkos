@@ -3,7 +3,7 @@
 #include <iostream>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
-#include "Block.hpp"
+#include "TransBlock.hpp"
 #include "MPI_Helper.hpp"
 #include "Helper.hpp"
 #include "Extents.hpp"
