@@ -493,7 +493,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_pencil(in_topology.array(), mid_topo);
         block0.m_in_map            = src_map;
-        block0.m_out_map      = get_dst_map<Layout, DIM>(src_map, out_axis0);
+        block0.m_out_map      = get_dst_map<Layout, iType, DIM>(src_map, axes1);
         block0.m_in_axis      = in_axis0;
         block0.m_out_axis     = out_axis0;
         block0.m_comm_axis    = all_trans_axes.at(0);
@@ -736,7 +736,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_pencil(in_topology.array(), mid_topo0);
         block0.m_in_map            = src_map;
-        block0.m_out_map    = get_dst_map<Layout, DIM>(src_map, out_axis0);
+        block0.m_out_map    = get_dst_map<Layout, iType, DIM>(src_map, axes1);
         block0.m_in_axis    = in_axis0;
         block0.m_out_axis   = out_axis0;
         block0.m_comm_axis  = all_trans_axes.at(0);
