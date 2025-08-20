@@ -125,53 +125,46 @@ void test_plan1D_view2D(std::size_t nprocs) {
   // Topo 0
   Kokkos::pair<std::size_t, std::size_t> range_gu0(
       in_starts_t0.at(1), in_starts_t0.at(1) + in_extents_t0.at(1));
-  auto h_sub_gu_0 = Kokkos::subview(h_gu, Kokkos::ALL, range_gu0);
-  Kokkos::deep_copy(h_u_0, h_sub_gu_0);
+  auto sub_gu_0 = Kokkos::subview(gu, Kokkos::ALL, range_gu0);
+  Kokkos::deep_copy(u_0, sub_gu_0);
 
   // Topo 1
   Kokkos::pair<std::size_t, std::size_t> range_gu1(
       in_starts_t1.at(0), in_starts_t1.at(0) + in_extents_t1.at(0));
-  auto h_sub_gu_1 = Kokkos::subview(h_gu, range_gu1, Kokkos::ALL);
-  Kokkos::deep_copy(h_u_1, h_sub_gu_1);
+  auto sub_gu_1 = Kokkos::subview(gu, range_gu1, Kokkos::ALL);
+  Kokkos::deep_copy(u_1, sub_gu_1);
 
   // Topo 0 -> Topo 0 ax = {0}
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax0(
       out_starts_t0_ax0.at(1),
       out_starts_t0_ax0.at(1) + out_extents_t0_ax0.at(1));
-  auto h_sub_gu_hat_0_ax0 =
-      Kokkos::subview(h_gu_hat_ax0, Kokkos::ALL, range_gu_hat_0_ax0);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax0, h_sub_gu_hat_0_ax0);
+  auto sub_gu_hat_0_ax0 =
+      Kokkos::subview(gu_hat_ax0, Kokkos::ALL, range_gu_hat_0_ax0);
+  Kokkos::deep_copy(ref_u_hat_0_ax0, sub_gu_hat_0_ax0);
 
   // Topo 0 -> Topo 0 ax = {1}
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax1(
       out_starts_t0_ax1.at(1),
       out_starts_t0_ax1.at(1) + out_extents_t0_ax1.at(1));
-  auto h_sub_gu_hat_0_ax1 =
-      Kokkos::subview(h_gu_hat_ax1, Kokkos::ALL, range_gu_hat_0_ax1);
-  Kokkos::deep_copy(h_ref_u_hat_0_ax1, h_sub_gu_hat_0_ax1);
+  auto sub_gu_hat_0_ax1 =
+      Kokkos::subview(gu_hat_ax1, Kokkos::ALL, range_gu_hat_0_ax1);
+  Kokkos::deep_copy(ref_u_hat_0_ax1, sub_gu_hat_0_ax1);
 
   // Topo 1 -> Topo 1 ax = {0}
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax0(
       out_starts_t1_ax0.at(0),
       out_starts_t1_ax0.at(0) + out_extents_t1_ax0.at(0));
-  auto h_sub_gu_hat_1_ax0 =
-      Kokkos::subview(h_gu_hat_ax0, range_gu_hat_1_ax0, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax0, h_sub_gu_hat_1_ax0);
+  auto sub_gu_hat_1_ax0 =
+      Kokkos::subview(gu_hat_ax0, range_gu_hat_1_ax0, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax0, sub_gu_hat_1_ax0);
 
   // Topo 1 -> Topo 1 ax = {1}
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_1_ax1(
       out_starts_t1_ax1.at(0),
       out_starts_t1_ax1.at(0) + out_extents_t1_ax1.at(0));
-  auto h_sub_gu_hat_1_ax1 =
-      Kokkos::subview(h_gu_hat_ax1, range_gu_hat_1_ax1, Kokkos::ALL);
-  Kokkos::deep_copy(h_ref_u_hat_1_ax1, h_sub_gu_hat_1_ax1);
-
-  Kokkos::deep_copy(u_0, h_u_0);
-  Kokkos::deep_copy(u_1, h_u_1);
-  Kokkos::deep_copy(ref_u_hat_0_ax0, h_ref_u_hat_0_ax0);
-  Kokkos::deep_copy(ref_u_hat_0_ax1, h_ref_u_hat_0_ax1);
-  Kokkos::deep_copy(ref_u_hat_1_ax0, h_ref_u_hat_1_ax0);
-  Kokkos::deep_copy(ref_u_hat_1_ax1, h_ref_u_hat_1_ax1);
+  auto sub_gu_hat_1_ax1 =
+      Kokkos::subview(gu_hat_ax1, range_gu_hat_1_ax1, Kokkos::ALL);
+  Kokkos::deep_copy(ref_u_hat_1_ax1, sub_gu_hat_1_ax1);
 
   // For inverse transform
   Kokkos::deep_copy(ref_u_inv_0, u_0);
