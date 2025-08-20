@@ -142,7 +142,7 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   void backward(const OutViewType& out, const InViewType& in) const override {
     good(in, out);
     execute_impl(*m_plan, out, in, m_out_mapped_extents, m_in_mapped_extents,
-                 m_out_map, m_in_map, KokkosFFT::Direction::backward);
+                 m_in_map, m_out_map, KokkosFFT::Direction::backward);
   }
 
   std::string get_label() const override { return m_label; }
