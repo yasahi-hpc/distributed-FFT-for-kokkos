@@ -586,7 +586,7 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   topology_type topology0{1, nprocs}, topology1{nprocs, 1};
   axes_type ax01 = {0, 1}, ax10 = {1, 0};
 
-  const std::size_t n0 = 8, n1 = 8;
+  const std::size_t n0 = 8, n1 = 7;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
                     n1h = get_r2c_shape(n1, is_R2C);
   extents_type global_in_extents{n0, n1}, global_out_extents_ax0{n0h, n1},
@@ -774,23 +774,18 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
         std::runtime_error);
   } else {
     // topo0 -> topo1 with ax = {0, 1}:
-    // (n0, n1/p) -> (n0/p, n1) -> (n0/p, n1/2+1)
-    // -> (n0/p, n1/2+1)
-    // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
-    // -> Transpose topo 1
+    // (n0, n1/p) -> (n0/p, n1/2+1)
     TplPlan plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0, topology1,
                           MPI_COMM_WORLD);
 
     plan_0_1_ax01.forward(u_0, u_hat_1_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
 
-    // FIXME failing for R2C
-    // plan_0_1_ax01.backward(u_hat_1_ax01, u_inv_0);
-    // EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
+    plan_0_1_ax01.backward(u_hat_1_ax01, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
     // topo0 -> topo1 with ax = {1, 0}:
-    // (n0, n1/p) -> (n0/2+1, n1/p) -> ((n0/2+1)/p, n1)
-    // FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1}
+    // (n0, n1/p) -> ((n0/2+1)/p, n1)
     TplPlan plan_0_1_ax10(exec, u_0, u_hat_1_ax10, ax10, topology0, topology1,
                           MPI_COMM_WORLD);
 
@@ -798,31 +793,27 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
     EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
 
     plan_0_1_ax10.backward(u_hat_1_ax10, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
     // topo1 -> topo0 with ax = {0, 1}:
-    // (n0/p, n1) -> (n0/p, n1/2+1) -> (n0, (n1/2+1)/p)
-    // FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
+    // (n0/p, n1) -> (n0, (n1/2+1)/p)
     TplPlan plan_1_0_ax01(exec, u_1, u_hat_0_ax01, ax01, topology1, topology0,
                           MPI_COMM_WORLD);
     plan_1_0_ax01.forward(u_1, u_hat_0_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
 
-    // FIXME failing for R2C
-    // plan_1_0_ax01.backward(u_hat_0_ax01, u_inv_1);
-    // EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1));
+    plan_1_0_ax01.backward(u_hat_0_ax01, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
 
     // topo1 -> topo0 with ax = {1, 0}:
-    // (n0/p, n1) -> (n0, n1/p) -> (n0/2+1, n1/p) -> ((n0/2+1)/p, n1)
-    // Transpose topo 0 -> FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1}
-    // -> Transpose topo 0
+    // (n0/p, n1) -> ((n0/2+1)/p, n1)
     TplPlan plan_1_0_ax10(exec, u_1, u_hat_0_ax10, ax10, topology1, topology0,
                           MPI_COMM_WORLD);
     plan_1_0_ax10.forward(u_1, u_hat_0_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
 
     plan_1_0_ax10.backward(u_hat_0_ax10, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1));
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
   }
 }
 
@@ -1276,9 +1267,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_0_1_ax120.forward(u_0, u_hat_1_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
 
-    // FIXME
-    // plan_0_1_ax120.backward(u_hat_1_ax120, u_inv_0);
-    // EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    plan_0_1_ax120.backward(u_hat_1_ax120, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
     // topo 0 -> topo 1 with ax = {2, 0, 1}:
     // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
@@ -1288,8 +1278,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201));
 
     // FIXME
-    // plan_0_1_ax201.backward(u_hat_1_ax201, u_inv_0);
-    // EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    plan_0_1_ax201.backward(u_hat_1_ax201, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
     // topo 0 -> topo 1 with ax = {2, 1, 0}:
     // (n0, n1, n2/p) -> (n0/2+1, n1/p, n2)
@@ -1338,9 +1328,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_0_2_ax120.forward(u_0, u_hat_2_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
 
-    // FIXME
-    // plan_0_2_ax120.backward(u_hat_2_ax120, u_inv_0);
-    // EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    plan_0_2_ax120.backward(u_hat_2_ax120, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
     // topo 0 -> topo 2 with ax = {2, 0, 1}:
     // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
@@ -1349,9 +1338,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_0_2_ax201.forward(u_0, u_hat_2_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
 
-    // FIXME
-    // plan_0_2_ax201.backward(u_hat_2_ax201, u_inv_0);
-    // EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    plan_0_2_ax201.backward(u_hat_2_ax201, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
     // topo 0 -> topo 2 with ax = {2, 1, 0}:
     // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
@@ -1400,9 +1388,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_1_0_ax120.forward(u_1, u_hat_0_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
 
-    // FIXME
-    // plan_1_0_ax120.backward(u_hat_0_ax120, u_inv_1);
-    // EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    plan_1_0_ax120.backward(u_hat_0_ax120, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
 
     // topo 1 -> topo 0 with ax = {2, 0, 1}:
     // (n0p, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
@@ -1411,9 +1398,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_1_0_ax201.forward(u_1, u_hat_0_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
 
-    // FIXME
-    // plan_1_0_ax201.backward(u_hat_0_ax201, u_inv_1);
-    // EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    plan_1_0_ax201.backward(u_hat_0_ax201, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
 
     // topo 1 -> topo 0 with ax = {2, 1, 0}:
     // (n0p, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
@@ -1462,9 +1448,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_1_2_ax120.forward(u_1, u_hat_2_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
 
-    // FIXME
-    // plan_1_2_ax120.backward(u_hat_2_ax120, u_inv_1);
-    // EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    plan_1_2_ax120.backward(u_hat_2_ax120, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
 
     // topo 1 -> topo 2 with ax = {2, 0, 1}:
     // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
@@ -1473,9 +1458,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_1_2_ax201.forward(u_1, u_hat_2_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
 
-    // FIXME
-    // plan_1_2_ax201.backward(u_hat_2_ax201, u_inv_1);
-    // EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    plan_1_2_ax201.backward(u_hat_2_ax201, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
 
     // topo 1 -> topo 2 with ax = {2, 1, 0}:
     // (n0, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
@@ -1524,9 +1508,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_2_0_ax120.forward(u_2, u_hat_0_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
 
-    // FIXME
-    // plan_2_0_ax120.backward(u_hat_0_ax120, u_inv_2);
-    // EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    plan_2_0_ax120.backward(u_hat_0_ax120, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
 
     // topo 2 -> topo 0 with ax = {2, 0, 1}:
     // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
@@ -1535,9 +1518,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_2_0_ax201.forward(u_2, u_hat_0_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
 
-    // FIXME
-    // plan_2_0_ax201.backward(u_hat_0_ax201, u_inv_2);
-    // EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    plan_2_0_ax201.backward(u_hat_0_ax201, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
 
     // topo 2 -> topo 0 with ax = {2, 1, 0}:
     // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
@@ -1586,9 +1568,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_2_1_ax120.forward(u_2, u_hat_1_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
 
-    // FIXME
-    // plan_2_1_ax120.backward(u_hat_1_ax120, u_inv_2);
-    // EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    plan_2_1_ax120.backward(u_hat_1_ax120, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
 
     // topo 2 -> topo 1 with ax = {2, 0, 1}:
     // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
@@ -1597,9 +1578,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     plan_2_1_ax201.forward(u_2, u_hat_1_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201));
 
-    // FIXME
-    // plan_2_1_ax201.backward(u_hat_1_ax201, u_inv_2);
-    // EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    plan_2_1_ax201.backward(u_hat_1_ax201, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
 
     // topo 2 -> topo 1 with ax = {2, 1, 0}:
     // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
@@ -1628,7 +1608,7 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
   topology_type topology0{1, npx, npy}, topology1{npx, 1, npy},
       topology2{npx, npy, 1};
 
-  const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  const std::size_t n0 = 5, n1 = 6, n2 = 7;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
                     n1h = get_r2c_shape(n1, is_R2C),
                     n2h = get_r2c_shape(n2, is_R2C);
@@ -2083,11 +2063,7 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
         std::runtime_error);
   } else {
     // topo 0 -> topo 2 with ax = {0, 1, 2}:
-    // (n0, n1/px, n2/py) -> (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1)
-    // -> (n0/py, n1, (n2/2+1)/px) -> (n0, n1/py, (n2/2+1)/px)
-    // -> (n0/px, n1/py, n2/2+1)
-    // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 4 -> FFT ax = {1}
-    // -> Transpose topo 5 -> FFT ax = {0} -> Transpose topo 3
+    // (n0, n1/px, n2/py) -> (n0/px, n1/py, n2/2+1)
     TplPlan plan_0_2_ax012(exec, u_0, u_hat_2_ax012, ax012, topology0,
                            topology2, MPI_COMM_WORLD);
     plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
@@ -2097,16 +2073,23 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
     // topo 2 -> topo 0 with ax = {0, 1, 2}:
-    // (n0/px, n1/py, n2) -> (n0/px, n1/py, n2/2+1) -> (n0/px, n1, (n2/2+1)/py)
-    // -> (n0, n1/px, (n2/2+1)/py)
-    // FFT ax = {2} -> Transpose topo 1 -> FFT ax = {1} ->
-    // Transpose topo 0 -> FFT ax = {0}
+    // (n0/px, n1/py, n2) -> (n0, n1/px, (n2/2+1)/py)
     TplPlan plan_2_0_ax012(exec, u_2, u_hat_0_ax012, ax012, topology2,
                            topology0, MPI_COMM_WORLD);
     plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
     plan_2_0_ax012.backward(u_hat_0_ax012, u_inv_2);
+    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+
+    // topo 2 -> topo 1 with ax = {0, 1, 2}:
+    // (n0/px, n1/py, n2) -> (n0/px, n1, (n2/2+1)/py)
+    TplPlan plan_2_1_ax012(exec, u_2, u_hat_1_ax012, ax012, topology2,
+                           topology1, MPI_COMM_WORLD);
+    plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+
+    plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
     EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
   }
 }
