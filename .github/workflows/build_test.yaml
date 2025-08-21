@@ -211,7 +211,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=${{ matrix.backend.compiler.cxx }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.backend.cmake_flags.cxx_standard }} \
             ${{ matrix.backend.cmake_flags.kokkos_fft }} \
-            ${{ matrix.target.cmake_flags }}
+            ${{ matrix.target.cmake_flags }} \
+            tpls/kokkos-fft
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
             cmake --build build_kokkos_fft -j 4
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
