@@ -113,7 +113,7 @@ jobs:
           - name: sycl
             image: intel
             compiler:
-              cxx: icpx
+              cxx: mpiicpx
             cmake_flags:
               # building for Intel PVC was unsuccessful without the proper
               # device, so for now, we simply generate generic Intel GPU code
