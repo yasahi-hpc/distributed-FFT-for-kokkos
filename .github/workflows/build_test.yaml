@@ -165,6 +165,8 @@ jobs:
             -DCMAKE_CXX_STANDARD=${{ matrix.backend.cmake_flags.cxx_standard }} \
             -DENABLE_INTERNAL_KOKKOS=ON \
             -DENABLE_INTERNAL_KOKKOSFFT=ON \
+            -DENABLE_TESTS=ON \
+            -DENABLE_EXAMPLES=ON \
             ${{ matrix.backend.cmake_flags.kokkos }} \
             ${{ matrix.backend.cmake_flags.kokkos_fft }} \
             ${{ matrix.target.cmake_flags }}
@@ -226,7 +228,7 @@ jobs:
             -DCMAKE_PREFIX_PATH=/work/install \
             -DCMAKE_CXX_COMPILER=${{ matrix.backend.compiler.cxx }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.backend.cmake_flags.cxx_standard }} \
-            install_test/as_library
+            -DENABLE_EXAMPLES=ON
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
             cmake --build build_installed -j 2
 
