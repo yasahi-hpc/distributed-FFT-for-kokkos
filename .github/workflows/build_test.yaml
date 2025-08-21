@@ -174,7 +174,7 @@ jobs:
       - name: Build
         run: |
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
-            cmake --build build -j 2 VERBOSE=1
+            cmake --build build -j 2 -- VERBOSE=1
 
       - name: Prepare artifacts
         # this is mandatory to preserve execution rights
