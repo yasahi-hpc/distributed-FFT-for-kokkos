@@ -1,0 +1,29 @@
+# Clean old Docker and Singularity images that are too old periodically or
+# manually.
+
+name: Cleanup base images
+
+on:
+  schedule:
+    - cron: "0 3 2,16 * *" # every 2nd and 16th of the month at 3am UTC
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Cleanup old images
+        uses: SmartsquareGmbH/delete-old-packages@e207ebd412f87647d9c35325e270c2156318c51c  # v0.8.1
+        with:
+          user: yasahi-hpc
+          type: container
+          names: |
+            distributed-fft/base_nvcc
+            distributed-fft/base_rocm
+            distributed-fft/base_gcc
+            distributed-fft/base_clang
+            distributed-fft/base_intel
