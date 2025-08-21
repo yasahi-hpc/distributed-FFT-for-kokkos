@@ -119,7 +119,7 @@ jobs:
               # device, so for now, we simply generate generic Intel GPU code
               cxx_standard: 17
               kokkos: -DKokkos_ENABLE_SYCL=ON -DKokkos_ARCH_INTEL_GEN=ON
-              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra"
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -D__DPCPP_SYCL_EXTERNAL=
             cmake_build_type: Release
         target:
           - name: native
