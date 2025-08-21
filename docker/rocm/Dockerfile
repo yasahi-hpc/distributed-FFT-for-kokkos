@@ -14,6 +14,12 @@ RUN apt-get update && apt-get install -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install OpenMPI
+RUN apt-get update && apt-get install -y \
+    openmpi-bin \
+    libopenmpi-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 ENV FFTWDIR "/usr"
 
 ENV PATH=/opt/rocm/bin:$PATH
