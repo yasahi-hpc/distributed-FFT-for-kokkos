@@ -186,36 +186,6 @@ jobs:
           path: tests_${{ matrix.backend.name }}.tar
         if: ${{ matrix.target.name == 'native' }}
 
-      # consume the project in a dummy project
-      # ideally, this part should be executed in a different job using almost
-      # the same `matrix` (minus `target`) as the `build` job; this would
-      # however make a duplicated and error-prone `matrix`, and sharing a
-      # `matrix` between jobs is currently not possible with GitHub Actions
-      # (neither directly, nor using YAML anchors, other options were too
-      # cumbersome when writing this); consequently, this part is just here for
-      # now
-
-      - name: Prepare as subdirectory
-        run: |
-          # prepare kokkos
-          git clone ./tpls/kokkos ./install_test/as_subdirectory/tpls/kokkos
-          # prepare kokkos-fft
-          git clone . ./install_test/as_subdirectory/tpls/kokkos-fft
-
-      - name: Configure and build test project as subdirectory
-        run: |
-          docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
-          cmake -B install_test/as_subdirectory/build \
-            -DCMAKE_BUILD_TYPE=${{ matrix.backend.cmake_build_type }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.backend.compiler.cxx }} \
-            -DCMAKE_CXX_STANDARD=${{ matrix.backend.cmake_flags.cxx_standard }} \
-            ${{ matrix.backend.cmake_flags.kokkos }} \
-            ${{ matrix.backend.cmake_flags.kokkos_fft }} \
-            ${{ matrix.target.cmake_flags }} \
-            install_test/as_subdirectory
-          docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
-          cmake --build install_test/as_subdirectory/build
-
       - name: Configure, build and install Kokkos as library
         run: |
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
@@ -247,7 +217,7 @@ jobs:
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
             cmake --install build_kokkos_fft
 
-      - name: Configure and build test project as library
+      - name: Configure and build the project
         run: |
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
             cmake -B build_installed \
