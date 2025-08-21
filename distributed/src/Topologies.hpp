@@ -152,15 +152,15 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
       diff_indices.size() < 3 && diffs.size() == 3,
       "Input and output topologies must differ exactly three positions.");
 
-  // Only copy the exchangable indices from original arrays in and out
-  std::array<iType, DIM> in_trimed = {}, out_trimed = {};
+  // Only copy the exchangeable indices from original arrays in and out
+  std::array<iType, DIM> in_trimmed = {}, out_trimmed = {};
   for (auto diff_idx : diff_indices) {
-    in_trimed.at(diff_idx)  = in.at(diff_idx);
-    out_trimed.at(diff_idx) = out.at(diff_idx);
+    in_trimmed.at(diff_idx)  = in.at(diff_idx);
+    out_trimmed.at(diff_idx) = out.at(diff_idx);
   }
 
-  iType idx_one_in  = KokkosFFT::Impl::get_index(in_trimed, iType(1));
-  iType idx_one_out = KokkosFFT::Impl::get_index(out_trimed, iType(1));
+  iType idx_one_in  = KokkosFFT::Impl::get_index(in_trimmed, iType(1));
+  iType idx_one_out = KokkosFFT::Impl::get_index(out_trimmed, iType(1));
 
   // Try all combinations of 2 indices for a single valid swap
   for (size_t i = 0; i < diff_non_ones.size(); ++i) {
@@ -416,7 +416,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
     return topologies;
   }
 
-  // If the conditions above are not satisified, we need a
+  // If the conditions above are not satisfied, we need a
   // intermediate topology
   if constexpr (DIM > 3 && FFT_DIM == 3) {
     // First, remove the already ready axes
@@ -578,7 +578,7 @@ auto get_all_pencil_topologies(
   auto out_topology_tmp = out_topology.array();
 
   if (has_same_non_one_elements) {
-    // If the elements are the same, the following startegy does not work
+    // If the elements are the same, the following strategy does not work
     // Thus, we replace the elements by dummies to manipulate
     std::array<std::size_t, 2> dummies = {2, 3};
     int count                          = 0;
@@ -624,7 +624,7 @@ auto get_all_pencil_topologies(
   };
 
   auto get_layout = [&](const topology_type& topology) {
-    // If this condition is satisified, it means layout right
+    // If this condition is satisfied, it means layout right
     std::size_t is_layout_right =
         find_non_ones(topology).at(0) == first_non_one;
     return is_layout_right;

@@ -33,7 +33,7 @@ void test_get_trans_axis(std::size_t nprocs) {
         std::runtime_error);
 
   } else if (nprocs == np0) {
-    // Failure tests because they include idential non-one elements
+    // Failure tests because they include identical non-one elements
     EXPECT_THROW(
         {
           [[maybe_unused]] auto trans_axis =

@@ -1,6 +1,7 @@
 [default.extend-words]
 # Don't correct these word (parts)
 iy = "iy"
+nin = "nin"
 ND = "ND"
 SAV = "SAV"
 arange = "arange"
