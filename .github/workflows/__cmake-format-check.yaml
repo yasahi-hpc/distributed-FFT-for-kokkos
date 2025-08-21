@@ -21,4 +21,4 @@ jobs:
         args: --config-files .cmake-format.py --in-place
         file-regex: '(.*\.cmake$|.*\.cmake\.in$|CMakeLists.txt$)'
     - name: check
-      run: git diff --exit-code 
+      run: git diff --exit-code
