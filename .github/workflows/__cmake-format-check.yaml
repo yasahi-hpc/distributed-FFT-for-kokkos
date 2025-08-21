@@ -8,7 +8,8 @@ name: cmake-format check
 on:
   workflow_call:
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   cmake-formatting-check:
