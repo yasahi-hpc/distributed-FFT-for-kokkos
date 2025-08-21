@@ -1335,7 +1335,7 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/py, n2) -> (n0/px, n1/py, n2/2+1)
     // -> (n0, n1/py, (n2/2+1)/px) -> (n0/px, n1/py, n2/2+1)
     // -> (n0/px, n1, (n2/2+1)/py)
-    // Tranpose 3 -> FFT ax = {2} -> Transpose topo 5 -> FFT ax = {0}
+    // Transpose 3 -> FFT ax = {2} -> Transpose topo 5 -> FFT ax = {0}
     // -> Transpose 3 -> Transpose 1
     PencilPlan plan_1_1_ax02(exec, u_1, u_hat_1_ax02, ax02, topology1,
                              topology1, MPI_COMM_WORLD);
@@ -1412,7 +1412,7 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // topo 1 -> topo 2 with ax = {0, 2}:
     // (n0/px, n1, n2/py) -> (n0/px, n1/py, n2) -> (n0/px, n1/py, n2/2+1)
     // -> (n0, n1/py, (n2/2+1)/px) -> (n0/px, n1/py, n2/2+1)
-    // Tranpose 3 -> FFT ax = {2} -> Transpose topo 5 -> FFT ax = {0}
+    // Transpose 3 -> FFT ax = {2} -> Transpose topo 5 -> FFT ax = {0}
     // -> Transpose 4 -> Transpose 2
     PencilPlan plan_1_2_ax02(exec, u_1, u_hat_2_ax02, ax02, topology1,
                              topology2, MPI_COMM_WORLD);
@@ -1477,7 +1477,7 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // topo 2 -> topo 0 with ax = {0, 1}:
     // (n0/py, n1/px, n2) -> (n0/py, n1, n2/px) -> (n0/py, n1/2+1, n2/px)
     // -> (n0/py, (n1/2+1)/px, n2) -> (n0, (n1/2+1)/px, n2/py)
-    // Tranpose 4 -> FFT ax = {1} -> Transpose topo 2 -> Transpose 0
+    // Transpose 4 -> FFT ax = {1} -> Transpose topo 2 -> Transpose 0
     // -> FFT ax = {0}
     PencilPlan plan_2_0_ax01(exec, u_2, u_hat_0_ax01, ax01, topology2,
                              topology0, MPI_COMM_WORLD);

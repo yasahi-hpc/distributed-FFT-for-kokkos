@@ -1,0 +1,74 @@
+# Generate base images for each compiler environment. Images are stored on
+# Github registry as Docker format inconditionnaly and as Singularity format
+# only if requested. Docker images are used for building Kokkos FFT, while
+# Singularity images are used for test execution on the righteous hardware.
+# It runs once month, on any push on `main` if Docker files are changed, and
+# mannualy.
+# It also runs on pull requests, but then the Singularity image is not created,
+# and no images are pushed to the registry.
+
+name: Create base images
+
+on:
+  schedule:
+    - cron: "0 1 2 * *" # every 2nd of the month at 1am UTC
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'docker/**/Dockerfile'
+  pull_request:
+    paths:
+      - 'docker/**/Dockerfile'
+  workflow_dispatch:
+
+env:
+  # Force the use of BuildKit for Docker
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  create_base:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        image:
+          - name: gcc
+          - name: clang
+          - name: nvcc
+          - name: rocm
+          - name: intel
+
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be  # v1.3.1
+        with:
+          tool-cache: true
+          large-packages: false
+
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+
+      - name: Login in GitHub Containers Repository with Docker
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1  # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.image.name }}:latest \
+            --cache-from ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.image.name }}:latest \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --progress=plain \
+            docker/${{ matrix.image.name }}
+
+      - name: Push Docker image
+        run: docker push ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.image.name }}:latest
+        if: ${{ github.event != 'pull_request' }}

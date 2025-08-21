@@ -43,7 +43,7 @@ class MPITestEventListener : public ::testing::EmptyTestEventListener {
 
 int main(int argc, char* argv[]) {
 // Initialize MPI first
-#if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
+#if defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
   MPI_Init(&argc, &argv);
 #else
   int provided;

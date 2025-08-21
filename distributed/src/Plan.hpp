@@ -12,7 +12,7 @@
 #include "SlabPlan.hpp"
 #include "PencilPlan.hpp"
 
-#if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
+#if defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
 #include "TplPlan.hpp"
 #endif
 
@@ -29,7 +29,7 @@ internal_plan_factory(
         out_topology,
     const MPI_Comm& comm,
     KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
-#if defined(PRIOTIZE_TPL_PLAN_IF_AVAILABLE)
+#if defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
   if constexpr ((InViewType::rank() == 2 && DIM == 2) ||
                 (InViewType::rank() == 3 && DIM == 3)) {
     if (is_tpl_available(exec_space, in, out, axes, in_topology,
