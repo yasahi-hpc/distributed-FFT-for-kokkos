@@ -1,5 +1,7 @@
 # distributed-FFT-for-kokkos
 
+[![CI](https://github.com/yasahi-hpc/distributed-FFT-for-kokkos/actions/workflows/build_test.yaml/badge.svg)](https://yasahi-hpc/distributed-FFT-for-kokkos/actions)
+
 The distributed FFT interface for kokkos users based on [kokkos](https://github.com/kokkos/kokkos) and [kokkos-fft](https://github.com/kokkos/kokkos-fft).
 
 ## Using
@@ -28,6 +30,8 @@ For compilation, we basically rely on the CMake options for Kokkos. For example,
 cmake -B build \
       -DCMAKE_CXX_COMPILER=hipcc \
       -DCMAKE_BUILD_TYPE=Release \
+      -DENABLE_INTERNAL_KOKKOS=ON \
+      -DENABLE_INTERNAL_KOKKOSFFT=ON \
       -DENABLE_TESTS=ON \
       -DENABLE_EXAMPLES=ON \
       -DKokkos_ENABLE_HIP=ON \
