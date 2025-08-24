@@ -5,6 +5,7 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "Types.hpp"
+#include "Utils.hpp"
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
@@ -23,26 +24,35 @@ class InternalPlan {
   //! Normalization
   KokkosFFT::Normalization m_norm;
 
+  //! FFT size
+  std::size_t m_fft_size = 1;
+
  public:
-  explicit InternalPlan(const ExecutionSpace& /*exec_space*/,
-                        const InViewType& in, const OutViewType& out,
-                        const axes_type& /*axes*/,
-                        const extents_type& /*in_topology*/,
-                        const extents_type& /*out_topology*/,
-                        const MPI_Comm& /*comm*/, KokkosFFT::Normalization norm)
-      : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
-        m_out_extents(KokkosFFT::Impl::extract_extents(out)),
-        m_norm(norm) {}
+  explicit InternalPlan(const ExecutionSpace& exec_space, const InViewType& in,
+                        const OutViewType& out, const axes_type& axes,
+                        const extents_type& in_topology,
+                        const extents_type& out_topology, const MPI_Comm& comm,
+                        KokkosFFT::Normalization norm)
+      : InternalPlan(exec_space, in, out, axes, in_topology, out_topology, comm,
+                     norm) {}
 
   explicit InternalPlan(const ExecutionSpace& /*exec_space*/,
                         const InViewType& in, const OutViewType& out,
-                        const axes_type& /*axes*/,
-                        const in_topology_type& /*in_topology*/,
-                        const out_topology_type& /*out_topology*/,
-                        const MPI_Comm& /*comm*/, KokkosFFT::Normalization norm)
+                        const axes_type& axes,
+                        const in_topology_type& in_topology,
+                        const out_topology_type& out_topology,
+                        const MPI_Comm& comm, KokkosFFT::Normalization norm)
       : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)),
-        m_norm(norm) {}
+        m_norm(norm) {
+    auto gin_extents  = get_global_shape(in, in_topology, comm);
+    auto gout_extents = get_global_shape(out, out_topology, comm);
+    auto non_negative_axes =
+        convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(axes);
+    auto fft_extents =
+        get_fft_extents(gin_extents, gout_extents, non_negative_axes);
+    m_fft_size = get_size(fft_extents);
+  }
 
   virtual ~InternalPlan() = default;
 
@@ -56,10 +66,11 @@ class InternalPlan {
   /// \param[in] Input view
   virtual void backward(const OutViewType& out, const InViewType& in) const = 0;
 
-  virtual std::string get_label() const = 0;
+  virtual std::string label() const = 0;
 
  protected:
   KokkosFFT::Normalization get_norm() const { return m_norm; }
+  std::size_t get_fft_size() const { return m_fft_size; }
 
   void good(const InViewType& in, const OutViewType& out) const {
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);

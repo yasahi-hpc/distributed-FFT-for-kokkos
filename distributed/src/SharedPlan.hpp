@@ -74,7 +74,7 @@ class SharedPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     KokkosFFT::execute(m_backward_plan, out, in, get_norm());
   }
 
-  std::string get_label() const override { return std::string("SharedPlan"); }
+  std::string label() const override { return std::string("SharedPlan"); }
 };
 
 #endif

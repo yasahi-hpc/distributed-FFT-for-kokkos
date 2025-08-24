@@ -58,8 +58,6 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   extents_type m_in_mapped_extents, m_out_mapped_extents;
   ///@}
 
-  std::string m_label;
-
   std::size_t m_fft_size;
 
   using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
@@ -145,7 +143,7 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
                  m_in_map, m_out_map, KokkosFFT::Direction::backward);
   }
 
-  std::string get_label() const override { return m_label; }
+  std::string label() const override { return m_plan->label(); }
 
  private:
   template <typename PlanType, typename InView, typename OutView>

@@ -187,6 +187,8 @@ struct ScopedCufftMpPlan {
     }
     KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftSetStream failed");
   }
+
+  std::string label() const { return std::string("CufftMpPlan"); }
 };
 
 template <typename ExecutionSpace, typename T1, typename T2>

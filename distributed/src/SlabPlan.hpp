@@ -63,7 +63,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
   topology_type m_in_topology;
   topology_type m_out_topology;
   MPI_Comm m_comm;
-  KokkosFFT::Normalization m_normalization;
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
@@ -92,15 +91,12 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
                             const axes_type& axes,
                             const topology_type& in_topology,
                             const topology_type& out_topology,
-                            const MPI_Comm& comm,
-                            KokkosFFT::Normalization normalization =
-                                KokkosFFT::Normalization::backward)
+                            const MPI_Comm& comm)
       : m_exec_space(exec_space),
         m_axes(axes),
         m_in_topology(in_topology),
         m_out_topology(out_topology),
-        m_comm(comm),
-        m_normalization(normalization) {
+        m_comm(comm) {
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
@@ -159,19 +155,23 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
   void forward_fft(const InType& in, const OutType& out) const {
     if (m_map_forward_in == int_map_type{} &&
         m_map_forward_out == int_map_type{}) {
-      KokkosFFT::execute(*m_forward_plan, in, out, m_normalization);
+      KokkosFFT::execute(*m_forward_plan, in, out,
+                         KokkosFFT::Normalization::none);
     } else if (m_map_forward_in == int_map_type{} &&
                m_map_forward_out != int_map_type{}) {
-      KokkosFFT::execute(*m_forward_plan, in, m_out_T, m_normalization);
+      KokkosFFT::execute(*m_forward_plan, in, m_out_T,
+                         KokkosFFT::Normalization::none);
       safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
     } else if (m_map_forward_in != int_map_type{} &&
                m_map_forward_out == int_map_type{}) {
       safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-      KokkosFFT::execute(*m_forward_plan, m_in_T, out, m_normalization);
+      KokkosFFT::execute(*m_forward_plan, m_in_T, out,
+                         KokkosFFT::Normalization::none);
     } else if (m_map_forward_in != int_map_type{} &&
                m_map_forward_out != int_map_type{}) {
       safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-      KokkosFFT::execute(*m_forward_plan, m_in_T, m_out_T, m_normalization);
+      KokkosFFT::execute(*m_forward_plan, m_in_T, m_out_T,
+                         KokkosFFT::Normalization::none);
       safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
     }
   }
@@ -180,19 +180,23 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
   void backward_fft(const OutType& out, const InType& in) const {
     if (m_map_backward_in == int_map_type{} &&
         m_map_backward_out == int_map_type{}) {
-      KokkosFFT::execute(*m_backward_plan, out, in, m_normalization);
+      KokkosFFT::execute(*m_backward_plan, out, in,
+                         KokkosFFT::Normalization::none);
     } else if (m_map_backward_in == int_map_type{} &&
                m_map_backward_out != int_map_type{}) {
-      KokkosFFT::execute(*m_backward_plan, out, m_in_T, m_normalization);
+      KokkosFFT::execute(*m_backward_plan, out, m_in_T,
+                         KokkosFFT::Normalization::none);
       safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
     } else if (m_map_backward_in != int_map_type{} &&
                m_map_backward_out == int_map_type{}) {
       safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-      KokkosFFT::execute(*m_backward_plan, m_out_T, in, m_normalization);
+      KokkosFFT::execute(*m_backward_plan, m_out_T, in,
+                         KokkosFFT::Normalization::none);
     } else if (m_map_backward_in != int_map_type{} &&
                m_map_backward_out != int_map_type{}) {
       safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-      KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T, m_normalization);
+      KokkosFFT::execute(*m_backward_plan, m_out_T, m_in_T,
+                         KokkosFFT::Normalization::none);
       safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
     }
   }
@@ -362,7 +366,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
   topology_type m_in_topology;
   topology_type m_out_topology;
   MPI_Comm m_comm;
-  KokkosFFT::Normalization m_normalization;
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
@@ -396,15 +399,12 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
                             const axes_type& axes,
                             const topology_type& in_topology,
                             const topology_type& out_topology,
-                            const MPI_Comm& comm,
-                            KokkosFFT::Normalization normalization =
-                                KokkosFFT::Normalization::backward)
+                            const MPI_Comm& comm)
       : m_exec_space(exec_space),
         m_axes(axes),
         m_in_topology(in_topology),
         m_out_topology(out_topology),
-        m_comm(comm),
-        m_normalization(normalization) {
+        m_comm(comm) {
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
@@ -463,35 +463,43 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
     if constexpr (STEP == 0) {
       if (first_FFT_dim == 1) {
         if (m_map_forward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_fft_plan0, in, out, m_normalization);
+          KokkosFFT::execute(*m_fft_plan0, in, out,
+                             KokkosFFT::Normalization::none);
         } else {
           safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_fft_plan0, m_in_T, out, m_normalization);
+          KokkosFFT::execute(*m_fft_plan0, m_in_T, out,
+                             KokkosFFT::Normalization::none);
         }
       } else if (first_FFT_dim == 2) {
         if (m_map_forward_in == int_map_type{} &&
             m_map_forward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_fft2_plan0, in, out, m_normalization);
+          KokkosFFT::execute(*m_fft2_plan0, in, out,
+                             KokkosFFT::Normalization::none);
         } else if (m_map_forward_in == int_map_type{} &&
                    m_map_forward_out != int_map_type{}) {
-          KokkosFFT::execute(*m_fft2_plan0, m_in_T, m_out_T, m_normalization);
+          KokkosFFT::execute(*m_fft2_plan0, m_in_T, m_out_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
         } else if (m_map_forward_in != int_map_type{} &&
                    m_map_forward_out == int_map_type{}) {
           safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_fft2_plan0, m_in_T, out, m_normalization);
+          KokkosFFT::execute(*m_fft2_plan0, m_in_T, out,
+                             KokkosFFT::Normalization::none);
         } else {
           safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_fft2_plan0, m_in_T, m_out_T, m_normalization);
+          KokkosFFT::execute(*m_fft2_plan0, m_in_T, m_out_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
         }
       }
     } else if constexpr (STEP == 1) {
       if (first_FFT_dim == 1) {
         if (m_map_forward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_fft_plan1, in, out, m_normalization);
+          KokkosFFT::execute(*m_fft_plan1, in, out,
+                             KokkosFFT::Normalization::none);
         } else {
-          KokkosFFT::execute(*m_fft_plan1, in, m_out_T2, m_normalization);
+          KokkosFFT::execute(*m_fft_plan1, in, m_out_T2,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_out_T2, out, m_map_forward_out);
         }
       }
@@ -503,36 +511,44 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
     if constexpr (STEP == 0) {
       if (first_FFT_dim == 1) {
         if (m_map_backward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_ifft_plan0, out, in, m_normalization);
+          KokkosFFT::execute(*m_ifft_plan0, out, in,
+                             KokkosFFT::Normalization::none);
         } else {
-          KokkosFFT::execute(*m_ifft_plan0, out, m_in_T, m_normalization);
+          KokkosFFT::execute(*m_ifft_plan0, out, m_in_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
         }
       } else if (first_FFT_dim == 2) {
         if (m_map_backward_in == int_map_type{} &&
             m_map_backward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_ifft2_plan0, out, in, m_normalization);
+          KokkosFFT::execute(*m_ifft2_plan0, out, in,
+                             KokkosFFT::Normalization::none);
         } else if (m_map_backward_in == int_map_type{} &&
                    m_map_backward_out != int_map_type{}) {
-          KokkosFFT::execute(*m_ifft2_plan0, out, m_in_T, m_normalization);
+          KokkosFFT::execute(*m_ifft2_plan0, out, m_in_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
         } else if (m_map_backward_in != int_map_type{} &&
                    m_map_backward_out == int_map_type{}) {
           safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-          KokkosFFT::execute(*m_ifft2_plan0, m_out_T, in, m_normalization);
+          KokkosFFT::execute(*m_ifft2_plan0, m_out_T, in,
+                             KokkosFFT::Normalization::none);
         } else if (m_map_backward_in != int_map_type{} &&
                    m_map_backward_out != int_map_type{}) {
           safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-          KokkosFFT::execute(*m_ifft2_plan0, m_out_T, m_in_T, m_normalization);
+          KokkosFFT::execute(*m_ifft2_plan0, m_out_T, m_in_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
         }
       }
     } else if constexpr (STEP == 1) {
       if (m_map_backward_in == int_map_type{}) {
-        KokkosFFT::execute(*m_ifft_plan1, out, in, m_normalization);
+        KokkosFFT::execute(*m_ifft_plan1, out, in,
+                           KokkosFFT::Normalization::none);
       } else {
         safe_transpose(m_exec_space, out, m_out_T2, m_map_backward_in);
-        KokkosFFT::execute(*m_ifft_plan1, m_out_T2, in, m_normalization);
+        KokkosFFT::execute(*m_ifft_plan1, m_out_T2, in,
+                           KokkosFFT::Normalization::none);
       }
     }
   }
@@ -797,7 +813,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
   topology_type m_in_topology;
   topology_type m_out_topology;
   MPI_Comm m_comm;
-  KokkosFFT::Normalization m_normalization;
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
@@ -834,15 +849,12 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
                             const axes_type& axes,
                             const topology_type& in_topology,
                             const topology_type& out_topology,
-                            const MPI_Comm& comm,
-                            KokkosFFT::Normalization normalization =
-                                KokkosFFT::Normalization::backward)
+                            const MPI_Comm& comm)
       : m_exec_space(exec_space),
         m_axes(axes),
         m_in_topology(in_topology),
         m_out_topology(out_topology),
-        m_comm(comm),
-        m_normalization(normalization) {
+        m_comm(comm) {
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
@@ -902,49 +914,61 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
     if constexpr (STEP == 0) {
       if (first_FFT_dim == 1) {
         if (m_map_forward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_fft_plan0, in, out, m_normalization);
+          KokkosFFT::execute(*m_fft_plan0, in, out,
+                             KokkosFFT::Normalization::none);
         } else {
           safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_fft_plan0, m_in_T, out, m_normalization);
+          KokkosFFT::execute(*m_fft_plan0, m_in_T, out,
+                             KokkosFFT::Normalization::none);
         }
       } else if (first_FFT_dim == 2) {
         if (m_map_forward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_fft2_plan0, in, out, m_normalization);
+          KokkosFFT::execute(*m_fft2_plan0, in, out,
+                             KokkosFFT::Normalization::none);
         } else {
           safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_fft2_plan0, m_in_T, out, m_normalization);
+          KokkosFFT::execute(*m_fft2_plan0, m_in_T, out,
+                             KokkosFFT::Normalization::none);
         }
       } else if (first_FFT_dim == 3) {
         if (m_map_forward_in == int_map_type{} &&
             m_map_forward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_fft3_plan0, in, out, m_normalization);
+          KokkosFFT::execute(*m_fft3_plan0, in, out,
+                             KokkosFFT::Normalization::none);
         } else if (m_map_forward_in == int_map_type{} &&
                    m_map_forward_out != int_map_type{}) {
-          KokkosFFT::execute(*m_fft3_plan0, m_in_T, m_out_T, m_normalization);
+          KokkosFFT::execute(*m_fft3_plan0, m_in_T, m_out_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
         } else if (m_map_forward_in != int_map_type{} &&
                    m_map_forward_out == int_map_type{}) {
           safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_fft3_plan0, m_in_T, out, m_normalization);
+          KokkosFFT::execute(*m_fft3_plan0, m_in_T, out,
+                             KokkosFFT::Normalization::none);
         } else {
           safe_transpose(m_exec_space, in, m_in_T, m_map_forward_in);
-          KokkosFFT::execute(*m_fft3_plan0, m_in_T, m_out_T, m_normalization);
+          KokkosFFT::execute(*m_fft3_plan0, m_in_T, m_out_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_out_T, out, m_map_forward_out);
         }
       }
     } else if constexpr (STEP == 1) {
       if (first_FFT_dim == 1) {
         if (m_map_forward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_fft2_plan1, in, out, m_normalization);
+          KokkosFFT::execute(*m_fft2_plan1, in, out,
+                             KokkosFFT::Normalization::none);
         } else {
-          KokkosFFT::execute(*m_fft2_plan1, in, m_out_T2, m_normalization);
+          KokkosFFT::execute(*m_fft2_plan1, in, m_out_T2,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_out_T2, out, m_map_forward_out);
         }
       } else if (first_FFT_dim == 2) {
         if (m_map_forward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_fft_plan1, in, out, m_normalization);
+          KokkosFFT::execute(*m_fft_plan1, in, out,
+                             KokkosFFT::Normalization::none);
         } else {
-          KokkosFFT::execute(*m_fft_plan1, in, m_out_T2, m_normalization);
+          KokkosFFT::execute(*m_fft_plan1, in, m_out_T2,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_out_T2, out, m_map_forward_out);
         }
       }
@@ -956,51 +980,63 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
     if constexpr (STEP == 0) {
       if (first_FFT_dim == 1) {
         if (m_map_backward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_ifft_plan0, out, in, m_normalization);
+          KokkosFFT::execute(*m_ifft_plan0, out, in,
+                             KokkosFFT::Normalization::none);
         } else {
-          KokkosFFT::execute(*m_ifft_plan0, out, m_in_T, m_normalization);
+          KokkosFFT::execute(*m_ifft_plan0, out, m_in_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
         }
       } else if (first_FFT_dim == 2) {
         if (m_map_backward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_ifft2_plan0, out, in, m_normalization);
+          KokkosFFT::execute(*m_ifft2_plan0, out, in,
+                             KokkosFFT::Normalization::none);
         } else {
-          KokkosFFT::execute(*m_ifft2_plan0, out, m_in_T, m_normalization);
+          KokkosFFT::execute(*m_ifft2_plan0, out, m_in_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
         }
       } else if (first_FFT_dim == 3) {
         if (m_map_backward_in == int_map_type{} &&
             m_map_backward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_ifft3_plan0, out, in, m_normalization);
+          KokkosFFT::execute(*m_ifft3_plan0, out, in,
+                             KokkosFFT::Normalization::none);
         } else if (m_map_backward_in == int_map_type{} &&
                    m_map_backward_out != int_map_type{}) {
-          KokkosFFT::execute(*m_ifft3_plan0, out, m_in_T, m_normalization);
+          KokkosFFT::execute(*m_ifft3_plan0, out, m_in_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
         } else if (m_map_backward_in != int_map_type{} &&
                    m_map_backward_out == int_map_type{}) {
           safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-          KokkosFFT::execute(*m_ifft3_plan0, m_out_T, in, m_normalization);
+          KokkosFFT::execute(*m_ifft3_plan0, m_out_T, in,
+                             KokkosFFT::Normalization::none);
         } else if (m_map_backward_in != int_map_type{} &&
                    m_map_backward_out != int_map_type{}) {
           safe_transpose(m_exec_space, out, m_out_T, m_map_backward_in);
-          KokkosFFT::execute(*m_ifft3_plan0, m_out_T, m_in_T, m_normalization);
+          KokkosFFT::execute(*m_ifft3_plan0, m_out_T, m_in_T,
+                             KokkosFFT::Normalization::none);
           safe_transpose(m_exec_space, m_in_T, in, m_map_backward_out);
         }
       }
     } else if constexpr (STEP == 1) {
       if (first_FFT_dim == 1) {
         if (m_map_backward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_ifft2_plan1, out, in, m_normalization);
+          KokkosFFT::execute(*m_ifft2_plan1, out, in,
+                             KokkosFFT::Normalization::none);
         } else {
           safe_transpose(m_exec_space, out, m_out_T2, m_map_backward_in);
-          KokkosFFT::execute(*m_ifft2_plan1, m_out_T2, in, m_normalization);
+          KokkosFFT::execute(*m_ifft2_plan1, m_out_T2, in,
+                             KokkosFFT::Normalization::none);
         }
       } else {
         if (m_map_backward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_ifft_plan1, out, in, m_normalization);
+          KokkosFFT::execute(*m_ifft_plan1, out, in,
+                             KokkosFFT::Normalization::none);
         } else {
           safe_transpose(m_exec_space, out, m_out_T2, m_map_backward_in);
-          KokkosFFT::execute(*m_ifft_plan1, m_out_T2, in, m_normalization);
+          KokkosFFT::execute(*m_ifft_plan1, m_out_T2, in,
+                             KokkosFFT::Normalization::none);
         }
       }
     }
@@ -1232,11 +1268,24 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
   using axes_type = KokkosFFT::axis_type<DIM>;
 
-  InternalPlanType m_internal_plan;
-  extents_type m_in_extents, m_out_extents;
+  //! Execution space
+  ExecutionSpace m_exec_space;
 
+  //! Internal plan
+  InternalPlanType m_internal_plan;
+
+  ///@{
+  //! extents of in/out views
+  extents_type m_in_extents, m_out_extents;
+  ///@}
+
+  //! aliases to parents methods
   using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
                      OutLayoutType>::good;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>::get_norm;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>::get_fft_size;
 
  public:
   explicit SlabPlan(
@@ -1259,8 +1308,9 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
                      OutLayoutType>(exec_space, in, out, axes, in_topology,
                                     out_topology, comm, norm),
+        m_exec_space(exec_space),
         m_internal_plan(exec_space, in, out, axes, in_topology.array(),
-                        out_topology.array(), comm, norm),
+                        out_topology.array(), comm),
         m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
     auto in_size  = get_size(in_topology);
@@ -1278,14 +1328,18 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
     m_internal_plan.forward(in, out);
+    KokkosFFT::Impl::normalize(m_exec_space, out, KokkosFFT::Direction::forward,
+                               get_norm(), get_fft_size());
   }
 
   void backward(const OutViewType& out, const InViewType& in) const override {
     good(in, out);
     m_internal_plan.backward(out, in);
+    KokkosFFT::Impl::normalize(m_exec_space, in, KokkosFFT::Direction::backward,
+                               get_norm(), get_fft_size());
   }
 
-  std::string get_label() const override { return std::string("SlabPlan"); }
+  std::string label() const override { return std::string("SlabPlan"); }
 };
 
 #endif

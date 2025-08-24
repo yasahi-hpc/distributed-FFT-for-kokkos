@@ -23,7 +23,7 @@ auto convert_negative_axes(const std::array<IntType, DIM>& axes) {
       non_negative_axes.at(i)   = unsigned_axis;
     }
   } catch (std::runtime_error& e) {
-    KOKKOSFFT_THROW_IF(false, "All axes must be in [-rank, rank-1]");
+    KOKKOSFFT_THROW_IF(true, "All axes must be in [-rank, rank-1]");
   }
 
   return non_negative_axes;
@@ -386,15 +386,22 @@ auto get_mapped_axes(const std::array<std::size_t, DIM>& axes,
 /// out extents: (8, 7, 5)
 ///
 /// \tparam DIM The number of dimensions of the extents.
+/// \tparam FFT_DIM The number of dimensions of the FFT.
 ///
 /// \param[in] in_extents Extents of the global input View.
 /// \param[in] out_extents Extents of the global output View.
 /// \return A extents of the permuted view
-template <std::size_t DIM>
+template <std::size_t DIM, std::size_t FFT_DIM>
 auto get_fft_extents(const std::array<std::size_t, DIM>& in_extents,
                      const std::array<std::size_t, DIM>& out_extents,
-                     const std::array<std::size_t, DIM>& axes) {
-  std::array<std::size_t, DIM> fft_extents;
+                     const std::array<std::size_t, FFT_DIM>& axes) {
+  static_assert(
+      FFT_DIM >= 1 && FFT_DIM <= KokkosFFT::MAX_FFT_DIM,
+      "get_fft_extents: the Rank of FFT axes must be between 1 and 3");
+  static_assert(DIM >= FFT_DIM,
+                "get_fft_extents: View rank must be larger than or equal to "
+                "the Rank of FFT axes");
+  std::array<std::size_t, FFT_DIM> fft_extents;
 
   for (std::size_t i = 0; i < fft_extents.size(); i++) {
     std::size_t axis  = axes.at(i);
