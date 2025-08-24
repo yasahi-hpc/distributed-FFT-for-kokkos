@@ -10,7 +10,6 @@ struct ScopedCufftMpPlan {
   cufftHandle m_plan_f = 0, m_plan_b = 0;
   cudaLibXtDesc *m_desc;
   MPI_Comm m_comm;
-  std::string m_label;
 
  public:
   ScopedCufftMpPlan(int nx, int ny, const MPI_Comm &comm, bool is_xslab)
