@@ -10,6 +10,7 @@ struct ScopedCufftMpPlan {
   cufftHandle m_plan_f = 0, m_plan_b = 0;
   cudaLibXtDesc *m_desc;
   MPI_Comm m_comm;
+  std::string m_label;
 
  public:
   ScopedCufftMpPlan(int nx, int ny, const MPI_Comm &comm, bool is_xslab)
@@ -187,6 +188,8 @@ struct ScopedCufftMpPlan {
     }
     KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftSetStream failed");
   }
+
+  std::string label() const { return std::string("CufftMpPlan"); }
 };
 
 template <typename ExecutionSpace, typename T1, typename T2>
