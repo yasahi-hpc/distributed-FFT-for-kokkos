@@ -56,7 +56,7 @@ class InternalPlan {
   /// \param[in] Input view
   virtual void backward(const OutViewType& out, const InViewType& in) const = 0;
 
-  virtual std::string get_label() const = 0;
+  virtual std::string label() const = 0;
 
  protected:
   KokkosFFT::Normalization get_norm() const { return m_norm; }

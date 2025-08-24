@@ -1585,7 +1585,7 @@ class PencilPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     m_internal_plan.backward(out, in);
   }
 
-  std::string get_label() const override { return std::string("PencilPlan"); }
+  std::string label() const override { return std::string("PencilPlan"); }
 };
 
 #endif

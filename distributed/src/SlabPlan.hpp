@@ -1285,7 +1285,7 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     m_internal_plan.backward(out, in);
   }
 
-  std::string get_label() const override { return std::string("SlabPlan"); }
+  std::string label() const override { return std::string("SlabPlan"); }
 };
 
 #endif
