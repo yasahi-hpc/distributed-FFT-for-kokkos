@@ -56,13 +56,13 @@ struct ScopedRocfftMPIPlan {
   MPI_Comm m_comm;
 
  public:
-  ScopedRocfftMPIPlan(const std::vector<std::size_t> &lower_input,
+  ScopedRocfftMPIPlan(const std::vector<std::size_t> &length,
+                      const std::vector<std::size_t> &lower_input,
                       const std::vector<std::size_t> &upper_input,
                       const std::vector<std::size_t> &lower_output,
                       const std::vector<std::size_t> &upper_output,
                       const std::vector<std::size_t> &strides_input,
                       const std::vector<std::size_t> &strides_output,
-                      const std::vector<std::size_t> &length,
                       KokkosFFT::Direction direction, const MPI_Comm &comm)
       : m_comm(comm) {
     rocfft_status status = rocfft_plan_description_create(&m_description);
@@ -208,6 +208,8 @@ struct ScopedRocfftMPIBidirectionalPlan {
     m_plan_forward.commit(exec_space);
     m_plan_backward.commit(exec_space);
   }
+
+  std::string label() const { return std::string("RocfftMPIPlan"); }
 };
 
 template <typename ExecutionSpace, typename T1, typename T2>

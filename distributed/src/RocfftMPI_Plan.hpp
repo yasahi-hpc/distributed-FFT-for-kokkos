@@ -44,6 +44,19 @@ bool is_tpl_available(
   return false;
 }
 
+template <typename ExecutionSpace, typename InViewType, typename OutViewType,
+          std::size_t DIM>
+bool is_tpl_available(
+    const ExecutionSpace& exec_space, const InViewType& in,
+    const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
+    const std::array<std::size_t, InViewType::rank()>& in_topology,
+    const std::array<std::size_t, OutViewType::rank()>& out_topology) {
+  return is_tpl_available(
+      exec_space, in, out, axes,
+      Topology<std::size_t, InViewType::rank()>(in_topology),
+      Topology<std::size_t, OutViewType::rank()>(out_topology));
+}
+
 // Helper to convert the integer type of vectors
 template <typename InType, typename OutType>
 auto convert_int_type_and_reverse(const std::vector<InType>& in)
@@ -82,7 +95,7 @@ template <typename ExecutionSpace, typename PlanType, typename InViewType,
 std::size_t create_plan(
     const ExecutionSpace& exec_space, std::unique_ptr<PlanType>& plan,
     const InViewType& in, const OutViewType& out,
-    const KokkosFFT::axis_type<DIM>& axes,
+    const KokkosFFT::axis_type<DIM>& axes, const KokkosFFT::axis_type<DIM>& map,
     const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
     const KokkosFFT::shape_type<InViewType::rank()>& out_topology,
     const MPI_Comm& comm) {
@@ -132,9 +145,9 @@ std::size_t create_plan(
     auto reversed_fft_extents =
         convert_int_type_and_reverse<std::size_t, std::size_t>(
             to_vector(fft_extents));
-    plan = std::make_unique<PlanType>(in_lower, in_upper, out_lower, out_upper,
-                                      in_strides, out_strides,
-                                      reversed_fft_extents, comm);
+    plan = std::make_unique<PlanType>(reversed_fft_extents, in_lower, in_upper,
+                                      out_lower, out_upper, in_strides,
+                                      out_strides, comm);
     plan->commit(exec_space);
     return fft_size;
   } else {
