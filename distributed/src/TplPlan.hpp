@@ -118,6 +118,10 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     m_in_mapped_extents  = get_mapped_extents(in_extents, m_in_map);
     m_out_mapped_extents = get_mapped_extents(out_extents, m_in_map);
 
+    // Calling setup function
+    using float_type = KokkosFFT::Impl::base_floating_point_type<in_value_type>;
+    KokkosFFT::Impl::setup<ExecutionSpace, float_type>();
+
     // Only support 2D or 3D FFTs
     m_fft_size = create_plan(m_exec_space, m_plan, in, out, axes, m_in_map,
                              in_topology.array(), out_topology.array(), comm);
