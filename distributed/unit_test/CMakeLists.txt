@@ -1,7 +1,24 @@
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
     set(SOURCES Test_Main.cpp Test_TplPlan.cpp)
 elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
-    set(SOURCES Test_Main.cpp Test_TplPlan.cpp)
+    set(SOURCES
+        Test_Main.cpp
+        Test_All2All.cpp
+        Test_Mapping.cpp
+        Test_Pack.cpp
+        Test_Unpack.cpp
+        Test_Extents.cpp
+        Test_MPI_Helper.cpp
+        Test_Common_Utils.cpp
+        Test_Topologies.cpp
+        Test_TransBlock.cpp
+        Test_SharedPlan.cpp
+        Test_Plan.cpp
+        #Test_SlabBlockAnalyses.cpp
+        Test_SlabPlan.cpp
+        Test_PencilPlan.cpp
+        Test_TplPlan.cpp
+    )
 else()
     set(SOURCES
         Test_Main.cpp
