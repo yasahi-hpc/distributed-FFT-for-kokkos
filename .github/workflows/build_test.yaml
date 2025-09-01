@@ -244,8 +244,7 @@ jobs:
             -DCMAKE_PREFIX_PATH=/work/install \
             -DCMAKE_CXX_COMPILER=${{ matrix.backend.compiler.cxx }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.backend.cmake_flags.cxx_standard }} \
-            ${{ matrix.backend.cmake_flags.distributed_fft }} \
-            -DENABLE_EXAMPLES=ON
+            ${{ matrix.backend.cmake_flags.distributed_fft }}
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
             cmake --build build_installed -j 2
 
