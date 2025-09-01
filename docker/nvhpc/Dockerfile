@@ -15,12 +15,11 @@ RUN apt-get update && apt-get install -y \
 
 ENV FFTWDIR=/usr \
     NVHPC=/opt/nvidia/hpc_sdk \
-    NVARCH=linux64 \
-    NVCOMPILER=nvhpc \
-    PATH=$NVHPC/$NVARCH/$NVCOMPILER/bin:$PATH \
-    LD_LIBRARY_PATH=$NVHPC/$NVARCH/$NVCOMPILER/lib:$LD_LIBRARY_PATH \
-    cuFFTMp_ROOT=$NVHPC/$NVARCH/$NVCOMPILER/math_libs \
-    NVSHMEM_ROOT=$NVHPC/$NVARCH/$NVCOMPILER/comm_libs/12.9/nvshmem
+    NVARCH=Linux_x86_64/25.7 \
+    PATH=$NVHPC/$NVARCH/bin:$PATH \
+    LD_LIBRARY_PATH=$NVHPC/$NVARCH/lib:$LD_LIBRARY_PATH \
+    cuFFTMp_ROOT=$NVHPC/$NVARCH/math_libs \
+    NVSHMEM_ROOT=$NVHPC/$NVARCH/comm_libs/12.9/nvshmem
 
 RUN git config --global --add safe.directory "*"
 
