@@ -1,4 +1,5 @@
-ARG NVHPC_VERSION=25.7
+ARG VERSION=25.7
+ENV NVHPC_VERSION=$VERSION
 ARG BASE=nvcr.io/nvidia/nvhpc:${NVHPC_VERSION}-devel-cuda12.9-ubuntu24.04
 FROM $BASE
 
@@ -12,7 +13,6 @@ RUN apt-get update && apt-get install -y \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
 
 ENV FFTWDIR=/usr \
     cuFFTMp_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${NVHPC_VERSION}/math_libs \
