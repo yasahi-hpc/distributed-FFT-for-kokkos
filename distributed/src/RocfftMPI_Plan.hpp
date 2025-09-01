@@ -95,7 +95,8 @@ template <typename ExecutionSpace, typename PlanType, typename InViewType,
 std::size_t create_plan(
     const ExecutionSpace& exec_space, std::unique_ptr<PlanType>& plan,
     const InViewType& in, const OutViewType& out,
-    const KokkosFFT::axis_type<DIM>& axes, const KokkosFFT::axis_type<DIM>& /*map*/,
+    const KokkosFFT::axis_type<DIM>& axes,
+    const KokkosFFT::axis_type<DIM>& /*map*/,
     const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
     const KokkosFFT::shape_type<InViewType::rank()>& out_topology,
     const MPI_Comm& comm) {
