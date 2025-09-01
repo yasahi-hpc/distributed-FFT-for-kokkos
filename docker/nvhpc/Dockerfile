@@ -21,6 +21,10 @@ ENV FFTWDIR=/usr \
     cuFFTMp_ROOT=$NVHPC/$NVARCH/math_libs \
     NVSHMEM_ROOT=$NVHPC/$NVARCH/comm_libs/12.9/nvshmem
 
+RUN echo "cuFFTMp_ROOT: $cuFFTMp_ROOT"
+RUN echo "cuFFTMp_ROOT/include: $cuFFTMp_ROOT/include"
+RUN echo "cuFFTMp_ROOT/lib64: $cuFFTMp_ROOT/lib64"
+
 RUN git config --global --add safe.directory "*"
 
 # Install newer CMake manually
