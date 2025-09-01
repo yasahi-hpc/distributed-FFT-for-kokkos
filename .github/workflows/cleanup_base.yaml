@@ -23,6 +23,7 @@ jobs:
           type: container
           names: |
             distributed-fft/base_nvcc
+            distributed-fft/base_nvhpc
             distributed-fft/base_rocm
             distributed-fft/base_gcc
             distributed-fft/base_clang
