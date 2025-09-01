@@ -1,4 +1,5 @@
-ARG BASE=nvcr.io/nvidia/nvhpc:25.7-devel-cuda12.9-ubuntu24.04
+ARG NVHPC_VERSION=25.7
+ARG BASE=nvcr.io/nvidia/nvhpc:${NVHPC_VERSION}-devel-cuda12.9-ubuntu24.04
 FROM $BASE
 
 RUN apt-get update && apt-get install -y \
@@ -14,12 +15,8 @@ RUN apt-get update && apt-get install -y \
 
 
 ENV FFTWDIR=/usr \
-    NVHPC=/opt/nvidia/hpc_sdk \
-    NVARCH=Linux_x86_64/25.7 \
-    PATH=$NVHPC/$NVARCH/bin:$PATH \
-    LD_LIBRARY_PATH=$NVHPC/$NVARCH/lib:$LD_LIBRARY_PATH \
-    cuFFTMp_ROOT=$NVHPC/$NVARCH/math_libs \
-    NVSHMEM_ROOT=$NVHPC/$NVARCH/comm_libs/12.9/nvshmem
+    cuFFTMp_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${NVHPC_VERSION}/math_libs \
+    NVSHMEM_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${NVHPC_VERSION}/comm_libs/12.9/nvshmem
 
 RUN echo "cuFFTMp_ROOT: $cuFFTMp_ROOT"
 RUN echo "cuFFTMp_ROOT/include: $cuFFTMp_ROOT/include"
