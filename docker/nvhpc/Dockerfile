@@ -18,10 +18,6 @@ ENV FFTWDIR=/usr \
     cuFFTMp_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${NVHPC_VERSION}/math_libs \
     NVSHMEM_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${NVHPC_VERSION}/comm_libs/12.9/nvshmem
 
-RUN echo "cuFFTMp_ROOT: $cuFFTMp_ROOT"
-RUN echo "cuFFTMp_ROOT/include: $cuFFTMp_ROOT/include"
-RUN echo "cuFFTMp_ROOT/lib64: $cuFFTMp_ROOT/lib64"
-
 RUN git config --global --add safe.directory "*"
 
 # Install newer CMake manually
