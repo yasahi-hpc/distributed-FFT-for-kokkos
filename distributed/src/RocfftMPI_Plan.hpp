@@ -12,8 +12,8 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 bool is_tpl_available(
-    const ExecutionSpace& exec_space, const InViewType& in,
-    const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
+    const ExecutionSpace& /*exec_space*/, const InViewType& in,
+    const OutViewType& /*out*/, const KokkosFFT::axis_type<DIM>& axes,
     const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
     const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
         out_topology) {
@@ -95,7 +95,8 @@ template <typename ExecutionSpace, typename PlanType, typename InViewType,
 std::size_t create_plan(
     const ExecutionSpace& exec_space, std::unique_ptr<PlanType>& plan,
     const InViewType& in, const OutViewType& out,
-    const KokkosFFT::axis_type<DIM>& axes, const KokkosFFT::axis_type<DIM>& map,
+    const KokkosFFT::axis_type<DIM>& axes,
+    const KokkosFFT::axis_type<DIM>& /*map*/,
     const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
     const KokkosFFT::shape_type<InViewType::rank()>& out_topology,
     const MPI_Comm& comm) {

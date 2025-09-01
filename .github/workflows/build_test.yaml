@@ -55,6 +55,7 @@ jobs:
               cxx_standard: 17
               kokkos: -DKokkos_ENABLE_SERIAL=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Debug
           - name: openmp
             image: gcc
@@ -64,6 +65,7 @@ jobs:
               cxx_standard: 17
               kokkos: -DKokkos_ENABLE_OPENMP=ON -DKokkos_ENABLE_SERIAL=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Debug
           - name: threads
             image: gcc
@@ -73,6 +75,7 @@ jobs:
               cxx_standard: 20
               kokkos: -DKokkos_ENABLE_THREADS=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Release
           - name: serial
             image: gcc
@@ -82,6 +85,7 @@ jobs:
               cxx_standard: 17
               kokkos: -DKokkos_ENABLE_SERIAL=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Release
           - name: cuda
             image: nvcc
@@ -91,6 +95,17 @@ jobs:
               cxx_standard: 20
               kokkos: -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON -DKokkos_ENABLE_OPENMP=ON -DKokkos_ENABLE_SERIAL=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
+            cmake_build_type: Release
+          - name: nvhpc
+            image: nvhpc
+            compiler:
+              cxx: nvc++
+            cmake_flags:
+              cxx_standard: 20
+              kokkos: -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
+              distributed_fft: -DENABLE_CUFFT_MP=ON -DENABLE_TESTS=ON
             cmake_build_type: Release
           - name: hip
             image: rocm
@@ -100,6 +115,7 @@ jobs:
               cxx_standard: 17
               kokkos: -DKokkos_ENABLE_HIP=ON -DKokkos_ARCH_VEGA90A=ON -DKokkos_ENABLE_THREADS=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Release
           - name: rocm
             image: rocm
@@ -108,7 +124,8 @@ jobs:
             cmake_flags:
               cxx_standard: 20
               kokkos: -DKokkos_ENABLE_HIP=ON -DKokkos_ARCH_VEGA90A=ON
-              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror" -DKokkosFFT_ENABLE_ROCFFT=ON 
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror" -DKokkosFFT_ENABLE_ROCFFT=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Release
           ##- name: sycl
           ##  image: intel
@@ -165,10 +182,9 @@ jobs:
             -DCMAKE_CXX_STANDARD=${{ matrix.backend.cmake_flags.cxx_standard }} \
             -DENABLE_INTERNAL_KOKKOS=ON \
             -DENABLE_INTERNAL_KOKKOSFFT=ON \
-            -DENABLE_TESTS=ON \
-            -DENABLE_EXAMPLES=ON \
             ${{ matrix.backend.cmake_flags.kokkos }} \
             ${{ matrix.backend.cmake_flags.kokkos_fft }} \
+            ${{ matrix.backend.cmake_flags.distributed_fft }} \
             ${{ matrix.target.cmake_flags }}
 
       - name: Build
@@ -228,7 +244,7 @@ jobs:
             -DCMAKE_PREFIX_PATH=/work/install \
             -DCMAKE_CXX_COMPILER=${{ matrix.backend.compiler.cxx }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.backend.cmake_flags.cxx_standard }} \
-            -DENABLE_EXAMPLES=ON
+            ${{ matrix.backend.cmake_flags.distributed_fft }}
           docker run -v ${{ github.workspace }}:/work ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
             cmake --build build_installed -j 2
 
