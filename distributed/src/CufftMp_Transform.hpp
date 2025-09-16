@@ -27,7 +27,6 @@ inline void exec_plan(
       Kokkos::View<in_data_type, Kokkos::LayoutRight, execution_space_type>;
   using OutRightViewType =
       Kokkos::View<out_data_type, Kokkos::LayoutRight, execution_space_type>;
-  Kokkos::Profiling::ScopedRegion region("exec_plan[TPL_cufftMpExec]");
   cudaLibXtDesc* desc = scoped_plan.desc();
   InRightViewType in_desc(
       reinterpret_cast<in_value_type*>(desc->descriptor->data[0]),
@@ -37,12 +36,16 @@ inline void exec_plan(
       KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(out_extents));
 
   safe_transpose(exec_space, in, in_desc, in_map);
-  auto const cufft_direction = direction == KokkosFFT::Direction::forward
-                                   ? CUFFT_FORWARD
-                                   : CUFFT_INVERSE;
-  cufftResult cufft_rt = cufftXtExecDescriptor(scoped_plan.plan(direction),
-                                               desc, desc, cufft_direction);
-  KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftXtExecDescriptor failed");
+  {
+    Kokkos::Profiling::ScopedRegion region("exec_plan[TPL_cufftMpExec]");
+    auto const cufft_direction = direction == KokkosFFT::Direction::forward
+                                     ? CUFFT_FORWARD
+                                     : CUFFT_INVERSE;
+    cufftResult cufft_rt = cufftXtExecDescriptor(scoped_plan.plan(direction),
+                                                 desc, desc, cufft_direction);
+    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS,
+                       "cufftXtExecDescriptor failed");
+  }
   safe_transpose(exec_space, out_desc, out, out_map);
 }
 
