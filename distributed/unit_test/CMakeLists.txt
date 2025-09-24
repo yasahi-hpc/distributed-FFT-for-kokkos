@@ -49,4 +49,24 @@ target_link_libraries(unit-tests-mpi PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmo
 
 # Enable GoogleTest
 include(GoogleTest)
-gtest_discover_tests(unit-tests-mpi PROPERTIES DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
+
+# This is the core instruction for CTest.
+# NAME: A descriptive name for the test.
+# COMMAND: The exact command to run.
+#  - ${MPIEXEC_EXECUTABLE}: Variable from find_package(MPI) for mpiexec/mpirun.
+#  - -n 2: The flag to specify running with 2 processes.
+#  - $<TARGET_FILE:mpi_gtest>: A CMake generator expression that correctly
+#   resolves to the path of our compiled executable.
+add_test(
+  NAME UnitTests2MPI
+  COMMAND ${MPIEXEC_EXECUTABLE} -n 2 $<TARGET_FILE:unit-tests-mpi>
+)
+add_test(
+  NAME UnitTests4MPI
+  COMMAND ${MPIEXEC_EXECUTABLE} -n 4 $<TARGET_FILE:unit-tests-mpi>
+)
+
+set_property(TEST UnitTests2MPI PROPERTY TIMEOUT 600)
+set_property(TEST UnitTests4MPI PROPERTY TIMEOUT 600)
+
+#gtest_discover_tests(unit-tests-mpi PROPERTIES DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
