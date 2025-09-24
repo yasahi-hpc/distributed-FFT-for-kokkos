@@ -298,4 +298,4 @@ jobs:
             -w /work/build \
             --user $(id -u):$(id -g) \
             ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
-            ctest --output-on-failure
+            ctest --verbose

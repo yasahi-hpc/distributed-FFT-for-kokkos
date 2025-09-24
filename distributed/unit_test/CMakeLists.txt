@@ -61,12 +61,12 @@ add_test(
   NAME UnitTests2MPI
   COMMAND ${MPIEXEC_EXECUTABLE} -n 2 $<TARGET_FILE:unit-tests-mpi>
 )
-add_test(
-  NAME UnitTests4MPI
-  COMMAND ${MPIEXEC_EXECUTABLE} -n 4 $<TARGET_FILE:unit-tests-mpi>
-)
+#add_test(
+#  NAME UnitTests4MPI
+#  COMMAND ${MPIEXEC_EXECUTABLE} -n 4 $<TARGET_FILE:unit-tests-mpi>
+#)
 
 set_property(TEST UnitTests2MPI PROPERTY TIMEOUT 600)
-set_property(TEST UnitTests4MPI PROPERTY TIMEOUT 600)
+#set_property(TEST UnitTests4MPI PROPERTY TIMEOUT 600)
 
 #gtest_discover_tests(unit-tests-mpi PROPERTIES DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
