@@ -298,6 +298,6 @@ jobs:
             -w /work/build \
             --user $(id -u):$(id -g) \
             ghcr.io/yasahi-hpc/distributed-fft/base_${{ matrix.backend.image }}:latest \
-            export OMPI_MCA_rmaps_base_oversubscribe=1 \
-            export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe \
-            ctest --verbose
+            /bin/bash -c "export OMPI_MCA_rmaps_base_oversubscribe=1; \
+            export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe; \
+            ctest --verbose"
