@@ -6,7 +6,6 @@
 #include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <KokkosFFT.hpp>
 #include "Mapping.hpp"
-#include "Utils.hpp"
 
 template <typename iType>
 KOKKOS_INLINE_FUNCTION auto bin_mapping(iType N, iType nbins, iType ibin) {
@@ -151,7 +150,6 @@ struct Pack {
         const iType p = dst_idx[DstViewType::rank() - 1];
         const auto [start, extent] =
             bin_mapping(iType(m_merged_size), iType(m_nprocs), p);
-        // Kokkos::printf("p: %d, start: %d, extent: %d\n", p, start, extent);
         iType src_indices[DstViewType::rank() - 1] = {
             merge_indices(dst_idx[Is], start, extent, Is, m_axis)...};
         for (std::size_t i = 0; i < DstViewType::rank() - 1; ++i) {
