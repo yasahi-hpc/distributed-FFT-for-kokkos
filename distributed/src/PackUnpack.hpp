@@ -6,13 +6,25 @@
 #include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <KokkosFFT.hpp>
 #include "Mapping.hpp"
+#include "Utils.hpp"
 
-template <typename iType, typename ArrayType>
-KOKKOS_INLINE_FUNCTION iType merge_indices(iType idx, iType p,
-                                           const ArrayType& extents,
+template <typename iType>
+KOKKOS_INLINE_FUNCTION auto bin_mapping(iType N, iType nbins, iType ibin) {
+  iType base_size = N / nbins, remainder = N % nbins;
+  iType length = base_size + (ibin < remainder ? 1 : 0);
+  iType start  = ibin * base_size + Kokkos::min(ibin, remainder);
+  return Kokkos::pair<iType, iType>{start, length};
+}
+
+template <typename iType>
+KOKKOS_INLINE_FUNCTION iType merge_indices(iType idx, iType start, iType extent,
                                            std::size_t axis,
                                            std::size_t merged_axis) {
-  return axis == merged_axis ? idx + p * iType(extents[axis]) : idx;
+  if (axis == merged_axis) {
+    return idx >= extent ? -1 : idx + start;
+  } else {
+    return idx;
+  }
 }
 
 template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
@@ -61,14 +73,15 @@ struct Pack {
   /// \param[in] src The input Kokkos view to be packed
   /// \param[out] dst The output Kokkos view to be packed
   /// \param[in] axis The axis to be split
+  /// \param[in] merged_size The extent of the dimension to be split
   /// \param[in] exec_space The Kokkos execution space to be used (defaults to
   /// ExecutionSpace()).
   Pack(const SrcViewType& src, const DstViewType& dst, const ShapeType& map,
-       const std::size_t axis,
+       const std::size_t axis, const std::size_t merged_size,
        const ExecutionSpace exec_space = ExecutionSpace()) {
     Kokkos::parallel_for("KokkosFFT::Distributed::Pack",
                          get_policy(exec_space, dst),
-                         PackInternal(src, dst, map, axis));
+                         PackInternal(src, dst, map, axis, merged_size));
   }
 
   struct PackInternal {
@@ -76,19 +89,27 @@ struct Pack {
     using ValueType  = typename SrcViewType::non_const_value_type;
     SrcViewType m_src;
     DstViewType m_dst;
-    std::size_t m_axis;
+    std::size_t m_axis, m_merged_size, m_nprocs = 1;
     ShapeType m_map;
     ShapeType m_dst_extents;
     ShapeType m_src_extents;
 
     PackInternal(const SrcViewType& src, const DstViewType& dst,
-                 const ShapeType& map, const std::size_t axis)
-        : m_src(src), m_dst(dst), m_axis(axis), m_map(map) {
+                 const ShapeType& map, const std::size_t axis,
+                 const std::size_t merged_size)
+        : m_src(src),
+          m_dst(dst),
+          m_axis(axis),
+          m_merged_size(merged_size),
+          m_map(map) {
       for (std::size_t i = 0; i < SrcViewType::rank(); ++i) {
         m_dst_extents[i] = std::is_same_v<LayoutType, Kokkos::LayoutRight>
                                ? dst.extent(i + 1)
                                : dst.extent(i);
       }
+      m_nprocs = std::is_same_v<LayoutType, Kokkos::LayoutRight>
+                     ? dst.extent(0)
+                     : dst.extent(DstViewType::rank() - 1);
       for (std::size_t i = 0; i < SrcViewType::rank(); ++i) {
         m_src_extents[i] = src.extent(i);
       }
@@ -126,23 +147,31 @@ struct Pack {
     get_src_value(iType dst_idx[], std::index_sequence<Is...>) const {
       // Bounds check
       bool out_of_bounds = false;
-
       if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
         const iType p = dst_idx[DstViewType::rank() - 1];
+        const auto [start, extent] =
+            bin_mapping(iType(m_merged_size), iType(m_nprocs), p);
+        // Kokkos::printf("p: %d, start: %d, extent: %d\n", p, start, extent);
         iType src_indices[DstViewType::rank() - 1] = {
-            merge_indices(dst_idx[Is], p, m_dst_extents, Is, m_axis)...};
+            merge_indices(dst_idx[Is], start, extent, Is, m_axis)...};
         for (std::size_t i = 0; i < DstViewType::rank() - 1; ++i) {
-          if (src_indices[m_map[i]] >= iType(m_src_extents[i]))
+          if (src_indices[m_map[i]] >= iType(m_src_extents[i]) ||
+              src_indices[m_map[i]] == -1) {
             out_of_bounds = true;
+          }
         }
         return out_of_bounds ? ValueType(0) : m_src(src_indices[m_map[Is]]...);
       } else {
-        const iType p                              = dst_idx[0];
+        const iType p = dst_idx[0];
+        const auto [start, extent] =
+            bin_mapping(iType(m_merged_size), iType(m_nprocs), p);
         iType src_indices[DstViewType::rank() - 1] = {
-            merge_indices(dst_idx[Is + 1], p, m_dst_extents, Is, m_axis)...};
+            merge_indices(dst_idx[Is + 1], start, extent, Is, m_axis)...};
         for (std::size_t i = 0; i < DstViewType::rank() - 1; ++i) {
-          if (src_indices[m_map[i]] >= iType(m_src_extents[i]))
+          if (src_indices[m_map[i]] >= iType(m_src_extents[i]) ||
+              src_indices[m_map[i]] == -1) {
             out_of_bounds = true;
+          }
         }
         return out_of_bounds ? ValueType(0) : m_src(src_indices[m_map[Is]]...);
       }
@@ -192,17 +221,18 @@ struct Unpack {
  public:
   /// \brief Constructor for the Unpack functor.
   ///
-  /// \param[in] src The input Kokkos view to be packed
-  /// \param[out] dst The output Kokkos view to be packed
-  /// \param[in] axis The axis to be split
+  /// \param[in] src The input Kokkos view to be unpacked
+  /// \param[out] dst The output Kokkos view to be unpacked
+  /// \param[in] axis The axis to be merged
+  /// \param[in] merged_size The extent of the dimension to be merged
   /// \param[in] exec_space The Kokkos execution space to be used (defaults to
   /// ExecutionSpace()).
   Unpack(const SrcViewType& src, const DstViewType& dst, const ShapeType& map,
-         const std::size_t axis,
+         const std::size_t axis, const std::size_t merged_size,
          const ExecutionSpace exec_space = ExecutionSpace()) {
     Kokkos::parallel_for("KokkosFFT::Distributed::Unpack",
                          get_policy(exec_space, src),
-                         UnpackInternal(src, dst, map, axis));
+                         UnpackInternal(src, dst, map, axis, merged_size));
   }
 
   struct UnpackInternal {
@@ -210,19 +240,27 @@ struct Unpack {
     using ValueType  = typename SrcViewType::non_const_value_type;
     SrcViewType m_src;
     DstViewType m_dst;
-    std::size_t m_axis;
+    std::size_t m_axis, m_merged_size, m_nprocs = 1;
     ShapeType m_map;
     ShapeType m_dst_extents;
     ShapeType m_src_extents;
 
     UnpackInternal(const SrcViewType& src, const DstViewType& dst,
-                   const ShapeType& map, const std::size_t axis)
-        : m_src(src), m_dst(dst), m_axis(axis), m_map(map) {
+                   const ShapeType& map, const std::size_t axis,
+                   const std::size_t merged_size)
+        : m_src(src),
+          m_dst(dst),
+          m_axis(axis),
+          m_merged_size(merged_size),
+          m_map(map) {
       for (std::size_t i = 0; i < DstViewType::rank(); ++i) {
         m_src_extents[i] = std::is_same_v<LayoutType, Kokkos::LayoutRight>
                                ? src.extent(i + 1)
                                : src.extent(i);
       }
+      m_nprocs = std::is_same_v<LayoutType, Kokkos::LayoutRight>
+                     ? src.extent(0)
+                     : src.extent(SrcViewType::rank() - 1);
       for (std::size_t i = 0; i < DstViewType::rank(); ++i) {
         m_dst_extents[i] = dst.extent(i);
       }
@@ -265,21 +303,27 @@ struct Unpack {
       bool in_bounds = true;
       if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
         const iType p = src_idx[SrcViewType::rank() - 1];
+        const auto [start, extent] =
+            bin_mapping(iType(m_merged_size), iType(m_nprocs), p);
         iType dst_indices[SrcViewType::rank() - 1] = {
-            merge_indices(src_idx[Is], p, m_src_extents, Is, m_axis)...};
+            merge_indices(src_idx[Is], start, extent, Is, m_axis)...};
         for (std::size_t i = 0; i < SrcViewType::rank() - 1; ++i) {
-          if (dst_indices[m_map[i]] >= iType(m_dst_extents[i]))
+          if (dst_indices[m_map[i]] >= iType(m_dst_extents[i]) ||
+              dst_indices[m_map[i]] == -1)
             in_bounds = false;
         }
         if (in_bounds) {
           m_dst(dst_indices[m_map[Is]]...) = src_value;
         }
       } else {
-        const iType p                              = src_idx[0];
+        const iType p = src_idx[0];
+        const auto [start, extent] =
+            bin_mapping(iType(m_merged_size), iType(m_nprocs), p);
         iType dst_indices[SrcViewType::rank() - 1] = {
-            merge_indices(src_idx[Is + 1], p, m_src_extents, Is, m_axis)...};
+            merge_indices(src_idx[Is + 1], start, extent, Is, m_axis)...};
         for (std::size_t i = 0; i < SrcViewType::rank() - 1; ++i) {
-          if (dst_indices[m_map[i]] >= iType(m_dst_extents[i]))
+          if (dst_indices[m_map[i]] >= iType(m_dst_extents[i]) ||
+              dst_indices[m_map[i]] == -1)
             in_bounds = false;
         }
         if (in_bounds) {
@@ -301,13 +345,15 @@ void pack(const ExecutionSpace& exec_space, const SrcViewType& src,
   Kokkos::Profiling::ScopedRegion region("pack");
   Kokkos::Array<std::size_t, DIM> src_array =
       KokkosFFT::Impl::to_array(src_map);
+  std::size_t merged_size =
+      src.extent(KokkosFFT::Impl::get_index(src_map, axis));
   if (src.span() >= std::size_t(std::numeric_limits<int>::max()) ||
       dst.span() >= std::size_t(std::numeric_limits<int>::max())) {
-    Pack<ExecutionSpace, SrcViewType, DstViewType, int64_t>(src, dst, src_array,
-                                                            axis, exec_space);
+    Pack<ExecutionSpace, SrcViewType, DstViewType, int64_t>(
+        src, dst, src_array, axis, merged_size, exec_space);
   } else {
-    Pack<ExecutionSpace, SrcViewType, DstViewType, int>(src, dst, src_array,
-                                                        axis, exec_space);
+    Pack<ExecutionSpace, SrcViewType, DstViewType, int>(
+        src, dst, src_array, axis, merged_size, exec_space);
   }
 }
 
@@ -321,13 +367,15 @@ void unpack(const ExecutionSpace& exec_space, const SrcViewType& src,
   Kokkos::Profiling::ScopedRegion region("unpack");
   Kokkos::Array<std::size_t, DIM> dst_array =
       KokkosFFT::Impl::to_array(dst_map);
+  std::size_t merged_size =
+      dst.extent(KokkosFFT::Impl::get_index(dst_map, axis));
   if (dst.span() >= std::size_t(std::numeric_limits<int>::max()) ||
       src.span() >= std::size_t(std::numeric_limits<int>::max())) {
     Unpack<ExecutionSpace, SrcViewType, DstViewType, int64_t>(
-        src, dst, dst_array, axis, exec_space);
+        src, dst, dst_array, axis, merged_size, exec_space);
   } else {
-    Unpack<ExecutionSpace, SrcViewType, DstViewType, int>(src, dst, dst_array,
-                                                          axis, exec_space);
+    Unpack<ExecutionSpace, SrcViewType, DstViewType, int>(
+        src, dst, dst_array, axis, merged_size, exec_space);
   }
 }
 
