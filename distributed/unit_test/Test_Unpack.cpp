@@ -2,6 +2,8 @@
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
 #include "PackUnpack.hpp"
+#include "Extents.hpp"
+#include "Helper.hpp"
 #include "Test_Utils.hpp"
 
 namespace {
@@ -17,408 +19,488 @@ struct TestUnpack : public ::testing::Test {
   using float_type  = typename T::first_type;
   using layout_type = typename T::second_type;
 
-  int m_rank   = 0;
-  int m_nprocs = 1;
-
-  virtual void SetUp() {
-    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
-    ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
-  }
+  int m_max_nprocs = 4;
 };
 
+/// \brief Test unpack function for 2D View
+/// \tparam T Type of the data (float or double)
+/// \tparam LayoutType Layout of the data (LayoutLeft or LayoutRight)
+///
+/// \param[in] rank MPI rank
+/// \param[in] nprocs Number of MPI ranks
+/// \param[in] order Order of the dimensions (0: (n0, n1); 1: (n1, n0))
+///
+/// 0. map = {0, 1}: the source view is (n0, n1/np) for x-pencil and (n0/np, n1)
+/// for y-pencil. 0.0 LayoutLeft: The sendbuffer is (n0/np, n1/np, np) for both
+/// pencils. 0.1 LayoutRight: The sendbuffer is (np, n0/np, n1/np) for both
+/// pencils.
+///
+/// 1. map = {1, 0}: the source view is (n1/np, n0) for x-pencil and (n1, n0/np)
+/// for y-pencil. 1.0 LayoutLeft: The sendbuffer is (n0/np, n1/np, np) for both
+/// pencils. 1.1 LayoutRight: The sendbuffer is (np, n0/np, n1/np) for both
+/// pencils.
 template <typename T, typename LayoutType>
-void test_unpack_view2D(int rank, int nprocs, int order = 0) {
+void test_unpack_view2D(std::size_t rank, std::size_t nprocs, int order = 0) {
   using SrcView2DType = Kokkos::View<T**, LayoutType, execution_space>;
   using DstView3DType = Kokkos::View<T***, LayoutType, execution_space>;
-  using map_type      = std::array<std::size_t, 2>;
+  using map_type      = std::array<int, 2>;
+  using shape_type    = std::array<std::size_t, 2>;
 
-  const int n0 = 8, n1 = 7;
-  const int n0_local = ((n0 - 1) / nprocs) + 1;
-  const int n1_local = ((n1 - 1) / nprocs) + 1;
+  const std::size_t gn0 = 8, gn1 = 7;
 
-  map_type dst_map = (order == 0) ? map_type({0, 1}) : map_type({1, 0});
+  const auto [n0_start, n0_length] = distribute_extents(gn0, rank, nprocs);
+  const auto [n1_start, n1_length] = distribute_extents(gn1, rank, nprocs);
 
-  std::string rank_str = std::to_string(rank);
+  shape_type global_extents   = {gn0, gn1},
+             local_extents_t0 = shape_type{gn0, n1_length},
+             local_extents_t1 = shape_type{n0_length, gn1};
 
-  int n0_recv = 0, n1_recv = 0, n2_recv = 0;
-  int n0_xpencil = 0, n1_xpencil = 0;
-  int n0_ypencil = 0, n1_ypencil = 0;
-  if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-    n0_recv = n0_local;
-    n1_recv = n1_local;
-    n2_recv = nprocs;
-  } else {
-    n0_recv = nprocs;
-    n1_recv = n0_local;
-    n2_recv = n1_local;
+  shape_type topology0 = {1, nprocs}, topology1 = {nprocs, 1};
+
+  shape_type dst_map = (order == 0) ? shape_type({0, 1}) : shape_type({1, 0});
+  map_type int_map   = (order == 0) ? map_type({0, 1}) : map_type({1, 0});
+
+  // Create global and local views
+  SrcView2DType gu("gu", gn0, gn1);
+
+  // Data in Topology 0 (X-pencil): original and permuted data
+  SrcView2DType u_t0(
+      "u_t0", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t0)),
+      u_p_t0("u_p_t0", KokkosFFT::Impl::create_layout<LayoutType>(
+                           get_mapped_extents(local_extents_t0, dst_map))),
+      u_p_t0_ref("u_p_t0_ref",
+                 KokkosFFT::Impl::create_layout<LayoutType>(
+                     get_mapped_extents(local_extents_t0, dst_map)));
+
+  // Data in Topology 1 (Y-pencil): original and permuted data
+  SrcView2DType u_t1(
+      "u_t1", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t1)),
+      u_p_t1("u_p_t1", KokkosFFT::Impl::create_layout<LayoutType>(
+                           get_mapped_extents(local_extents_t1, dst_map))),
+      u_p_t1_ref("u_p_t1_ref",
+                 KokkosFFT::Impl::create_layout<LayoutType>(
+                     get_mapped_extents(local_extents_t1, dst_map)));
+
+  // Buffers
+  auto buffer_extents =
+      get_buffer_extents<LayoutType>(global_extents, topology0, topology1);
+  DstView3DType recv_t0(
+      "recv_t0", KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents)),
+      recv_t1("recv_t1",
+              KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents));
+
+  // Initialize input views and references without considering permutation
+  auto h_gu = Kokkos::create_mirror_view(gu);
+  for (std::size_t i1 = 0; i1 < gu.extent(1); i1++) {
+    for (std::size_t i0 = 0; i0 < gu.extent(0); i0++) {
+      h_gu(i0, i1) = static_cast<T>(i1 + i0 * gn1);
+    }
   }
 
-  if (order == 0) {
-    // n0, n1
-    n0_xpencil = n0;
-    n1_xpencil = n1_local;
-    n0_ypencil = n0_local;
-    n1_ypencil = n1;
-  } else {
-    // n1, n0
-    n0_xpencil = n1_local;
-    n1_xpencil = n0;
-    n0_ypencil = n1;
-    n1_ypencil = n0_local;
-  }
-  DstView3DType xrecv("xrecv", n0_recv, n1_recv, n2_recv);
-  DstView3DType yrecv("yrecv", n0_recv, n1_recv, n2_recv);
+  // Copy global source to local source and recv buffers
+  Kokkos::pair<std::size_t, std::size_t> range_gu_t0(n1_start,
+                                                     n1_start + n1_length),
+      range_gu_t1(n0_start, n0_start + n0_length);
 
-  SrcView2DType xpencil("xpencil" + rank_str, n0_xpencil, n1_xpencil),
-      xpencil_ref("xpencil_ref" + rank_str, n0_xpencil, n1_xpencil),
-      ypencil("ypencil" + rank_str, n0_ypencil, n1_ypencil),
-      ypencil_ref("ypencil_ref" + rank_str, n0_ypencil, n1_ypencil);
+  auto h_u_t0 = Kokkos::create_mirror_view(u_t0);
+  auto h_u_t1 = Kokkos::create_mirror_view(u_t1);
 
-  double dx = M_PI * 2.0 / static_cast<double>(n0);
-  double dy = M_PI * 2.0 / static_cast<double>(n1);
+  auto sub_h_gu_t0 = Kokkos::subview(h_gu, Kokkos::ALL, range_gu_t0);
+  auto sub_h_gu_t1 = Kokkos::subview(h_gu, range_gu_t1, Kokkos::ALL);
+  Kokkos::deep_copy(h_u_t0, sub_h_gu_t0);
+  Kokkos::deep_copy(h_u_t1, sub_h_gu_t1);
 
-  auto h_xrecv       = Kokkos::create_mirror_view(xrecv);
-  auto h_yrecv       = Kokkos::create_mirror_view(yrecv);
-  auto h_xpencil_ref = Kokkos::create_mirror_view(xpencil_ref);
-  auto h_ypencil_ref = Kokkos::create_mirror_view(ypencil_ref);
+  auto h_recv_t0 = Kokkos::create_mirror_view(recv_t0);
+  auto h_recv_t1 = Kokkos::create_mirror_view(recv_t1);
 
-  for (int i1 = 0; i1 < n1_local; i1++) {
-    for (int i0 = 0; i0 < n0_local; i0++) {
-      for (int p = 0; p < nprocs; p++) {
-        int gi0   = i0 + n0_local * p;
-        int li0   = i0 + n0_local * rank;
-        int gi1   = i1 + n1_local * p;
-        int li1   = i1 + n1_local * rank;
-        double gx = gi0 * dx;
-        double lx = li0 * dx;
-        double gy = gi1 * dy;
-        double ly = li1 * dy;
-        if (gi0 < n0 && li1 < n1) {
-          auto tmp_xpencil_ref = std::cos(gx) * std::sin(ly);
-          if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-            h_xrecv(i0, i1, p) = tmp_xpencil_ref;
-          } else {
-            h_xrecv(p, i0, i1) = tmp_xpencil_ref;
-          }
-
-          if (order == 0) {
-            h_xpencil_ref(gi0, i1) = tmp_xpencil_ref;
-          } else {
-            h_xpencil_ref(i1, gi0) = tmp_xpencil_ref;
-          }
+  for (std::size_t i2 = 0; i2 < recv_t0.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < recv_t0.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < recv_t0.extent(0); i0++) {
+        std::size_t i0_tmp = i0, i1_tmp = i1;
+        std::size_t p = 0;
+        if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+          p = i2;
+        } else {
+          i0_tmp = i1, i1_tmp = i2;
+          p = i0;
         }
-        if (li0 < n0 && gi1 < n1) {
-          auto tmp_ypencil_ref = std::cos(lx) * std::sin(gy);
-          if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-            h_yrecv(i0, i1, p) = tmp_ypencil_ref;
-          } else {
-            h_yrecv(p, i0, i1) = tmp_ypencil_ref;
-          }
-          if (order == 0) {
-            h_ypencil_ref(i0, gi1) = tmp_ypencil_ref;
-          } else {
-            h_ypencil_ref(gi1, i0) = tmp_ypencil_ref;
-          }
+
+        const auto [start0, length0] = distribute_extents(gn0, p, nprocs);
+        const auto [start1, length1] = distribute_extents(gn1, p, nprocs);
+        std::size_t gi0              = i0_tmp + start0;
+        std::size_t gi1              = i1_tmp + start1;
+        if (gi0 < gn0 && i0_tmp < length0 && i1_tmp < h_u_t0.extent(1)) {
+          h_recv_t0(i0, i1, i2) = h_u_t0(gi0, i1_tmp);
+        }
+        if (gi1 < gn1 && i1_tmp < length1 && i0_tmp < h_u_t1.extent(0)) {
+          h_recv_t1(i0, i1, i2) = h_u_t1(i0_tmp, gi1);
         }
       }
     }
   }
+  Kokkos::deep_copy(u_t0, h_u_t0);
+  Kokkos::deep_copy(u_t1, h_u_t1);
+  Kokkos::deep_copy(recv_t0, h_recv_t0);
+  Kokkos::deep_copy(recv_t1, h_recv_t1);
 
-  Kokkos::deep_copy(xrecv, h_xrecv);
-  Kokkos::deep_copy(yrecv, h_yrecv);
-  Kokkos::deep_copy(xpencil_ref, h_xpencil_ref);
-  Kokkos::deep_copy(ypencil_ref, h_ypencil_ref);
-
+  // Make permuted local views with safe_transpose
   execution_space exec;
-  unpack(exec, xrecv, xpencil, dst_map, 0);
-  unpack(exec, yrecv, ypencil, dst_map, 1);
+  safe_transpose(exec, u_t0, u_p_t0_ref, int_map);
+  safe_transpose(exec, u_t1, u_p_t1_ref, int_map);
+  exec.fence();
 
-  auto h_xpencil =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), xpencil);
-  auto h_ypencil =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), ypencil);
+  // Apply unpack kernel
+  unpack(exec, recv_t0, u_p_t0, dst_map, 0);
+  unpack(exec, recv_t1, u_p_t1, dst_map, 1);
+
+  auto h_u_p_t0 =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t0);
+  auto h_u_p_t1 =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t1);
+  auto h_u_p_t0_ref =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t0_ref);
+  auto h_u_p_t1_ref =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t1_ref);
 
   T epsilon = std::numeric_limits<T>::epsilon() * 100;
 
-  // Check xpencil is correct
-  for (std::size_t i1 = 0; i1 < xpencil.extent(1); i1++) {
-    for (std::size_t i0 = 0; i0 < xpencil.extent(0); i0++) {
-      auto diff = Kokkos::abs(h_xpencil(i0, i1) - h_xpencil_ref(i0, i1));
+  // Check u_p_t0 is correct
+  for (std::size_t i1 = 0; i1 < u_p_t0.extent(1); i1++) {
+    for (std::size_t i0 = 0; i0 < u_p_t0.extent(0); i0++) {
+      auto diff = Kokkos::abs(h_u_p_t0(i0, i1) - h_u_p_t0_ref(i0, i1));
       EXPECT_LE(diff, epsilon);
     }
   }
 
-  // Check ypencil is correct
-  for (std::size_t i1 = 0; i1 < ypencil.extent(1); i1++) {
-    for (std::size_t i0 = 0; i0 < ypencil.extent(0); i0++) {
-      auto diff = Kokkos::abs(h_ypencil(i0, i1) - h_ypencil_ref(i0, i1));
+  // Check u_p_t1 is correct
+  for (std::size_t i1 = 0; i1 < u_p_t1.extent(1); i1++) {
+    for (std::size_t i0 = 0; i0 < u_p_t1.extent(0); i0++) {
+      auto diff = Kokkos::abs(h_u_p_t1(i0, i1) - h_u_p_t1_ref(i0, i1));
       EXPECT_LE(diff, epsilon);
     }
   }
 }
 
+/// \brief Test unpack function for 3D View
+/// \tparam T Type of the data (float or double)
+/// \tparam LayoutType Layout of the data (LayoutLeft or LayoutRight)
+///
+/// \param[in] rank MPI rank
+/// \param[in] nprocs Number of MPI ranks
+/// \param[in] order Order of the dimensions
+/// 0: (n0, n1, n2), 1: (n0, n2, n1), 2: (n1, n0, n2)
+/// 3: (n1, n2, n0), 4: (n2, n0, n1), 5: (n2, n1, n0)
+///
 template <typename T, typename LayoutType>
-void test_unpack_view3D(int rank, int nprocs, int order = 0) {
+void test_unpack_view3D(std::size_t rank, std::size_t nprocs, int order = 0) {
   using SrcView3DType = Kokkos::View<T***, LayoutType, execution_space>;
   using DstView4DType = Kokkos::View<T****, LayoutType, execution_space>;
-  using map_type      = std::array<std::size_t, 3>;
+  using map_type      = std::array<int, 3>;
+  using shape_type    = std::array<std::size_t, 3>;
 
-  const int n0 = 16, n1 = 15, n2 = 17;
-  const int n0_local = ((n0 - 1) / nprocs) + 1;
-  const int n1_local = ((n1 - 1) / nprocs) + 1;
-  const int n2_local = ((n2 - 1) / nprocs) + 1;
+  const std::size_t gn0 = 8, gn1 = 7, gn2 = 5;
 
-  map_type dst_map = (order == 0)   ? map_type({0, 1, 2})
+  const auto [n0_start, n0_length] = distribute_extents(gn0, rank, nprocs);
+  const auto [n1_start, n1_length] = distribute_extents(gn1, rank, nprocs);
+  const auto [n2_start, n2_length] = distribute_extents(gn2, rank, nprocs);
+
+  shape_type global_extents   = {gn0, gn1, gn2},
+             local_extents_t0 = shape_type{gn0, gn1, n2_length},
+             local_extents_t1 = shape_type{gn0, n1_length, gn2},
+             local_extents_t2 = shape_type{n0_length, gn1, gn2};
+
+  shape_type topology0 = {1, 1, nprocs}, topology1 = {1, nprocs, 1},
+             topology2 = {nprocs, 1, 1};
+
+  shape_type dst_map = (order == 0)   ? shape_type({0, 1, 2})
+                       : (order == 1) ? shape_type({0, 2, 1})
+                       : (order == 2) ? shape_type({1, 0, 2})
+                       : (order == 3) ? shape_type({1, 2, 0})
+                       : (order == 4) ? shape_type({2, 0, 1})
+                                      : shape_type({2, 1, 0});
+
+  map_type int_map = (order == 0)   ? map_type({0, 1, 2})
                      : (order == 1) ? map_type({0, 2, 1})
                      : (order == 2) ? map_type({1, 0, 2})
                      : (order == 3) ? map_type({1, 2, 0})
                      : (order == 4) ? map_type({2, 0, 1})
                                     : map_type({2, 1, 0});
 
-  std::string rank_str = std::to_string(rank);
+  // Create global and local views
+  SrcView3DType gu("gu", gn0, gn1, gn2);
 
-  int n0_recv = 0, n1_recv = 0, n2_recv = 0, n3_recv = 0;
-  int n0_xpencil = 0, n1_xpencil = 0, n2_xpencil = 0;
-  int n0_ypencil = 0, n1_ypencil = 0, n2_ypencil = 0;
-  int n0_zpencil = 0, n1_zpencil = 0, n2_zpencil = 0;
-  if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-    n0_recv = n0_local;
-    n1_recv = n1_local;
-    n2_recv = n2_local;
-    n3_recv = nprocs;
-  } else {
-    n0_recv = nprocs;
-    n1_recv = n0_local;
-    n2_recv = n1_local;
-    n3_recv = n2_local;
+  // Data in Topology 0 (Z-slab): original and permuted data
+  SrcView3DType u_t0(
+      "u_t0", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t0)),
+      u_p_t0_01("u_p_t0_01",
+                KokkosFFT::Impl::create_layout<LayoutType>(
+                    get_mapped_extents(local_extents_t0, dst_map))),
+      u_p_t0_02("u_p_t0_02",
+                KokkosFFT::Impl::create_layout<LayoutType>(
+                    get_mapped_extents(local_extents_t0, dst_map))),
+      u_p_t0_ref("u_p_t0_ref",
+                 KokkosFFT::Impl::create_layout<LayoutType>(
+                     get_mapped_extents(local_extents_t0, dst_map)));
+
+  // Data in Topology 1 (Y-slab): original and permuted data
+  SrcView3DType u_t1(
+      "u_t1", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t1)),
+      u_p_t1_10("u_p_t1_10",
+                KokkosFFT::Impl::create_layout<LayoutType>(
+                    get_mapped_extents(local_extents_t1, dst_map))),
+      u_p_t1_12("u_p_t1_12",
+                KokkosFFT::Impl::create_layout<LayoutType>(
+                    get_mapped_extents(local_extents_t1, dst_map))),
+      u_p_t1_ref("u_p_t1_ref",
+                 KokkosFFT::Impl::create_layout<LayoutType>(
+                     get_mapped_extents(local_extents_t1, dst_map)));
+
+  // Data in Topology 2 (X-slab): original and permuted data
+  SrcView3DType u_t2(
+      "u_t2", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t2)),
+      u_p_t2_20("u_p_t2_20",
+                KokkosFFT::Impl::create_layout<LayoutType>(
+                    get_mapped_extents(local_extents_t2, dst_map))),
+      u_p_t2_21("u_p_t2_21",
+                KokkosFFT::Impl::create_layout<LayoutType>(
+                    get_mapped_extents(local_extents_t2, dst_map))),
+      u_p_t2_ref("u_p_t2_ref",
+                 KokkosFFT::Impl::create_layout<LayoutType>(
+                     get_mapped_extents(local_extents_t2, dst_map)));
+
+  // Buffers
+  auto buffer_extents_t01 =
+           get_buffer_extents<LayoutType>(global_extents, topology0, topology1),
+       buffer_extents_t02 =
+           get_buffer_extents<LayoutType>(global_extents, topology0, topology2),
+       buffer_extents_t12 =
+           get_buffer_extents<LayoutType>(global_extents, topology1, topology2);
+  DstView4DType recv_t01("recv_t01", KokkosFFT::Impl::create_layout<LayoutType>(
+                                         buffer_extents_t01)),
+      recv_t02("recv_t02",
+               KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents_t02)),
+      recv_t10("recv_t10",
+               KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents_t01)),
+      recv_t12("recv_t12",
+               KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents_t12)),
+      recv_t20("recv_t20",
+               KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents_t02)),
+      recv_t21("recv_t21",
+               KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents_t12));
+
+  // Initialize input views and references without considering permutation
+  auto h_gu = Kokkos::create_mirror_view(gu);
+  for (std::size_t i2 = 0; i2 < gu.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < gu.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < gu.extent(0); i0++) {
+        h_gu(i0, i1, i2) = static_cast<T>(i2 + i1 * gn2 + i0 * gn2 * gn1);
+      }
+    }
   }
 
-  if (order == 0) {
-    // n0, n1, n2
-    n0_xpencil = n0;
-    n1_xpencil = n1_local;
-    n2_xpencil = n2_local;
-    n0_ypencil = n0_local;
-    n1_ypencil = n1;
-    n2_ypencil = n2_local;
-    n0_zpencil = n0_local;
-    n1_zpencil = n1_local;
-    n2_zpencil = n2;
-  } else if (order == 1) {
-    // n0, n2, n1
-    n0_xpencil = n0;
-    n1_xpencil = n2_local;
-    n2_xpencil = n1_local;
-    n0_ypencil = n0_local;
-    n1_ypencil = n2_local;
-    n2_ypencil = n1;
-    n0_zpencil = n0_local;
-    n1_zpencil = n2;
-    n2_zpencil = n1_local;
-  } else if (order == 2) {
-    // n1, n0, n2
-    n0_xpencil = n1_local;
-    n1_xpencil = n0;
-    n2_xpencil = n2_local;
-    n0_ypencil = n1;
-    n1_ypencil = n0_local;
-    n2_ypencil = n2_local;
-    n0_zpencil = n1_local;
-    n1_zpencil = n0_local;
-    n2_zpencil = n2;
-  } else if (order == 3) {
-    // n1, n2, n0
-    n0_xpencil = n1_local;
-    n1_xpencil = n2_local;
-    n2_xpencil = n0;
-    n0_ypencil = n1;
-    n1_ypencil = n2_local;
-    n2_ypencil = n0_local;
-    n0_zpencil = n1_local;
-    n1_zpencil = n2;
-    n2_zpencil = n0_local;
-  } else if (order == 4) {
-    // n2, n0, n1
-    n0_xpencil = n2_local;
-    n1_xpencil = n0;
-    n2_xpencil = n1_local;
-    n0_ypencil = n2_local;
-    n1_ypencil = n0_local;
-    n2_ypencil = n1;
-    n0_zpencil = n2;
-    n1_zpencil = n0_local;
-    n2_zpencil = n1_local;
-  } else {
-    // n2, n1, n0
-    n0_xpencil = n2_local;
-    n1_xpencil = n1_local;
-    n2_xpencil = n0;
-    n0_ypencil = n2_local;
-    n1_ypencil = n1;
-    n2_ypencil = n0_local;
-    n0_zpencil = n2;
-    n1_zpencil = n1_local;
-    n2_zpencil = n0_local;
-  }
+  // Copy global source to local source and send buffers
+  Kokkos::pair<std::size_t, std::size_t> range_gu_t0(n2_start,
+                                                     n2_start + n2_length),
+      range_gu_t1(n1_start, n1_start + n1_length),
+      range_gu_t2(n0_start, n0_start + n0_length);
 
-  DstView4DType xrecv("xrecv", n0_recv, n1_recv, n2_recv, n3_recv);
-  DstView4DType yrecv("yrecv", n0_recv, n1_recv, n2_recv, n3_recv);
-  DstView4DType zrecv("zrecv", n0_recv, n1_recv, n2_recv, n3_recv);
+  auto h_u_t0 = Kokkos::create_mirror_view(u_t0);
+  auto h_u_t1 = Kokkos::create_mirror_view(u_t1);
+  auto h_u_t2 = Kokkos::create_mirror_view(u_t2);
 
-  SrcView3DType xpencil("xpencil" + rank_str, n0_xpencil, n1_xpencil,
-                        n2_xpencil),
-      xpencil_ref("xpencil_ref" + rank_str, n0_xpencil, n1_xpencil, n2_xpencil),
-      ypencil("ypencil" + rank_str, n0_ypencil, n1_ypencil, n2_ypencil),
-      ypencil_ref("ypencil_ref" + rank_str, n0_ypencil, n1_ypencil, n2_ypencil),
-      zpencil("zpencil" + rank_str, n0_zpencil, n1_zpencil, n2_zpencil),
-      zpencil_ref("zpencil_ref" + rank_str, n0_zpencil, n1_zpencil, n2_zpencil);
+  auto sub_h_gu_t0 =
+      Kokkos::subview(h_gu, Kokkos::ALL, Kokkos::ALL, range_gu_t0);
+  auto sub_h_gu_t1 =
+      Kokkos::subview(h_gu, Kokkos::ALL, range_gu_t1, Kokkos::ALL);
+  auto sub_h_gu_t2 =
+      Kokkos::subview(h_gu, range_gu_t2, Kokkos::ALL, Kokkos::ALL);
+  Kokkos::deep_copy(h_u_t0, sub_h_gu_t0);
+  Kokkos::deep_copy(h_u_t1, sub_h_gu_t1);
+  Kokkos::deep_copy(h_u_t2, sub_h_gu_t2);
 
-  double dx = M_PI * 2.0 / static_cast<double>(n0);
-  double dy = M_PI * 2.0 / static_cast<double>(n1);
-  double dz = M_PI * 2.0 / static_cast<double>(n2);
+  auto h_recv_t01 = Kokkos::create_mirror_view(recv_t01);
+  auto h_recv_t02 = Kokkos::create_mirror_view(recv_t02);
+  auto h_recv_t10 = Kokkos::create_mirror_view(recv_t10);
+  auto h_recv_t12 = Kokkos::create_mirror_view(recv_t12);
+  auto h_recv_t20 = Kokkos::create_mirror_view(recv_t20);
+  auto h_recv_t21 = Kokkos::create_mirror_view(recv_t21);
 
-  auto h_xrecv       = Kokkos::create_mirror_view(xrecv);
-  auto h_yrecv       = Kokkos::create_mirror_view(yrecv);
-  auto h_zrecv       = Kokkos::create_mirror_view(zrecv);
-  auto h_xpencil_ref = Kokkos::create_mirror_view(xpencil_ref);
-  auto h_ypencil_ref = Kokkos::create_mirror_view(ypencil_ref);
-  auto h_zpencil_ref = Kokkos::create_mirror_view(zpencil_ref);
-
-  for (int i2 = 0; i2 < n2_local; i2++) {
-    for (int i1 = 0; i1 < n1_local; i1++) {
-      for (int i0 = 0; i0 < n0_local; i0++) {
-        for (int p = 0; p < nprocs; p++) {
-          int gi0   = i0 + n0_local * p;
-          int li0   = i0 + n0_local * rank;
-          int gi1   = i1 + n1_local * p;
-          int li1   = i1 + n1_local * rank;
-          int gi2   = i2 + n2_local * p;
-          int li2   = i2 + n2_local * rank;
-          double gx = gi0 * dx;
-          double lx = li0 * dx;
-          double gy = gi1 * dy;
-          double ly = li1 * dy;
-          double gz = gi2 * dz;
-          double lz = li2 * dz;
-          if (gi0 < n0 && li1 < n1 && li2 < n2) {
-            auto tmp_xpencil_ref = std::cos(gx) * std::sin(ly) * std::sin(lz);
-            if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-              h_xrecv(i0, i1, i2, p) = tmp_xpencil_ref;
-            } else {
-              h_xrecv(p, i0, i1, i2) = tmp_xpencil_ref;
-            }
-
-            if (order == 0) {
-              h_xpencil_ref(gi0, i1, i2) = tmp_xpencil_ref;
-            } else if (order == 1) {
-              h_xpencil_ref(gi0, i2, i1) = tmp_xpencil_ref;
-            } else if (order == 2) {
-              h_xpencil_ref(i1, gi0, i2) = tmp_xpencil_ref;
-            } else if (order == 3) {
-              h_xpencil_ref(i1, i2, gi0) = tmp_xpencil_ref;
-            } else if (order == 4) {
-              h_xpencil_ref(i2, gi0, i1) = tmp_xpencil_ref;
-            } else {
-              h_xpencil_ref(i2, i1, gi0) = tmp_xpencil_ref;
-            }
+  // t0 (gn0, gn1, gn2/p) -> t1 (gn0, gn1/p, gn2)
+  // t1 (gn0, gn1/p, gn2) -> t0 (gn0, gn1, gn2/p)
+  for (std::size_t i3 = 0; i3 < recv_t01.extent(3); i3++) {
+    for (std::size_t i2 = 0; i2 < recv_t01.extent(2); i2++) {
+      for (std::size_t i1 = 0; i1 < recv_t01.extent(1); i1++) {
+        for (std::size_t i0 = 0; i0 < recv_t01.extent(0); i0++) {
+          std::size_t i0_tmp = i0, i1_tmp = i1, i2_tmp = i2;
+          std::size_t p = 0;
+          if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+            p = i3;
+          } else {
+            i0_tmp = i1, i1_tmp = i2, i2_tmp = i3;
+            p = i0;
           }
-          if (li0 < n0 && gi1 < n1 && li2 < n2) {
-            auto tmp_ypencil_ref = std::cos(lx) * std::sin(gy) * std::sin(lz);
-            if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-              h_yrecv(i0, i1, i2, p) = tmp_ypencil_ref;
-            } else {
-              h_yrecv(p, i0, i1, i2) = tmp_ypencil_ref;
-            }
-            if (order == 0) {
-              h_ypencil_ref(i0, gi1, i2) = tmp_ypencil_ref;
-            } else if (order == 1) {
-              h_ypencil_ref(i0, i2, gi1) = tmp_ypencil_ref;
-            } else if (order == 2) {
-              h_ypencil_ref(gi1, i0, i2) = tmp_ypencil_ref;
-            } else if (order == 3) {
-              h_ypencil_ref(gi1, i2, i0) = tmp_ypencil_ref;
-            } else if (order == 4) {
-              h_ypencil_ref(i2, i0, gi1) = tmp_ypencil_ref;
-            } else {
-              h_ypencil_ref(i2, gi1, i0) = tmp_ypencil_ref;
-            }
+
+          const auto [start1, length1] = distribute_extents(gn1, p, nprocs);
+          const auto [start2, length2] = distribute_extents(gn2, p, nprocs);
+          std::size_t gi1              = i1_tmp + start1;
+          std::size_t gi2              = i2_tmp + start2;
+          if (gi1 < gn1 && i1_tmp < length1 && i2_tmp < h_u_t0.extent(2)) {
+            h_recv_t01(i0, i1, i2, i3) = h_u_t0(i0_tmp, gi1, i2_tmp);
           }
-          if (li0 < n0 && li1 < n1 && gi2 < n2) {
-            auto tmp_zpencil_ref = std::cos(lx) * std::sin(ly) * std::sin(gz);
-            if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-              h_zrecv(i0, i1, i2, p) = tmp_zpencil_ref;
-            } else {
-              h_zrecv(p, i0, i1, i2) = tmp_zpencil_ref;
-            }
-            if (order == 0) {
-              h_zpencil_ref(i0, i1, gi2) = tmp_zpencil_ref;
-            } else if (order == 1) {
-              h_zpencil_ref(i0, gi2, i1) = tmp_zpencil_ref;
-            } else if (order == 2) {
-              h_zpencil_ref(i1, i0, gi2) = tmp_zpencil_ref;
-            } else if (order == 3) {
-              h_zpencil_ref(i1, gi2, i0) = tmp_zpencil_ref;
-            } else if (order == 4) {
-              h_zpencil_ref(gi2, i0, i1) = tmp_zpencil_ref;
-            } else {
-              h_zpencil_ref(gi2, i1, i0) = tmp_zpencil_ref;
-            }
+          if (gi2 < gn2 && i2_tmp < length2 && i1_tmp < h_u_t1.extent(1)) {
+            h_recv_t10(i0, i1, i2, i3) = h_u_t1(i0_tmp, i1_tmp, gi2);
           }
         }
       }
     }
   }
 
-  Kokkos::deep_copy(xrecv, h_xrecv);
-  Kokkos::deep_copy(yrecv, h_yrecv);
-  Kokkos::deep_copy(zrecv, h_zrecv);
-  Kokkos::deep_copy(xpencil_ref, h_xpencil_ref);
-  Kokkos::deep_copy(ypencil_ref, h_ypencil_ref);
-  Kokkos::deep_copy(zpencil_ref, h_zpencil_ref);
+  // t0 (gn0, gn1, gn2/p) -> t2 (gn0/p, gn1, gn2)
+  // t2 (gn0/p, gn1, gn2) -> t0 (gn0, gn1, gn2/p)
+  for (std::size_t i3 = 0; i3 < recv_t02.extent(3); i3++) {
+    for (std::size_t i2 = 0; i2 < recv_t02.extent(2); i2++) {
+      for (std::size_t i1 = 0; i1 < recv_t02.extent(1); i1++) {
+        for (std::size_t i0 = 0; i0 < recv_t02.extent(0); i0++) {
+          std::size_t i0_tmp = i0, i1_tmp = i1, i2_tmp = i2;
+          std::size_t p = 0;
+          if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+            p = i3;
+          } else {
+            i0_tmp = i1, i1_tmp = i2, i2_tmp = i3;
+            p = i0;
+          }
 
+          const auto [start0, length0] = distribute_extents(gn0, p, nprocs);
+          const auto [start2, length2] = distribute_extents(gn2, p, nprocs);
+          std::size_t gi0              = i0_tmp + start0;
+          std::size_t gi2              = i2_tmp + start2;
+          if (gi0 < gn0 && i0_tmp < length0 && i2_tmp < h_u_t0.extent(2)) {
+            h_recv_t02(i0, i1, i2, i3) = h_u_t0(gi0, i1_tmp, i2_tmp);
+          }
+          if (gi2 < gn2 && i2_tmp < length2 && i0_tmp < h_u_t2.extent(0)) {
+            h_recv_t20(i0, i1, i2, i3) = h_u_t2(i0_tmp, i1_tmp, gi2);
+          }
+        }
+      }
+    }
+  }
+
+  // t1 (gn0, gn1/p, gn2) -> t2 (gn0/p, gn1, gn2)
+  // t2 (gn0/p, gn1, gn2) -> t1 (gn0, gn1/p, gn2)
+  for (std::size_t i3 = 0; i3 < recv_t12.extent(3); i3++) {
+    for (std::size_t i2 = 0; i2 < recv_t12.extent(2); i2++) {
+      for (std::size_t i1 = 0; i1 < recv_t12.extent(1); i1++) {
+        for (std::size_t i0 = 0; i0 < recv_t12.extent(0); i0++) {
+          std::size_t i0_tmp = i0, i1_tmp = i1, i2_tmp = i2;
+          std::size_t p = 0;
+          if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+            p = i3;
+          } else {
+            i0_tmp = i1, i1_tmp = i2, i2_tmp = i3;
+            p = i0;
+          }
+
+          const auto [start0, length0] = distribute_extents(gn0, p, nprocs);
+          const auto [start1, length1] = distribute_extents(gn1, p, nprocs);
+          std::size_t gi0              = i0_tmp + start0;
+          std::size_t gi1              = i1_tmp + start1;
+
+          if (gi0 < gn0 && i0_tmp < length0 && i1_tmp < h_u_t1.extent(1)) {
+            h_recv_t12(i0, i1, i2, i3) = h_u_t1(gi0, i1_tmp, i2_tmp);
+          }
+          if (gi1 < gn1 && i1_tmp < length1 && i0_tmp < h_u_t2.extent(0)) {
+            h_recv_t21(i0, i1, i2, i3) = h_u_t2(i0_tmp, gi1, i2_tmp);
+          }
+        }
+      }
+    }
+  }
+
+  Kokkos::deep_copy(u_t0, h_u_t0);
+  Kokkos::deep_copy(u_t1, h_u_t1);
+  Kokkos::deep_copy(u_t2, h_u_t2);
+
+  Kokkos::deep_copy(recv_t01, h_recv_t01);
+  Kokkos::deep_copy(recv_t02, h_recv_t02);
+  Kokkos::deep_copy(recv_t10, h_recv_t10);
+  Kokkos::deep_copy(recv_t12, h_recv_t12);
+  Kokkos::deep_copy(recv_t20, h_recv_t20);
+  Kokkos::deep_copy(recv_t21, h_recv_t21);
+
+  // Make permuted local views with safe_transpose
   execution_space exec;
-  unpack(exec, xrecv, xpencil, dst_map, 0);
-  unpack(exec, yrecv, ypencil, dst_map, 1);
-  unpack(exec, zrecv, zpencil, dst_map, 2);
+  safe_transpose(exec, u_t0, u_p_t0_ref, int_map);
+  safe_transpose(exec, u_t1, u_p_t1_ref, int_map);
+  safe_transpose(exec, u_t2, u_p_t2_ref, int_map);
+  exec.fence();
 
-  auto h_xpencil =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), xpencil);
-  auto h_ypencil =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), ypencil);
-  auto h_zpencil =
-      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), zpencil);
+  // Apply pack kernel
+  unpack(exec, recv_t01, u_p_t0_01, dst_map, 1);
+  unpack(exec, recv_t02, u_p_t0_02, dst_map, 0);
+  unpack(exec, recv_t10, u_p_t1_10, dst_map, 2);
+  unpack(exec, recv_t12, u_p_t1_12, dst_map, 0);
+  unpack(exec, recv_t20, u_p_t2_20, dst_map, 2);
+  unpack(exec, recv_t21, u_p_t2_21, dst_map, 1);
+
+  auto h_u_p_t0_01 =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t0_01);
+  auto h_u_p_t0_02 =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t0_02);
+  auto h_u_p_t1_10 =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t1_10);
+  auto h_u_p_t1_12 =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t1_12);
+  auto h_u_p_t2_20 =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t2_20);
+  auto h_u_p_t2_21 =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t2_21);
+  auto h_u_p_t0_ref =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t0_ref);
+  auto h_u_p_t1_ref =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t1_ref);
+  auto h_u_p_t2_ref =
+      Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t2_ref);
 
   T epsilon = std::numeric_limits<T>::epsilon() * 100;
 
-  // Check xpencil is correct
-  for (std::size_t i2 = 0; i2 < xpencil.extent(2); i2++) {
-    for (std::size_t i1 = 0; i1 < xpencil.extent(1); i1++) {
-      for (std::size_t i0 = 0; i0 < xpencil.extent(0); i0++) {
-        auto diff =
-            Kokkos::abs(h_xpencil(i0, i1, i2) - h_xpencil_ref(i0, i1, i2));
-        EXPECT_LE(diff, epsilon);
+  // Check u_p_t0 is correct
+  for (std::size_t i2 = 0; i2 < u_p_t0_ref.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < u_p_t0_ref.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < u_p_t0_ref.extent(0); i0++) {
+        auto diff_01 =
+            Kokkos::abs(h_u_p_t0_01(i0, i1, i2) - h_u_p_t0_ref(i0, i1, i2));
+        auto diff_02 =
+            Kokkos::abs(h_u_p_t0_02(i0, i1, i2) - h_u_p_t0_ref(i0, i1, i2));
+        EXPECT_LE(diff_01, epsilon);
+        EXPECT_LE(diff_02, epsilon);
       }
     }
   }
 
-  // Check ypencil is correct
-  for (std::size_t i2 = 0; i2 < ypencil.extent(2); i2++) {
-    for (std::size_t i1 = 0; i1 < ypencil.extent(1); i1++) {
-      for (std::size_t i0 = 0; i0 < ypencil.extent(0); i0++) {
-        auto diff =
-            Kokkos::abs(h_ypencil(i0, i1, i2) - h_ypencil_ref(i0, i1, i2));
-        EXPECT_LE(diff, epsilon);
+  // Check u_p_t1 is correct
+  for (std::size_t i2 = 0; i2 < u_p_t1_ref.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < u_p_t1_ref.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < u_p_t1_ref.extent(0); i0++) {
+        auto diff_10 =
+            Kokkos::abs(h_u_p_t1_10(i0, i1, i2) - h_u_p_t1_ref(i0, i1, i2));
+        auto diff_12 =
+            Kokkos::abs(h_u_p_t1_12(i0, i1, i2) - h_u_p_t1_ref(i0, i1, i2));
+        EXPECT_LE(diff_10, epsilon);
+        EXPECT_LE(diff_12, epsilon);
       }
     }
   }
 
-  // Check zpencil is correct
-  for (std::size_t i2 = 0; i2 < zpencil.extent(2); i2++) {
-    for (std::size_t i1 = 0; i1 < zpencil.extent(1); i1++) {
-      for (std::size_t i0 = 0; i0 < zpencil.extent(0); i0++) {
-        auto diff =
-            Kokkos::abs(h_zpencil(i0, i1, i2) - h_zpencil_ref(i0, i1, i2));
-        EXPECT_LE(diff, epsilon);
+  // Check u_p_t2 is correct
+  for (std::size_t i2 = 0; i2 < u_p_t2_ref.extent(2); i2++) {
+    for (std::size_t i1 = 0; i1 < u_p_t2_ref.extent(1); i1++) {
+      for (std::size_t i0 = 0; i0 < u_p_t2_ref.extent(0); i0++) {
+        auto diff_20 =
+            Kokkos::abs(h_u_p_t2_20(i0, i1, i2) - h_u_p_t2_ref(i0, i1, i2));
+        auto diff_21 =
+            Kokkos::abs(h_u_p_t2_21(i0, i1, i2) - h_u_p_t2_ref(i0, i1, i2));
+        EXPECT_LE(diff_20, epsilon);
+        EXPECT_LE(diff_21, epsilon);
       }
     }
   }
@@ -432,54 +514,86 @@ TYPED_TEST(TestUnpack, View2D_01) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_unpack_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs, 1);
+  for (int nprocs = 1; nprocs <= this->m_max_nprocs; ++nprocs) {
+    for (int rank = 0; rank < nprocs; ++rank) {
+      test_unpack_view2D<float_type, layout_type>(rank, nprocs, 0);
+    }
+  }
 }
 
 TYPED_TEST(TestUnpack, View2D_10) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_unpack_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs, -1);
+  for (int nprocs = 1; nprocs <= this->m_max_nprocs; ++nprocs) {
+    for (int rank = 0; rank < nprocs; ++rank) {
+      test_unpack_view2D<float_type, layout_type>(rank, nprocs, 1);
+    }
+  }
 }
 
 TYPED_TEST(TestUnpack, View3D_012) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_unpack_view3D<float_type, layout_type>(this->m_rank, this->m_nprocs, 0);
+  for (int nprocs = 1; nprocs <= this->m_max_nprocs; ++nprocs) {
+    for (int rank = 0; rank < nprocs; ++rank) {
+      test_unpack_view3D<float_type, layout_type>(rank, nprocs, 0);
+    }
+  }
 }
 
 TYPED_TEST(TestUnpack, View3D_021) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_unpack_view3D<float_type, layout_type>(this->m_rank, this->m_nprocs, 1);
+  for (int nprocs = 1; nprocs <= this->m_max_nprocs; ++nprocs) {
+    for (int rank = 0; rank < nprocs; ++rank) {
+      test_unpack_view3D<float_type, layout_type>(rank, nprocs, 1);
+    }
+  }
 }
 
 TYPED_TEST(TestUnpack, View3D_102) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_unpack_view3D<float_type, layout_type>(this->m_rank, this->m_nprocs, 2);
+  for (int nprocs = 1; nprocs <= this->m_max_nprocs; ++nprocs) {
+    for (int rank = 0; rank < nprocs; ++rank) {
+      test_unpack_view3D<float_type, layout_type>(rank, nprocs, 2);
+    }
+  }
 }
 
 TYPED_TEST(TestUnpack, View3D_120) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_unpack_view3D<float_type, layout_type>(this->m_rank, this->m_nprocs, 3);
+  for (int nprocs = 1; nprocs <= this->m_max_nprocs; ++nprocs) {
+    for (int rank = 0; rank < nprocs; ++rank) {
+      test_unpack_view3D<float_type, layout_type>(rank, nprocs, 3);
+    }
+  }
 }
 
 TYPED_TEST(TestUnpack, View3D_201) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_unpack_view3D<float_type, layout_type>(this->m_rank, this->m_nprocs, 4);
+  for (int nprocs = 1; nprocs <= this->m_max_nprocs; ++nprocs) {
+    for (int rank = 0; rank < nprocs; ++rank) {
+      test_unpack_view3D<float_type, layout_type>(rank, nprocs, 4);
+    }
+  }
 }
 
 TYPED_TEST(TestUnpack, View3D_210) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_unpack_view3D<float_type, layout_type>(this->m_rank, this->m_nprocs, 5);
+  for (int nprocs = 1; nprocs <= this->m_max_nprocs; ++nprocs) {
+    for (int rank = 0; rank < nprocs; ++rank) {
+      test_unpack_view3D<float_type, layout_type>(rank, nprocs, 5);
+    }
+  }
 }

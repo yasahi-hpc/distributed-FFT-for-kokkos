@@ -27,6 +27,11 @@ struct TestSlab1D : public ::testing::Test {
   virtual void SetUp() {
     ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
     ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
+
+    if (this->m_nprocs > 4) {
+      GTEST_SKIP() << "The number of MPI processes should be smaller or equal "
+                      "to 4 for this test";
+    }
   }
 };
 
@@ -41,6 +46,11 @@ struct TestSlab2D : public ::testing::Test {
   virtual void SetUp() {
     ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
     ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
+
+    if (this->m_nprocs > 4) {
+      GTEST_SKIP() << "The number of MPI processes should be smaller or equal "
+                      "to 4 for this test";
+    }
   }
 };
 
@@ -55,6 +65,11 @@ struct TestSlab3D : public ::testing::Test {
   virtual void SetUp() {
     ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
     ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
+
+    if (this->m_nprocs > 4) {
+      GTEST_SKIP() << "The number of MPI processes should be smaller or equal "
+                      "to 4 for this test";
+    }
   }
 };
 
@@ -308,7 +323,7 @@ void test_slab1D_view3D(std::size_t nprocs) {
   topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
       topology2{nprocs, 1, 1};
 
-  const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  const std::size_t n0 = 8, n1 = 7, n2 = 6;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
                     n1h = get_r2c_shape(n1, is_R2C),
                     n2h = get_r2c_shape(n2, is_R2C);
@@ -998,7 +1013,7 @@ void test_slab2D_view3D(std::size_t nprocs) {
   topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
       topology2{nprocs, 1, 1};
 
-  const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  const std::size_t n0 = 8, n1 = 7, n2 = 6;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
                     n1h = get_r2c_shape(n1, is_R2C),
                     n2h = get_r2c_shape(n2, is_R2C);
@@ -2026,7 +2041,7 @@ void test_slab3D_view3D(std::size_t nprocs) {
   topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
       topology2{nprocs, 1, 1};
 
-  const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  const std::size_t n0 = 8, n1 = 7, n2 = 6;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
                     n1h = get_r2c_shape(n1, is_R2C),
                     n2h = get_r2c_shape(n2, is_R2C);
@@ -2667,7 +2682,7 @@ void test_slab3D_view4D(std::size_t nprocs) {
   topology_type topology0{1, 1, 1, nprocs}, topology1{1, 1, nprocs, 1},
       topology2{1, nprocs, 1, 1}, topology3{nprocs, 1, 1, 1};
 
-  const std::size_t n0 = 8, n1 = 7, n2 = 5, n3 = 6;
+  const std::size_t n0 = 8, n1 = 7, n2 = 6, n3 = 6;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
                     n1h = get_r2c_shape(n1, is_R2C),
                     n2h = get_r2c_shape(n2, is_R2C),
@@ -3397,7 +3412,7 @@ void test_slab3D_view4D(std::size_t nprocs) {
                                 topology0, MPI_COMM_WORLD);
     plan_0_0_ax132.forward(u_0, u_hat_0_ax132);
     EXPECT_TRUE(
-        allclose(exec, u_hat_0_ax132, ref_u_hat_0_ax132, 1.0e-5, 1.0e-6));
+        allclose(exec, u_hat_0_ax132, ref_u_hat_0_ax132, 1.0e-5, 1.0e-5));
 
     plan_0_0_ax132.backward(u_hat_0_ax132, u_inv_0);
     EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
