@@ -1,11 +1,11 @@
-#ifndef TOPOLOGIES_HPP
-#define TOPOLOGIES_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_TOPOLOGIES_HPP
+#define KOKKOSFFT_DISTRIBUTED_TOPOLOGIES_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "MPI_Helper.hpp"
-#include "Utils.hpp"
-#include "Types.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
+#include "KokkosFFT_Distributed_Types.hpp"
 
 template <std::size_t DIM = 1>
 inline auto get_topology_type(const std::array<std::size_t, DIM>& topology) {

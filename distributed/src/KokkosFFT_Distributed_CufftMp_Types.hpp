@@ -1,5 +1,5 @@
-#ifndef CUFFT_MP_TYPES_HPP
-#define CUFFT_MP_TYPES_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_CUFFT_MP_TYPES_HPP
+#define KOKKOSFFT_DISTRIBUTED_CUFFT_MP_TYPES_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>

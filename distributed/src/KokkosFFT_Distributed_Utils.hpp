@@ -1,9 +1,9 @@
-#ifndef UTILS_HPP
-#define UTILS_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_UTILS_HPP
+#define KOKKOSFFT_DISTRIBUTED_UTILS_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "Types.hpp"
+#include "KokkosFFT_Distributed_Types.hpp"
 
 template <typename SizeType, typename IntType, std::size_t DIM,
           std::size_t Rank>

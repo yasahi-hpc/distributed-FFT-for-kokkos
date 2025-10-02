@@ -1,12 +1,12 @@
-#ifndef ROCFFT_MPI_PLAN_HPP
-#define ROCFFT_MPI_PLAN_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_ROCFFT_MPI_PLAN_HPP
+#define KOKKOSFFT_DISTRIBUTED_ROCFFT_MPI_PLAN_HPP
 
 #include <vector>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "MPI_Helper.hpp"
-#include "Topologies.hpp"
-#include "Utils.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_Topologies.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM, typename InLayoutType = Kokkos::LayoutRight,

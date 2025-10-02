@@ -1,20 +1,20 @@
-#ifndef TPL_PLAN_HPP
-#define TPL_PLAN_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_TPL_PLAN_HPP
+#define KOKKOSFFT_DISTRIBUTED_TPL_PLAN_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "InternalPlan.hpp"
+#include "KokkosFFT_Distributed_InternalPlan.hpp"
 
 #if defined(ENABLE_TPL_CUFFT_MP)
-#include "CufftMp_Types.hpp"
-#include "CufftMp_Plan.hpp"
-#include "CufftMp_Transform.hpp"
+#include "KokkosFFT_Distributed_CufftMp_Types.hpp"
+#include "KokkosFFT_Distributed_CufftMp_Plan.hpp"
+#include "KokkosFFT_Distributed_CufftMp_Transform.hpp"
 #endif
 
 #if defined(ENABLE_TPL_ROCFFT_MPI)
-#include "RocfftMPI_Types.hpp"
-#include "RocfftMPI_Plan.hpp"
-#include "RocfftMPI_Transform.hpp"
+#include "KokkosFFT_Distributed_RocfftMPI_Types.hpp"
+#include "KokkosFFT_Distributed_RocfftMPI_Plan.hpp"
+#include "KokkosFFT_Distributed_RocfftMPI_Transform.hpp"
 #endif
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,

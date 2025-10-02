@@ -4,9 +4,9 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
-#include "TplPlan.hpp"
+#include "KokkosFFT_Distributed_TplPlan.hpp"
+#include "KokkosFFT_Distributed_Helper.hpp"
 #include "Test_Utils.hpp"
-#include "Helper.hpp"
 
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;

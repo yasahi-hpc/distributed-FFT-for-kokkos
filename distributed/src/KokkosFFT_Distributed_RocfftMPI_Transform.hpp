@@ -1,9 +1,9 @@
-#ifndef ROCFFT_MPI_TRANSFORM_HPP
-#define ROCFFT_MPI_TRANSFORM_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_ROCFFT_MPI_TRANSFORM_HPP
+#define KOKKOSFFT_DISTRIBUTED_ROCFFT_MPI_TRANSFORM_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "Utils.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
 
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>

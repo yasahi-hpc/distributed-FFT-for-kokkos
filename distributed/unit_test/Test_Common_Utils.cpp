@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <Kokkos_Core.hpp>
-#include "Utils.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
 #include "Test_Utils.hpp"
 
 namespace {

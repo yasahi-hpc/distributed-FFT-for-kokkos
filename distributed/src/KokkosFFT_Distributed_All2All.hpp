@@ -1,11 +1,11 @@
-#ifndef ALL2ALL_HPP
-#define ALL2ALL_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_ALL2ALL_HPP
+#define KOKKOSFFT_DISTRIBUTED_ALL2ALL_HPP
 
 #include <type_traits>
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Profiling_ScopedRegion.hpp>
-#include "MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
 
 template <typename ExecutionSpace, typename ViewType>
 struct All2All {

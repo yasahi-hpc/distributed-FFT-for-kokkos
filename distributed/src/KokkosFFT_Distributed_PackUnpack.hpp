@@ -1,11 +1,11 @@
-#ifndef PACKUNPACK_HPP
-#define PACKUNPACK_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_PACKUNPACK_HPP
+#define KOKKOSFFT_DISTRIBUTED_PACKUNPACK_HPP
 
 #include <numeric>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <KokkosFFT.hpp>
-#include "Mapping.hpp"
+#include "KokkosFFT_Distributed_Mapping.hpp"
 
 template <typename iType>
 KOKKOS_INLINE_FUNCTION auto bin_mapping(iType N, iType nbins, iType ibin) {

@@ -4,7 +4,7 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
-#include "Plan.hpp"
+#include "KokkosFFT_Distributed_Plan.hpp"
 #include "Test_Utils.hpp"
 
 namespace {

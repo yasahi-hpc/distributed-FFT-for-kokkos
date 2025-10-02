@@ -1,12 +1,12 @@
-#ifndef EXTENTS_HPP
-#define EXTENTS_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_EXTENTS_HPP
+#define KOKKOSFFT_DISTRIBUTED_EXTENTS_HPP
 
 #include <algorithm>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "Mapping.hpp"
-#include "Types.hpp"
-#include "Utils.hpp"
+#include "KokkosFFT_Distributed_Mapping.hpp"
+#include "KokkosFFT_Distributed_Types.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
 
 /// \brief Calculate the buffer extents based on the global extents,
 /// the in-topology, and the out-topology.

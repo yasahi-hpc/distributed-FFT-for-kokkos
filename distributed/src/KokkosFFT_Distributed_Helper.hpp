@@ -1,5 +1,5 @@
-#ifndef HELPER_HPP
-#define HELPER_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_HELPER_HPP
+#define KOKKOSFFT_DISTRIBUTED_HELPER_HPP
 
 #include <Kokkos_Core.hpp>
 #include <iomanip>

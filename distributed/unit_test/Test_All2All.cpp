@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
-#include "All2All.hpp"
+#include "KokkosFFT_Distributed_All2All.hpp"
 #include "Test_Utils.hpp"
 
 namespace {

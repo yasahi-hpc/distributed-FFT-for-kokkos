@@ -1,13 +1,13 @@
-#ifndef PENCIL_BLOCK_ANALYSES_HPP
-#define PENCIL_BLOCK_ANALYSES_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_PENCIL_BLOCK_ANALYSES_HPP
+#define KOKKOSFFT_DISTRIBUTED_PENCIL_BLOCK_ANALYSES_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "MPI_Helper.hpp"
-#include "Utils.hpp"
-#include "Types.hpp"
-#include "Topologies.hpp"
-#include "Extents.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
+#include "KokkosFFT_Distributed_Types.hpp"
+#include "KokkosFFT_Distributed_Topologies.hpp"
+#include "KokkosFFT_Distributed_Extents.hpp"
 
 template <typename ValueType, typename Layout, typename iType, std::size_t DIM,
           std::size_t FFT_DIM, typename InLayoutType, typename OutLayoutType>
