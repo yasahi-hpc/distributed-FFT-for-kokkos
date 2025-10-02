@@ -7,7 +7,7 @@
 #include <KokkosFFT.hpp>
 #include "../utils/math_utils.hpp"
 #include "../utils/io_utils.hpp"
-#include "Distributed.hpp"
+#include "KokkosFFT_Distributed.hpp"
 
 using execution_space      = Kokkos::DefaultExecutionSpace;
 using host_execution_space = Kokkos::DefaultHostExecutionSpace;
