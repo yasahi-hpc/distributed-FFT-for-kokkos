@@ -4,8 +4,8 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Helper.hpp"
-#include "Topologies.hpp"
-#include "Utils.hpp"
+#include "KokkosFFT_Distributed_Topologies.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM, typename InLayoutType = Kokkos::LayoutRight,

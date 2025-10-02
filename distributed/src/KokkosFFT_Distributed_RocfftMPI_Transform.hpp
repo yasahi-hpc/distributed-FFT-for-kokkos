@@ -3,7 +3,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "Utils.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
 
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>
