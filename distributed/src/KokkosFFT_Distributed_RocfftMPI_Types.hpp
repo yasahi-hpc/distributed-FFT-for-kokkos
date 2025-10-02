@@ -1,5 +1,5 @@
-#ifndef ROCFFT_MPI_TYPES_HPP
-#define ROCFFT_MPI_TYPES_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_ROCFFT_MPI_TYPES_HPP
+#define KOKKOSFFT_DISTRIBUTED_ROCFFT_MPI_TYPES_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>

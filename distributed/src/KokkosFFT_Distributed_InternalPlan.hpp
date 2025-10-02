@@ -1,11 +1,11 @@
-#ifndef INTERNAL_PLAN_HPP
-#define INTERNAL_PLAN_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_INTERNAL_PLAN_HPP
+#define KOKKOSFFT_DISTRIBUTED_INTERNAL_PLAN_HPP
 
 #include <string>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "Types.hpp"
-#include "Utils.hpp"
+#include "KokkosFFT_Distributed_Types.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,

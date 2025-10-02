@@ -4,9 +4,9 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
-#include "PencilPlan.hpp"
-#include "MPI_Helper.hpp"
-#include "Helper.hpp"
+#include "KokkosFFT_Distributed_PencilPlan.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_Helper.hpp"
 #include "Test_Utils.hpp"
 
 namespace {

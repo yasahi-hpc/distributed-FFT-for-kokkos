@@ -1,11 +1,11 @@
-#ifndef BLOCK_HPP
-#define BLOCK_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_BLOCK_HPP
+#define KOKKOSFFT_DISTRIBUTED_BLOCK_HPP
 
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <KokkosFFT.hpp>
-#include "PackUnpack.hpp"
-#include "All2All.hpp"
+#include "KokkosFFT_Distributed_PackUnpack.hpp"
+#include "KokkosFFT_Distributed_All2All.hpp"
 
 template <typename ExecutionSpace, std::size_t DIM>
 class TransBlock {

@@ -1,5 +1,5 @@
-#ifndef PLAN_HPP
-#define PLAN_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_PLAN_HPP
+#define KOKKOSFFT_DISTRIBUTED_PLAN_HPP
 
 #include <vector>
 #include <memory>
@@ -7,13 +7,13 @@
 #include <sstream>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "InternalPlan.hpp"
-#include "SharedPlan.hpp"
-#include "SlabPlan.hpp"
-#include "PencilPlan.hpp"
+#include "KokkosFFT_Distributed_InternalPlan.hpp"
+#include "KokkosFFT_Distributed_SharedPlan.hpp"
+#include "KokkosFFT_Distributed_SlabPlan.hpp"
+#include "KokkosFFT_Distributed_PencilPlan.hpp"
 
 #if defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
-#include "TplPlan.hpp"
+#include "KokkosFFT_Distributed_TplPlan.hpp"
 #endif
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,

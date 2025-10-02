@@ -1,5 +1,5 @@
-#ifndef MAPPING_HPP
-#define MAPPING_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_MAPPING_HPP
+#define KOKKOSFFT_DISTRIBUTED_MAPPING_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>

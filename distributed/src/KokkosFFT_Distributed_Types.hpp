@@ -1,5 +1,5 @@
-#ifndef TYPES_HPP
-#define TYPES_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_TYPES_HPP
+#define KOKKOSFFT_DISTRIBUTED_TYPES_HPP
 
 #include <array>
 #include <cstddef>

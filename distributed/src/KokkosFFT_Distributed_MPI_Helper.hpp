@@ -1,13 +1,13 @@
-#ifndef MPI_HELPER_HPP
-#define MPI_HELPER_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_MPI_HELPER_HPP
+#define KOKKOSFFT_DISTRIBUTED_MPI_HELPER_HPP
 
 #include <type_traits>
 #include <mpi.h>
 #include <vector>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "Utils.hpp"
-#include "Types.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
+#include "KokkosFFT_Distributed_Types.hpp"
 
 template <typename ValueType>
 struct MPIDataType {};

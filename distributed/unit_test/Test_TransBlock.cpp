@@ -3,10 +3,10 @@
 #include <iostream>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
-#include "TransBlock.hpp"
-#include "MPI_Helper.hpp"
-#include "Helper.hpp"
-#include "Extents.hpp"
+#include "KokkosFFT_Distributed_TransBlock.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_Helper.hpp"
+#include "KokkosFFT_Distributed_Extents.hpp"
 #include "Test_Utils.hpp"
 
 namespace {

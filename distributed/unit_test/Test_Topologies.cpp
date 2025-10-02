@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <Kokkos_Core.hpp>
-#include "Topologies.hpp"
+#include "KokkosFFT_Distributed_Topologies.hpp"
 #include "Test_Utils.hpp"
 
 namespace {

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
-#include "MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
 #include "Test_Utils.hpp"
 
 namespace {

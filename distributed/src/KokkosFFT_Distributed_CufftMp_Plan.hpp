@@ -1,9 +1,9 @@
-#ifndef CUFFT_MP_PLAN_HPP
-#define CUFFT_MP_PLAN_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_CUFFT_MP_PLAN_HPP
+#define KOKKOSFFT_DISTRIBUTED_CUFFT_MP_PLAN_HPP
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
 #include "Topologies.hpp"
 #include "Utils.hpp"
 

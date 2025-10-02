@@ -1,9 +1,9 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
-#include "PackUnpack.hpp"
-#include "Extents.hpp"
-#include "Helper.hpp"
+#include "KokkosFFT_Distributed_PackUnpack.hpp"
+#include "KokkosFFT_Distributed_Extents.hpp"
+#include "KokkosFFT_Distributed_Helper.hpp"
 #include "Test_Utils.hpp"
 
 namespace {

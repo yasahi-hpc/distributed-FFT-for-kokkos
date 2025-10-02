@@ -4,8 +4,8 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
-#include "SharedPlan.hpp"
-#include "MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_SharedPlan.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
 #include "Test_Utils.hpp"
 
 namespace {
