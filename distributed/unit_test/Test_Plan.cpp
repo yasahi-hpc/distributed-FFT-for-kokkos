@@ -179,9 +179,9 @@ void test_plan1D_view2D(std::size_t nprocs) {
   // topo0 -> topo0 with ax = {1}:
   // (n0, n1/p) -> (n0/p, n1) -> ((n0/2+1)/p, n1)
   // Transpose + FFT ax = {1} + Transpose
-  KokkosFFT::Distributed::PlanType plan_0_0_ax1(exec, u_0, u_hat_0_ax1,
-                                                axes_type{1}, topology0,
-                                                topology0, MPI_COMM_WORLD);
+  KokkosFFT::Distributed::Plan plan_0_0_ax1(exec, u_0, u_hat_0_ax1,
+                                            axes_type{1}, topology0, topology0,
+                                            MPI_COMM_WORLD);
   execute(plan_0_0_ax1, u_0, u_hat_0_ax1, KokkosFFT::Direction::forward);
   EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
 
@@ -191,9 +191,9 @@ void test_plan1D_view2D(std::size_t nprocs) {
   // topo 0 -> topo 1 with ax = {0}:
   // (n0, n1/p) -> (n0/2+1, n1/p) -> ((n0 / 2 + 1) / p, n1)
   // FFT ax = {0} + Transpose
-  KokkosFFT::Distributed::PlanType plan_0_1_ax0(exec, u_0, u_hat_1_ax0,
-                                                axes_type{0}, topology0,
-                                                topology1, MPI_COMM_WORLD);
+  KokkosFFT::Distributed::Plan plan_0_1_ax0(exec, u_0, u_hat_1_ax0,
+                                            axes_type{0}, topology0, topology1,
+                                            MPI_COMM_WORLD);
   execute(plan_0_1_ax0, u_0, u_hat_1_ax0, KokkosFFT::Direction::forward);
   EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
 
@@ -203,9 +203,9 @@ void test_plan1D_view2D(std::size_t nprocs) {
   // topology0 (n0, n1/p), ax=1 -> topology1 (n0/p, n1/2+1)
   // topo0 -> topo1 with ax = {1}: (n0, n1/p) -> (n0/p, n1) -> (n0/p, n1/2+1)
   // Transpose + FFT ax = {1}
-  KokkosFFT::Distributed::PlanType plan_0_1_ax1(exec, u_0, u_hat_1_ax1,
-                                                axes_type{1}, topology0,
-                                                topology1, MPI_COMM_WORLD);
+  KokkosFFT::Distributed::Plan plan_0_1_ax1(exec, u_0, u_hat_1_ax1,
+                                            axes_type{1}, topology0, topology1,
+                                            MPI_COMM_WORLD);
   execute(plan_0_1_ax1, u_0, u_hat_1_ax1, KokkosFFT::Direction::forward);
   EXPECT_TRUE(allclose(exec, u_hat_1_ax1, ref_u_hat_1_ax1));
 
@@ -214,9 +214,9 @@ void test_plan1D_view2D(std::size_t nprocs) {
 
   // topo1 -> topo0 with ax = {0}: (n0/p, n1) -> (n0/2+1, n1/p)
   // Transpose + FFT ax = {0}
-  KokkosFFT::Distributed::PlanType plan_1_0_ax0(exec, u_1, u_hat_0_ax0,
-                                                axes_type{0}, topology1,
-                                                topology0, MPI_COMM_WORLD);
+  KokkosFFT::Distributed::Plan plan_1_0_ax0(exec, u_1, u_hat_0_ax0,
+                                            axes_type{0}, topology1, topology0,
+                                            MPI_COMM_WORLD);
   execute(plan_1_0_ax0, u_1, u_hat_0_ax0, KokkosFFT::Direction::forward);
   EXPECT_TRUE(allclose(exec, u_hat_0_ax0, ref_u_hat_0_ax0));
 
@@ -225,9 +225,9 @@ void test_plan1D_view2D(std::size_t nprocs) {
 
   // topo1 -> topo0 with ax = {1}: (n0/p, n1) -> (n0, n1/p)
   // FFT ax = {1} -> Transpose
-  KokkosFFT::Distributed::PlanType plan_1_0_ax1(exec, u_1, u_hat_0_ax1,
-                                                axes_type{1}, topology1,
-                                                topology0, MPI_COMM_WORLD);
+  KokkosFFT::Distributed::Plan plan_1_0_ax1(exec, u_1, u_hat_0_ax1,
+                                            axes_type{1}, topology1, topology0,
+                                            MPI_COMM_WORLD);
   execute(plan_1_0_ax1, u_1, u_hat_0_ax1, KokkosFFT::Direction::forward);
   EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
 
@@ -236,9 +236,9 @@ void test_plan1D_view2D(std::size_t nprocs) {
 
   // topo1 -> topo1 with ax = {0}: (n0/p, n1) -> (n0, n1/p) -> (n0/2+1, n1/p)
   // Transpose + FFT ax = {0} + Transpose
-  KokkosFFT::Distributed::PlanType plan_1_1_ax0(exec, u_1, u_hat_1_ax0,
-                                                axes_type{0}, topology1,
-                                                topology1, MPI_COMM_WORLD);
+  KokkosFFT::Distributed::Plan plan_1_1_ax0(exec, u_1, u_hat_1_ax0,
+                                            axes_type{0}, topology1, topology1,
+                                            MPI_COMM_WORLD);
   execute(plan_1_1_ax0, u_1, u_hat_1_ax0, KokkosFFT::Direction::forward);
   EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
 
