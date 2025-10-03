@@ -84,7 +84,7 @@ class Plan {
   static_assert(DIM >= 1 && DIM <= 3,
                 "Plan: the Rank of FFT axes must be between 1 and 3");
   using InternalPlanType =
-      InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
+      Impl::InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
   using axes_type = KokkosFFT::axis_type<DIM>;
   using in_topology_type =
       Topology<std::size_t, InViewType::rank(), InLayoutType>;
