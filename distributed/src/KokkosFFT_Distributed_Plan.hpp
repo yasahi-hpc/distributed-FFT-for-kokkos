@@ -111,7 +111,7 @@ class Plan {
       const in_topology_type& in_topology,
       const out_topology_type& out_topology, const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
-    m_internal_plan = internal_plan_factory(
+    m_internal_plan = Impl::internal_plan_factory(
         exec_space, in, out, axes, in_topology, out_topology, comm, norm);
   }
 
