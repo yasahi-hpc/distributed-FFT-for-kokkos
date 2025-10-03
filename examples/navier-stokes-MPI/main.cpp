@@ -98,7 +98,7 @@ struct Grid {
     }
 
     std::array<std::size_t, 2> topology{std::size_t(px), std::size_t(py)};
-    auto coord = rank_to_coord(topology, rank);
+    auto coord = KokkosFFT::Distributed::rank_to_coord(topology, rank);
     m_rx = coord.at(0), m_ry = coord.at(1);
 
     // Z-pencil or X-slab (if py==1)
@@ -114,10 +114,10 @@ struct Grid {
     m_z = Math::linspace(exec, 0.0, lz * M_PI, nz, /*endpoint=*/false);
 
     // Wavenumbers
-    auto [out_extents, out_starts] =
-        get_local_extents(extents_type({std::size_t(nx), std::size_t(ny),
-                                        std::size_t(nz / 2 + 1)}),
-                          m_out_topology, MPI_COMM_WORLD);
+    auto [out_extents, out_starts] = KokkosFFT::Distributed::get_local_extents(
+        extents_type(
+            {std::size_t(nx), std::size_t(ny), std::size_t(nz / 2 + 1)}),
+        m_out_topology, MPI_COMM_WORLD);
     auto [nkx, nky, nkz] = out_extents;
     m_kx                 = View1D<double>("kx", nkx);
     m_ky                 = View1D<double>("ky", nky);
@@ -290,13 +290,13 @@ struct Variables {
     std::size_t nx = h_x.extent(0), ny = h_y.extent(0), nz = h_z.extent(0);
 
     // Compute the extents in z-pencils
-    auto [nin0, nin1, nin2] = get_local_shape(
+    auto [nin0, nin1, nin2] = KokkosFFT::Distributed::get_local_shape(
         extents_type({nx, ny, nz}), grid.m_in_topology, MPI_COMM_WORLD);
 
     // Compute the extents in x-pencils
-    auto [nout0, nout1, nout2] =
-        get_local_shape(extents_type({nx, ny, nz / 2 + 1}), grid.m_out_topology,
-                        MPI_COMM_WORLD);
+    auto [nout0, nout1, nout2] = KokkosFFT::Distributed::get_local_shape(
+        extents_type({nx, ny, nz / 2 + 1}), grid.m_out_topology,
+        MPI_COMM_WORLD);
 
     // Create views in z-pencil format
     m_u    = View3D<double>("u", nin0, nin1, nin2);
@@ -358,12 +358,16 @@ struct Variables {
     if (!suppress_diag) {
       using execution_space = Kokkos::DefaultExecutionSpace;
       execution_space exec;
-      Plan plan(exec, m_u, m_uk, KokkosFFT::axis_type<3>{0, 1, 2},
-                grid.m_in_topology, grid.m_out_topology, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::Plan plan(
+          exec, m_u, m_uk, KokkosFFT::axis_type<3>{0, 1, 2}, grid.m_in_topology,
+          grid.m_out_topology, MPI_COMM_WORLD);
 
-      execute(plan, m_u, m_uk, KokkosFFT::Direction::forward);
-      execute(plan, m_v, m_vk, KokkosFFT::Direction::forward);
-      execute(plan, m_w, m_wk, KokkosFFT::Direction::forward);
+      KokkosFFT::Distributed::execute(plan, m_u, m_uk,
+                                      KokkosFFT::Direction::forward);
+      KokkosFFT::Distributed::execute(plan, m_v, m_vk,
+                                      KokkosFFT::Direction::forward);
+      KokkosFFT::Distributed::execute(plan, m_w, m_wk,
+                                      KokkosFFT::Direction::forward);
 
       dealias(m_uk, grid.m_alias_mask);
       dealias(m_vk, grid.m_alias_mask);
@@ -378,7 +382,8 @@ class NavierStokes {
   using OdeSolverType =
       Math::RK4th<execution_space, View1D<Kokkos::complex<double>>>;
   using DistributedPlanType =
-      Plan<execution_space, View3D<double>, View3D<Kokkos::complex<double>>, 3>;
+      KokkosFFT::Distributed::Plan<execution_space, View3D<double>,
+                                   View3D<Kokkos::complex<double>>, 3>;
 
   //! The ODE solver used in the simulation
   std::unique_ptr<OdeSolverType> m_ode_x, m_ode_y, m_ode_z;
@@ -603,18 +608,30 @@ class NavierStokes {
     Kokkos::deep_copy(dukdt, uk);
     Kokkos::deep_copy(dvkdt, vk);
     Kokkos::deep_copy(dwkdt, wk);
-    execute(*m_plan, dukdt, u, KokkosFFT::Direction::backward);
-    execute(*m_plan, dvkdt, v, KokkosFFT::Direction::backward);
-    execute(*m_plan, dwkdt, w, KokkosFFT::Direction::backward);
-    execute(*m_plan, dukdx, dudx, KokkosFFT::Direction::backward);
-    execute(*m_plan, dukdy, dudy, KokkosFFT::Direction::backward);
-    execute(*m_plan, dukdz, dudz, KokkosFFT::Direction::backward);
-    execute(*m_plan, dvkdx, dvdx, KokkosFFT::Direction::backward);
-    execute(*m_plan, dvkdy, dvdy, KokkosFFT::Direction::backward);
-    execute(*m_plan, dvkdz, dvdz, KokkosFFT::Direction::backward);
-    execute(*m_plan, dwkdx, dwdx, KokkosFFT::Direction::backward);
-    execute(*m_plan, dwkdy, dwdy, KokkosFFT::Direction::backward);
-    execute(*m_plan, dwkdz, dwdz, KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dukdt, u,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dvkdt, v,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dwkdt, w,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dukdx, dudx,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dukdy, dudy,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dukdz, dudz,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dvkdx, dvdx,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dvkdy, dvdy,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dvkdz, dvdz,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dwkdx, dwdx,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dwkdy, dwdy,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, dwkdz, dwdz,
+                                    KokkosFFT::Direction::backward);
 
     // Calculate nonlinear advection terms in real space
     // in Z-pencil or X-slab (if py==1)
@@ -622,9 +639,12 @@ class NavierStokes {
 
     // FFT of nonlinear terms (stored in dukdt)
     // Z-pencil to X-pencil format
-    execute(*m_plan, u, dukdt, KokkosFFT::Direction::forward);
-    execute(*m_plan, v, dvkdt, KokkosFFT::Direction::forward);
-    execute(*m_plan, w, dwkdt, KokkosFFT::Direction::forward);
+    KokkosFFT::Distributed::execute(*m_plan, u, dukdt,
+                                    KokkosFFT::Direction::forward);
+    KokkosFFT::Distributed::execute(*m_plan, v, dvkdt,
+                                    KokkosFFT::Direction::forward);
+    KokkosFFT::Distributed::execute(*m_plan, w, dwkdt,
+                                    KokkosFFT::Direction::forward);
 
     dealias(dukdt, m_grid.m_alias_mask);
     dealias(dvkdt, m_grid.m_alias_mask);
@@ -760,12 +780,15 @@ class NavierStokes {
     Kokkos::deep_copy(m_variables.m_dukdt, m_variables.m_uk);
     Kokkos::deep_copy(m_variables.m_dvkdt, m_variables.m_vk);
     Kokkos::deep_copy(m_variables.m_dwkdt, m_variables.m_wk);
-    execute(*m_plan, m_variables.m_dukdt, m_variables.m_u,
-            KokkosFFT::Direction::backward);
-    execute(*m_plan, m_variables.m_dvkdt, m_variables.m_v,
-            KokkosFFT::Direction::backward);
-    execute(*m_plan, m_variables.m_dwkdt, m_variables.m_w,
-            KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, m_variables.m_dukdt,
+                                    m_variables.m_u,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, m_variables.m_dvkdt,
+                                    m_variables.m_v,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, m_variables.m_dwkdt,
+                                    m_variables.m_w,
+                                    KokkosFFT::Direction::backward);
 
     to_binary_file("u", m_variables.m_u, iter);
     to_binary_file("v", m_variables.m_v, iter);

@@ -84,17 +84,23 @@ void test_tpl1D_is_available(std::size_t nprocs) {
       global_out_extents_ax1{n0, n1 / 2 + 1};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
 
   // Data in Topology 0 (X-slab)
   RealView2DType u_0("u_0",
@@ -118,14 +124,14 @@ void test_tpl1D_is_available(std::size_t nprocs) {
   // For 1D transform, this is not supported by tpls
   execution_space exec;
 
-  bool is_available_0_0_ax0 =
-      is_tpl_available(exec, u_0, u_hat_0_ax0, ax0, topology0, topology0);
-  bool is_available_0_0_ax1 =
-      is_tpl_available(exec, u_0, u_hat_0_ax1, ax1, topology0, topology0);
-  bool is_available_1_0_ax0 =
-      is_tpl_available(exec, u_1, u_hat_1_ax0, ax0, topology1, topology1);
-  bool is_available_1_0_ax1 =
-      is_tpl_available(exec, u_1, u_hat_1_ax1, ax1, topology1, topology1);
+  bool is_available_0_0_ax0 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax0, ax0, topology0, topology0);
+  bool is_available_0_0_ax1 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax1, ax1, topology0, topology0);
+  bool is_available_1_0_ax0 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_1, u_hat_1_ax0, ax0, topology1, topology1);
+  bool is_available_1_0_ax1 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_1, u_hat_1_ax1, ax1, topology1, topology1);
 
   EXPECT_FALSE(is_available_0_0_ax0);
   EXPECT_FALSE(is_available_0_0_ax1);
@@ -157,17 +163,23 @@ void test_tpl2D_is_available_View2D(std::size_t nprocs) {
       global_out_extents_ax1{n0, n1 / 2 + 1};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
 
   // Data in Topology 0 (X-slab)
   RealView2DType u_0("u_0",
@@ -190,14 +202,14 @@ void test_tpl2D_is_available_View2D(std::size_t nprocs) {
   // Check availability
   // These 2D transforms on 2D Views are fully supported
   execution_space exec;
-  bool is_available_0_0_ax01 =
-      is_tpl_available(exec, u_0, u_hat_0_ax0, ax01, topology0, topology0);
-  bool is_available_0_0_ax10 =
-      is_tpl_available(exec, u_0, u_hat_0_ax1, ax10, topology0, topology0);
-  bool is_available_1_0_ax01 =
-      is_tpl_available(exec, u_1, u_hat_0_ax0, ax01, topology1, topology0);
-  bool is_available_1_0_ax10 =
-      is_tpl_available(exec, u_1, u_hat_0_ax1, ax10, topology1, topology0);
+  bool is_available_0_0_ax01 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax0, ax01, topology0, topology0);
+  bool is_available_0_0_ax10 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax1, ax10, topology0, topology0);
+  bool is_available_1_0_ax01 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_1, u_hat_0_ax0, ax01, topology1, topology0);
+  bool is_available_1_0_ax10 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_1, u_hat_0_ax1, ax10, topology1, topology0);
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -250,29 +262,41 @@ void test_tpl2D_is_available_View3D(std::size_t nprocs) {
       global_out_extents_ax2{n0, n1, n2 / 2 + 1};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   RealView3DType gu("gu", n0, n1, n2);
@@ -344,31 +368,31 @@ void test_tpl2D_is_available_View3D(std::size_t nprocs) {
   // These 2D transforms on 3D+ Views are not supported
   execution_space exec;
 
-  bool is_available_0_0_ax01 =
-      is_tpl_available(exec, u_0, u_hat_0_ax01, ax01, topology0, topology0);
-  bool is_available_0_0_ax02 =
-      is_tpl_available(exec, u_0, u_hat_0_ax02, ax02, topology0, topology0);
-  bool is_available_0_0_ax10 =
-      is_tpl_available(exec, u_0, u_hat_0_ax10, ax10, topology0, topology0);
-  bool is_available_0_0_ax12 =
-      is_tpl_available(exec, u_0, u_hat_0_ax12, ax12, topology0, topology0);
-  bool is_available_0_0_ax20 =
-      is_tpl_available(exec, u_0, u_hat_0_ax20, ax20, topology0, topology0);
-  bool is_available_0_0_ax21 =
-      is_tpl_available(exec, u_0, u_hat_0_ax21, ax21, topology0, topology0);
+  bool is_available_0_0_ax01 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax01, ax01, topology0, topology0);
+  bool is_available_0_0_ax02 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax02, ax02, topology0, topology0);
+  bool is_available_0_0_ax10 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax10, ax10, topology0, topology0);
+  bool is_available_0_0_ax12 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax12, ax12, topology0, topology0);
+  bool is_available_0_0_ax20 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax20, ax20, topology0, topology0);
+  bool is_available_0_0_ax21 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax21, ax21, topology0, topology0);
 
-  bool is_available_0_1_ax01 =
-      is_tpl_available(exec, u_0, u_hat_0_ax01, ax01, topology0, topology1);
-  bool is_available_0_1_ax02 =
-      is_tpl_available(exec, u_0, u_hat_0_ax02, ax02, topology0, topology1);
-  bool is_available_0_1_ax10 =
-      is_tpl_available(exec, u_0, u_hat_0_ax10, ax10, topology0, topology1);
-  bool is_available_0_1_ax12 =
-      is_tpl_available(exec, u_0, u_hat_0_ax12, ax12, topology0, topology1);
-  bool is_available_0_1_ax20 =
-      is_tpl_available(exec, u_0, u_hat_0_ax20, ax20, topology0, topology1);
-  bool is_available_0_1_ax21 =
-      is_tpl_available(exec, u_0, u_hat_0_ax21, ax21, topology0, topology1);
+  bool is_available_0_1_ax01 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax01, ax01, topology0, topology1);
+  bool is_available_0_1_ax02 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax02, ax02, topology0, topology1);
+  bool is_available_0_1_ax10 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax10, ax10, topology0, topology1);
+  bool is_available_0_1_ax12 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax12, ax12, topology0, topology1);
+  bool is_available_0_1_ax20 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax20, ax20, topology0, topology1);
+  bool is_available_0_1_ax21 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax21, ax21, topology0, topology1);
 
   // Batched plans are not supported
   EXPECT_FALSE(is_available_0_0_ax01);
@@ -414,29 +438,41 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
       global_out_extents_ax2{n0, n1, n2 / 2 + 1};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   RealView3DType gu("gu", n0, n1, n2);
@@ -508,31 +544,31 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
   // These 3D transforms on 3D+ Views are not supported
   execution_space exec;
 
-  bool is_available_0_0_ax012 =
-      is_tpl_available(exec, u_0, u_hat_0_ax012, ax012, topology0, topology0);
-  bool is_available_0_0_ax021 =
-      is_tpl_available(exec, u_0, u_hat_0_ax021, ax021, topology0, topology0);
-  bool is_available_0_0_ax102 =
-      is_tpl_available(exec, u_0, u_hat_0_ax102, ax102, topology0, topology0);
-  bool is_available_0_0_ax120 =
-      is_tpl_available(exec, u_0, u_hat_0_ax120, ax120, topology0, topology0);
-  bool is_available_0_0_ax201 =
-      is_tpl_available(exec, u_0, u_hat_0_ax201, ax201, topology0, topology0);
-  bool is_available_0_0_ax210 =
-      is_tpl_available(exec, u_0, u_hat_0_ax210, ax210, topology0, topology0);
+  bool is_available_0_0_ax012 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax012, ax012, topology0, topology0);
+  bool is_available_0_0_ax021 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax021, ax021, topology0, topology0);
+  bool is_available_0_0_ax102 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax102, ax102, topology0, topology0);
+  bool is_available_0_0_ax120 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax120, ax120, topology0, topology0);
+  bool is_available_0_0_ax201 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax201, ax201, topology0, topology0);
+  bool is_available_0_0_ax210 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_0_ax210, ax210, topology0, topology0);
 
-  bool is_available_0_1_ax012 =
-      is_tpl_available(exec, u_0, u_hat_1_ax012, ax012, topology0, topology1);
-  bool is_available_0_1_ax021 =
-      is_tpl_available(exec, u_0, u_hat_1_ax021, ax021, topology0, topology1);
-  bool is_available_0_1_ax102 =
-      is_tpl_available(exec, u_0, u_hat_1_ax102, ax102, topology0, topology1);
-  bool is_available_0_1_ax120 =
-      is_tpl_available(exec, u_0, u_hat_1_ax120, ax120, topology0, topology1);
-  bool is_available_0_1_ax201 =
-      is_tpl_available(exec, u_0, u_hat_1_ax201, ax201, topology0, topology1);
-  bool is_available_0_1_ax210 =
-      is_tpl_available(exec, u_0, u_hat_1_ax210, ax210, topology0, topology1);
+  bool is_available_0_1_ax012 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_1_ax012, ax012, topology0, topology1);
+  bool is_available_0_1_ax021 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_1_ax021, ax021, topology0, topology1);
+  bool is_available_0_1_ax102 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_1_ax102, ax102, topology0, topology1);
+  bool is_available_0_1_ax120 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_1_ax120, ax120, topology0, topology1);
+  bool is_available_0_1_ax201 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_1_ax201, ax201, topology0, topology1);
+  bool is_available_0_1_ax210 = KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, u_0, u_hat_1_ax210, ax210, topology0, topology1);
 
   EXPECT_FALSE(is_available_0_0_ax012);
   EXPECT_FALSE(is_available_0_0_ax021);
@@ -593,17 +629,23 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
       global_out_extents_ax1{n0, n1h};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View2DType gu("gu", n0, n1), gu_inv("gu_inv", n0, n1);
@@ -720,29 +762,33 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   // Do not support cases where the input/output topologies are the same
   ASSERT_THROW(
       {
-        TplPlan plan_0_0_ax01(exec, u_0, u_hat_0_ax01, ax01, topology0,
-                              topology0, MPI_COMM_WORLD);
+        KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax01(
+            exec, u_0, u_hat_0_ax01, ax01, topology0, topology0,
+            MPI_COMM_WORLD);
       },
       std::runtime_error);
 
   ASSERT_THROW(
       {
-        TplPlan plan_0_0_ax10(exec, u_0, u_hat_0_ax10, ax10, topology0,
-                              topology0, MPI_COMM_WORLD);
+        KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax10(
+            exec, u_0, u_hat_0_ax10, ax10, topology0, topology0,
+            MPI_COMM_WORLD);
       },
       std::runtime_error);
 
   ASSERT_THROW(
       {
-        TplPlan plan_1_1_ax01(exec, u_1, u_hat_1_ax01, ax01, topology1,
-                              topology1, MPI_COMM_WORLD);
+        KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax01(
+            exec, u_1, u_hat_1_ax01, ax01, topology1, topology1,
+            MPI_COMM_WORLD);
       },
       std::runtime_error);
 
   ASSERT_THROW(
       {
-        TplPlan plan_1_1_ax10(exec, u_1, u_hat_1_ax10, ax10, topology1,
-                              topology1, MPI_COMM_WORLD);
+        KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax10(
+            exec, u_1, u_hat_1_ax10, ax10, topology1, topology1,
+            MPI_COMM_WORLD);
       },
       std::runtime_error);
 
@@ -750,33 +796,37 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   if (nprocs == 1) {
     ASSERT_THROW(
         {
-          TplPlan plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0,
-                                topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax01(
+              exec, u_0, u_hat_1_ax01, ax01, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
     ASSERT_THROW(
         {
-          TplPlan plan_0_1_ax10(exec, u_0, u_hat_1_ax10, ax10, topology0,
-                                topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax10(
+              exec, u_0, u_hat_1_ax10, ax10, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
     ASSERT_THROW(
         {
-          TplPlan plan_1_0_ax01(exec, u_1, u_hat_0_ax01, ax01, topology1,
-                                topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax01(
+              exec, u_1, u_hat_0_ax01, ax01, topology1, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
     ASSERT_THROW(
         {
-          TplPlan plan_1_0_ax10(exec, u_1, u_hat_0_ax10, ax10, topology1,
-                                topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax10(
+              exec, u_1, u_hat_0_ax10, ax10, topology1, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
     // topo0 -> topo1 with ax = {0, 1}:
     // (n0, n1/p) -> (n0/p, n1/2+1)
-    TplPlan plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0, topology1,
-                          MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax01(
+        exec, u_0, u_hat_1_ax01, ax01, topology0, topology1, MPI_COMM_WORLD);
 
     plan_0_1_ax01.forward(u_0, u_hat_1_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
@@ -786,8 +836,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     // topo0 -> topo1 with ax = {1, 0}:
     // (n0, n1/p) -> ((n0/2+1)/p, n1)
-    TplPlan plan_0_1_ax10(exec, u_0, u_hat_1_ax10, ax10, topology0, topology1,
-                          MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax10(
+        exec, u_0, u_hat_1_ax10, ax10, topology0, topology1, MPI_COMM_WORLD);
 
     plan_0_1_ax10.forward(u_0, u_hat_1_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
@@ -797,8 +847,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     // topo1 -> topo0 with ax = {0, 1}:
     // (n0/p, n1) -> (n0, (n1/2+1)/p)
-    TplPlan plan_1_0_ax01(exec, u_1, u_hat_0_ax01, ax01, topology1, topology0,
-                          MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax01(
+        exec, u_1, u_hat_0_ax01, ax01, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax01.forward(u_1, u_hat_0_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
 
@@ -807,8 +857,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     // topo1 -> topo0 with ax = {1, 0}:
     // (n0/p, n1) -> ((n0/2+1)/p, n1)
-    TplPlan plan_1_0_ax10(exec, u_1, u_hat_0_ax10, ax10, topology1, topology0,
-                          MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax10(
+        exec, u_1, u_hat_0_ax10, ax10, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax10.forward(u_1, u_hat_0_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
 
@@ -845,29 +895,41 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
             ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View3DType gu("gu", n0, n1, n2);
@@ -1180,8 +1242,9 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(
         {
-          TplPlan plan_0_1_ax012(exec, u_0, u_hat_1_ax012, ax012, topology0,
-                                 topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax012(
+              exec, u_0, u_hat_1_ax012, ax012, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1189,8 +1252,9 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     // (n0, n1, n2/p) -> (n0/p, n1/2+1, n2)
     ASSERT_THROW(
         {
-          TplPlan plan_0_2_ax012(exec, u_0, u_hat_2_ax012, ax012, topology0,
-                                 topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax012(
+              exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1198,8 +1262,9 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     // (n0, n1/p, n2) -> (n0/p, n1, n2/2+1)
     ASSERT_THROW(
         {
-          TplPlan plan_1_2_ax012(exec, u_1, u_hat_2_ax012, ax012, topology1,
-                                 topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax012(
+              exec, u_1, u_hat_2_ax012, ax012, topology1, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1207,8 +1272,9 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     // (n0, n1, n2/p) -> (n0, n1, (n2/2+1)/p)
     ASSERT_THROW(
         {
-          TplPlan plan_0_0_ax012(exec, u_0, u_hat_0_ax012, ax012, topology0,
-                                 topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax012(
+              exec, u_0, u_hat_0_ax012, ax012, topology0, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1216,8 +1282,9 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     // (n0, n1/p, n2) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(
         {
-          TplPlan plan_1_1_ax210(exec, u_1, u_hat_1_ax210, ax210, topology1,
-                                 topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax210(
+              exec, u_1, u_hat_1_ax210, ax210, topology1, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1225,15 +1292,16 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
     // (n0/p, n1, n2) -> (n0/p, (n1/2+1), n2)
     ASSERT_THROW(
         {
-          TplPlan plan_2_2_ax012(exec, u_2, u_hat_2_ax012, ax012, topology2,
-                                 topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_2_2_ax012(
+              exec, u_2, u_hat_2_ax012, ax012, topology2, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
     // topo 0 -> topo 1 with ax = {0, 1, 2}:
     // (n0, n1, n2/p) -> (n0, n1/p, n2/2+1)
-    TplPlan plan_0_1_ax012(exec, u_0, u_hat_1_ax012, ax012, topology0,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax012(
+        exec, u_0, u_hat_1_ax012, ax012, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax012.forward(u_0, u_hat_1_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
 
@@ -1242,8 +1310,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 1 with ax = {0, 2, 1}:
     // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    TplPlan plan_0_1_ax021(exec, u_0, u_hat_1_ax021, ax021, topology0,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax021(
+        exec, u_0, u_hat_1_ax021, ax021, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax021.forward(u_0, u_hat_1_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021));
 
@@ -1252,8 +1320,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 1 with ax = {1, 0, 2}:
     // (n0, n1, n2/p) -> (n0, n1/p, n2/2+1)
-    TplPlan plan_0_1_ax102(exec, u_0, u_hat_1_ax102, ax102, topology0,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax102(
+        exec, u_0, u_hat_1_ax102, ax102, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax102.forward(u_0, u_hat_1_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102));
 
@@ -1262,8 +1330,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 1 with ax = {1, 2, 0}:
     // (n0, n1, n2/p) -> (n0/2+1, n1/p, n2)
-    TplPlan plan_0_1_ax120(exec, u_0, u_hat_1_ax120, ax120, topology0,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax120(
+        exec, u_0, u_hat_1_ax120, ax120, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax120.forward(u_0, u_hat_1_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
 
@@ -1272,8 +1340,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 1 with ax = {2, 0, 1}:
     // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    TplPlan plan_0_1_ax201(exec, u_0, u_hat_1_ax201, ax201, topology0,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax201(
+        exec, u_0, u_hat_1_ax201, ax201, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax201.forward(u_0, u_hat_1_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201));
 
@@ -1283,8 +1351,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 1 with ax = {2, 1, 0}:
     // (n0, n1, n2/p) -> (n0/2+1, n1/p, n2)
-    TplPlan plan_0_1_ax210(exec, u_0, u_hat_1_ax210, ax210, topology0,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax210(
+        exec, u_0, u_hat_1_ax210, ax210, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax210.forward(u_0, u_hat_1_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210));
 
@@ -1293,8 +1361,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 2 with ax = {0, 1, 2}:
     // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1)
-    TplPlan plan_0_2_ax012(exec, u_0, u_hat_2_ax012, ax012, topology0,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax012(
+        exec, u_0, u_hat_2_ax012, ax012, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
 
@@ -1303,8 +1371,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 2 with ax = {0, 2, 1}:
     // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    TplPlan plan_0_2_ax021(exec, u_0, u_hat_2_ax021, ax021, topology0,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax021(
+        exec, u_0, u_hat_2_ax021, ax021, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax021.forward(u_0, u_hat_2_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021));
 
@@ -1313,8 +1381,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 2 with ax = {1, 0, 2}:
     // (n0, n1, n2/p) -> (n0, n1/p, n2) -> (n0, n1/p, n2/2+1)
-    TplPlan plan_0_2_ax102(exec, u_0, u_hat_2_ax102, ax102, topology0,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax102(
+        exec, u_0, u_hat_2_ax102, ax102, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax102.forward(u_0, u_hat_2_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102));
 
@@ -1323,8 +1391,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 2 with ax = {1, 2, 0}:
     // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_0_2_ax120(exec, u_0, u_hat_2_ax120, ax120, topology0,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax120(
+        exec, u_0, u_hat_2_ax120, ax120, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax120.forward(u_0, u_hat_2_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
 
@@ -1333,8 +1401,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 2 with ax = {2, 0, 1}:
     // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    TplPlan plan_0_2_ax201(exec, u_0, u_hat_2_ax201, ax201, topology0,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax201(
+        exec, u_0, u_hat_2_ax201, ax201, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax201.forward(u_0, u_hat_2_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
 
@@ -1343,8 +1411,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 0 -> topo 2 with ax = {2, 1, 0}:
     // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_0_2_ax210(exec, u_0, u_hat_2_ax210, ax210, topology0,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax210(
+        exec, u_0, u_hat_2_ax210, ax210, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax210.forward(u_0, u_hat_2_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210));
 
@@ -1353,8 +1421,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 0 with ax = {0, 1, 2}:
     // (n0p, n1/p, n2) -> (n0, n1, (n2/2+1)/p)
-    TplPlan plan_1_0_ax012(exec, u_1, u_hat_0_ax012, ax012, topology1,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax012(
+        exec, u_1, u_hat_0_ax012, ax012, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax012.forward(u_1, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
@@ -1363,8 +1431,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 0 with ax = {0, 2, 1}:
     // (n0p, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    TplPlan plan_1_0_ax021(exec, u_1, u_hat_0_ax021, ax021, topology1,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax021(
+        exec, u_1, u_hat_0_ax021, ax021, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax021.forward(u_1, u_hat_0_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
 
@@ -1373,8 +1441,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 0 with ax = {1, 0, 2}:
     // (n0p, n1/p, n2) -> (n0, n1/2+1, (n2/2+1)/p)
-    TplPlan plan_1_0_ax102(exec, u_1, u_hat_0_ax102, ax102, topology1,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax102(
+        exec, u_1, u_hat_0_ax102, ax102, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax102.forward(u_1, u_hat_0_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
 
@@ -1383,8 +1451,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 0 with ax = {1, 2, 0}:
     // (n0p, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_1_0_ax120(exec, u_1, u_hat_0_ax120, ax120, topology1,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax120(
+        exec, u_1, u_hat_0_ax120, ax120, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax120.forward(u_1, u_hat_0_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
 
@@ -1393,8 +1461,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 0 with ax = {2, 0, 1}:
     // (n0p, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    TplPlan plan_1_0_ax201(exec, u_1, u_hat_0_ax201, ax201, topology1,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax201(
+        exec, u_1, u_hat_0_ax201, ax201, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax201.forward(u_1, u_hat_0_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
 
@@ -1403,8 +1471,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 0 with ax = {2, 1, 0}:
     // (n0p, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_1_0_ax210(exec, u_1, u_hat_0_ax210, ax210, topology1,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax210(
+        exec, u_1, u_hat_0_ax210, ax210, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax210.forward(u_1, u_hat_0_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
 
@@ -1413,8 +1481,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 2 with ax = {0, 1, 2}:
     // (n0, n1/p, n2) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1)
-    TplPlan plan_1_2_ax012(exec, u_1, u_hat_2_ax012, ax012, topology1,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax012(
+        exec, u_1, u_hat_2_ax012, ax012, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax012.forward(u_1, u_hat_2_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
 
@@ -1423,8 +1491,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 2 with ax = {0, 2, 1}:
     // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    TplPlan plan_1_2_ax021(exec, u_1, u_hat_2_ax021, ax021, topology1,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax021(
+        exec, u_1, u_hat_2_ax021, ax021, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax021.forward(u_1, u_hat_2_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021));
 
@@ -1433,8 +1501,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 2 with ax = {1, 0, 2}:
     // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, n1/p, n2/2+1)
-    TplPlan plan_1_2_ax102(exec, u_1, u_hat_2_ax102, ax102, topology1,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax102(
+        exec, u_1, u_hat_2_ax102, ax102, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax102.forward(u_1, u_hat_2_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102));
 
@@ -1443,8 +1511,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 2 with ax = {1, 2, 0}:
     // (n0, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_1_2_ax120(exec, u_1, u_hat_2_ax120, ax120, topology1,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax120(
+        exec, u_1, u_hat_2_ax120, ax120, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax120.forward(u_1, u_hat_2_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
 
@@ -1453,8 +1521,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 2 with ax = {2, 0, 1}:
     // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    TplPlan plan_1_2_ax201(exec, u_1, u_hat_2_ax201, ax201, topology1,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax201(
+        exec, u_1, u_hat_2_ax201, ax201, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax201.forward(u_1, u_hat_2_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
 
@@ -1463,8 +1531,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 1 -> topo 2 with ax = {2, 1, 0}:
     // (n0, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_1_2_ax210(exec, u_1, u_hat_2_ax210, ax210, topology1,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax210(
+        exec, u_1, u_hat_2_ax210, ax210, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax210.forward(u_1, u_hat_2_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210));
 
@@ -1473,8 +1541,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 0 with ax = {0, 1, 2}:
     // (n0/p, n1, n2) -> (n0, n1, n2/2+1) -> (n0, n1, n2/p)
-    TplPlan plan_2_0_ax012(exec, u_2, u_hat_0_ax012, ax012, topology2,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax012(
+        exec, u_2, u_hat_0_ax012, ax012, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
@@ -1483,8 +1551,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 0 with ax = {0, 2, 1}:
     // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    TplPlan plan_2_0_ax021(exec, u_2, u_hat_0_ax021, ax021, topology2,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax021(
+        exec, u_2, u_hat_0_ax021, ax021, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax021.forward(u_2, u_hat_0_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
 
@@ -1493,8 +1561,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 0 with ax = {1, 0, 2}:
     // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, n1/p, n2/2+1)
-    TplPlan plan_2_0_ax102(exec, u_2, u_hat_0_ax102, ax102, topology2,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax102(
+        exec, u_2, u_hat_0_ax102, ax102, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax102.forward(u_2, u_hat_0_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
 
@@ -1503,8 +1571,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 0 with ax = {1, 2, 0}:
     // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_2_0_ax120(exec, u_2, u_hat_0_ax120, ax120, topology2,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax120(
+        exec, u_2, u_hat_0_ax120, ax120, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax120.forward(u_2, u_hat_0_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
 
@@ -1513,8 +1581,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 0 with ax = {2, 0, 1}:
     // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    TplPlan plan_2_0_ax201(exec, u_2, u_hat_0_ax201, ax201, topology2,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax201(
+        exec, u_2, u_hat_0_ax201, ax201, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax201.forward(u_2, u_hat_0_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
 
@@ -1523,8 +1591,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 0 with ax = {2, 1, 0}:
     // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_2_0_ax210(exec, u_2, u_hat_0_ax210, ax210, topology2,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax210(
+        exec, u_2, u_hat_0_ax210, ax210, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax210.forward(u_2, u_hat_0_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
 
@@ -1533,8 +1601,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 1 with ax = {0, 1, 2}:
     // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
-    TplPlan plan_2_1_ax012(exec, u_2, u_hat_1_ax012, ax012, topology2,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax012(
+        exec, u_2, u_hat_1_ax012, ax012, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
 
@@ -1543,8 +1611,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 1 with ax = {0, 2, 1}:
     // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    TplPlan plan_2_1_ax021(exec, u_2, u_hat_1_ax021, ax021, topology2,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax021(
+        exec, u_2, u_hat_1_ax021, ax021, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax021.forward(u_2, u_hat_1_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021));
 
@@ -1553,8 +1621,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 1 with ax = {1, 0, 2}:
     // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
-    TplPlan plan_2_1_ax102(exec, u_2, u_hat_1_ax102, ax102, topology2,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax102(
+        exec, u_2, u_hat_1_ax102, ax102, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax102.forward(u_2, u_hat_1_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102));
 
@@ -1563,8 +1631,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 1 with ax = {1, 2, 0}:
     // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_2_1_ax120(exec, u_2, u_hat_1_ax120, ax120, topology2,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax120(
+        exec, u_2, u_hat_1_ax120, ax120, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax120.forward(u_2, u_hat_1_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
 
@@ -1573,8 +1641,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 1 with ax = {2, 0, 1}:
     // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    TplPlan plan_2_1_ax201(exec, u_2, u_hat_1_ax201, ax201, topology2,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax201(
+        exec, u_2, u_hat_1_ax201, ax201, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax201.forward(u_2, u_hat_1_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201));
 
@@ -1583,8 +1651,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
 
     // topo 2 -> topo 1 with ax = {2, 1, 0}:
     // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    TplPlan plan_2_1_ax210(exec, u_2, u_hat_1_ax210, ax210, topology2,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax210(
+        exec, u_2, u_hat_1_ax210, ax210, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax210.forward(u_2, u_hat_1_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210));
 
@@ -1621,29 +1689,41 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
             ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View3DType gu("gu", n0, n1, n2);
@@ -2012,8 +2092,9 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(
         {
-          TplPlan plan_0_1_ax012(exec, u_0, u_hat_1_ax012, ax012, topology0,
-                                 topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax012(
+              exec, u_0, u_hat_1_ax012, ax012, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2021,8 +2102,9 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
     // (n0, n1, n2/p) -> (n0/p, n1/2+1, n2)
     ASSERT_THROW(
         {
-          TplPlan plan_0_2_ax012(exec, u_0, u_hat_2_ax012, ax012, topology0,
-                                 topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax012(
+              exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2030,8 +2112,9 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
     // (n0, n1/p, n2) -> (n0/p, n1, n2/2+1)
     ASSERT_THROW(
         {
-          TplPlan plan_1_2_ax012(exec, u_1, u_hat_2_ax012, ax012, topology1,
-                                 topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax012(
+              exec, u_1, u_hat_2_ax012, ax012, topology1, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2039,8 +2122,9 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
     // (n0, n1, n2/p) -> (n0, n1, (n2/2+1)/p)
     ASSERT_THROW(
         {
-          TplPlan plan_0_0_ax012(exec, u_0, u_hat_0_ax012, ax012, topology0,
-                                 topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax012(
+              exec, u_0, u_hat_0_ax012, ax012, topology0, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2048,8 +2132,9 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
     // (n0, n1/p, n2) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(
         {
-          TplPlan plan_1_1_ax210(exec, u_1, u_hat_1_ax210, ax210, topology1,
-                                 topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax210(
+              exec, u_1, u_hat_1_ax210, ax210, topology1, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2057,15 +2142,16 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
     // (n0/p, n1, n2) -> (n0/p, (n1/2+1), n2)
     ASSERT_THROW(
         {
-          TplPlan plan_2_2_ax012(exec, u_2, u_hat_2_ax012, ax012, topology2,
-                                 topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::TplPlan plan_2_2_ax012(
+              exec, u_2, u_hat_2_ax012, ax012, topology2, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
     // topo 0 -> topo 2 with ax = {0, 1, 2}:
     // (n0, n1/px, n2/py) -> (n0/px, n1/py, n2/2+1)
-    TplPlan plan_0_2_ax012(exec, u_0, u_hat_2_ax012, ax012, topology0,
-                           topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax012(
+        exec, u_0, u_hat_2_ax012, ax012, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
 
@@ -2074,8 +2160,8 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
 
     // topo 2 -> topo 0 with ax = {0, 1, 2}:
     // (n0/px, n1/py, n2) -> (n0, n1/px, (n2/2+1)/py)
-    TplPlan plan_2_0_ax012(exec, u_2, u_hat_0_ax012, ax012, topology2,
-                           topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax012(
+        exec, u_2, u_hat_0_ax012, ax012, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
@@ -2084,8 +2170,8 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
 
     // topo 2 -> topo 1 with ax = {0, 1, 2}:
     // (n0/px, n1/py, n2) -> (n0/px, n1, (n2/2+1)/py)
-    TplPlan plan_2_1_ax012(exec, u_2, u_hat_1_ax012, ax012, topology2,
-                           topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax012(
+        exec, u_2, u_hat_1_ax012, ax012, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
 
