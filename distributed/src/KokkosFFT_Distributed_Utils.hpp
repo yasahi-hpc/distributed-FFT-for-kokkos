@@ -415,25 +415,6 @@ auto get_fft_extents(const std::array<std::size_t, DIM>& in_extents,
   return fft_extents;
 }
 
-template <typename ExecutionSpace, typename InViewType, typename OutViewType,
-          std::size_t... Is>
-void crop_or_pad_impl(const ExecutionSpace& exec_space, const InViewType& in,
-                      const OutViewType& out, std::index_sequence<Is...>) {
-  constexpr std::size_t rank = InViewType::rank();
-  using extents_type         = std::array<std::size_t, rank>;
-
-  extents_type extents;
-  for (std::size_t i = 0; i < rank; i++) {
-    extents.at(i) = std::min(in.extent(i), out.extent(i));
-  }
-
-  auto sub_in = Kokkos::subview(
-      in, std::make_pair(std::size_t(0), std::get<Is>(extents))...);
-  auto sub_out = Kokkos::subview(
-      out, std::make_pair(std::size_t(0), std::get<Is>(extents))...);
-  Kokkos::deep_copy(exec_space, sub_out, sub_in);
-}
-
 /// \brief Get padded extents from the extents in Fourier space
 ///
 /// Example
@@ -667,8 +648,8 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
 
   if (!KokkosFFT::Impl::is_transpose_needed(map)) {
     // Just perform deep_copy (Layout change)
-    crop_or_pad_impl(exec_space, in, out,
-                     std::make_index_sequence<InViewType::rank()>{});
+    KokkosFFT::Impl::crop_or_pad_impl(
+        exec_space, in, out, std::make_index_sequence<InViewType::rank()>{});
     return;
   }
 
