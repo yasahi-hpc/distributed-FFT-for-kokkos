@@ -5,6 +5,10 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_InternalPlan.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -76,5 +80,9 @@ class SharedPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
 
   std::string label() const override { return std::string("SharedPlan"); }
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

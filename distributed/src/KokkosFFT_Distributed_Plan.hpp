@@ -16,6 +16,10 @@
 #include "KokkosFFT_Distributed_TplPlan.hpp"
 #endif
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -71,6 +75,8 @@ internal_plan_factory(
   }
 }
 
+}  // namespace Impl
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -78,7 +84,7 @@ class Plan {
   static_assert(DIM >= 1 && DIM <= 3,
                 "Plan: the Rank of FFT axes must be between 1 and 3");
   using InternalPlanType =
-      InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
+      Impl::InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
   using axes_type = KokkosFFT::axis_type<DIM>;
   using in_topology_type =
       Topology<std::size_t, InViewType::rank(), InLayoutType>;
@@ -105,7 +111,7 @@ class Plan {
       const in_topology_type& in_topology,
       const out_topology_type& out_topology, const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
-    m_internal_plan = internal_plan_factory(
+    m_internal_plan = Impl::internal_plan_factory(
         exec_space, in, out, axes, in_topology, out_topology, comm, norm);
   }
 
@@ -141,4 +147,8 @@ void execute(const PlanType& plan, const InViewType& in, const OutViewType& out,
     KOKKOSFFT_THROW_IF(true, "Invalid FFT direction specified.");
   }
 }
+
+}  // namespace Distributed
+}  // namespace KokkosFFT
+
 #endif

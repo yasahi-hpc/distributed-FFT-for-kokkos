@@ -9,6 +9,10 @@
 #include "KokkosFFT_Distributed_Topologies.hpp"
 #include "KokkosFFT_Distributed_Extents.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ValueType, typename Layout, typename iType, std::size_t DIM,
           std::size_t FFT_DIM, typename InLayoutType, typename OutLayoutType>
 struct PencilBlockAnalysesInternal;
@@ -2281,5 +2285,9 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
     }
   }
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

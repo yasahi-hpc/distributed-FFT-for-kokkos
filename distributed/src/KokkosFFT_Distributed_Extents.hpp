@@ -8,6 +8,10 @@
 #include "KokkosFFT_Distributed_Types.hpp"
 #include "KokkosFFT_Distributed_Utils.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 /// \brief Calculate the buffer extents based on the global extents,
 /// the in-topology, and the out-topology.
 ///
@@ -321,5 +325,9 @@ bool are_valid_extents(
       in, out, axes, Topology<SizeType, InViewType::rank()>(in_topology),
       Topology<SizeType, OutViewType::rank()>(out_topology), comm);
 }
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

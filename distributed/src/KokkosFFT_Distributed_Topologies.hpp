@@ -7,6 +7,10 @@
 #include "KokkosFFT_Distributed_Utils.hpp"
 #include "KokkosFFT_Distributed_Types.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <std::size_t DIM = 1>
 inline auto get_topology_type(const std::array<std::size_t, DIM>& topology) {
   TopologyType topology_type = TopologyType::Invalid;
@@ -783,5 +787,9 @@ auto get_all_pencil_topologies(
 
   return to_original_topologies(topologies, trans_axes, layouts);
 }
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

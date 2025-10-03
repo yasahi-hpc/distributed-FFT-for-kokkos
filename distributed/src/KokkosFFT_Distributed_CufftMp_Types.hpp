@@ -5,6 +5,10 @@
 #include <KokkosFFT.hpp>
 #include <cufftMp.h>
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename T1, typename T2>
 struct ScopedCufftMpPlan {
   cufftHandle m_plan_f = 0, m_plan_b = 0;
@@ -195,5 +199,9 @@ template <typename ExecutionSpace, typename T1, typename T2>
 struct InternalTplPlanType {
   using type = ScopedCufftMpPlan<ExecutionSpace, T1, T2>;
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

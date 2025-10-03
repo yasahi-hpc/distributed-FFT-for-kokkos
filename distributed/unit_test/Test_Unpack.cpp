@@ -67,23 +67,28 @@ void test_unpack_view2D(std::size_t rank, std::size_t nprocs, int order = 0) {
   SrcView2DType u_t0(
       "u_t0", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t0)),
       u_p_t0("u_p_t0", KokkosFFT::Impl::create_layout<LayoutType>(
-                           get_mapped_extents(local_extents_t0, dst_map))),
+                           KokkosFFT::Distributed::Impl::get_mapped_extents(
+                               local_extents_t0, dst_map))),
       u_p_t0_ref("u_p_t0_ref",
                  KokkosFFT::Impl::create_layout<LayoutType>(
-                     get_mapped_extents(local_extents_t0, dst_map)));
+                     KokkosFFT::Distributed::Impl::get_mapped_extents(
+                         local_extents_t0, dst_map)));
 
   // Data in Topology 1 (Y-pencil): original and permuted data
   SrcView2DType u_t1(
       "u_t1", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t1)),
       u_p_t1("u_p_t1", KokkosFFT::Impl::create_layout<LayoutType>(
-                           get_mapped_extents(local_extents_t1, dst_map))),
+                           KokkosFFT::Distributed::Impl::get_mapped_extents(
+                               local_extents_t1, dst_map))),
       u_p_t1_ref("u_p_t1_ref",
                  KokkosFFT::Impl::create_layout<LayoutType>(
-                     get_mapped_extents(local_extents_t1, dst_map)));
+                     KokkosFFT::Distributed::Impl::get_mapped_extents(
+                         local_extents_t1, dst_map)));
 
   // Buffers
   auto buffer_extents =
-      get_buffer_extents<LayoutType>(global_extents, topology0, topology1);
+      KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+          global_extents, topology0, topology1);
   DstView3DType recv_t0(
       "recv_t0", KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents)),
       recv_t1("recv_t1",
@@ -145,13 +150,13 @@ void test_unpack_view2D(std::size_t rank, std::size_t nprocs, int order = 0) {
 
   // Make permuted local views with safe_transpose
   execution_space exec;
-  safe_transpose(exec, u_t0, u_p_t0_ref, int_map);
-  safe_transpose(exec, u_t1, u_p_t1_ref, int_map);
+  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t0, u_p_t0_ref, int_map);
+  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t1, u_p_t1_ref, int_map);
   exec.fence();
 
   // Apply unpack kernel
-  unpack(exec, recv_t0, u_p_t0, dst_map, 0);
-  unpack(exec, recv_t1, u_p_t1, dst_map, 1);
+  KokkosFFT::Distributed::Impl::unpack(exec, recv_t0, u_p_t0, dst_map, 0);
+  KokkosFFT::Distributed::Impl::unpack(exec, recv_t1, u_p_t1, dst_map, 1);
 
   auto h_u_p_t0 =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t0);
@@ -234,47 +239,59 @@ void test_unpack_view3D(std::size_t rank, std::size_t nprocs, int order = 0) {
       "u_t0", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t0)),
       u_p_t0_01("u_p_t0_01",
                 KokkosFFT::Impl::create_layout<LayoutType>(
-                    get_mapped_extents(local_extents_t0, dst_map))),
+                    KokkosFFT::Distributed::Impl::get_mapped_extents(
+                        local_extents_t0, dst_map))),
       u_p_t0_02("u_p_t0_02",
                 KokkosFFT::Impl::create_layout<LayoutType>(
-                    get_mapped_extents(local_extents_t0, dst_map))),
+                    KokkosFFT::Distributed::Impl::get_mapped_extents(
+                        local_extents_t0, dst_map))),
       u_p_t0_ref("u_p_t0_ref",
                  KokkosFFT::Impl::create_layout<LayoutType>(
-                     get_mapped_extents(local_extents_t0, dst_map)));
+                     KokkosFFT::Distributed::Impl::get_mapped_extents(
+                         local_extents_t0, dst_map)));
 
   // Data in Topology 1 (Y-slab): original and permuted data
   SrcView3DType u_t1(
       "u_t1", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t1)),
       u_p_t1_10("u_p_t1_10",
                 KokkosFFT::Impl::create_layout<LayoutType>(
-                    get_mapped_extents(local_extents_t1, dst_map))),
+                    KokkosFFT::Distributed::Impl::get_mapped_extents(
+                        local_extents_t1, dst_map))),
       u_p_t1_12("u_p_t1_12",
                 KokkosFFT::Impl::create_layout<LayoutType>(
-                    get_mapped_extents(local_extents_t1, dst_map))),
+                    KokkosFFT::Distributed::Impl::get_mapped_extents(
+                        local_extents_t1, dst_map))),
       u_p_t1_ref("u_p_t1_ref",
                  KokkosFFT::Impl::create_layout<LayoutType>(
-                     get_mapped_extents(local_extents_t1, dst_map)));
+                     KokkosFFT::Distributed::Impl::get_mapped_extents(
+                         local_extents_t1, dst_map)));
 
   // Data in Topology 2 (X-slab): original and permuted data
   SrcView3DType u_t2(
       "u_t2", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t2)),
       u_p_t2_20("u_p_t2_20",
                 KokkosFFT::Impl::create_layout<LayoutType>(
-                    get_mapped_extents(local_extents_t2, dst_map))),
+                    KokkosFFT::Distributed::Impl::get_mapped_extents(
+                        local_extents_t2, dst_map))),
       u_p_t2_21("u_p_t2_21",
                 KokkosFFT::Impl::create_layout<LayoutType>(
-                    get_mapped_extents(local_extents_t2, dst_map))),
+                    KokkosFFT::Distributed::Impl::get_mapped_extents(
+                        local_extents_t2, dst_map))),
       u_p_t2_ref("u_p_t2_ref",
                  KokkosFFT::Impl::create_layout<LayoutType>(
-                     get_mapped_extents(local_extents_t2, dst_map)));
+                     KokkosFFT::Distributed::Impl::get_mapped_extents(
+                         local_extents_t2, dst_map)));
 
   // Buffers
   auto buffer_extents_t01 =
-           get_buffer_extents<LayoutType>(global_extents, topology0, topology1),
+           KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+               global_extents, topology0, topology1),
        buffer_extents_t02 =
-           get_buffer_extents<LayoutType>(global_extents, topology0, topology2),
+           KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+               global_extents, topology0, topology2),
        buffer_extents_t12 =
-           get_buffer_extents<LayoutType>(global_extents, topology1, topology2);
+           KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+               global_extents, topology1, topology2);
   DstView4DType recv_t01("recv_t01", KokkosFFT::Impl::create_layout<LayoutType>(
                                          buffer_extents_t01)),
       recv_t02("recv_t02",
@@ -429,18 +446,18 @@ void test_unpack_view3D(std::size_t rank, std::size_t nprocs, int order = 0) {
 
   // Make permuted local views with safe_transpose
   execution_space exec;
-  safe_transpose(exec, u_t0, u_p_t0_ref, int_map);
-  safe_transpose(exec, u_t1, u_p_t1_ref, int_map);
-  safe_transpose(exec, u_t2, u_p_t2_ref, int_map);
+  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t0, u_p_t0_ref, int_map);
+  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t1, u_p_t1_ref, int_map);
+  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t2, u_p_t2_ref, int_map);
   exec.fence();
 
   // Apply pack kernel
-  unpack(exec, recv_t01, u_p_t0_01, dst_map, 1);
-  unpack(exec, recv_t02, u_p_t0_02, dst_map, 0);
-  unpack(exec, recv_t10, u_p_t1_10, dst_map, 2);
-  unpack(exec, recv_t12, u_p_t1_12, dst_map, 0);
-  unpack(exec, recv_t20, u_p_t2_20, dst_map, 2);
-  unpack(exec, recv_t21, u_p_t2_21, dst_map, 1);
+  KokkosFFT::Distributed::Impl::unpack(exec, recv_t01, u_p_t0_01, dst_map, 1);
+  KokkosFFT::Distributed::Impl::unpack(exec, recv_t02, u_p_t0_02, dst_map, 0);
+  KokkosFFT::Distributed::Impl::unpack(exec, recv_t10, u_p_t1_10, dst_map, 2);
+  KokkosFFT::Distributed::Impl::unpack(exec, recv_t12, u_p_t1_12, dst_map, 0);
+  KokkosFFT::Distributed::Impl::unpack(exec, recv_t20, u_p_t2_20, dst_map, 2);
+  KokkosFFT::Distributed::Impl::unpack(exec, recv_t21, u_p_t2_21, dst_map, 1);
 
   auto h_u_p_t0_01 =
       Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u_p_t0_01);

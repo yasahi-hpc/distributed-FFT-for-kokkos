@@ -53,9 +53,11 @@ void test_buffer_extents() {
   }
 
   buffer_extents_type buffer_01 =
-      get_buffer_extents<LayoutType>(extents, topology0, topology1);
+      KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+          extents, topology0, topology1);
   buffer_extents_type buffer_12 =
-      get_buffer_extents<LayoutType>(extents, topology1, topology2);
+      KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+          extents, topology1, topology2);
 
   EXPECT_TRUE(buffer_01 == ref_buffer_01);
   EXPECT_TRUE(buffer_12 == ref_buffer_12);
@@ -64,7 +66,8 @@ void test_buffer_extents() {
   EXPECT_THROW(
       {
         [[maybe_unused]] buffer_extents_type buffer_02 =
-            get_buffer_extents<LayoutType>(extents, topology0, topology2);
+            KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+                extents, topology0, topology2);
       },
       std::runtime_error);
 }
@@ -97,9 +100,12 @@ void test_next_extents() {
   extents_type ref_next_1{(n0 - 1) / p0 + 1, (n2 - 1) / p1 + 1, n3, n1};
   extents_type ref_next_2{(n0 - 1) / p0 + 1, n3, (n1 - 1) / p1 + 1, n2};
 
-  extents_type next_0 = get_next_extents(extents, topology0, map0);
-  extents_type next_1 = get_next_extents(extents, topology1, map1);
-  extents_type next_2 = get_next_extents(extents, topology2, map2);
+  extents_type next_0 =
+      KokkosFFT::Distributed::Impl::get_next_extents(extents, topology0, map0);
+  extents_type next_1 =
+      KokkosFFT::Distributed::Impl::get_next_extents(extents, topology1, map1);
+  extents_type next_2 =
+      KokkosFFT::Distributed::Impl::get_next_extents(extents, topology2, map2);
 
   EXPECT_TRUE(next_0 == ref_next_0);
   EXPECT_TRUE(next_1 == ref_next_1);
@@ -122,10 +128,14 @@ void test_get_required_allocation_size() {
   std::vector<topology3D_type> topology3_vec = {topology3, topology3_2};
   std::vector<topology4D_type> topology4_vec = {topology4, topology4_2};
 
-  auto size1 = get_required_allocation_size(topology1_vec);
-  auto size2 = get_required_allocation_size(topology2_vec);
-  auto size3 = get_required_allocation_size(topology3_vec);
-  auto size4 = get_required_allocation_size(topology4_vec);
+  auto size1 =
+      KokkosFFT::Distributed::Impl::get_required_allocation_size(topology1_vec);
+  auto size2 =
+      KokkosFFT::Distributed::Impl::get_required_allocation_size(topology2_vec);
+  auto size3 =
+      KokkosFFT::Distributed::Impl::get_required_allocation_size(topology3_vec);
+  auto size4 =
+      KokkosFFT::Distributed::Impl::get_required_allocation_size(topology4_vec);
 
   std::size_t ref_size1 = 4;
   std::size_t ref_size2 = 8;

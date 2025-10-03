@@ -28,7 +28,8 @@ void test_get_trans_axis(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto trans_axis =
-              get_trans_axis(topology0, topology1, nprocs);
+              KokkosFFT::Distributed::Impl::get_trans_axis(topology0, topology1,
+                                                           nprocs);
         },
         std::runtime_error);
 
@@ -37,14 +38,19 @@ void test_get_trans_axis(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto trans_axis =
-              get_trans_axis(topology0, topology1, nprocs);
+              KokkosFFT::Distributed::Impl::get_trans_axis(topology0, topology1,
+                                                           nprocs);
         },
         std::runtime_error);
   } else {
-    auto axis_0_1 = get_trans_axis(topology0, topology1, nprocs);
-    auto axis_0_2 = get_trans_axis(topology0, topology2, nprocs);
-    auto axis_1_0 = get_trans_axis(topology1, topology0, nprocs);
-    auto axis_2_0 = get_trans_axis(topology2, topology0, nprocs);
+    auto axis_0_1 = KokkosFFT::Distributed::Impl::get_trans_axis(
+        topology0, topology1, nprocs);
+    auto axis_0_2 = KokkosFFT::Distributed::Impl::get_trans_axis(
+        topology0, topology2, nprocs);
+    auto axis_1_0 = KokkosFFT::Distributed::Impl::get_trans_axis(
+        topology1, topology0, nprocs);
+    auto axis_2_0 = KokkosFFT::Distributed::Impl::get_trans_axis(
+        topology2, topology0, nprocs);
 
     std::size_t ref_axis_0_1 = 0, ref_axis_0_2 = 1, ref_axis_1_0 = 0,
                 ref_axis_2_0 = 1;
@@ -53,8 +59,10 @@ void test_get_trans_axis(std::size_t nprocs) {
     EXPECT_EQ(axis_1_0, ref_axis_1_0);
     EXPECT_EQ(axis_2_0, ref_axis_2_0);
 
-    auto axis_3_4 = get_trans_axis(topology3, topology4, np0);
-    auto axis_4_3 = get_trans_axis(topology4, topology3, np0);
+    auto axis_3_4 =
+        KokkosFFT::Distributed::Impl::get_trans_axis(topology3, topology4, np0);
+    auto axis_4_3 =
+        KokkosFFT::Distributed::Impl::get_trans_axis(topology4, topology3, np0);
 
     std::size_t ref_axis_3_4 = 0, ref_axis_4_3 = 0;
     EXPECT_EQ(axis_3_4, ref_axis_3_4);
@@ -64,7 +72,8 @@ void test_get_trans_axis(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto axis_1_2 =
-              get_trans_axis(topology1, topology2, nprocs);
+              KokkosFFT::Distributed::Impl::get_trans_axis(topology1, topology2,
+                                                           nprocs);
         },
         std::runtime_error);
   }

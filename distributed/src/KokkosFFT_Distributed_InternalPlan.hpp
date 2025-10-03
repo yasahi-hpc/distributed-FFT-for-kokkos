@@ -5,7 +5,12 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Types.hpp"
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
 #include "KokkosFFT_Distributed_Utils.hpp"
+
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
@@ -14,9 +19,11 @@ class InternalPlan {
   using axes_type    = KokkosFFT::axis_type<DIM>;
   using extents_type = KokkosFFT::shape_type<InViewType::rank()>;
   using in_topology_type =
-      Topology<std::size_t, InViewType::rank(), InLayoutType>;
+      KokkosFFT::Distributed::Topology<std::size_t, InViewType::rank(),
+                                       InLayoutType>;
   using out_topology_type =
-      Topology<std::size_t, InViewType::rank(), OutLayoutType>;
+      KokkosFFT::Distributed::Topology<std::size_t, InViewType::rank(),
+                                       OutLayoutType>;
 
   const extents_type m_in_extents, m_out_extents;
 
@@ -107,5 +114,9 @@ class InternalPlan {
                            mismatched_extents(out_extents, m_out_extents));
   }
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

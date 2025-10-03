@@ -4,6 +4,10 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 /// \brief Get the mapping of the destination view from
 /// src mapping. In the middle of the parallel FFTs,
 /// the axis of the view can be changed which is stored in
@@ -158,5 +162,9 @@ auto get_src_dst_map(const std::array<std::size_t, DIM>& src_map,
 
   return src_dst_map;
 }
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

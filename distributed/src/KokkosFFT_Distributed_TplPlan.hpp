@@ -17,6 +17,10 @@
 #include "KokkosFFT_Distributed_RocfftMPI_Transform.hpp"
 #endif
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -162,5 +166,9 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
                                m_fft_size);
   }
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

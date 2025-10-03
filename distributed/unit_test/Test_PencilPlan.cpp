@@ -86,10 +86,12 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
   using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView3DType =
       Kokkos::View<Kokkos::complex<float_type>***, LayoutType, execution_space>;
-  using axes_type       = KokkosFFT::axis_type<1>;
-  using extents_type    = std::array<std::size_t, 3>;
-  using topology_r_type = Topology<std::size_t, 3, Kokkos::LayoutRight>;
-  using topology_l_type = Topology<std::size_t, 3, Kokkos::LayoutLeft>;
+  using axes_type    = KokkosFFT::axis_type<1>;
+  using extents_type = std::array<std::size_t, 3>;
+  using topology_r_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  using topology_l_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutLeft>;
 
   constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
 
@@ -113,29 +115,41 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
   // Topology 1 -> Topology 2 with all axes
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View3DType gu("gu", n0, n1, n2);
@@ -267,7 +281,6 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
       range_gu_hat_0_ax0_dim2(
           out_starts_t0_ax0.at(2),
           out_starts_t0_ax0.at(2) + out_extents_t0_ax0.at(2));
-  ;
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax1_dim1(
       out_starts_t0_ax1.at(1),
       out_starts_t0_ax1.at(1) + out_extents_t0_ax1.at(1)),
@@ -380,8 +393,9 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_1_ax0(exec, u_0, u_hat_1_ax0, ax0, topology0,
-                                  topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax0(
+              exec, u_0, u_hat_1_ax0, ax0, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -389,8 +403,9 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/py, (n1/2+1)/px, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_2_ax1(exec, u_0, u_hat_2_ax1, ax1, topology0,
-                                  topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax1(
+              exec, u_0, u_hat_2_ax1, ax1, topology0, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -398,8 +413,9 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/py, n2/2+1)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_2_ax2(exec, u_1, u_hat_2_ax2, ax2, topology1,
-                                  topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax2(
+              exec, u_1, u_hat_2_ax2, ax2, topology1, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -407,8 +423,9 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0, n1/px, (n2/2+1)/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax2, topology0,
-                                  topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax2(
+              exec, u_0, u_hat_0_ax2, ax2, topology0, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -416,8 +433,9 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_1_ax1(exec, u_1, u_hat_1_ax1, ax1, topology1,
-                                  topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax1(
+              exec, u_1, u_hat_1_ax1, ax1, topology1, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -425,16 +443,17 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1/py, n2) -> (n0/px, (n1/2+1)/py, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_2_2_ax1(exec, u_2, u_hat_2_ax1, ax1, topology2,
-                                  topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax1(
+              exec, u_2, u_hat_2_ax1, ax1, topology2, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
     // topo 0 -> topo 0 with ax = {0}:
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // FFT ax = {0}
-    PencilPlan plan_0_0_ax0(exec, u_0, u_hat_0_ax0, ax0, topology0, topology0,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax0(
+        exec, u_0, u_hat_0_ax0, ax0, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax0.forward(u_0, u_hat_0_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax0, ref_u_hat_0_ax0));
 
@@ -445,8 +464,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     // -> (n0, (n1/2+1)/px, n2/py)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0
-    PencilPlan plan_0_0_ax1(exec, u_0, u_hat_0_ax1, ax1, topology0, topology0,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax1(
+        exec, u_0, u_hat_0_ax1, ax1, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax1.forward(u_0, u_hat_0_ax1);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax1, ref_u_hat_0_ax1));
 
@@ -457,8 +476,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1)
     // -> (n0, n1/px, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
-    PencilPlan plan_0_0_ax2(exec, u_0, u_hat_0_ax2, ax2, topology0, topology0,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax2(
+        exec, u_0, u_hat_0_ax2, ax2, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax2.forward(u_0, u_hat_0_ax2);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax2, ref_u_hat_0_ax2));
 
@@ -468,8 +487,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // topo 0 -> topo 1 with ax = {0}:
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     // FFT ax = {0} -> Transpose 1
-    PencilPlan plan_0_1_ax0(exec, u_0, u_hat_1_ax0, ax0, topology0, topology1,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax0(
+        exec, u_0, u_hat_1_ax0, ax0, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax0.forward(u_0, u_hat_1_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax0, ref_u_hat_1_ax0));
 
@@ -479,8 +498,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // topo 0 -> topo 1 with ax = {1}:
     // (n0, n1/px, n2/py) -> (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     // Transpose topo 1 -> FFT ax = {1}
-    PencilPlan plan_0_1_ax1(exec, u_0, u_hat_1_ax1, ax1, topology0, topology1,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax1(
+        exec, u_0, u_hat_1_ax1, ax1, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax1.forward(u_0, u_hat_1_ax1);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax1, ref_u_hat_1_ax1));
 
@@ -491,8 +510,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1)
     // -> (n0, n1/px, (n2/2+1)/py) -> (n0/px, n1/px, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0 -> Transpose topo 1
-    PencilPlan plan_0_1_ax2(exec, u_0, u_hat_1_ax2, ax2, topology0, topology1,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax2(
+        exec, u_0, u_hat_1_ax2, ax2, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax2.forward(u_0, u_hat_1_ax2);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax2, ref_u_hat_1_ax2));
 
@@ -502,8 +521,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // topo 0 -> topo 2 with ax = {0}:
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/py, n1/px, n2)
     // FFT ax = {0} -> Transpose topo 2
-    PencilPlan plan_0_2_ax0(exec, u_0, u_hat_2_ax0, ax0, topology0, topology2,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax0(
+        exec, u_0, u_hat_2_ax0, ax0, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax0.forward(u_0, u_hat_2_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax0, ref_u_hat_2_ax0));
 
@@ -514,8 +533,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     //  (n0, n1/px, n2/py) -> (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     //  -> (n0, (n1/2+1)/px, n2/py) -> (n0/py, (n1/2+1)/px, n2)
     //  Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0 -> topo 2
-    PencilPlan plan_0_2_ax1(exec, u_0, u_hat_2_ax1, ax1, topology0, topology2,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax1(
+        exec, u_0, u_hat_2_ax1, ax1, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax1.forward(u_0, u_hat_2_ax1);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax1, ref_u_hat_2_ax1));
 
@@ -525,8 +544,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // topo 0 -> topo 2 with ax = {2}:
     // (n0, n1/px, n2/py) -> (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1)
     // Transpose topo 2 -> FFT ax = {2}
-    PencilPlan plan_0_2_ax2(exec, u_0, u_hat_2_ax2, ax2, topology0, topology2,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax2(
+        exec, u_0, u_hat_2_ax2, ax2, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax2.forward(u_0, u_hat_2_ax2);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax2, ref_u_hat_2_ax2));
 
@@ -536,8 +555,8 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
     // topo 1 -> topo 0 with ax = {0}:
     // (n0/px, n1, n2/py) -> (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // Transpose topo 0 -> FFT ax = {0}
-    PencilPlan plan_1_0_ax0(exec, u_1, u_hat_0_ax0, ax0, topology1, topology0,
-                            MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax0(
+        exec, u_1, u_hat_0_ax0, ax0, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax0.forward(u_1, u_hat_0_ax0);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax0, ref_u_hat_0_ax0));
 
@@ -552,10 +571,12 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
   using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView3DType =
       Kokkos::View<Kokkos::complex<float_type>***, LayoutType, execution_space>;
-  using axes_type       = KokkosFFT::axis_type<2>;
-  using extents_type    = std::array<std::size_t, 3>;
-  using topology_r_type = Topology<std::size_t, 3, Kokkos::LayoutRight>;
-  using topology_l_type = Topology<std::size_t, 3, Kokkos::LayoutLeft>;
+  using axes_type    = KokkosFFT::axis_type<2>;
+  using extents_type = std::array<std::size_t, 3>;
+  using topology_r_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  using topology_l_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutLeft>;
 
   constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
 
@@ -575,29 +596,41 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
             ax20 = {2, 0}, ax21 = {2, 1};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View3DType gu("gu", n0, n1, n2);
@@ -964,8 +997,9 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0,
-                                   topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax01(
+              exec, u_0, u_hat_1_ax01, ax01, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -973,8 +1007,9 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/py, (n1/2+1)/px, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_2_ax01(exec, u_0, u_hat_2_ax01, ax01, topology0,
-                                   topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax01(
+              exec, u_0, u_hat_2_ax01, ax01, topology0, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -982,8 +1017,9 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/py, n2/2+1)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_2_ax02(exec, u_1, u_hat_2_ax02, ax02, topology1,
-                                   topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax02(
+              exec, u_1, u_hat_2_ax02, ax02, topology1, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -991,8 +1027,9 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0, n1/px, (n2/2+1)/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_0_ax02(exec, u_0, u_hat_0_ax02, ax02, topology0,
-                                   topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax02(
+              exec, u_0, u_hat_0_ax02, ax02, topology0, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1000,8 +1037,9 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_1_ax01(exec, u_1, u_hat_1_ax01, ax01, topology1,
-                                   topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax01(
+              exec, u_1, u_hat_1_ax01, ax01, topology1, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -1009,16 +1047,17 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1/py, n2) -> (n0/px, (n1/2+1)/py, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_2_2_ax10(exec, u_2, u_hat_2_ax10, ax10, topology2,
-                                   topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax10(
+              exec, u_2, u_hat_2_ax10, ax10, topology2, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
     // topo 0 -> topo 0 with ax = {0, 1}:
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
-    PencilPlan plan_0_0_ax01(exec, u_0, u_hat_0_ax01, ax01, topology0,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax01(
+        exec, u_0, u_hat_0_ax01, ax01, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax01.forward(u_0, u_hat_0_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
 
@@ -1030,8 +1069,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
     // -> FFT ax = {0}
-    PencilPlan plan_0_0_ax02(exec, u_0, u_hat_0_ax02, ax02, topology0,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax02(
+        exec, u_0, u_hat_0_ax02, ax02, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax02.forward(u_0, u_hat_0_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax02, ref_u_hat_0_ax02));
 
@@ -1042,8 +1081,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     // -> (n0/2+1, n1/px, n2/py)
     // FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0
-    PencilPlan plan_0_0_ax10(exec, u_0, u_hat_0_ax10, ax10, topology0,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax10(
+        exec, u_0, u_hat_0_ax10, ax10, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
 
@@ -1056,8 +1095,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 4 -> FFT ax = {1}
     // -> Transpose topo 2 -> Transpose topo 0
-    PencilPlan plan_0_0_ax12(exec, u_0, u_hat_0_ax12, ax12, topology0,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax12(
+        exec, u_0, u_hat_0_ax12, ax12, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax12.forward(u_0, u_hat_0_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax12, ref_u_hat_0_ax12));
 
@@ -1068,8 +1107,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/py, n1/px, n2)
     // -> (n0/2+1, n1/px, n2/py)
     // FFT ax = {0} -> Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
-    PencilPlan plan_0_0_ax20(exec, u_0, u_hat_0_ax20, ax20, topology0,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax20(
+        exec, u_0, u_hat_0_ax20, ax20, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax20.forward(u_0, u_hat_0_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax20, ref_u_hat_0_ax20));
 
@@ -1082,8 +1121,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, (n1/2+1)/px, n2/py)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 3 -> FFT ax = {2}
     // -> Transpose topo 1 -> Transpose topo 0
-    PencilPlan plan_0_0_ax21(exec, u_0, u_hat_0_ax21, ax21, topology0,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax21(
+        exec, u_0, u_hat_0_ax21, ax21, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax21.forward(u_0, u_hat_0_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax21, ref_u_hat_0_ax21));
 
@@ -1095,8 +1134,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, (n1/2+1)/px, n2/py) -> (n0/px, n1/2+1, n2/py)
     // Transpose 1 -> FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
     // -> Transpose 1
-    PencilPlan plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax01(
+        exec, u_0, u_hat_1_ax01, ax01, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax01.forward(u_0, u_hat_1_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
 
@@ -1108,8 +1147,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, (n2/2+1)/py) -> (n0/px, n1, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
     // -> FFT ax = {0} -> Transpose topo 1
-    PencilPlan plan_0_1_ax02(exec, u_0, u_hat_1_ax02, ax02, topology0,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax02(
+        exec, u_0, u_hat_1_ax02, ax02, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax02.forward(u_0, u_hat_1_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax02, ref_u_hat_1_ax02));
 
@@ -1119,8 +1158,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // topo 0 -> topo 1 with ax = {1, 0}:
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     // FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1}
-    PencilPlan plan_0_1_ax10(exec, u_0, u_hat_1_ax10, ax10, topology0,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax10(
+        exec, u_0, u_hat_1_ax10, ax10, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax10.forward(u_0, u_hat_1_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
 
@@ -1132,8 +1171,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, (n2/2+1)/py) -> (n0/px, n1, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0 -> Transpose topo 1
     // -> FFT ax = {1}
-    PencilPlan plan_0_1_ax12(exec, u_0, u_hat_1_ax12, ax12, topology0,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax12(
+        exec, u_0, u_hat_1_ax12, ax12, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax12.forward(u_0, u_hat_1_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax12, ref_u_hat_1_ax12));
 
@@ -1145,8 +1184,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     // FFT ax = {0} -> Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
     // -> Transpose topo 1
-    PencilPlan plan_0_1_ax20(exec, u_0, u_hat_1_ax20, ax20, topology0,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax20(
+        exec, u_0, u_hat_1_ax20, ax20, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax20.forward(u_0, u_hat_1_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax20, ref_u_hat_1_ax20));
 
@@ -1158,8 +1197,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, (n1/2+1)/py, n2) -> (n0/px, n1/2+1, n2/py)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 3 -> FFT ax = {2}
     // -> Transpose topo 1
-    PencilPlan plan_0_1_ax21(exec, u_0, u_hat_1_ax21, ax21, topology0,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax21(
+        exec, u_0, u_hat_1_ax21, ax21, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax21.forward(u_0, u_hat_1_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax21, ref_u_hat_1_ax21));
 
@@ -1171,8 +1210,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, (n1/2+1)/px, n2/py) -> (n0/py, (n1/2+1)/px, n2)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
     // -> Transpose topo 2
-    PencilPlan plan_0_2_ax01(exec, u_0, u_hat_2_ax01, ax01, topology0,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax01(
+        exec, u_0, u_hat_2_ax01, ax01, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax01.forward(u_0, u_hat_2_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax01, ref_u_hat_2_ax01));
 
@@ -1184,8 +1223,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, (n2/2+1)/py) -> ((n0/2+1)/py, n1/px, n2)
     // FFT ax = {0} -> Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
     // -> Transpose topo 2
-    PencilPlan plan_0_2_ax02(exec, u_0, u_hat_2_ax02, ax02, topology0,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax02(
+        exec, u_0, u_hat_2_ax02, ax02, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax02.forward(u_0, u_hat_2_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax02, ref_u_hat_2_ax02));
 
@@ -1197,8 +1236,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/py, n1/px, n2)
     // FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1}
     // -> Transpose topo 0 -> Transpose topo 2
-    PencilPlan plan_0_2_ax10(exec, u_0, u_hat_2_ax10, ax10, topology0,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax10(
+        exec, u_0, u_hat_2_ax10, ax10, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax10.forward(u_0, u_hat_2_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax10, ref_u_hat_2_ax10));
 
@@ -1210,8 +1249,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, n1, (n2/2+1)/px) -> (n0/py, n1/px, n2/2+1)
     // Transpose 2 -> FFT ax = {2} -> Transpose topo 4 -> FFT ax = {1}
     // -> Transpose topo 2
-    PencilPlan plan_0_2_ax12(exec, u_0, u_hat_2_ax12, ax12, topology0,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax12(
+        exec, u_0, u_hat_2_ax12, ax12, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax12.forward(u_0, u_hat_2_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax12, ref_u_hat_2_ax12));
 
@@ -1221,8 +1260,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // topo 0 -> topo 2 with ax = {2, 0}:
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/py, n1/px, n2)
     // FFT ax = {0} -> Transpose topo 2 -> FFT ax = {2}
-    PencilPlan plan_0_2_ax20(exec, u_0, u_hat_2_ax20, ax20, topology0,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax20(
+        exec, u_0, u_hat_2_ax20, ax20, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax20.forward(u_0, u_hat_2_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax20, ref_u_hat_2_ax20));
 
@@ -1234,8 +1273,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, (n1/2+1)/px, n2/py) -> (n0/py, (n1/2+1)/px, n2)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0 ->
     // Transpose 2 -> FFT ax = {2}
-    PencilPlan plan_0_2_ax21(exec, u_0, u_hat_2_ax21, ax21, topology0,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax21(
+        exec, u_0, u_hat_2_ax21, ax21, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax21.forward(u_0, u_hat_2_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax21, ref_u_hat_2_ax21));
 
@@ -1245,8 +1284,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // topo 1 -> topo 0 with ax = {0, 1}:
     // (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py) -> (n0, (n1/2+1)/px, n2/py)
     // FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
-    PencilPlan plan_1_0_ax01(exec, u_1, u_hat_0_ax01, ax01, topology1,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax01(
+        exec, u_1, u_hat_0_ax01, ax01, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax01.forward(u_1, u_hat_0_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
 
@@ -1258,8 +1297,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1, (n2/2+1)/py) -> (n0, n1/px, (n2/2+1)/py)
     // Transpose 3 -> FFT ax = {2} -> Transpose topo 1 ->
     // Transpose 0 -> FFT ax = {0}
-    PencilPlan plan_1_0_ax02(exec, u_1, u_hat_0_ax02, ax02, topology1,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax02(
+        exec, u_1, u_hat_0_ax02, ax02, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax02.forward(u_1, u_hat_0_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax02, ref_u_hat_0_ax02));
 
@@ -1271,8 +1310,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/px, n1, n2/py) -> (n0/2+1, n1/px, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1}
     // -> Transpose 0
-    PencilPlan plan_1_0_ax10(exec, u_1, u_hat_0_ax10, ax10, topology1,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax10(
+        exec, u_1, u_hat_0_ax10, ax10, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax10.forward(u_1, u_hat_0_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
 
@@ -1284,8 +1323,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1, (n2/2+1)/py) -> (n0, n1/px, (n2/2+1)/py)
     // Transpose 3 -> FFT ax = {2} -> Transpose topo 1 -> FFT ax = {1}
     // -> Transpose 0
-    PencilPlan plan_1_0_ax12(exec, u_1, u_hat_0_ax12, ax12, topology1,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax12(
+        exec, u_1, u_hat_0_ax12, ax12, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax12.forward(u_1, u_hat_0_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax12, ref_u_hat_0_ax12));
 
@@ -1297,8 +1336,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/py, n1/px, n2) -> (n0/2+1, n1/px, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose topo 2 -> FFT ax = {2}
     // -> Transpose 0
-    PencilPlan plan_1_0_ax20(exec, u_1, u_hat_0_ax20, ax20, topology1,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax20(
+        exec, u_1, u_hat_0_ax20, ax20, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax20.forward(u_1, u_hat_0_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax20, ref_u_hat_0_ax20));
 
@@ -1310,8 +1349,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/2+1, n2/py) -> (n0, (n1/2+1)/px, n2/py)
     // FFT ax = {1} -> Transpose topo 3 -> FFT ax = {2}
     // -> Transpose 1 -> Transpose 0
-    PencilPlan plan_1_0_ax21(exec, u_1, u_hat_0_ax21, ax21, topology1,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax21(
+        exec, u_1, u_hat_0_ax21, ax21, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax21.forward(u_1, u_hat_0_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax21, ref_u_hat_0_ax21));
 
@@ -1323,8 +1362,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/2+1, n2/py)
     // FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
     // -> Transpose 1
-    PencilPlan plan_1_1_ax01(exec, u_1, u_hat_1_ax01, ax01, topology1,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax01(
+        exec, u_1, u_hat_1_ax01, ax01, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax01.forward(u_1, u_hat_1_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
 
@@ -1337,8 +1376,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1, (n2/2+1)/py)
     // Transpose 3 -> FFT ax = {2} -> Transpose topo 5 -> FFT ax = {0}
     // -> Transpose 3 -> Transpose 1
-    PencilPlan plan_1_1_ax02(exec, u_1, u_hat_1_ax02, ax02, topology1,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax02(
+        exec, u_1, u_hat_1_ax02, ax02, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax02.forward(u_1, u_hat_1_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax02, ref_u_hat_1_ax02));
 
@@ -1349,8 +1388,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // -> ((n0/2+1)/px, n1, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1}
-    PencilPlan plan_1_1_ax10(exec, u_1, u_hat_1_ax10, ax10, topology1,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax10(
+        exec, u_1, u_hat_1_ax10, ax10, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax10.forward(u_1, u_hat_1_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
 
@@ -1361,8 +1400,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/py, n2) -> (n0/px, n1/py, n2/2+1)
     // -> (n0/px, n1, (n2/2+1)/py)
     // Transpose 3 -> FFT ax = {2} -> Transpose topo 1 -> FFT ax = {1}
-    PencilPlan plan_1_1_ax12(exec, u_1, u_hat_1_ax12, ax12, topology1,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax12(
+        exec, u_1, u_hat_1_ax12, ax12, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax12.forward(u_1, u_hat_1_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax12, ref_u_hat_1_ax12));
 
@@ -1375,8 +1414,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/px, n1, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose topo 2 -> FFT ax = {2}
     // Transpose 0 -> Transpose 1
-    PencilPlan plan_1_1_ax20(exec, u_1, u_hat_1_ax20, ax20, topology1,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax20(
+        exec, u_1, u_hat_1_ax20, ax20, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax20.forward(u_1, u_hat_1_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax20, ref_u_hat_1_ax20));
 
@@ -1388,8 +1427,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/2+1, n2/py)
     // FFT ax = {1} -> Transpose topo 3 -> FFT ax = {2}
     // -> Transpose 1
-    PencilPlan plan_1_1_ax21(exec, u_1, u_hat_1_ax21, ax21, topology1,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax21(
+        exec, u_1, u_hat_1_ax21, ax21, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax21.forward(u_1, u_hat_1_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax21, ref_u_hat_1_ax21));
 
@@ -1401,8 +1440,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, (n1/2+1)/px, n2)
     // FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
     // -> Transpose 2
-    PencilPlan plan_1_2_ax01(exec, u_1, u_hat_2_ax01, ax01, topology1,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax01(
+        exec, u_1, u_hat_2_ax01, ax01, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax01.forward(u_1, u_hat_2_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax01, ref_u_hat_2_ax01));
 
@@ -1414,8 +1453,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/py, (n2/2+1)/px) -> (n0/px, n1/py, n2/2+1)
     // Transpose 3 -> FFT ax = {2} -> Transpose topo 5 -> FFT ax = {0}
     // -> Transpose 4 -> Transpose 2
-    PencilPlan plan_1_2_ax02(exec, u_1, u_hat_2_ax02, ax02, topology1,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax02(
+        exec, u_1, u_hat_2_ax02, ax02, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax02.forward(u_1, u_hat_2_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax02, ref_u_hat_2_ax02));
 
@@ -1428,8 +1467,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/py, n1/px, n2)
     // Transpose topo 0 -> FFT ax = {0} -> Transpose 1 -> FFT ax = {1}
     // -> Transpose 0 -> Transpose 2
-    PencilPlan plan_1_2_ax10(exec, u_1, u_hat_2_ax10, ax10, topology1,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax10(
+        exec, u_1, u_hat_2_ax10, ax10, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax10.forward(u_1, u_hat_2_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax10, ref_u_hat_2_ax10));
 
@@ -1442,8 +1481,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, n1/px, n2/2+1)
     // Transpose topo 3 -> FFT ax = {2} -> Transpose 1 -> FFT ax = {1}
     // -> Transpose 0 -> Transpose 2
-    PencilPlan plan_1_2_ax12(exec, u_1, u_hat_2_ax12, ax12, topology1,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax12(
+        exec, u_1, u_hat_2_ax12, ax12, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax12.forward(u_1, u_hat_2_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax12, ref_u_hat_2_ax12));
 
@@ -1454,8 +1493,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // -> ((n0/2+1)/py, n1/px, n2)
     // Transpose topo 0 -> FFT ax = {0} -> Transpose 2 -> FFT ax = {2}
-    PencilPlan plan_1_2_ax20(exec, u_1, u_hat_2_ax20, ax20, topology1,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax20(
+        exec, u_1, u_hat_2_ax20, ax20, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax20.forward(u_1, u_hat_2_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax20, ref_u_hat_2_ax20));
 
@@ -1466,8 +1505,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py) -> (n0, (n1/2+1)/px, n2/py)
     // -> (n0/py, (n1/2+1)/px, n2)
     // FFT ax = {1} -> Transpose 0 -> Transpose 2 -> FFT ax = {2}
-    PencilPlan plan_1_2_ax21(exec, u_1, u_hat_2_ax21, ax21, topology1,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax21(
+        exec, u_1, u_hat_2_ax21, ax21, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax21.forward(u_1, u_hat_2_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax21, ref_u_hat_2_ax21));
 
@@ -1479,8 +1518,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, (n1/2+1)/px, n2) -> (n0, (n1/2+1)/px, n2/py)
     // Transpose 4 -> FFT ax = {1} -> Transpose topo 2 -> Transpose 0
     // -> FFT ax = {0}
-    PencilPlan plan_2_0_ax01(exec, u_2, u_hat_0_ax01, ax01, topology2,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_0_ax01(
+        exec, u_2, u_hat_0_ax01, ax01, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax01.forward(u_2, u_hat_0_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
 
@@ -1490,8 +1529,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // topo 2 -> topo 0 with ax = {0, 2}:
     // (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1) -> (n0, n1/px, (n2/2+1)/py)
     // FFT ax = {2} -> Transpose 0 -> FFT ax = {0}
-    PencilPlan plan_2_0_ax02(exec, u_2, u_hat_0_ax02, ax02, topology2,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_0_ax02(
+        exec, u_2, u_hat_0_ax02, ax02, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax02.forward(u_2, u_hat_0_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax02, ref_u_hat_0_ax02));
 
@@ -1503,8 +1542,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/px, n1, n2/py) -> (n0/2+1, n1/px, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose 1 -> FFT ax = {1}
     // -> Transpose 0
-    PencilPlan plan_2_0_ax10(exec, u_2, u_hat_0_ax10, ax10, topology2,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_0_ax10(
+        exec, u_2, u_hat_0_ax10, ax10, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax10.forward(u_2, u_hat_0_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
 
@@ -1516,8 +1555,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, n1/px, n2/2+1) -> (n0, n1/px, (n2/2+1)/py)
     // FFT ax = {2} -> Transpose 4 -> FFT ax = {1} -> Transpose 2
     // -> Transpose 0
-    PencilPlan plan_2_0_ax12(exec, u_2, u_hat_0_ax12, ax12, topology2,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_0_ax12(
+        exec, u_2, u_hat_0_ax12, ax12, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax12.forward(u_2, u_hat_0_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax12, ref_u_hat_0_ax12));
 
@@ -1529,8 +1568,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/py, n1/px, n2)  -> (n0/2+1, n1/px, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose 2 -> FFT ax = {2}
     // -> Transpose 0
-    PencilPlan plan_2_0_ax20(exec, u_2, u_hat_0_ax20, ax20, topology2,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_0_ax20(
+        exec, u_2, u_hat_0_ax20, ax20, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax20.forward(u_2, u_hat_0_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax20, ref_u_hat_0_ax20));
 
@@ -1542,8 +1581,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, (n1/2+1)/px, n2) -> (n0, (n1/2+1)/px, n2/py)
     // Transpose 4 -> FFT ax = {1} -> Transpose 2 -> FFT ax = {2}
     // -> Transpose 0
-    PencilPlan plan_2_0_ax21(exec, u_2, u_hat_0_ax21, ax21, topology2,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_0_ax21(
+        exec, u_2, u_hat_0_ax21, ax21, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax21.forward(u_2, u_hat_0_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax21, ref_u_hat_0_ax21));
 
@@ -1556,8 +1595,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, (n1/2+1), n2/py)
     // Transpose 4 -> FFT ax = {1} -> Transpose 5 -> FFT ax = {2}
     // -> Transpose 3 -> Transpose 1
-    PencilPlan plan_2_1_ax01(exec, u_2, u_hat_1_ax01, ax01, topology2,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_1_ax01(
+        exec, u_2, u_hat_1_ax01, ax01, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax01.forward(u_2, u_hat_1_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
     plan_2_1_ax01.backward(u_hat_1_ax01, u_inv_2);
@@ -1567,8 +1606,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1) -> (n0, n1/px, (n2/2+1)/py)
     // -> (n0/px, n1, (n2/2+1)/py)
     // FFT ax = {2} -> Transpose 0 -> FFT ax = {0} -> Transpose 1
-    PencilPlan plan_2_1_ax02(exec, u_2, u_hat_1_ax02, ax02, topology2,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_1_ax02(
+        exec, u_2, u_hat_1_ax02, ax02, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax02.forward(u_2, u_hat_1_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax02, ref_u_hat_1_ax02));
 
@@ -1579,8 +1618,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/py, n1/px, n2) -> (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // -> ((n0/2+1)/px, n1, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose 1 -> FFT ax = {1}
-    PencilPlan plan_2_1_ax10(exec, u_2, u_hat_1_ax10, ax10, topology2,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_1_ax10(
+        exec, u_2, u_hat_1_ax10, ax10, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax10.forward(u_2, u_hat_1_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
 
@@ -1591,8 +1630,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1) -> (n0, n1/px, (n2/2+1)/py)
     // -> (n0/px, n1, (n2/2+1)/py)
     // FFT ax = {2} -> Transpose 0 -> Transpose 1 -> FFT ax = {1}
-    PencilPlan plan_2_1_ax12(exec, u_2, u_hat_1_ax12, ax12, topology2,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_1_ax12(
+        exec, u_2, u_hat_1_ax12, ax12, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax12.forward(u_2, u_hat_1_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax12, ref_u_hat_1_ax12));
 
@@ -1605,8 +1644,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/px, n1, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose 2 -> FFT ax = {2}
     // -> Transpose 0 -> Transpose 1
-    PencilPlan plan_2_1_ax20(exec, u_2, u_hat_1_ax20, ax20, topology2,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_1_ax20(
+        exec, u_2, u_hat_1_ax20, ax20, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax20.forward(u_2, u_hat_1_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax20, ref_u_hat_1_ax20));
 
@@ -1619,8 +1658,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/2+1, n2/py)
     // Transpose 4 -> FFT ax = {1} -> Transpose 2 -> FFT ax = {2}
     // Transpose 0 -> Transpose 1
-    PencilPlan plan_2_1_ax21(exec, u_2, u_hat_1_ax21, ax21, topology2,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_1_ax21(
+        exec, u_2, u_hat_1_ax21, ax21, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax21.forward(u_2, u_hat_1_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax21, ref_u_hat_1_ax21));
 
@@ -1633,8 +1672,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, (n1/2+1)/px, n2)
     // Transpose 4 -> FFT ax = {1} -> Transpose 5 -> FFT ax = {0}
     // Transpose 4 -> Transpose 2
-    PencilPlan plan_2_2_ax01(exec, u_2, u_hat_2_ax01, ax01, topology2,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax01(
+        exec, u_2, u_hat_2_ax01, ax01, topology2, topology2, MPI_COMM_WORLD);
     plan_2_2_ax01.forward(u_2, u_hat_2_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax01, ref_u_hat_2_ax01));
 
@@ -1645,8 +1684,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1) -> (n0, n1/px, (n2/2+1)/py)
     // -> (n0/py, n1/px, n2/2+1)
     // FFT ax = {2} -> Transpose 0 -> FFT ax = {0} -> Transpose 2
-    PencilPlan plan_2_2_ax02(exec, u_2, u_hat_2_ax02, ax02, topology2,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax02(
+        exec, u_2, u_hat_2_ax02, ax02, topology2, topology2, MPI_COMM_WORLD);
     plan_2_2_ax02.forward(u_2, u_hat_2_ax02);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax02, ref_u_hat_2_ax02));
 
@@ -1659,8 +1698,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/py, n1/px, n2)
     // Transpose 0 -> FFT ax = {0} -> Transpose 1 -> FFT ax = {1}
     // Transpose 0 -> Transpose 2
-    PencilPlan plan_2_2_ax10(exec, u_2, u_hat_2_ax10, ax10, topology2,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax10(
+        exec, u_2, u_hat_2_ax10, ax10, topology2, topology2, MPI_COMM_WORLD);
     plan_2_2_ax10.forward(u_2, u_hat_2_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax10, ref_u_hat_2_ax10));
 
@@ -1671,8 +1710,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/py, n1/px, n2) -> (n0/py, n1/px, n2/2+1) -> (n0/py, n1, (n2/2+1)/px)
     // -> (n0/py, n1/px, n2/2+1)
     // FFT ax = {2} -> Transpose 4 -> FFT ax = {1} -> Transpose 2
-    PencilPlan plan_2_2_ax12(exec, u_2, u_hat_2_ax12, ax12, topology2,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax12(
+        exec, u_2, u_hat_2_ax12, ax12, topology2, topology2, MPI_COMM_WORLD);
     plan_2_2_ax12.forward(u_2, u_hat_2_ax12);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax12, ref_u_hat_2_ax12));
 
@@ -1683,8 +1722,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/py, n1/px, n2) -> (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // -> ((n0/2+1)/py, n1/px, n2)
     // Transpose 0 -> FFT ax = {0} -> Transpose 2 -> FFT ax = {2}
-    PencilPlan plan_2_2_ax20(exec, u_2, u_hat_2_ax20, ax20, topology2,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax20(
+        exec, u_2, u_hat_2_ax20, ax20, topology2, topology2, MPI_COMM_WORLD);
     plan_2_2_ax20.forward(u_2, u_hat_2_ax20);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax20, ref_u_hat_2_ax20));
 
@@ -1695,8 +1734,8 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/py, n1/px, n2) -> (n0/py, n1, n2/px) -> (n0/py, n1/2+1, n2/px)
     // -> (n0/py, (n1/2+1)/px, n2)
     // Transpose 4 -> FFT ax = {1} -> Transpose 2 -> FFT ax = {2}
-    PencilPlan plan_2_2_ax21(exec, u_2, u_hat_2_ax21, ax21, topology2,
-                             topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax21(
+        exec, u_2, u_hat_2_ax21, ax21, topology2, topology2, MPI_COMM_WORLD);
     plan_2_2_ax21.forward(u_2, u_hat_2_ax21);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax21, ref_u_hat_2_ax21));
 
@@ -1713,8 +1752,10 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
                                          LayoutType, execution_space>;
   using axes_type         = KokkosFFT::axis_type<2>;
   using extents_type      = std::array<std::size_t, 4>;
-  using topology_r_type   = Topology<std::size_t, 4, Kokkos::LayoutRight>;
-  using topology_l_type   = Topology<std::size_t, 4, Kokkos::LayoutLeft>;
+  using topology_r_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 4, Kokkos::LayoutRight>;
+  using topology_l_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 4, Kokkos::LayoutLeft>;
 
   constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
 
@@ -1738,35 +1779,50 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
             ax03 = {0, 3};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax3, out_starts_t0_ax3] =
-      get_local_extents(global_out_extents_ax3, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax3, out_starts_t1_ax3] =
-      get_local_extents(global_out_extents_ax3, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax3, out_starts_t2_ax3] =
-      get_local_extents(global_out_extents_ax3, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View4DType gu("gu", n0, n1, n2, n3);
@@ -2265,8 +2321,9 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0,
-                                   topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax01(
+              exec, u_0, u_hat_1_ax01, ax01, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2274,8 +2331,9 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/py, (n1/2+1)/px, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_2_ax01(exec, u_0, u_hat_2_ax01, ax01, topology0,
-                                   topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax01(
+              exec, u_0, u_hat_2_ax01, ax01, topology0, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2283,8 +2341,9 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/py, n2/2+1)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_2_ax02(exec, u_1, u_hat_2_ax02, ax02, topology1,
-                                   topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax02(
+              exec, u_1, u_hat_2_ax02, ax02, topology1, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2292,8 +2351,9 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0, n1/px, (n2/2+1)/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_0_ax02(exec, u_0, u_hat_0_ax02, ax02, topology0,
-                                   topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax02(
+              exec, u_0, u_hat_0_ax02, ax02, topology0, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2301,8 +2361,9 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_1_ax01(exec, u_1, u_hat_1_ax01, ax01, topology1,
-                                   topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax01(
+              exec, u_1, u_hat_1_ax01, ax01, topology1, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2310,16 +2371,17 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1/py, n2) -> (n0/px, (n1/2+1)/py, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_2_2_ax10(exec, u_2, u_hat_2_ax10, ax10, topology2,
-                                   topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax10(
+              exec, u_2, u_hat_2_ax10, ax10, topology2, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
     // topo 0 -> topo 0 with ax = {0, 1}:
     // (n0, n1, n2/px, n3/py) -> (n0, n1/2+1, n2/px, n3/py)
     // FFT2 ax = {0, 1}
-    PencilPlan plan_0_0_ax01(exec, u_0, u_hat_0_ax01, ax01, topology0,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax01(
+        exec, u_0, u_hat_0_ax01, ax01, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax01.forward(u_0, u_hat_0_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
 
@@ -2330,8 +2392,8 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1, n2/px, n3/py) -> (n0, n1/2+1, n2/px, n3/py)
     // -> (n0, (n1/2+1)/px, n2, n3/py)
     // FFT2 ax = {0, 1} -> Transpose topo 1
-    PencilPlan plan_0_1_ax01(exec, u_0, u_hat_1_ax01, ax01, topology0,
-                             topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax01(
+        exec, u_0, u_hat_1_ax01, ax01, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax01.forward(u_0, u_hat_1_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
 
@@ -2342,8 +2404,8 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2, n3/py) -> (n0, n1, n2/px, n3/py)
     // -> (n0, n1/2+1, n2/px, n3/py)
     // FFT2 ax = {0, 1} -> Transpose topo 1
-    PencilPlan plan_1_0_ax01(exec, u_1, u_hat_0_ax01, ax01, topology1,
-                             topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax01(
+        exec, u_1, u_hat_0_ax01, ax01, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax01.forward(u_1, u_hat_0_ax01);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
 
@@ -2358,10 +2420,12 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
   using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView3DType =
       Kokkos::View<Kokkos::complex<float_type>***, LayoutType, execution_space>;
-  using axes_type       = KokkosFFT::axis_type<3>;
-  using extents_type    = std::array<std::size_t, 3>;
-  using topology_r_type = Topology<std::size_t, 3, Kokkos::LayoutRight>;
-  using topology_l_type = Topology<std::size_t, 3, Kokkos::LayoutLeft>;
+  using axes_type    = KokkosFFT::axis_type<3>;
+  using extents_type = std::array<std::size_t, 3>;
+  using topology_r_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  using topology_l_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutLeft>;
 
   constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
 
@@ -2382,37 +2446,53 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
             ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t3, in_starts_t3] =
-      get_local_extents(global_in_extents, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology3,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax0, out_starts_t3_ax0] =
-      get_local_extents(global_out_extents_ax0, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology3, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax1, out_starts_t3_ax1] =
-      get_local_extents(global_out_extents_ax1, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology3, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax2, out_starts_t3_ax2] =
-      get_local_extents(global_out_extents_ax2, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology3, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View3DType gu("gu", n0, n1, n2);
@@ -2655,7 +2735,6 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
       range_gu_hat_0_ax0_dim2(
           out_starts_t0_ax0.at(2),
           out_starts_t0_ax0.at(2) + out_extents_t0_ax0.at(2));
-  ;
   Kokkos::pair<std::size_t, std::size_t> range_gu_hat_0_ax1_dim1(
       out_starts_t0_ax1.at(1),
       out_starts_t0_ax1.at(1) + out_extents_t0_ax1.at(1)),
@@ -2885,8 +2964,9 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_1_ax012(exec, u_0, u_hat_1_ax012, ax012, topology0,
-                                    topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax012(
+              exec, u_0, u_hat_1_ax012, ax012, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2894,8 +2974,9 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1, n2/p) -> (n0/p, n1/2+1, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_2_ax012(exec, u_0, u_hat_2_ax012, ax012, topology0,
-                                    topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax012(
+              exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2903,8 +2984,9 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/p, n2) -> (n0/p, n1, n2/2+1)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_2_ax012(exec, u_1, u_hat_2_ax012, ax012, topology1,
-                                    topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax012(
+              exec, u_1, u_hat_2_ax012, ax012, topology1, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2912,8 +2994,9 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1, n2/p) -> (n0, n1, (n2/2+1)/p)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_0_ax012(exec, u_0, u_hat_0_ax012, ax012, topology0,
-                                    topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax012(
+              exec, u_0, u_hat_0_ax012, ax012, topology0, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2921,8 +3004,9 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/p, n2) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_1_ax210(exec, u_1, u_hat_1_ax210, ax210, topology1,
-                                    topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax210(
+              exec, u_1, u_hat_1_ax210, ax210, topology1, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -2930,8 +3014,9 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/p, n1, n2) -> (n0/p, (n1/2+1), n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_2_2_ax012(exec, u_2, u_hat_2_ax012, ax012, topology2,
-                                    topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax012(
+              exec, u_2, u_hat_2_ax012, ax012, topology2, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
@@ -2941,8 +3026,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 4 -> FFT ax = {1}
     // -> Transpose topo 2 -> Transpose topo 0 -> FFT ax = {0}
-    PencilPlan plan_0_0_ax012(exec, u_0, u_hat_0_ax012, ax012, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax012(
+        exec, u_0, u_hat_0_ax012, ax012, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax012.forward(u_0, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
@@ -2955,8 +3040,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, n2/py)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 3 -> FFT ax = {2}
     // -> Transpose topo 1 -> Transpose topo 0 -> FFT ax = {0}
-    PencilPlan plan_0_0_ax021(exec, u_0, u_hat_0_ax021, ax021, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax021(
+        exec, u_0, u_hat_0_ax021, ax021, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax021.forward(u_0, u_hat_0_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
 
@@ -2969,8 +3054,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0x, n1/px, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
     // -> FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0
-    PencilPlan plan_0_0_ax102(exec, u_0, u_hat_0_ax102, ax102, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax102(
+        exec, u_0, u_hat_0_ax102, ax102, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax102.forward(u_0, u_hat_0_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
 
@@ -2983,8 +3068,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // n1/px, n2/py)
     // FFT ax = {0} -> Transpose topo 2 -> FFT ax = {2} ->
     // Transpose topo 4 -> FFT ax = {1} -> Transpose topo 2 -> Transpose topo 0
-    PencilPlan plan_0_0_ax120(exec, u_0, u_hat_0_ax120, ax120, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax120(
+        exec, u_0, u_hat_0_ax120, ax120, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax120.forward(u_0, u_hat_0_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
 
@@ -2997,8 +3082,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, (n1/2+1)/px, n2/py)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 0 -> FFT ax = {0}
     // -> Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
-    PencilPlan plan_0_0_ax201(exec, u_0, u_hat_0_ax201, ax201, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax201(
+        exec, u_0, u_hat_0_ax201, ax201, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax201.forward(u_0, u_hat_0_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
 
@@ -3011,8 +3096,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/2+1, n1/px, n2/py)
     // FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1} -> Transpose topo 3
     // -> FFT ax = {2} -> Transpose topo 1 -> Transpose topo 0
-    PencilPlan plan_0_0_ax210(exec, u_0, u_hat_0_ax210, ax210, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax210(
+        exec, u_0, u_hat_0_ax210, ax210, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax210.forward(u_0, u_hat_0_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
 
@@ -3025,8 +3110,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/py, n2/2+1) -> (n0/px, n1, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 4 -> FFT ax = {1}
     // -> Transpose topo 5 -> FFT ax = {0} -> Transpose topo 3 -> topo 1
-    PencilPlan plan_0_1_ax012(exec, u_0, u_hat_1_ax012, ax012, topology0,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax012(
+        exec, u_0, u_hat_1_ax012, ax012, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax012.forward(u_0, u_hat_1_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
 
@@ -3039,8 +3124,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, (n1/2+1)/py, n2) -> (n0/px, n1/2+1, n2/py)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 3 -> FFT ax = {2}
     // -> Transpose topo 5 -> FFT ax = {0} -> Transpose topo 3 -> topo 1
-    PencilPlan plan_0_1_ax021(exec, u_0, u_hat_1_ax021, ax021, topology0,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax021(
+        exec, u_0, u_hat_1_ax021, ax021, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax021.forward(u_0, u_hat_1_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021));
 
@@ -3052,8 +3137,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, (n2/2+1)/py) -> (n0/px, n1, (n2/2+1)/py)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0 -> FFT ax = {0}
     // -> Transpose topo 1 -> FFT ax = {1}
-    PencilPlan plan_0_1_ax102(exec, u_0, u_hat_1_ax102, ax102, topology0,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax102(
+        exec, u_0, u_hat_1_ax102, ax102, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax102.forward(u_0, u_hat_1_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102));
 
@@ -3065,8 +3150,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/2+1, n1/px, n2/py) -> ((n0/2+1)/px, n1, n2/py)
     // FFT ax = {0} ->Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0
     // -> Transpose topo 1 -> FFT ax = {1}
-    PencilPlan plan_0_1_ax120(exec, u_0, u_hat_1_ax120, ax120, topology0,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax120(
+        exec, u_0, u_hat_1_ax120, ax120, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax120.forward(u_0, u_hat_1_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
 
@@ -3079,8 +3164,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, (n1/2+1)/px, n2/py) -> (n0/px, n1/2+1, n2/py)
     // Transpose 1 -> FFT ax = {1} -> Transpose 0 -> FFT ax = {0}
     // -> Transpose 2 -> FFT ax = {2} -> Transpose 0 -> Transpose 1
-    PencilPlan plan_0_1_ax201(exec, u_0, u_hat_1_ax201, ax201, topology0,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax201(
+        exec, u_0, u_hat_1_ax201, ax201, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax201.forward(u_0, u_hat_1_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201));
 
@@ -3092,8 +3177,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/px, n1/py, n2) -> ((n0/2+1)/px, n1, n2/py)
     // FFT ax = {0} ->Transpose topo 1 -> FFT ax = {1} -> Transpose topo 3
     // -> FFT ax = {2} -> Transpose 1
-    PencilPlan plan_0_1_ax210(exec, u_0, u_hat_1_ax210, ax210, topology0,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax210(
+        exec, u_0, u_hat_1_ax210, ax210, topology0, topology1, MPI_COMM_WORLD);
     plan_0_1_ax210.forward(u_0, u_hat_1_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210));
 
@@ -3107,8 +3192,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 4 -> FFT ax = {1}
     // Transpose topo 5 -> FFT ax = {0} ->  Transpose topo 4
     // -> Transpose topo 2
-    PencilPlan plan_0_2_ax012(exec, u_0, u_hat_2_ax012, ax012, topology0,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax012(
+        exec, u_0, u_hat_2_ax012, ax012, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
 
@@ -3121,8 +3206,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, n1/2+1, n2/px) -> (n0/py, (n1/2+1)/px, n2)
     // Transpose 1 -> FFT ax = {1} -> Transpose 3 -> FFT ax = {2}
     // -> Transpose 5 -> FFT ax = {0} -> Transpose 4 -> Transpose 2
-    PencilPlan plan_0_2_ax021(exec, u_0, u_hat_2_ax021, ax021, topology0,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax021(
+        exec, u_0, u_hat_2_ax021, ax021, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax021.forward(u_0, u_hat_2_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021));
 
@@ -3136,8 +3221,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0 -> FFT ax = {0}
     // Transpose topo 1 -> FFT ax = {1} ->  Transpose topo 0
     // -> Transpose topo 2
-    PencilPlan plan_0_2_ax102(exec, u_0, u_hat_2_ax102, ax102, topology0,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax102(
+        exec, u_0, u_hat_2_ax102, ax102, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax102.forward(u_0, u_hat_2_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102));
 
@@ -3149,8 +3234,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/py, n1, n2/px) -> ((n0/2+1)/py, n1/px, n2)
     // FFT ax = {0} -> Transpose topo 2 -> FFT ax = {2}
     // -> Transpose 4 -> FFT ax = {1} -> Transpose topo 2
-    PencilPlan plan_0_2_ax120(exec, u_0, u_hat_2_ax120, ax120, topology0,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax120(
+        exec, u_0, u_hat_2_ax120, ax120, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax120.forward(u_0, u_hat_2_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
 
@@ -3162,8 +3247,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, (n1/2+1)/px, n2/py) -> (n0/py, (n1/2+1)/px, n2)
     // Transpose 1 -> FFT ax = {1} -> Transpose 0 -> FFT ax = {0}
     // -> Transpose 2 -> FFT ax = {2}
-    PencilPlan plan_0_2_ax201(exec, u_0, u_hat_2_ax201, ax201, topology0,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax201(
+        exec, u_0, u_hat_2_ax201, ax201, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax201.forward(u_0, u_hat_2_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
 
@@ -3175,8 +3260,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // ->(n0/2+1, n1/px, n2/py) -> ((n0/2+1)/py, n1/px, n2)
     // FFT ax = {0} -> Transpose topo 1 -> FFT ax = {1}
     // -> Transpose 0 -> Transpose topo 2 -> FFT ax = {2}
-    PencilPlan plan_0_2_ax210(exec, u_0, u_hat_2_ax210, ax210, topology0,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax210(
+        exec, u_0, u_hat_2_ax210, ax210, topology0, topology2, MPI_COMM_WORLD);
     plan_0_2_ax210.forward(u_0, u_hat_2_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210));
 
@@ -3189,8 +3274,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/py, n2/2+1)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 4 -> FFT ax = {1}
     // -> Transpose topo 5 -> FFT ax = {0} -> Transpose topo 3
-    PencilPlan plan_0_3_ax012(exec, u_0, u_hat_3_ax012, ax012, topology0,
-                              topology3, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_3_ax012(
+        exec, u_0, u_hat_3_ax012, ax012, topology0, topology3, MPI_COMM_WORLD);
     plan_0_3_ax012.forward(u_0, u_hat_3_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_3_ax012, ref_u_hat_3_ax012));
 
@@ -3203,8 +3288,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, (n1/2+1)/py, n2)
     // Transpose topo 1 -> FFT ax = {1} -> Transpose topo 3 -> FFT ax = {2}
     // -> Transpose topo 5 -> FFT ax = {0} -> Transpose topo 3
-    PencilPlan plan_0_3_ax021(exec, u_0, u_hat_3_ax021, ax021, topology0,
-                              topology3, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_3_ax021(
+        exec, u_0, u_hat_3_ax021, ax021, topology0, topology3, MPI_COMM_WORLD);
     plan_0_3_ax021.forward(u_0, u_hat_3_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_3_ax021, ref_u_hat_3_ax021));
 
@@ -3217,8 +3302,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, (n1/2+1)/py, n2)
     // Transpose topo 2 -> FFT ax = {2} -> Transpose topo 0 -> FFT ax = {0}
     // -> Transpose topo 1 -> FFT ax = {1} -> Transpose topo 3
-    PencilPlan plan_0_3_ax102(exec, u_0, u_hat_3_ax102, ax102, topology0,
-                              topology3, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_3_ax102(
+        exec, u_0, u_hat_3_ax102, ax102, topology0, topology3, MPI_COMM_WORLD);
     plan_0_3_ax102.forward(u_0, u_hat_3_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_3_ax102, ref_u_hat_3_ax102));
 
@@ -3229,8 +3314,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // -> ((n0/2+1)/py, n1/px, n2) -> ((n0/2+1)/py, n1, n2/px)
     // -> (n0/2+1, n1/py, n2/px) -> ((n0/2+1)/px, n1/py, n2)
-    PencilPlan plan_0_3_ax120(exec, u_0, u_hat_3_ax120, ax120, topology0,
-                              topology3, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_3_ax120(
+        exec, u_0, u_hat_3_ax120, ax120, topology0, topology3, MPI_COMM_WORLD);
     plan_0_3_ax120.forward(u_0, u_hat_3_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_3_ax120, ref_u_hat_3_ax120));
 
@@ -3241,8 +3326,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0/px, n1, n2/py) -> (n0/px, n1/2+1, n2/py)
     // -> (n0, (n1/2+1)/px, n2/py) -> (n0/px, n1/2+1, n2/py)
     // -> (n0/px, (n1/2+1)/py, n2)
-    PencilPlan plan_0_3_ax201(exec, u_0, u_hat_3_ax201, ax201, topology0,
-                              topology3, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_3_ax201(
+        exec, u_0, u_hat_3_ax201, ax201, topology0, topology3, MPI_COMM_WORLD);
     plan_0_3_ax201.forward(u_0, u_hat_3_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_3_ax201, ref_u_hat_3_ax201));
 
@@ -3252,8 +3337,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // topo 0 -> topo 3 with ax = {2, 1, 0}:
     // (n0, n1/px, n2/py) -> (n0/2+1, n1/px, n2/py)
     // -> ((n0/2+1)/px, n1, n2/py) -> ((n0/2+1)/px, n1/py, n2)
-    PencilPlan plan_0_3_ax210(exec, u_0, u_hat_3_ax210, ax210, topology0,
-                              topology3, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_3_ax210(
+        exec, u_0, u_hat_3_ax210, ax210, topology0, topology3, MPI_COMM_WORLD);
     plan_0_3_ax210.forward(u_0, u_hat_3_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_3_ax210, ref_u_hat_3_ax210));
 
@@ -3265,8 +3350,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1, (n2/2+1)/py) -> (n0, n1/px, (n2/2+1)/py)
     // Transpose 3 -> FFT ax = {2} -> Transpose 1 -> FFT ax = {1}
     // Transpose 0 -> FFT ax = {0}
-    PencilPlan plan_1_0_ax012(exec, u_1, u_hat_0_ax012, ax012, topology1,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax012(
+        exec, u_1, u_hat_0_ax012, ax012, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax012.forward(u_1, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
@@ -3278,8 +3363,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/2+1, n2/py) -> (n0, (n1/2+1)/px, n2/py)
     // FFT ax = {1} -> Transpose 3 -> FFT ax = {2} -> Transpose 1
     // -> Transpose 0 -> FFT ax = {0}
-    PencilPlan plan_1_0_ax021(exec, u_1, u_hat_0_ax021, ax021, topology1,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax021(
+        exec, u_1, u_hat_0_ax021, ax021, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax021.forward(u_1, u_hat_0_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
 
@@ -3292,8 +3377,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, n1/px, n2/2+1) -> (n0, n1/px, (n2/2+1)/py)
     // Transpose 3 -> FFT ax = {2} -> Transpose 5 -> FFT ax = {0}
     // Transpose 4 -> FFT ax = {1} -> Transpose 2 -> Transpose 0
-    PencilPlan plan_1_0_ax102(exec, u_1, u_hat_0_ax102, ax102, topology1,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax102(
+        exec, u_1, u_hat_0_ax102, ax102, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax102.forward(u_1, u_hat_0_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
 
@@ -3306,8 +3391,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/py, n1/px, n2) -> -> (n0/2+1, n1/px, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose 2 -> FFT ax = {2}
     // Transpose 4 -> FFT ax = {1} -> Transpose 2 -> Transpose 0
-    PencilPlan plan_1_0_ax120(exec, u_1, u_hat_0_ax120, ax120, topology1,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax120(
+        exec, u_1, u_hat_0_ax120, ax120, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax120.forward(u_1, u_hat_0_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
 
@@ -3319,8 +3404,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, (n1/2+1)/px, n2) -> (n0, (n1/2+1)/px, n2/py)
     // FFT ax = {1} -> Transpose 0 -> FFT ax = {0} -> Transpose 2
     // -> FFT ax = {2} -> Transpose 0
-    PencilPlan plan_1_0_ax201(exec, u_1, u_hat_0_ax201, ax201, topology1,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax201(
+        exec, u_1, u_hat_0_ax201, ax201, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax201.forward(u_1, u_hat_0_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201));
 
@@ -3333,8 +3418,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/px, n1, n2/py) -> -> (n0/2+1, n1/px, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose 1 -> FFT ax = {1}
     // Transpose 3 -> FFT ax = {2} -> Transpose 1 -> Transpose 0
-    PencilPlan plan_1_0_ax210(exec, u_1, u_hat_0_ax210, ax210, topology1,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_0_ax210(
+        exec, u_1, u_hat_0_ax210, ax210, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax210.forward(u_1, u_hat_0_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
 
@@ -3347,8 +3432,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1, (n2/2+1)/py)
     // Transpose 3 -> FFT ax = {2} -> Transpose 1 -> FFT ax = {1}
     // Transpose 0 -> FFT ax = {0} -> Transpose 1
-    PencilPlan plan_1_1_ax012(exec, u_1, u_hat_1_ax012, ax012, topology1,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax012(
+        exec, u_1, u_hat_1_ax012, ax012, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax012.forward(u_1, u_hat_1_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
 
@@ -3361,8 +3446,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/2+1, n2/py)
     // FFT ax = {1} -> Transpose 3 -> FFT ax = {2} -> Transpose 5
     // -> FFT ax = {0} -> Transpose 3 -> Transpose 1
-    PencilPlan plan_1_1_ax021(exec, u_1, u_hat_1_ax021, ax021, topology1,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax021(
+        exec, u_1, u_hat_1_ax021, ax021, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax021.forward(u_1, u_hat_1_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021));
 
@@ -3375,8 +3460,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1, (n2/2+1)/py)
     // Transpose 3 -> FFT ax = {2} -> Transpose 5 -> FFT ax = {0}
     // Transpose 3 -> Transpose 1 -> FFT ax = {1}
-    PencilPlan plan_1_1_ax102(exec, u_1, u_hat_1_ax102, ax102, topology1,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax102(
+        exec, u_1, u_hat_1_ax102, ax102, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax102.forward(u_1, u_hat_1_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102));
 
@@ -3389,8 +3474,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/px, n1, n2/py)
     // Transpose 0 -> FFT ax = {0} -> Transpose 2 -> FFT ax = {2}
     // Transpose 0 -> Transpose 1 -> FFT ax = {1}
-    PencilPlan plan_1_1_ax120(exec, u_1, u_hat_1_ax120, ax120, topology1,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax120(
+        exec, u_1, u_hat_1_ax120, ax120, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax120.forward(u_1, u_hat_1_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
 
@@ -3403,8 +3488,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/px, n1/2+1, n2/py)
     // FFT ax = {1} -> Transpose 0 -> FFT ax = {0} -> Transpose 2
     // -> FFT ax = {2} -> Transpose 0 -> Transpose 1
-    PencilPlan plan_1_1_ax201(exec, u_1, u_hat_1_ax201, ax201, topology1,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax201(
+        exec, u_1, u_hat_1_ax201, ax201, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax201.forward(u_1, u_hat_1_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201));
 
@@ -3418,8 +3503,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // Transpose 0 -> FFT ax = {0} -> Transpose 1 -> FFT ax = {1}
     // Transpose 3 -> FFT ax = {2} -> Transpose 1
 
-    PencilPlan plan_1_1_ax210(exec, u_1, u_hat_1_ax210, ax210, topology1,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax210(
+        exec, u_1, u_hat_1_ax210, ax210, topology1, topology1, MPI_COMM_WORLD);
     plan_1_1_ax210.forward(u_1, u_hat_1_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210));
 
@@ -3432,8 +3517,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, n1/px, n2/2+1)
     // Transpose 3 -> FFT ax = {2} -> Transpose 1-> FFT ax = {1}
     // -> Transpose 0 -> FFT ax ={0} -> Transpose 2
-    PencilPlan plan_1_2_ax012(exec, u_1, u_hat_2_ax012, ax012, topology1,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax012(
+        exec, u_1, u_hat_2_ax012, ax012, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax012.forward(u_1, u_hat_2_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
 
@@ -3446,8 +3531,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, (n1/2+1), n2/px) -> (n0/py, (n1/2+1)/px, n2)
     // FFT ax = {1} -> Transpose 3 -> FFT ax = {2} -> Transpose 5
     // -> FFT ax = {0} -> Transpose 4 -> Transpose 2
-    PencilPlan plan_1_2_ax021(exec, u_1, u_hat_2_ax021, ax021, topology1,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax021(
+        exec, u_1, u_hat_2_ax021, ax021, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax021.forward(u_1, u_hat_2_ax021);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021));
 
@@ -3458,8 +3543,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // (n0/px, n1, n2/py) -> (n0/px, n1/py, n2) -> (n0/px, n1/py, n2/2+1)
     // -> (n0, n1/py, (n2/2+1)/px) -> (n0/py, n1, (n2/2+1)/px)
     // -> (n0/py, n1/px, n2/2+1)
-    PencilPlan plan_1_2_ax102(exec, u_1, u_hat_2_ax102, ax102, topology1,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax102(
+        exec, u_1, u_hat_2_ax102, ax102, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax102.forward(u_1, u_hat_2_ax102);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102));
 
@@ -3472,8 +3557,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/py, n1/px, n2)
     // Transpose 0 -> FFT ax = {0} -> Transpose 2 -> FFT ax = {2}
     // Transpose 4 -> FFT ax = {1} -> Transpose 2
-    PencilPlan plan_1_2_ax120(exec, u_1, u_hat_2_ax120, ax120, topology1,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax120(
+        exec, u_1, u_hat_2_ax120, ax120, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax120.forward(u_1, u_hat_2_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
 
@@ -3485,8 +3570,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, n1/2+1/px, n2)
     // FFT ax = {1} -> Transpose 0 -> FFT ax = {0} -> Transpose 2
     // -> FFT ax = {2}
-    PencilPlan plan_1_2_ax201(exec, u_1, u_hat_2_ax201, ax201, topology1,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax201(
+        exec, u_1, u_hat_2_ax201, ax201, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax201.forward(u_1, u_hat_2_ax201);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
 
@@ -3499,8 +3584,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> ((n0/2+1)/py, n1/px, n2)
     // Transpose 0 -> FFT ax = {0} -> Transpose 1 -> FFT ax = {1}
     // Transpose 0 -> Transpose 2 -> FFT ax = {2}
-    PencilPlan plan_1_2_ax210(exec, u_1, u_hat_2_ax210, ax210, topology1,
-                              topology2, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax210(
+        exec, u_1, u_hat_2_ax210, ax210, topology1, topology2, MPI_COMM_WORLD);
     plan_1_2_ax210.forward(u_1, u_hat_2_ax210);
     EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210));
 
@@ -3512,8 +3597,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0/py, n1/px, n2/2+1) -> (n0, n1/px, (n2/1+1)/py)
     // FFT ax = {2} -> Transpose 4 -> FFT ax = {1} -> Transpose 2
     // -> Transpose 0 -> FFT ax = {0}
-    PencilPlan plan_2_0_ax012(exec, u_2, u_hat_0_ax012, ax012, topology2,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_0_ax012(
+        exec, u_2, u_hat_0_ax012, ax012, topology2, topology0, MPI_COMM_WORLD);
     plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
@@ -3523,8 +3608,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // topo 2 -> topo 1 with ax = {0, 1, 2}:
     // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
     // FFT2 ax = {1, 2} -> Transpose -> FFT ax = {0}
-    PencilPlan plan_2_1_ax012(exec, u_2, u_hat_1_ax012, ax012, topology2,
-                              topology1, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_2_1_ax012(
+        exec, u_2, u_hat_1_ax012, ax012, topology2, topology1, MPI_COMM_WORLD);
     plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
 
@@ -3536,8 +3621,8 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, (n2/2+1)/py)
     // FFT ax = {2} -> Transpose topo 1 -> FFT ax = {1} ->
     // Transpose topo 0 -> FFT ax = {0}
-    PencilPlan plan_3_0_ax012(exec, u_3, u_hat_0_ax012, ax012, topology3,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_3_0_ax012(
+        exec, u_3, u_hat_0_ax012, ax012, topology3, topology0, MPI_COMM_WORLD);
     plan_3_0_ax012.forward(u_3, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
@@ -3554,8 +3639,10 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
                                          LayoutType, execution_space>;
   using axes_type         = KokkosFFT::axis_type<3>;
   using extents_type      = std::array<std::size_t, 4>;
-  using topology_r_type   = Topology<std::size_t, 4, Kokkos::LayoutRight>;
-  using topology_l_type   = Topology<std::size_t, 4, Kokkos::LayoutLeft>;
+  using topology_r_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 4, Kokkos::LayoutRight>;
+  using topology_l_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 4, Kokkos::LayoutLeft>;
 
   constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
 
@@ -3580,45 +3667,65 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
             ax123 = {1, 2, 3}, ax132 = {1, 3, 2}, ax213 = {2, 1, 3};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t3, in_starts_t3] =
-      get_local_extents(global_in_extents, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology3,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax0, out_starts_t3_ax0] =
-      get_local_extents(global_out_extents_ax0, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology3, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax1, out_starts_t3_ax1] =
-      get_local_extents(global_out_extents_ax1, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology3, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax2, out_starts_t3_ax2] =
-      get_local_extents(global_out_extents_ax2, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology3, MPI_COMM_WORLD);
   auto [out_extents_t0_ax3, out_starts_t0_ax3] =
-      get_local_extents(global_out_extents_ax3, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax3, out_starts_t1_ax3] =
-      get_local_extents(global_out_extents_ax3, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax3, out_starts_t2_ax3] =
-      get_local_extents(global_out_extents_ax3, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax3, out_starts_t3_ax3] =
-      get_local_extents(global_out_extents_ax3, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology3, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View4DType gu("gu", n0, n1, n2, n3);
@@ -4264,8 +4371,9 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1/px, n2/py) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_1_ax012(exec, u_0, u_hat_1_ax012, ax012, topology0,
-                                    topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_1_ax012(
+              exec, u_0, u_hat_1_ax012, ax012, topology0, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -4273,8 +4381,9 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1, n2/p) -> (n0/p, n1/2+1, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_2_ax012(exec, u_0, u_hat_2_ax012, ax012, topology0,
-                                    topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_2_ax012(
+              exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -4282,8 +4391,9 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1/p, n2) -> (n0/p, n1, n2/2+1)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_2_ax012(exec, u_1, u_hat_2_ax012, ax012, topology1,
-                                    topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_2_ax012(
+              exec, u_1, u_hat_2_ax012, ax012, topology1, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -4291,8 +4401,9 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1, n2/p) -> (n0, n1, (n2/2+1)/p)
     ASSERT_THROW(
         {
-          PencilPlan plan_0_0_ax012(exec, u_0, u_hat_0_ax012, ax012, topology0,
-                                    topology0, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax012(
+              exec, u_0, u_hat_0_ax012, ax012, topology0, topology0,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -4300,8 +4411,9 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1/p, n2) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_1_1_ax210(exec, u_1, u_hat_1_ax210, ax210, topology1,
-                                    topology1, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_1_1_ax210(
+              exec, u_1, u_hat_1_ax210, ax210, topology1, topology1,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
 
@@ -4309,8 +4421,9 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // (n0/p, n1, n2) -> (n0/p, (n1/2+1), n2)
     ASSERT_THROW(
         {
-          PencilPlan plan_2_2_ax012(exec, u_2, u_hat_2_ax012, ax012, topology2,
-                                    topology2, MPI_COMM_WORLD);
+          KokkosFFT::Distributed::Impl::PencilPlan plan_2_2_ax012(
+              exec, u_2, u_hat_2_ax012, ax012, topology2, topology2,
+              MPI_COMM_WORLD);
         },
         std::runtime_error);
   } else {
@@ -4319,8 +4432,8 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1, n2/px, n3/py)
     // Transpose topo 6 -> FFT2 ax = {1,2} -> Transpose topo 0
     // -> FFT ax = {0}
-    PencilPlan plan_0_0_ax012(exec, u_0, u_hat_0_ax012, ax012, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax012(
+        exec, u_0, u_hat_0_ax012, ax012, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax012.forward(u_0, u_hat_0_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
@@ -4331,8 +4444,8 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // (n0, n1, n2/px, n3/py) -> (n0/2+1, n1, n2/px, n3/py)
     // -> ((n0/2+1)/px, n1, n2, n3/py) -> (n0/2+1, n1, n2/px, n3/py)
     // FFT ax = {0} -> Transpose topo 6 -> FFT2 ax = {1,2} -> Transpose topo 0
-    PencilPlan plan_0_0_ax120(exec, u_0, u_hat_0_ax120, ax120, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax120(
+        exec, u_0, u_hat_0_ax120, ax120, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax120.forward(u_0, u_hat_0_ax120);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
 
@@ -4346,8 +4459,8 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // Transpose topo 7 -> FFT ax = {3} -> Transpose topo 9
     // -> FFT ax = {2} -> Transpose topo 7 -> FFT ax = {1}
     // -> Transpose topo 1
-    PencilPlan plan_0_0_ax123(exec, u_0, u_hat_0_ax123, ax123, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax123(
+        exec, u_0, u_hat_0_ax123, ax123, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax123.forward(u_0, u_hat_0_ax123);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax123, ref_u_hat_0_ax123));
 
@@ -4361,8 +4474,8 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // Transpose topo 6 -> FFT ax = {2} -> Transpose topo 10
     // -> FFT ax = {3} -> Transpose topo 6 -> FFT ax = {1}
     // -> Transpose topo 0
-    PencilPlan plan_0_0_ax132(exec, u_0, u_hat_0_ax132, ax132, topology0,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax132(
+        exec, u_0, u_hat_0_ax132, ax132, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax132.forward(u_0, u_hat_0_ax132);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax132, ref_u_hat_0_ax132));
 
@@ -4375,8 +4488,8 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, n2/2+1, n3/py) -> (n0, n1/px, (n2/2+1)/py, n3)
     // Transpose topo 1 -> FFT ax = {2} -> Transpose topo 0
     // -> FFT ax = {0, 1} -> Transpose topo 1 -> Transpose topo 3
-    PencilPlan plan_0_3_ax012(exec, u_0, u_hat_3_ax012, ax012, topology0,
-                              topology3, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_0_3_ax012(
+        exec, u_0, u_hat_3_ax012, ax012, topology0, topology3, MPI_COMM_WORLD);
     plan_0_3_ax012.forward(u_0, u_hat_3_ax012);
     EXPECT_TRUE(allclose(exec, u_hat_3_ax012, ref_u_hat_3_ax012));
 
@@ -4388,8 +4501,8 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     // -> (n0, n1/px, n2, (n3/2+1)/py) -> (n0, n1, n2/px, (n3/2+1)/py)
     // FFT ax = {2} -> Transpose topo 1 -> FFT ax = {1} ->
     // Transpose topo 0 -> FFT ax = {0}
-    PencilPlan plan_3_0_ax123(exec, u_3, u_hat_0_ax123, ax123, topology3,
-                              topology0, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::PencilPlan plan_3_0_ax123(
+        exec, u_3, u_hat_0_ax123, ax123, topology3, topology0, MPI_COMM_WORLD);
     plan_3_0_ax123.forward(u_3, u_hat_0_ax123);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax123, ref_u_hat_0_ax123));
 

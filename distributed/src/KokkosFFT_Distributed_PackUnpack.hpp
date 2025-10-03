@@ -7,6 +7,10 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Mapping.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename iType>
 KOKKOS_INLINE_FUNCTION auto bin_mapping(iType N, iType nbins, iType ibin) {
   iType base_size = N / nbins, remainder = N % nbins;
@@ -376,5 +380,9 @@ void unpack(const ExecutionSpace& exec_space, const SrcViewType& src,
         src, dst, dst_array, axis, merged_size, exec_space);
   }
 }
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

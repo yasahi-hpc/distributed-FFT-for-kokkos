@@ -95,17 +95,23 @@ void test_slab1D_view2D(std::size_t nprocs) {
       global_out_extents_ax1{n0, n1h};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View2DType gu("gu", n0, n1), gu_inv("gu_inv", n0, n1);
@@ -214,7 +220,8 @@ void test_slab1D_view2D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_1, u_1);
 
   using SlabPlanType =
-      SlabPlan<execution_space, View2DType, ComplexView2DType, 1>;
+      KokkosFFT::Distributed::Impl::SlabPlan<execution_space, View2DType,
+                                             ComplexView2DType, 1>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -334,29 +341,41 @@ void test_slab1D_view3D(std::size_t nprocs) {
   axes_type ax0 = {0}, ax1 = {1}, ax2 = {2};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View3DType gu("gu", n0, n1, n2);
@@ -556,7 +575,8 @@ void test_slab1D_view3D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_2, u_2);
 
   using SlabPlanType =
-      SlabPlan<execution_space, View3DType, ComplexView3DType, 1>;
+      KokkosFFT::Distributed::Impl::SlabPlan<execution_space, View3DType,
+                                             ComplexView3DType, 1>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -750,17 +770,23 @@ void test_slab2D_view2D(std::size_t nprocs) {
   axes_type ax01 = {0, 1}, ax10 = {1, 0};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View2DType gu("gu", n0, n1), gu_inv("gu_inv", n0, n1);
@@ -875,7 +901,8 @@ void test_slab2D_view2D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_1, u_1);
 
   using SlabPlanType =
-      SlabPlan<execution_space, View2DType, ComplexView2DType, 2>;
+      KokkosFFT::Distributed::Impl::SlabPlan<execution_space, View2DType,
+                                             ComplexView2DType, 2>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -1026,29 +1053,41 @@ void test_slab2D_view3D(std::size_t nprocs) {
             ax20 = {2, 0}, ax21 = {2, 1};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View3DType gu("gu", n0, n1, n2);
@@ -1356,7 +1395,8 @@ void test_slab2D_view3D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_2, u_2);
 
   using SlabPlanType =
-      SlabPlan<execution_space, View3DType, ComplexView3DType, 2>;
+      KokkosFFT::Distributed::Impl::SlabPlan<execution_space, View3DType,
+                                             ComplexView3DType, 2>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -2054,29 +2094,41 @@ void test_slab3D_view3D(std::size_t nprocs) {
             ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View3DType gu("gu", n0, n1, n2);
@@ -2384,7 +2436,8 @@ void test_slab3D_view3D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_2, u_2);
 
   using SlabPlanType =
-      SlabPlan<execution_space, View3DType, ComplexView3DType, 3>;
+      KokkosFFT::Distributed::Impl::SlabPlan<execution_space, View3DType,
+                                             ComplexView3DType, 3>;
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -2699,45 +2752,65 @@ void test_slab3D_view4D(std::size_t nprocs) {
             ax123 = {1, 2, 3}, ax132 = {1, 3, 2}, ax213 = {2, 1, 3};
 
   auto [in_extents_t0, in_starts_t0] =
-      get_local_extents(global_in_extents, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      get_local_extents(global_in_extents, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t2, in_starts_t2] =
-      get_local_extents(global_in_extents, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology2,
+                                                MPI_COMM_WORLD);
   auto [in_extents_t3, in_starts_t3] =
-      get_local_extents(global_in_extents, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology3,
+                                                MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      get_local_extents(global_out_extents_ax0, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      get_local_extents(global_out_extents_ax0, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax0, out_starts_t2_ax0] =
-      get_local_extents(global_out_extents_ax0, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax0, out_starts_t3_ax0] =
-      get_local_extents(global_out_extents_ax0, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
+                                                topology3, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      get_local_extents(global_out_extents_ax1, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      get_local_extents(global_out_extents_ax1, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax1, out_starts_t2_ax1] =
-      get_local_extents(global_out_extents_ax1, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax1, out_starts_t3_ax1] =
-      get_local_extents(global_out_extents_ax1, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
+                                                topology3, MPI_COMM_WORLD);
   auto [out_extents_t0_ax2, out_starts_t0_ax2] =
-      get_local_extents(global_out_extents_ax2, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax2, out_starts_t1_ax2] =
-      get_local_extents(global_out_extents_ax2, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax2, out_starts_t2_ax2] =
-      get_local_extents(global_out_extents_ax2, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax2, out_starts_t3_ax2] =
-      get_local_extents(global_out_extents_ax2, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax2,
+                                                topology3, MPI_COMM_WORLD);
   auto [out_extents_t0_ax3, out_starts_t0_ax3] =
-      get_local_extents(global_out_extents_ax3, topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax3, out_starts_t1_ax3] =
-      get_local_extents(global_out_extents_ax3, topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology1, MPI_COMM_WORLD);
   auto [out_extents_t2_ax3, out_starts_t2_ax3] =
-      get_local_extents(global_out_extents_ax3, topology2, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology2, MPI_COMM_WORLD);
   auto [out_extents_t3_ax3, out_starts_t3_ax3] =
-      get_local_extents(global_out_extents_ax3, topology3, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax3,
+                                                topology3, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   View4DType gu("gu", n0, n1, n2, n3);
@@ -3284,7 +3357,8 @@ void test_slab3D_view4D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_hat_3_ax213, sub_gu_hat_3_ax213);
 
   using SlabPlanType =
-      SlabPlan<execution_space, View4DType, ComplexView4DType, 3>;
+      KokkosFFT::Distributed::Impl::SlabPlan<execution_space, View4DType,
+                                             ComplexView4DType, 3>;
 
   // Not a slab geometry
   if (nprocs == 1) {
