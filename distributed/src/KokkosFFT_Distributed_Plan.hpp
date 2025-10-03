@@ -16,6 +16,10 @@
 #include "KokkosFFT_Distributed_TplPlan.hpp"
 #endif
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -70,6 +74,8 @@ internal_plan_factory(
     throw std::runtime_error("Unsupported topology for FFT plan.");
   }
 }
+
+}  // namespace Impl
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
@@ -141,4 +147,8 @@ void execute(const PlanType& plan, const InViewType& in, const OutViewType& out,
     KOKKOSFFT_THROW_IF(true, "Invalid FFT direction specified.");
   }
 }
+
+}  // namespace Distributed
+}  // namespace KokkosFFT
+
 #endif

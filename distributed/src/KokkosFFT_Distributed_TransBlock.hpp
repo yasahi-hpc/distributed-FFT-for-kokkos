@@ -7,6 +7,10 @@
 #include "KokkosFFT_Distributed_PackUnpack.hpp"
 #include "KokkosFFT_Distributed_All2All.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, std::size_t DIM>
 class TransBlock {
   using execSpace           = ExecutionSpace;
@@ -100,5 +104,9 @@ class TransBlock {
                            recv.label() + " must not be aliasing");
   }
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

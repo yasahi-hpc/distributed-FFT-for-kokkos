@@ -7,6 +7,10 @@
 #include <Kokkos_Profiling_ScopedRegion.hpp>
 #include "KokkosFFT_Distributed_MPI_Helper.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename ViewType>
 struct All2All {
   static_assert(ViewType::rank() >= 2);
@@ -54,5 +58,9 @@ struct All2All {
                    m_send_count, m_mpi_data_type, m_comm);
   }
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

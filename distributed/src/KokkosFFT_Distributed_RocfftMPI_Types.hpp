@@ -4,6 +4,10 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 /// \brief A class that wraps rocfft_field for RAII
 struct ScopedRocfftField {
  private:
@@ -216,5 +220,9 @@ template <typename ExecutionSpace, typename T1, typename T2>
 struct InternalTplPlanType {
   using type = ScopedRocfftMPIBidirectionalPlan<ExecutionSpace, T1, T2>;
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

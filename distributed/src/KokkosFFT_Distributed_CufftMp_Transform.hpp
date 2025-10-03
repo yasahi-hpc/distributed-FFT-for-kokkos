@@ -5,6 +5,10 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Utils.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>
 inline void exec_plan(
@@ -48,5 +52,9 @@ inline void exec_plan(
   }
   safe_transpose(exec_space, out_desc, out, out_map);
 }
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

@@ -16,6 +16,10 @@
 #include "KokkosFFT_Distributed_SlabBlockAnalyses.hpp"
 #include "KokkosFFT_Distributed_InternalPlan.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM>
 struct SlabInternalPlan;
@@ -1341,5 +1345,9 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
 
   std::string label() const override { return std::string("SlabPlan"); }
 };
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

@@ -8,6 +8,10 @@
 #include "KokkosFFT_Distributed_Topologies.hpp"
 #include "KokkosFFT_Distributed_Utils.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -156,5 +160,9 @@ std::size_t create_plan(
     return 1;
   }
 }
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

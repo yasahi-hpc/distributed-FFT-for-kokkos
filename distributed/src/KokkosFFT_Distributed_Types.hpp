@@ -9,6 +9,10 @@
 #include <vector>
 #include <Kokkos_Core.hpp>
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 enum class TopologyType {
   Pencil,
   Slab,
@@ -93,6 +97,8 @@ struct BlockInfo {
   bool operator!=(const BlockInfo& other) const { return !(*this == other); }
 };
 
+}  // namespace Impl
+
 template <typename T, std::size_t N, typename LayoutType = Kokkos::LayoutRight>
 class Topology {
  private:
@@ -166,5 +172,8 @@ class Topology {
   constexpr auto crbegin() const noexcept { return m_data.crbegin(); }
   constexpr auto crend() const noexcept { return m_data.crend(); }
 };
+
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

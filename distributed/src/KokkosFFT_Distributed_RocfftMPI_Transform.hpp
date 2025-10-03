@@ -5,6 +5,10 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Utils.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>
 inline void exec_plan(
@@ -21,5 +25,9 @@ inline void exec_plan(
                      (void**)out.data(), nullptr);
   KOKKOSFFT_THROW_IF(status != rocfft_status_success, "rocfft_execute failed");
 }
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif

@@ -5,6 +5,10 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Types.hpp"
 
+namespace KokkosFFT {
+namespace Distributed {
+namespace Impl {
+
 template <typename SizeType, typename IntType, std::size_t DIM,
           std::size_t Rank>
 auto convert_negative_axes(const std::array<IntType, DIM>& axes) {
@@ -716,5 +720,9 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
         in, out, map_array, exec_space);
   }
 }
+
+}  // namespace Impl
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif
