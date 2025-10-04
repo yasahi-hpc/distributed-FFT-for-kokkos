@@ -8,6 +8,7 @@ elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
         Test_Pack.cpp
         Test_Unpack.cpp
         Test_Extents.cpp
+        Test_MPI_Types.cpp
         Test_MPI_Helper.cpp
         Test_Common_Utils.cpp
         Test_Topologies.cpp
@@ -27,6 +28,7 @@ else()
         Test_Pack.cpp
         Test_Unpack.cpp
         Test_Extents.cpp
+        Test_MPI_Types.cpp
         Test_MPI_Helper.cpp
         Test_Common_Utils.cpp
         Test_Topologies.cpp
