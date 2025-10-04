@@ -5,7 +5,8 @@
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Profiling_ScopedRegion.hpp>
-#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include <KokkosFFT.hpp>
+#include "KokkosFFT_Distributed_MPI_Types.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {

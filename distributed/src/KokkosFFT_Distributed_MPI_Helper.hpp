@@ -6,45 +6,13 @@
 #include <vector>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "KokkosFFT_Distributed_Utils.hpp"
+#include "KokkosFFT_Distributed_MPI_Types.hpp"
 #include "KokkosFFT_Distributed_Types.hpp"
+#include "KokkosFFT_Distributed_Utils.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
-
-template <typename ValueType>
-struct MPIDataType {};
-
-template <>
-struct MPIDataType<int> {
-  static inline MPI_Datatype type() noexcept { return MPI_INT32_T; }
-};
-
-template <>
-struct MPIDataType<std::size_t> {
-  static inline MPI_Datatype type() noexcept { return MPI_UINT64_T; }
-};
-
-template <>
-struct MPIDataType<float> {
-  static inline MPI_Datatype type() noexcept { return MPI_FLOAT; }
-};
-
-template <>
-struct MPIDataType<double> {
-  static inline MPI_Datatype type() noexcept { return MPI_DOUBLE; }
-};
-
-template <>
-struct MPIDataType<Kokkos::complex<float>> {
-  static inline MPI_Datatype type() noexcept { return MPI_CXX_FLOAT_COMPLEX; }
-};
-
-template <>
-struct MPIDataType<Kokkos::complex<double>> {
-  static inline MPI_Datatype type() noexcept { return MPI_CXX_DOUBLE_COMPLEX; }
-};
 
 /// \brief
 /// LayoutRight
