@@ -80,10 +80,8 @@ void test_all2all_view2D(int rank, int nprocs) {
   Kokkos::deep_copy(send, h_send);
   Kokkos::deep_copy(ref, h_ref);
 
-  KokkosFFT::Distributed::Impl::All2All<execution_space, View3DType> all2all(
-      send, recv);
-  all2all(send, recv);
-
+  execution_space exec;
+  KokkosFFT::Distributed::Impl::all2all(exec, send, recv, MPI_COMM_WORLD);
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
   T epsilon = std::numeric_limits<T>::epsilon() * 100;

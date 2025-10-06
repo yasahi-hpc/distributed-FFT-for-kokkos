@@ -343,8 +343,6 @@ void pack(const ExecutionSpace& exec_space, const SrcViewType& src,
           std::size_t axis) {
   static_assert(SrcViewType::rank() >= 2);
   static_assert(DstViewType::rank() == SrcViewType::rank() + 1);
-
-  Kokkos::Profiling::ScopedRegion region("pack");
   Kokkos::Array<std::size_t, DIM> src_array =
       KokkosFFT::Impl::to_array(src_map);
   std::size_t merged_size =
@@ -366,7 +364,6 @@ void unpack(const ExecutionSpace& exec_space, const SrcViewType& src,
             std::size_t axis) {
   static_assert(DstViewType::rank() >= 2);
   static_assert(SrcViewType::rank() == DstViewType::rank() + 1);
-  Kokkos::Profiling::ScopedRegion region("unpack");
   Kokkos::Array<std::size_t, DIM> dst_array =
       KokkosFFT::Impl::to_array(dst_map);
   std::size_t merged_size =

@@ -50,7 +50,8 @@ class TransBlock {
     using buffer_view_type = Kokkos::View<buffer_data_type, LayoutType,
                                           typename ViewType::execution_space>;
 
-    Kokkos::Profiling::ScopedRegion region("TransBlock");
+    Kokkos::Profiling::ScopedRegion region(
+        "KokkosFFT::Distributed::TransBlock");
     // Making unmanaged views from meta data
     buffer_view_type send_buffer(
         reinterpret_cast<value_type*>(send.data()),
@@ -69,7 +70,7 @@ class TransBlock {
 
     pack(m_exec, in, send_buffer, src_map, src_axis);
     m_exec.fence();
-    All2All(send_buffer, recv_buffer, m_comm, m_exec)(send_buffer, recv_buffer);
+    all2all(m_exec, send_buffer, recv_buffer, m_comm);
     unpack(m_exec, recv_buffer, out, dst_map, dst_axis);
   }
 
