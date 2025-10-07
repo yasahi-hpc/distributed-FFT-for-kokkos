@@ -1620,8 +1620,8 @@ class PencilPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
                         comm),
         m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
-    auto in_size  = get_size(in_topology);
-    auto out_size = get_size(out_topology);
+    auto in_size  = KokkosFFT::Impl::total_size(in_topology);
+    auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
     KOKKOSFFT_THROW_IF(in_size != out_size,
                        "Input and output topologies must have the same size.");

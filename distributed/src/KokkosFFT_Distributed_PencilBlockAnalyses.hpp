@@ -67,7 +67,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       m_block_infos.push_back(block);
 
       // Data is always complex
-      all_max_buffer_sizes.push_back(get_size(out_extents) * 2);
+      all_max_buffer_sizes.push_back(KokkosFFT::Impl::total_size(out_extents) *
+                                     2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 2) {
       auto last_axis = axes.back();
@@ -95,12 +96,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
 
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents = block0.m_out_extents;
@@ -113,7 +114,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
         block1.m_out_map = block0.m_out_map;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // FFT + T
@@ -128,7 +130,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
         block0.m_axes =
             get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] =
@@ -147,9 +150,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
         m_block_infos.push_back(block1);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
     } else if (nb_topologies == 3) {
@@ -175,12 +181,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block0.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block0);
 
-      all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                     size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
       BlockInfoType block1;
       block1.m_in_extents  = block0.m_out_extents;
@@ -191,7 +197,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block1.m_axes = get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block1);
 
-      all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_pencil(mid_topo, out_topology.array());
@@ -210,9 +217,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block2.m_block_idx  = 1;
       m_block_infos.push_back(block2);
 
-      all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 4) {
       auto mid_topo0 = all_topologies.at(1), mid_topo1 = all_topologies.at(2);
@@ -235,12 +245,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block0.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block0);
 
-      all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                     size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
       BlockInfoType block1;
       block1.m_in_extents  = block0.m_out_extents;
@@ -251,7 +261,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block1.m_axes = get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block1);
 
-      all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_pencil(mid_topo0, mid_topo1);
@@ -270,9 +281,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block2.m_block_idx  = 1;
       m_block_infos.push_back(block2);
 
-      all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
       BlockInfoType block3;
       auto [in_axis3, out_axis3] = get_pencil(mid_topo1, out_topology.array());
@@ -289,9 +303,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
       block3.m_block_idx  = 2;
       m_block_infos.push_back(block3);
 
-      all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     }
@@ -353,7 +370,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       m_block_infos.push_back(block);
 
       // Data is always complex
-      all_max_buffer_sizes.push_back(get_size(out_extents) * 2);
+      all_max_buffer_sizes.push_back(KokkosFFT::Impl::total_size(out_extents) *
+                                     2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 2) {
       // 0. T + FFT
@@ -383,12 +401,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
 
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents = block0.m_out_extents;
@@ -401,7 +419,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block1.m_out_map = block0.m_out_map;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // FFT + T
@@ -416,7 +435,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block0.m_block_type = BlockType::FFT;
         block0.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes0);
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         if (axes1.size() == 0) {
           BlockInfoType block1;
@@ -436,9 +456,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           m_block_infos.push_back(block1);
 
           // Data is always complex
-          all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         } else {
           // FFT + T + FFT
@@ -461,9 +484,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           m_block_infos.push_back(block1);
 
           // Data is always complex
-          all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
           BlockInfoType block2;
           block2.m_in_map      = block1.m_out_map;
@@ -474,7 +500,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block2.m_block_idx   = 1;
           block2.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes1);
           m_block_infos.push_back(block2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
         }
 
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
@@ -510,12 +537,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block0.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_map      = block0.m_out_map;
@@ -526,7 +553,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block1.m_block_type = BlockType::FFT;
         block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block1);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         if (axes2.size() == 0) {
           // TFT
@@ -548,9 +576,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block2.m_block_idx  = 1;
           m_block_infos.push_back(block2);
 
-          all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
         } else {
           BlockInfoType block2;
           auto [in_axis2, out_axis2] =
@@ -572,9 +603,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block2.m_block_idx  = 1;
           m_block_infos.push_back(block2);
 
-          all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
           BlockInfoType block3;
           block3.m_in_map      = block2.m_out_map;
@@ -585,7 +619,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block3.m_block_idx   = 1;
           block3.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes2);
           m_block_infos.push_back(block3);
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         }  // if (axes2.size() == 0)
       } else {
         // 0. FFT + T + T
@@ -600,7 +635,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block0.m_block_type = BlockType::FFT;
         block0.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes0);
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_pencil(in_topology.array(), mid_topo);
@@ -622,9 +658,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         m_block_infos.push_back(block1);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         if (axes1.size() == 0) {
           if (axes2.size() == 0) {
@@ -647,10 +686,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
             block2.m_block_idx  = 1;
             m_block_infos.push_back(block2);
 
-            all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-            all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) *
-                                           2);
-            all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
           } else {
             // FTTF
             BlockInfoType block2;
@@ -673,10 +714,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
             block2.m_block_idx  = 1;
             m_block_infos.push_back(block2);
 
-            all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-            all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) *
-                                           2);
-            all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
             BlockInfoType block3;
             block3.m_in_map      = block2.m_out_map;
@@ -687,7 +730,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
             block3.m_block_idx   = 1;
             block3.m_axes = get_contiguous_axes<Layout, iType, DIM>(axes2);
             m_block_infos.push_back(block3);
-            all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
           }  // if (axes2.size() == 0)
         } else {
           // FTFT
@@ -699,7 +743,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block2.m_block_idx  = 1;
           block2.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
           m_block_infos.push_back(block2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
           BlockInfoType block3;
           auto [in_axis3, out_axis3] =
@@ -718,9 +763,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block3.m_block_idx  = 1;
           m_block_infos.push_back(block3);
 
-          all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         }
       }  // if (axes0.size() == 0)
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
@@ -755,12 +803,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block0.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents  = block0.m_out_extents;
@@ -771,7 +819,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         auto [in_axis2, out_axis2] = get_pencil(mid_topo0, mid_topo1);
@@ -791,9 +840,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
 
-        all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         if (axes2.size() == 0) {
           if (axes3.size() == 0) {
@@ -816,10 +868,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
             block3.m_block_idx  = 2;
             m_block_infos.push_back(block3);
 
-            all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-            all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) *
-                                           2);
-            all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
           } else {
             // TFTTF
             BlockInfoType block3;
@@ -841,10 +895,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
             block3.m_block_idx  = 2;
             m_block_infos.push_back(block3);
 
-            all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-            all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) *
-                                           2);
-            all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
             BlockInfoType block4;
             block4.m_in_map      = block3.m_out_map;
@@ -856,7 +912,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
             block4.m_axes = get_contiguous_axes<Layout, iType, DIM>(axes3);
             m_block_infos.push_back(block4);
 
-            all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
           }
         } else {
           // T + FFT + T + FFT + T
@@ -869,7 +926,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block3.m_block_idx  = 1;
           block3.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes2);
           m_block_infos.push_back(block3);
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
           BlockInfoType block4;
           auto [in_axis4, out_axis4] =
@@ -887,9 +945,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block4.m_block_idx  = 2;
           m_block_infos.push_back(block4);
 
-          all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
         }  // if (axes2.size() == 0)
       } else {
         BlockInfoType block0;
@@ -901,7 +962,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block0.m_block_type = BlockType::FFT;
         block0.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes0);
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_pencil(in_topology.array(), mid_topo0);
@@ -923,9 +985,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         m_block_infos.push_back(block1);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         if (axes1.size() == 0) {
           // FTTFT
           BlockInfoType block2;
@@ -948,9 +1013,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block2.m_block_idx  = 1;
           m_block_infos.push_back(block2);
 
-          all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
           BlockInfoType block3;
           block3.m_in_map     = block2.m_out_map;
@@ -963,7 +1031,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block3.m_block_idx  = 1;
           block3.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes2);
           m_block_infos.push_back(block3);
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         } else {
           // FTFTT
           BlockInfoType block2;
@@ -975,7 +1044,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block2.m_block_idx  = 1;
           block2.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
           m_block_infos.push_back(block2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
           BlockInfoType block3;
           auto [in_axis3, out_axis3] = get_pencil(mid_topo0, mid_topo1);
@@ -998,9 +1068,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           block3.m_block_idx  = 1;
           m_block_infos.push_back(block3);
 
-          all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         }  // if (axes1.size() == 0)
         BlockInfoType block4;
         auto [in_axis4, out_axis4] =
@@ -1017,9 +1090,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         block4.m_block_type = BlockType::Transpose;
         block4.m_block_idx  = 2;
         m_block_infos.push_back(block4);
-        all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
       }  // if (axes0.size() == 0)
 
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
@@ -1047,12 +1123,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
           gin_extents, in_topology.array(), mid_topo0);
       block0.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block0);
-      all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                     size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
       BlockInfoType block1;
       block1.m_in_extents  = block0.m_out_extents;
@@ -1061,7 +1137,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       block1.m_block_type = BlockType::FFT;
       block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
       m_block_infos.push_back(block1);
-      all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_pencil(mid_topo0, mid_topo1);
@@ -1079,9 +1156,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       block2.m_block_type = BlockType::Transpose;
       block2.m_block_idx  = 1;
       m_block_infos.push_back(block2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
       BlockInfoType block3;
       block3.m_in_map      = block2.m_out_map;
@@ -1093,7 +1173,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       block3.m_block_idx  = 1;
       block3.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes2);
       m_block_infos.push_back(block3);
-      all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
       BlockInfoType block4;
       auto [in_axis4, out_axis4] = get_pencil(mid_topo1, mid_topo2);
@@ -1112,9 +1193,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       block4.m_block_idx  = 2;
       m_block_infos.push_back(block4);
 
-      all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
       BlockInfoType block5;
       auto [in_axis5, out_axis5] = get_pencil(mid_topo2, out_topology.array());
@@ -1130,9 +1214,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       block5.m_block_type = BlockType::Transpose;
       block5.m_block_idx  = 3;
       m_block_infos.push_back(block5);
-      all_max_buffer_sizes.push_back(get_size(block5.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block5.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block5.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block5.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
 
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     }  // if (nb_topologies == 1)
@@ -1194,7 +1281,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       m_block_infos.push_back(block);
 
       // Data is always complex
-      all_max_buffer_sizes.push_back(get_size(out_extents) * 2);
+      all_max_buffer_sizes.push_back(KokkosFFT::Impl::total_size(out_extents) *
+                                     2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 2) {
       // 0. T + FFT
@@ -1226,12 +1314,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents = block0.m_out_extents;
@@ -1244,7 +1332,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block1.m_out_map = block0.m_out_map;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // FFT + T
@@ -1258,7 +1347,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block0.m_block_type = BlockType::FFT;
         block0.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes0);
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         if (axes1.size() == 0) {
           BlockInfoType block1;
@@ -1278,9 +1368,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           m_block_infos.push_back(block1);
 
           // Data is always complex
-          all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         } else {
           // FFT + T + FFT
@@ -1303,9 +1396,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           m_block_infos.push_back(block1);
 
           // Data is always complex
-          all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
           BlockInfoType block2;
           block2.m_in_map      = block1.m_out_map;
@@ -1316,7 +1412,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block2.m_block_idx   = 1;
           block2.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes1);
           m_block_infos.push_back(block2);
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
         }
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
@@ -1353,12 +1450,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block0.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents  = block0.m_out_extents;
@@ -1369,7 +1466,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         auto [in_axis2, out_axis2] = get_pencil(mid_topo, out_topology.array());
@@ -1389,9 +1487,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
 
-        all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         BlockInfoType block3;
         block3.m_in_map      = block2.m_out_map;
@@ -1403,7 +1504,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block3.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes2);
         m_block_infos.push_back(block3);
 
-        all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         BlockInfoType block0;
@@ -1415,7 +1517,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block0.m_block_type = BlockType::FFT;
         block0.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes0);
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_pencil(in_topology.array(), mid_topo);
@@ -1438,9 +1541,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         m_block_infos.push_back(block1);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         block2.m_in_extents  = block1.m_out_extents;
@@ -1450,7 +1556,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block2.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         if (axes2.size() == 0) {
           BlockInfoType block3;
@@ -1470,9 +1577,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block3.m_block_idx  = 1;
           m_block_infos.push_back(block3);
 
-          all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         } else {
           BlockInfoType block3;
           auto [in_axis3, out_axis3] =
@@ -1496,9 +1606,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block3.m_block_idx  = 1;
           m_block_infos.push_back(block3);
 
-          all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
           BlockInfoType block4;
           block4.m_in_map      = block3.m_out_map;
@@ -1509,7 +1622,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block4.m_block_idx   = 2;
           block4.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes2);
           m_block_infos.push_back(block4);
-          all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
         }
 
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
@@ -1545,12 +1659,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block0.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents  = block0.m_out_extents;
@@ -1561,7 +1675,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         auto [in_axis2, out_axis2] = get_pencil(mid_topo0, mid_topo1);
@@ -1582,9 +1697,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
 
-        all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         BlockInfoType block3;
         block3.m_in_extents  = block2.m_out_extents;
@@ -1595,7 +1713,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block3.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes2);
         m_block_infos.push_back(block3);
 
-        all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
         if (axes3.size() == 0) {
           BlockInfoType block4;
@@ -1614,9 +1733,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block4.m_block_idx  = 2;
           m_block_infos.push_back(block4);
 
-          all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
         } else {
           BlockInfoType block4;
           auto [in_axis4, out_axis4] =
@@ -1639,9 +1761,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block4.m_block_idx  = 2;
           m_block_infos.push_back(block4);
 
-          all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
           BlockInfoType block5;
           block5.m_in_map      = block4.m_out_map;
@@ -1652,7 +1777,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block5.m_block_idx   = 2;
           block5.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes3);
           m_block_infos.push_back(block5);
-          all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
         }
 
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
@@ -1666,7 +1792,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block0.m_block_type = BlockType::FFT;
         block0.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes0);
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_pencil(in_topology.array(), mid_topo0);
@@ -1688,9 +1815,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         m_block_infos.push_back(block1);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         block2.m_in_extents  = block1.m_out_extents;
@@ -1700,7 +1830,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block2.m_block_idx  = 1;
         block2.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         BlockInfoType block3;
         auto [in_axis3, out_axis3] = get_pencil(mid_topo0, mid_topo1);
@@ -1721,9 +1852,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block3.m_block_idx  = 1;
         m_block_infos.push_back(block3);
 
-        all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
         if (axes3.size() == 0) {
           // 0. FFT + T + FFT + T + FFT + T
@@ -1737,7 +1871,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block4.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes2);
           m_block_infos.push_back(block4);
 
-          all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
           BlockInfoType block5;
           auto [in_axis5, out_axis5] =
@@ -1757,9 +1892,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block5.m_block_idx  = 2;
           m_block_infos.push_back(block5);
 
-          all_max_buffer_sizes.push_back(get_size(block5.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block5.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block5.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block5.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
 
         } else {
           // 1. FFT + T + FFT + T + T + FFT
@@ -1785,9 +1923,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block4.m_block_idx  = 2;
           m_block_infos.push_back(block4);
 
-          all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
           BlockInfoType block5;
           block5.m_in_map      = block4.m_out_map;
@@ -1799,7 +1940,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block5.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes3);
           m_block_infos.push_back(block5);
 
-          all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
         }
 
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
@@ -1838,12 +1980,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block0.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents  = block0.m_out_extents;
@@ -1854,7 +1996,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         auto [in_axis2, out_axis2] = get_pencil(mid_topo0, mid_topo1);
@@ -1874,9 +2017,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
 
-        all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         BlockInfoType block3;
         block3.m_in_extents  = block2.m_out_extents;
@@ -1887,7 +2033,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block3.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes2);
         m_block_infos.push_back(block3);
 
-        all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
         BlockInfoType block4;
         auto [in_axis4, out_axis4] = get_pencil(mid_topo1, mid_topo2);
@@ -1906,9 +2053,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block4.m_block_idx  = 2;
         m_block_infos.push_back(block4);
 
-        all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
         if (axes3.size() != 0) {
           // 1. T + FFT + T + FFT + T + FFT + T
@@ -1922,7 +2072,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block5.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes3);
           m_block_infos.push_back(block5);
 
-          all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
 
           BlockInfoType block6;
           auto [in_axis6, out_axis6] =
@@ -1942,9 +2093,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
           block6.m_block_idx  = 3;
           m_block_infos.push_back(block6);
 
-          all_max_buffer_sizes.push_back(get_size(block6.m_in_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block6.m_buffer_extents) * 2);
-          all_max_buffer_sizes.push_back(get_size(block6.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block6.m_in_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block6.m_buffer_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block6.m_out_extents) * 2);
 
         } else {
           if (axes4.size() == 0) {
@@ -1966,10 +2120,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
             block5.m_block_idx  = 3;
             m_block_infos.push_back(block5);
 
-            all_max_buffer_sizes.push_back(get_size(block5.m_in_extents) * 2);
-            all_max_buffer_sizes.push_back(get_size(block5.m_buffer_extents) *
-                                           2);
-            all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block5.m_in_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block5.m_buffer_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
           } else {
             // 2. T + FFT + T + FFT + T + T + FFT
             BlockInfoType block5;
@@ -1993,10 +2149,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
             block5.m_block_idx  = 3;
             m_block_infos.push_back(block5);
 
-            all_max_buffer_sizes.push_back(get_size(block5.m_in_extents) * 2);
-            all_max_buffer_sizes.push_back(get_size(block5.m_buffer_extents) *
-                                           2);
-            all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block5.m_in_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block5.m_buffer_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
 
             BlockInfoType block6;
             block6.m_in_map      = block5.m_out_map;
@@ -2008,7 +2166,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
             block6.m_axes = get_contiguous_axes<Layout, iType, DIM>(axes4);
             m_block_infos.push_back(block6);
 
-            all_max_buffer_sizes.push_back(get_size(block6.m_out_extents) * 2);
+            all_max_buffer_sizes.push_back(
+                KokkosFFT::Impl::total_size(block6.m_out_extents) * 2);
           }
         }
 
@@ -2024,7 +2183,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block0.m_block_type = BlockType::FFT;
         block0.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes0);
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_pencil(in_topology.array(), mid_topo0);
@@ -2046,9 +2206,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         m_block_infos.push_back(block1);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         block2.m_in_extents  = block1.m_out_extents;
@@ -2058,7 +2221,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block2.m_block_idx  = 1;
         block2.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         BlockInfoType block3;
         auto [in_axis3, out_axis3] = get_pencil(mid_topo0, mid_topo1);
@@ -2079,9 +2243,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block3.m_block_idx  = 1;
         m_block_infos.push_back(block3);
 
-        all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
         BlockInfoType block4;
         block4.m_in_extents  = block3.m_out_extents;
@@ -2092,7 +2259,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block4.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes2);
         m_block_infos.push_back(block4);
 
-        all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
         BlockInfoType block5;
         auto [in_axis5, out_axis5] = get_pencil(mid_topo1, mid_topo2);
@@ -2113,9 +2281,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block5.m_block_idx  = 2;
         m_block_infos.push_back(block5);
 
-        all_max_buffer_sizes.push_back(get_size(block5.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block5.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block5.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block5.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
 
         BlockInfoType block6;
         auto [in_axis6, out_axis6] =
@@ -2135,9 +2306,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         block6.m_block_idx  = 3;
         m_block_infos.push_back(block6);
 
-        all_max_buffer_sizes.push_back(get_size(block6.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block6.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block6.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block6.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block6.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block6.m_out_extents) * 2);
 
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
@@ -2167,12 +2341,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
       block0.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block0);
-      all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                     size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
       BlockInfoType block1;
       block1.m_in_extents  = block0.m_out_extents;
@@ -2181,7 +2355,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       block1.m_block_type = BlockType::FFT;
       block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
       m_block_infos.push_back(block1);
-      all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_pencil(mid_topo0, mid_topo1);
@@ -2199,9 +2374,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       block2.m_block_type = BlockType::Transpose;
       block2.m_block_idx  = 1;
       m_block_infos.push_back(block2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
       BlockInfoType block3;
       block3.m_in_extents  = block2.m_out_extents;
@@ -2211,7 +2389,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       block3.m_block_idx  = 1;
       block3.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes2);
       m_block_infos.push_back(block3);
-      all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
       BlockInfoType block4;
       auto [in_axis4, out_axis4] = get_pencil(mid_topo1, mid_topo2);
@@ -2229,9 +2408,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       block4.m_block_type = BlockType::Transpose;
       block4.m_block_idx  = 2;
       m_block_infos.push_back(block4);
-      all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
       BlockInfoType block5;
       block5.m_in_extents  = block4.m_out_extents;
@@ -2241,7 +2423,8 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       block5.m_block_idx  = 2;
       block5.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes3);
       m_block_infos.push_back(block5);
-      all_max_buffer_sizes.push_back(get_size(block5.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
 
       BlockInfoType block6;
       auto [in_axis6, out_axis6] = get_pencil(mid_topo2, mid_topo3);
@@ -2259,9 +2442,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       block6.m_block_type = BlockType::Transpose;
       block6.m_block_idx  = 3;
       m_block_infos.push_back(block6);
-      all_max_buffer_sizes.push_back(get_size(block6.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block6.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block6.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block6.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block6.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block6.m_out_extents) * 2);
 
       BlockInfoType block7;
       auto [in_axis7, out_axis7] = get_pencil(mid_topo3, out_topology.array());
@@ -2277,9 +2463,12 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
       block7.m_block_type = BlockType::Transpose;
       block7.m_block_idx  = 4;
       m_block_infos.push_back(block7);
-      all_max_buffer_sizes.push_back(get_size(block7.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block7.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block7.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block7.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block7.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block7.m_out_extents) * 2);
 
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     }

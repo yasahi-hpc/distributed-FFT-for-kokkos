@@ -174,17 +174,11 @@ std::array<iType, DIM> swap_elements(const std::array<iType, DIM>& arr, int i,
   return result;
 }
 
-template <typename ContainerType>
-std::size_t get_size(const ContainerType& topology) {
-  return std::accumulate(topology.begin(), topology.end(), 1,
-                         std::multiplies<std::size_t>());
-}
-
 template <typename iType, std::size_t DIM = 1>
 auto merge_topology(const std::array<iType, DIM>& in_topology,
                     const std::array<iType, DIM>& out_topology) {
-  auto in_size  = get_size(in_topology);
-  auto out_size = get_size(out_topology);
+  auto in_size  = KokkosFFT::Impl::total_size(in_topology);
+  auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
   KOKKOSFFT_THROW_IF(in_size != out_size,
                      "Input and output topologies must have the same size.");
@@ -229,8 +223,8 @@ auto merge_topology(const std::array<iType, DIM>& in_topology,
 template <typename iType, std::size_t DIM = 1>
 auto diff_toplogy(const std::array<iType, DIM>& in_topology,
                   const std::array<iType, DIM>& out_topology) {
-  auto in_size  = get_size(in_topology);
-  auto out_size = get_size(out_topology);
+  auto in_size  = KokkosFFT::Impl::total_size(in_topology);
+  auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
   if (in_size == 1 && out_size == 1) return iType(1);
 

@@ -42,7 +42,7 @@ auto get_global_shape(
     const Topology<std::size_t, ViewType::rank(), LayoutType> &topology,
     MPI_Comm comm) {
   auto extents    = KokkosFFT::Impl::extract_extents(v);
-  auto total_size = get_size(topology);
+  auto total_size = KokkosFFT::Impl::total_size(topology);
 
   std::vector<std::size_t> gathered_extents(ViewType::rank() * total_size);
   std::array<std::size_t, ViewType::rank()> global_extents = {};
@@ -110,7 +110,7 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
   // Check that topology includes two or less non-one elements
   std::array<std::size_t, DIM> local_extents, next_extents;
   std::copy(extents.begin(), extents.end(), local_extents.begin());
-  auto total_size = get_size(topology);
+  auto total_size = KokkosFFT::Impl::total_size(topology);
 
   int rank, nprocs;
   ::MPI_Comm_rank(comm, &rank);
@@ -207,7 +207,7 @@ auto get_local_extents(const std::array<std::size_t, DIM> &extents,
   std::array<std::size_t, DIM> local_extents = {};
   std::array<std::size_t, DIM> local_starts  = {};
   std::copy(extents.begin(), extents.end(), local_extents.begin());
-  auto total_size = Impl::get_size(topology);
+  auto total_size = KokkosFFT::Impl::total_size(topology);
 
   int rank, nprocs;
   ::MPI_Comm_rank(comm, &rank);
@@ -287,7 +287,7 @@ auto get_local_shape(const std::array<std::size_t, DIM> &extents,
   // Check that topology includes two or less non-one elements
   std::array<std::size_t, DIM> local_extents;
   std::copy(extents.begin(), extents.end(), local_extents.begin());
-  auto total_size = Impl::get_size(topology);
+  auto total_size = KokkosFFT::Impl::total_size(topology);
 
   int rank, nprocs;
   ::MPI_Comm_rank(comm, &rank);
