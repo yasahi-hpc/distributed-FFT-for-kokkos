@@ -62,7 +62,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       m_block_infos.push_back(block);
 
       // Data is always complex
-      all_max_buffer_sizes.push_back(get_size(out_extents) * 2);
+      all_max_buffer_sizes.push_back(KokkosFFT::Impl::total_size(out_extents) *
+                                     2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 2) {
       auto last_axis = axes.back();
@@ -87,12 +88,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
 
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents = block0.m_out_extents;
@@ -105,7 +106,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         block1.m_out_map = block0.m_out_map;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // E.g. {1, 1, P} + FFT (ax=0) -> {P, 1, 1}
@@ -119,7 +121,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         block0.m_axes =
             get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
@@ -138,9 +141,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         m_block_infos.push_back(block1);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
     } else if (nb_topologies == 3) {
@@ -165,12 +171,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       block0.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block0);
 
-      all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                     size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
       BlockInfoType block1;
       block1.m_in_extents = block0.m_out_extents;
@@ -181,7 +187,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
           get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block1);
 
-      all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_slab(mid_topology, out_topology);
@@ -199,9 +206,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       block2.m_block_idx  = 1;
       m_block_infos.push_back(block2);
 
-      all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     }
   }
@@ -261,7 +271,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       m_block_infos.push_back(block);
 
       // Data is always complex
-      all_max_buffer_sizes.push_back(get_size(out_extents) * 2);
+      all_max_buffer_sizes.push_back(KokkosFFT::Impl::total_size(out_extents) *
+                                     2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 2) {
       // 1. FTF
@@ -297,12 +308,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
 
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents = block0.m_out_extents;
@@ -315,7 +326,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block1.m_out_map = block0.m_out_map;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // FT or FTF
@@ -328,7 +340,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block0.m_block_type = BlockType::FFT;
         block0.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes0);
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
@@ -350,9 +363,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         m_block_infos.push_back(block1);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         if (axes1.size() != 0) {
           BlockInfoType block2;
@@ -365,7 +381,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
           block2.m_block_idx   = 1;
           m_block_infos.push_back(block2);
 
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
         }
 
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
@@ -404,12 +421,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block0.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents  = block0.m_out_extents;
@@ -419,7 +436,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block1.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         auto [in_axis2, out_axis2] = get_slab(mid_topology, out_topology);
@@ -441,9 +459,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
 
-        all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         if (axes2.size() != 0) {
           BlockInfoType block3;
@@ -456,7 +477,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
           block3.m_block_idx   = 1;
           m_block_infos.push_back(block3);
 
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         }
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
@@ -472,7 +494,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         m_block_infos.push_back(block0);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, mid_topology);
@@ -491,9 +514,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block1.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         block2.m_in_extents  = block1.m_out_extents;
@@ -504,7 +530,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
 
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         BlockInfoType block3;
         auto [in_axis3, out_axis3] = get_slab(mid_topology, out_topology);
@@ -523,9 +550,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block3.m_block_idx  = 1;
         m_block_infos.push_back(block3);
 
-        all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
@@ -555,12 +585,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       block0.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block0);
 
-      all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                     size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
       BlockInfoType block1;
       block1.m_in_extents = block0.m_out_extents;
@@ -570,7 +600,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
       m_block_infos.push_back(block1);
 
-      all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_slab(mid_topology0, mid_topology1);
@@ -591,9 +622,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       block2.m_block_idx  = 1;
       m_block_infos.push_back(block2);
 
-      all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
       BlockInfoType block3;
       block3.m_in_extents  = block2.m_out_extents;
@@ -605,7 +639,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       block3.m_block_idx   = 1;
       m_block_infos.push_back(block3);
 
-      all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
       BlockInfoType block4;
       auto [in_axis4, out_axis4] = get_slab(mid_topology1, out_topology);
@@ -624,9 +659,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       block4.m_block_idx  = 2;
       m_block_infos.push_back(block4);
 
-      all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     }
@@ -693,7 +731,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       m_block_infos.push_back(block);
 
       // Data is always complex
-      all_max_buffer_sizes.push_back(get_size(out_extents) * 2);
+      all_max_buffer_sizes.push_back(KokkosFFT::Impl::total_size(out_extents) *
+                                     2);
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     } else if (nb_topologies == 2) {
       auto axes0 = all_axes.at(0), axes1 = all_axes.at(1);
@@ -730,12 +769,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
 
         m_block_infos.push_back(block0);
 
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
         BlockInfoType block1;
         block1.m_in_extents = block0.m_out_extents;
@@ -748,7 +787,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block1.m_out_map = block0.m_out_map;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
         // 1.  FFT3 {ax=0,1,2} + T
@@ -764,7 +804,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         m_block_infos.push_back(block0);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
@@ -785,9 +826,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block1.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         if (axes1.size() != 0) {
           BlockInfoType block2;
@@ -801,7 +845,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
           block2.m_block_idx   = 1;
           m_block_infos.push_back(block2);
 
-          all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
         }
       }
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
@@ -835,12 +880,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
             get_buffer_extents<Layout>(gin_extents, in_topology, mid_topology);
         block0.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block0);
-        all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                       size_factor);
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                       size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
         BlockInfoType block1;
         block1.m_in_extents  = block0.m_out_extents;
         block1.m_out_extents = get_next_extents(gout_extents, mid_topology,
@@ -848,7 +893,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block1.m_block_type  = BlockType::FFT;
         block1.m_axes        = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block1);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
         BlockInfoType block2;
         auto [in_axis2, out_axis2] = get_slab(mid_topology, out_topology);
         block2.m_in_map            = block0.m_out_map;
@@ -866,9 +912,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block2.m_block_type = BlockType::Transpose;
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
         if (axes2.size() != 0) {
           BlockInfoType block3;
           block3.m_in_extents  = block2.m_out_extents;
@@ -879,7 +928,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
           block3.m_out_map     = block2.m_out_map;
           block3.m_block_idx   = 1;
           m_block_infos.push_back(block3);
-          all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+          all_max_buffer_sizes.push_back(
+              KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         }
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       } else {
@@ -897,7 +947,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         m_block_infos.push_back(block0);
 
         // Data is always complex
-        all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
 
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, mid_topology);
@@ -916,9 +967,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block1.m_block_type = BlockType::Transpose;
         m_block_infos.push_back(block1);
 
-        all_max_buffer_sizes.push_back(get_size(block1.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
         BlockInfoType block2;
         block2.m_in_extents  = block1.m_out_extents;
@@ -929,7 +983,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block2.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
         m_block_infos.push_back(block2);
 
-        all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
         BlockInfoType block3;
         auto [in_axis3, out_axis3] = get_slab(mid_topology, out_topology);
@@ -948,9 +1003,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block3.m_block_idx  = 1;
         m_block_infos.push_back(block3);
 
-        all_max_buffer_sizes.push_back(get_size(block3.m_in_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block3.m_buffer_extents) * 2);
-        all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_in_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_buffer_extents) * 2);
+        all_max_buffer_sizes.push_back(
+            KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
         m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
       }
@@ -979,12 +1037,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       block0.m_block_type = BlockType::Transpose;
       m_block_infos.push_back(block0);
 
-      all_max_buffer_sizes.push_back(get_size(block0.m_in_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_buffer_extents) *
-                                     size_factor);
-      all_max_buffer_sizes.push_back(get_size(block0.m_out_extents) *
-                                     size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_in_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_buffer_extents) * size_factor);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block0.m_out_extents) * size_factor);
 
       BlockInfoType block1;
       block1.m_in_extents = block0.m_out_extents;
@@ -994,7 +1052,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       block1.m_axes       = get_contiguous_axes<Layout, iType, DIM>(axes1);
       m_block_infos.push_back(block1);
 
-      all_max_buffer_sizes.push_back(get_size(block1.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
 
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_slab(mid_topology0, mid_topology1);
@@ -1015,9 +1074,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       block2.m_block_idx  = 1;
       m_block_infos.push_back(block2);
 
-      all_max_buffer_sizes.push_back(get_size(block2.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block2.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
       BlockInfoType block3;
       block3.m_in_extents  = block2.m_out_extents;
@@ -1029,7 +1091,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       block3.m_block_idx   = 1;
       m_block_infos.push_back(block3);
 
-      all_max_buffer_sizes.push_back(get_size(block3.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
 
       BlockInfoType block4;
       auto [in_axis4, out_axis4] = get_slab(mid_topology1, out_topology);
@@ -1048,9 +1111,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       block4.m_block_idx  = 2;
       m_block_infos.push_back(block4);
 
-      all_max_buffer_sizes.push_back(get_size(block4.m_in_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block4.m_buffer_extents) * 2);
-      all_max_buffer_sizes.push_back(get_size(block4.m_out_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_in_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_buffer_extents) * 2);
+      all_max_buffer_sizes.push_back(
+          KokkosFFT::Impl::total_size(block4.m_out_extents) * 2);
 
       m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
     }

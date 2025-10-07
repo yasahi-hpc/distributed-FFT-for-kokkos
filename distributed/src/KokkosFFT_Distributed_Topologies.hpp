@@ -15,7 +15,7 @@ template <std::size_t DIM = 1>
 inline auto get_topology_type(const std::array<std::size_t, DIM>& topology) {
   TopologyType topology_type = TopologyType::Invalid;
 
-  auto size = get_size(topology);
+  auto size = KokkosFFT::Impl::total_size(topology);
   KOKKOSFFT_THROW_IF(size == 0, "topology must not be size 0.");
   int non_one_count = countNonOneComponents(topology);
   if (non_one_count == 0) {
@@ -79,8 +79,8 @@ auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
                 const std::array<std::size_t, DIM>& out_topology) {
   // Extract topology that is common between in_topology and out_topology
   // std::array<std::size_t, DIM> common_topology = {};
-  auto in_size  = get_size(in_topology);
-  auto out_size = get_size(out_topology);
+  auto in_size  = KokkosFFT::Impl::total_size(in_topology);
+  auto out_size = KokkosFFT::Impl::total_size(out_topology);
   KOKKOSFFT_THROW_IF(in_size == 1 || out_size == 1,
                      "Input and output topologies must have at least one "
                      "non-trivial dimension.");
@@ -117,8 +117,8 @@ auto get_pencil(const Topology<std::size_t, DIM, LayoutType>& in_topology,
 template <std::size_t DIM>
 auto get_slab(const std::array<std::size_t, DIM>& in_topology,
               const std::array<std::size_t, DIM>& out_topology) {
-  auto in_size  = get_size(in_topology);
-  auto out_size = get_size(out_topology);
+  auto in_size  = KokkosFFT::Impl::total_size(in_topology);
+  auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
   KOKKOSFFT_THROW_IF(in_size != out_size,
                      "Input and output topologies must have the same size.");
@@ -297,7 +297,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 
   if constexpr (DIM == 2 && FFT_DIM == 2) {
     if (in_topology == out_topology) {
-      auto p = get_size(in_topology);
+      auto p = KokkosFFT::Impl::total_size(in_topology);
       for (std::size_t i = 0; i < DIM; ++i) {
         if (in_topology.at(i) == 1) {
           topology.at(i) = p;
@@ -311,7 +311,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
       auto last_axis = axes.back();
       auto first_dim = in_topology.at(last_axis);
       if (first_dim != 1) {
-        auto p = get_size(in_topology);
+        auto p = KokkosFFT::Impl::total_size(in_topology);
         for (std::size_t i = 0; i < DIM; ++i) {
           if (in_topology.at(i) == 1) {
             topology.at(i) = p;
@@ -331,7 +331,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
   // 3D case
   if constexpr (DIM == 3 && FFT_DIM == 3) {
     if (in_topology == out_topology) {
-      auto p = get_size(in_topology);
+      auto p = KokkosFFT::Impl::total_size(in_topology);
       topology.fill(p);
       auto last_axis = axes.back();
       auto first_dim = in_topology.at(last_axis);
@@ -346,7 +346,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
       }
       topologies.push_back(topology);
     } else {
-      auto p = get_size(in_topology);
+      auto p = KokkosFFT::Impl::total_size(in_topology);
       topology.fill(p);
       auto last_axis = axes.back();
       auto first_dim = in_topology.at(last_axis);
@@ -435,7 +435,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
       ready_axes.push_back(axis);
     }
 
-    auto p = get_size(in_topology);
+    auto p = KokkosFFT::Impl::total_size(in_topology);
     if (ready_axes.size() == 0) {
       topology.at(axes_reversed.back()) = p;
       topologies.push_back(topology);
@@ -478,7 +478,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
   } else if constexpr (FFT_DIM == 1) {
     for (std::size_t i = 0; i < DIM; ++i) {
       if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
-        auto p         = get_size(in_topology);
+        auto p         = KokkosFFT::Impl::total_size(in_topology);
         topology.at(i) = p;
         topologies.push_back(topology);
         break;
@@ -516,7 +516,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
       topologies.push_back(out_topology);
     } else {
       // Need to find a new topology
-      auto p = get_size(in_topology);
+      auto p = KokkosFFT::Impl::total_size(in_topology);
       topology.fill(1);
       for (std::size_t i = 0; i < DIM; ++i) {
         if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {

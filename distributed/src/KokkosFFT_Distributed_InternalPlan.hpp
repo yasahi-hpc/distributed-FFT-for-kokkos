@@ -58,7 +58,7 @@ class InternalPlan {
         convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(axes);
     auto fft_extents =
         get_fft_extents(gin_extents, gout_extents, non_negative_axes);
-    m_fft_size = get_size(fft_extents);
+    m_fft_size = KokkosFFT::Impl::total_size(fft_extents);
   }
 
   virtual ~InternalPlan() = default;

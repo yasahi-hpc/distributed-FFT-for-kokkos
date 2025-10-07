@@ -129,7 +129,7 @@ auto get_required_allocation_size(
     const std::vector<std::array<std::size_t, DIM>> &extents) {
   std::vector<std::size_t> sizes;
   for (const auto &extent : extents) {
-    sizes.push_back(get_size(extent));
+    sizes.push_back(KokkosFFT::Impl::total_size(extent));
   }
   return *std::max_element(sizes.begin(), sizes.end());
 }
@@ -150,7 +150,8 @@ auto get_required_allocation_size(
                      "extents and byte_sizes must have the same size.");
   std::vector<std::size_t> sizes;
   for (std::size_t i = 0; i < extents.size(); i++) {
-    sizes.push_back(get_size(extents.at(i)) * byte_sizes.at(i));
+    sizes.push_back(KokkosFFT::Impl::total_size(extents.at(i)) *
+                    byte_sizes.at(i));
   }
   return *std::max_element(sizes.begin(), sizes.end());
 }
