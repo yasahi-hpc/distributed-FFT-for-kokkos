@@ -9,23 +9,20 @@ RUN apt-get update && apt-get install -y \
         bc \
         ccache \
         libfftw3-dev \
+        openmpi-bin \
+        libopenmpi-dev \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 RUN git config --global --add safe.directory "*"
 
-# Install OpenMPI
-RUN apt-get update && apt-get install -y \
-    openmpi-bin \
-    libopenmpi-dev \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
 # Install newer CMake manually
 ARG CMAKE_VERSION=3.23.2
 ARG build_dir=/tmp/build
 
-ENV CMAKE_DIR=/opt/cmake
+ENV CMAKE_DIR=/opt/cmake \
+    FFTWDIR=/usr
 RUN CMAKE_SCRIPT=cmake-${CMAKE_VERSION}-linux-x86_64.sh && \
     mkdir -p ${build_dir} && mkdir -p ${CMAKE_DIR} \
     cd ${build_dir} && \
@@ -33,7 +30,6 @@ RUN CMAKE_SCRIPT=cmake-${CMAKE_VERSION}-linux-x86_64.sh && \
     sh ${CMAKE_SCRIPT} --skip-license --prefix=${CMAKE_DIR} && \
     cd ${HOME} && rm -rf ${build_dir}
 ENV PATH=${CMAKE_DIR}/bin:$PATH
-ENV FFTWDIR "/usr"
 
 WORKDIR /work
 CMD ["bash"]
