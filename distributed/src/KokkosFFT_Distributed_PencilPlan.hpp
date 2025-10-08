@@ -180,6 +180,16 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
                        "Internal views are not set");
   }
 
+  ~PencilInternalPlan() {
+    // Free sub communicators
+    for (auto& comm : m_cart_comms) {
+      ::MPI_Comm_free(&comm);
+    }
+
+    // Then free cart communicator
+    ::MPI_Comm_free(&m_cart_comm);
+  }
+
   void forward(const InViewType& in, const OutViewType& out) const {
     std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
     for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
@@ -564,6 +574,16 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
 
     KOKKOSFFT_THROW_IF(m_in_out_ptr.size() != nb_blocks,
                        "m_in_out_ptr must have the size of nb_blocks");
+  }
+
+  ~PencilInternalPlan() {
+    // Free sub communicators
+    for (auto& comm : m_cart_comms) {
+      ::MPI_Comm_free(&comm);
+    }
+
+    // Then free cart communicator
+    ::MPI_Comm_free(&m_cart_comm);
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {
@@ -1101,6 +1121,16 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
 
     KOKKOSFFT_THROW_IF(m_in_out_ptr.size() != nb_blocks,
                        "m_in_out_ptr must have the size of nb_blocks");
+  }
+
+  ~PencilInternalPlan() {
+    // Free sub communicators
+    for (auto& comm : m_cart_comms) {
+      ::MPI_Comm_free(&comm);
+    }
+
+    // Then free cart communicator
+    ::MPI_Comm_free(&m_cart_comm);
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {
