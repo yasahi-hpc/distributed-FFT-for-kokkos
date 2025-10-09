@@ -13,19 +13,24 @@ namespace Distributed {
 namespace Impl {
 
 /// \brief MPI all-to-all communication for distributed data redistribution
-/// This class template implements MPI_Alltoall communication pattern for Kokkos Views,
-/// primarily used in distributed FFT operations for data redistribution between
-/// different dimensional decompositions. The class handles the computation of send
-/// counts based on the layout type and performs the actual MPI communication.
+/// This class implements MPI_Alltoall communication pattern on Kokkos Views,
+/// used in distributed FFT operations for data redistribution between different
+/// domain decompositions. The class handles the computation of send counts
+/// based on the layout type and performs the actual MPI communication.
 ///
 /// \tparam ExecutionSpace Kokkos execution space type
-/// \tparam ViewType Kokkos View type containing the data to be communicated, must have rank >= 2
+/// \tparam ViewType Kokkos View type containing the data to be communicated,
+/// must have rank >= 2
 ///
-/// The outermost dimension corresponds to the number of processes involved in the communication.
-/// For LayoutLeft, we expect the input and output views to have the shape (n0, n1, ..., nprocs).
-/// For LayoutRight, we expect the input and output views to have the shape (nprocs, n0, ..., n_N).
-/// The send_count and recv_count are the product of the other dimensions of the input and output views.
-/// It will raise an error if the nprocs obtained from the input and output views is not the same as the MPI size.
+/// The outermost dimension corresponds to the number of processes involved in
+/// the communication.
+/// For LayoutLeft, we expect the input and output views to have the shape
+/// (n0, n1, ..., nprocs).
+/// For LayoutRight, we expect the input and output views to have the shape
+/// (nprocs, n0, ..., n_N).
+/// The send_count and recv_count are the product of the other dimensions of the
+/// input and output views. It will raise an error if the nprocs obtained from
+/// the input and output views is not the same as the MPI size.
 template <typename ExecutionSpace, typename ViewType>
 struct All2All {
   static_assert(ViewType::rank() >= 2,
@@ -40,7 +45,10 @@ struct All2All {
   /// \param[in] send Input view to be sent
   /// \param[in] recv Output view to be received
   /// \param[in] comm MPI communicator (default to MPI_COMM_WORLD)
-  /// \param[in] exec_space Execution space (default to ExecutionSpace() instance)
+  /// \param[in] exec_space Execution space (default to ExecutionSpace()
+  /// instance)
+  /// \throws std::runtime_error if the extent of the dimension to be transposed
+  /// does not match MPI size
   All2All(const ViewType& send, const ViewType& recv,
           const MPI_Comm& comm            = MPI_COMM_WORLD,
           const ExecutionSpace exec_space = ExecutionSpace())
@@ -48,14 +56,19 @@ struct All2All {
         m_comm(comm),
         m_mpi_data_type(MPIDataType<value_type>::type()) {
     using LayoutType = typename ViewType::array_layout;
-    int size_send = std::is_same_v<LayoutType, Kokkos::LayoutLeft> ? send.extent_int(ViewType::rank() - 1)
-                                                                : send.extent_int(0);
-    int size_recv = std::is_same_v<LayoutType, Kokkos::LayoutLeft> ? recv.extent_int(ViewType::rank() - 1)
-                                                                : recv.extent_int(0);
+    int size_send    = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
+                           ? send.extent_int(ViewType::rank() - 1)
+                           : send.extent_int(0);
+    int size_recv    = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
+                           ? recv.extent_int(ViewType::rank() - 1)
+                           : recv.extent_int(0);
 
     int size = 0;
     ::MPI_Comm_size(m_comm, &size);
-    KOKKOSFFT_THROW_IF((size_send != size) || (size_recv != size), "Number of processes to be transposed: " + std::to_string(size_send) + " does not match MPI size: " + std::to_string(size));
+    KOKKOSFFT_THROW_IF(
+        (size_send != size) || (size_recv != size),
+        "Extent of dimension to be transposed: " + std::to_string(size_send) +
+            " does not match MPI size: " + std::to_string(size));
 
     // Compute the outermost dimension size
     int send_count = static_cast<int>(send.size()) / size_send;
@@ -66,8 +79,9 @@ struct All2All {
 
 /// \brief MPI all-to-all communication for distributed data redistribution
 /// \tparam ExecutionSpace Kokkos execution space type
-/// \tparam ViewType Kokkos View type containing the data to be communicated, must have rank >= 2
-/// 
+/// \tparam ViewType Kokkos View type containing the data to be communicated,
+/// must have rank >= 2
+///
 /// \param[in] exec_space Execution space
 /// \param[in] send Input view to be sent
 /// \param[in] recv Output view to be received
