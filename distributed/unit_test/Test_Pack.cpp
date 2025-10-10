@@ -1,3 +1,4 @@
+#include <vector>
 #include <mpi.h>
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
@@ -13,7 +14,6 @@ using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutRight>>;
 
-// Basically the same fixtures, used for labeling tests
 template <typename T>
 struct TestPack : public ::testing::Test {
   using float_type  = typename T::first_type;
@@ -21,6 +21,64 @@ struct TestPack : public ::testing::Test {
 
   int m_max_nprocs = 4;
 };
+
+using param_type = std::tuple<int, int, std::vector<int>, std::vector<int>>;
+struct ParamTestsPack : public ::testing::TestWithParam<param_type> {};
+
+/// \brief Test bin_mapping function
+/// \tparam iType Integer type for indices
+/// \param[in] N Total size
+/// \param[in] nbins Number of bins (e.g., number of MPI processes)
+/// \param[in] ref_start Reference start indices for each bin
+/// \param[in] ref_length Reference lengths for each bin
+///
+/// For example, if N=10 and nbins=3, the bins will be:
+/// [0, 4), [4, 7), [7, 10)
+/// which corresponds to (start=0, length=4), (start=4, length=3),
+/// (start=7, length=3).
+template <typename iType>
+void test_bin_mapping(iType N, iType nbins, const std::vector<iType>& ref_start,
+                      const std::vector<iType>& ref_length) {
+  std::vector<iType> start, length;
+  for (iType ibin = 0; ibin < nbins; ++ibin) {
+    auto [s, l] = KokkosFFT::Distributed::Impl::bin_mapping(N, nbins, ibin);
+    start.push_back(s);
+    length.push_back(l);
+  }
+  EXPECT_EQ(start, ref_start);
+  EXPECT_EQ(length, ref_length);
+}
+
+/// \brief Test merge_indices function
+/// \tparam iType Integer type for indices
+/// \param[in] size Size of the index range to test
+/// \param[in] start Start indices for each bin
+/// \param[in] length Lengths for each bin
+template <typename iType>
+void test_merge_indices(iType size, const std::vector<iType>& start,
+                        const std::vector<iType>& length) {
+  iType axis0 = 0, axis1 = 1;
+  for (std::size_t i = 0; i < start.size(); ++i) {
+    for (iType idx = 0; idx < size; idx++) {
+      // if axis == merged_axis, idx is merged
+      auto merged_idx_00 = KokkosFFT::Distributed::Impl::merge_indices(
+          idx, start.at(i), length.at(i), axis0, axis0);
+
+      // if axis != merged_axis, idx is unchanged
+      auto merged_idx_01 = KokkosFFT::Distributed::Impl::merge_indices(
+          idx, start.at(i), length.at(i), axis0, axis1);
+
+      if (idx >= length.at(i)) {
+        EXPECT_EQ(merged_idx_00, -1);
+      } else {
+        auto ref_merged_idx_00 = idx + start.at(i);
+        EXPECT_EQ(merged_idx_00, ref_merged_idx_00);
+      }
+
+      EXPECT_EQ(merged_idx_01, idx);
+    }
+  }
+}
 
 /// \brief Test pack function for 2D View
 /// \tparam T Type of the data (float or double)
@@ -31,14 +89,14 @@ struct TestPack : public ::testing::Test {
 /// \param[in] order Order of the dimensions (0: (n0, n1); 1: (n1, n0))
 ///
 /// 0. map = {0, 1}: the source view is (n0, n1/np) for x-pencil and (n0/np, n1)
-/// for y-pencil. 0.0 LayoutLeft: The sendbuffer is (n0/np, n1/np, np) for both
-/// pencils. 0.1 LayoutRight: The sendbuffer is (np, n0/np, n1/np) for both
-/// pencils.
+/// for y-pencil.
+/// 0.0 LayoutLeft: The sendbuffer is (n0/np, n1/np, np) for both pencils.
+/// 0.1 LayoutRight: The sendbuffer is (np, n0/np, n1/np) for both pencils.
 ///
 /// 1. map = {1, 0}: the source view is (n1/np, n0) for x-pencil and (n1, n0/np)
-/// for y-pencil. 1.0 LayoutLeft: The sendbuffer is (n0/np, n1/np, np) for both
-/// pencils. 1.1 LayoutRight: The sendbuffer is (np, n0/np, n1/np) for both
-/// pencils.
+/// for y-pencil.
+/// 1.0 LayoutLeft: The sendbuffer is (n0/np, n1/np, np) for both pencils.
+/// 1.1 LayoutRight: The sendbuffer is (np, n0/np, n1/np) for both pencils.
 template <typename T, typename LayoutType>
 void test_pack_view2D(std::size_t rank, std::size_t nprocs, int order = 0) {
   using SrcView2DType = Kokkos::View<T**, LayoutType, execution_space>;
@@ -528,6 +586,26 @@ void test_pack_view3D(std::size_t rank, std::size_t nprocs, int order = 0) {
 }
 
 }  // namespace
+
+TEST_P(ParamTestsPack, bin_mapping) {
+  auto [N, nprocs, starts, lengths] = GetParam();
+  test_bin_mapping(N, nprocs, starts, lengths);
+}
+
+TEST_P(ParamTestsPack, merge_indices) {
+  auto [N, nprocs, starts, lengths] = GetParam();
+  auto size                         = (N - 1) / nprocs + 1;
+  test_merge_indices(size, starts, lengths);
+}
+
+// Paramterized over N, nprocs, starts, lengths
+INSTANTIATE_TEST_SUITE_P(
+    PTestPack, ParamTestsPack,
+    ::testing::Values(
+        param_type{10, 3, std::vector<int>{0, 4, 7}, std::vector<int>{4, 3, 3}},
+        param_type{12, 3, std::vector<int>{0, 4, 8}, std::vector<int>{4, 4, 4}},
+        param_type{128, 6, std::vector<int>{0, 22, 44, 65, 86, 107},
+                   std::vector<int>{22, 22, 21, 21, 21, 21}}));
 
 TYPED_TEST_SUITE(TestPack, test_types);
 
