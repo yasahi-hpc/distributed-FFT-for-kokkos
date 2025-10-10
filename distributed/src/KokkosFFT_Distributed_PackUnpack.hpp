@@ -230,7 +230,7 @@ struct Pack {
 };
 
 /// \brief Unpack data from N+1D source view to ND destination view by merging
-/// along a specified axis. The source view has an additional dimension 
+/// along a specified axis. The source view has an additional dimension
 /// representing the number of processes (nprocs). The additional dimension is
 /// the outermost dimension, corresponding to the dimension to be transposed.
 /// The destination data may be permuted based on the provided mapping.
@@ -428,7 +428,7 @@ void pack(const ExecutionSpace& exec_space, const SrcViewType& src,
 }
 
 /// \brief Unpack data from N+1D source view to ND destination view by merging
-/// along a specified axis. The source view has an additional dimension 
+/// along a specified axis. The source view has an additional dimension
 /// representing the number of processes (nprocs). The additional dimension is
 /// the outermost dimension, corresponding to the dimension to be transposed.
 /// The destination data may be permuted based on the provided mapping.

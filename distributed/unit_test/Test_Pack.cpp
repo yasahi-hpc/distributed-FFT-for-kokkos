@@ -598,7 +598,7 @@ TEST_P(ParamTestsPack, merge_indices) {
   test_merge_indices(size, starts, lengths);
 }
 
-// Paramterized over N, nprocs, starts, lengths
+// Parameterized over N, nprocs, starts, lengths
 INSTANTIATE_TEST_SUITE_P(
     PTestPack, ParamTestsPack,
     ::testing::Values(
