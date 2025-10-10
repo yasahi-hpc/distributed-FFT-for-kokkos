@@ -11,6 +11,24 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Helper function to compute the start index and length of a bin
+/// when dividing a range [0, N) into `nbins` bins. The `ibin`-th bin
+/// will contain the indices from `start` to `start + length - 1`.
+/// The bins are distributed as evenly as possible, with the first `remainder`
+/// bins containing one extra element if `N` is not perfectly divisible by
+/// `nbins`.
+/// For example, if N=10 and nbins=3, the bins will be:
+/// [0, 4), [4, 7), [7, 10)
+/// which corresponds to (start=0, length=4), (start=4, length=3),
+/// (start=7, length=3).
+/// Note, `nbins` corresponds to the number of processes in the communicator and
+/// `ibin` corresponds to the rank of the process.
+///
+/// \tparam iType Integer type for indices
+/// \param[in] N Total number of elements
+/// \param[in] nbins Number of bins to divide into
+/// \param[in] ibin Index of the bin to compute (0-based)
+/// \return A pair containing the start index and length of the `ibin`-th bin
 template <typename iType>
 KOKKOS_INLINE_FUNCTION auto bin_mapping(iType N, iType nbins, iType ibin) {
   iType base_size = N / nbins, remainder = N % nbins;
@@ -19,6 +37,20 @@ KOKKOS_INLINE_FUNCTION auto bin_mapping(iType N, iType nbins, iType ibin) {
   return Kokkos::pair<iType, iType>{start, length};
 }
 
+/// \brief If `axis` is not equal to `merged_axis`, it returns `idx` unchanged.
+/// If `axis` is equal to `merged_axis`, it merges the index `idx` with the
+/// `start` and `extent` of a bin along the specified `axis`. If `idx` is
+/// outside the range of the bin, it returns -1. Otherwise, it returns the
+/// global index by adding `start` to `idx`.
+/// `start` and `extent` are obtained from `bin_mapping` function defined above
+///
+/// \tparam iType Integer type for indices
+/// \param[in] idx Local index to be merged
+/// \param[in] start Start index of the bin
+/// \param[in] extent Length of the bin
+/// \param[in] axis Axis along which the bin is defined
+/// \param[in] merged_axis Axis that is being merged
+/// \return The global index if `idx` is within the bin, otherwise -1
 template <typename iType>
 KOKKOS_INLINE_FUNCTION iType merge_indices(iType idx, iType start, iType extent,
                                            std::size_t axis,
@@ -30,6 +62,16 @@ KOKKOS_INLINE_FUNCTION iType merge_indices(iType idx, iType start, iType extent,
   }
 }
 
+/// \brief Pack data from ND source view to N+1D destination view by splitting
+/// along a specified axis. The destination view has an additional dimension
+/// representing the number of processes (nprocs). The additional dimension is
+/// the outermost dimension, corresponding to the dimension to be transposed.
+/// The destination data may be permuted based on the provided mapping.
+///
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam SrcViewType Kokkos View type of the source data
+/// \tparam DstViewType Kokkos View type of the destination data
+/// \tparam iType Integer type for indices
 template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           typename iType>
 struct Pack {
@@ -145,6 +187,12 @@ struct Pack {
       }
     }
 
+    /// \brief Get the value from the source view corresponding to the given
+    /// destination indices.
+    /// This function computes the source indices by merging the destination
+    /// indices with the start and extent of the bin along the specified axis.
+    /// If any of the computed source indices are out of bounds, it returns 0.
+    ///
     template <std::size_t... Is>
     KOKKOS_INLINE_FUNCTION ValueType
     get_src_value(iType dst_idx[], std::index_sequence<Is...>) const {
@@ -181,6 +229,11 @@ struct Pack {
   };
 };
 
+/// \brief Unpack data from N+1D source view to ND destination view by merging
+/// along a specified axis. The source view has an additional dimension
+/// representing the number of processes (nprocs). The additional dimension is
+/// the outermost dimension, corresponding to the dimension to be transposed.
+/// The destination data may be permuted based on the provided mapping.
 template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           typename iType>
 struct Unpack {
@@ -336,6 +389,23 @@ struct Unpack {
   };
 };
 
+/// \brief Pack data from ND source view to N+1D destination view by splitting
+/// along a specified axis. The destination view has an additional dimension
+/// representing the number of processes (nprocs). The additional dimension is
+/// the outermost dimension, corresponding to the dimension to be transposed.
+/// The destination data may be permuted based on the provided mapping.
+///
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam SrcViewType Kokkos View type of the source data
+/// \tparam DstViewType Kokkos View type of the destination data
+/// \tparam DIM Dimension of the mapping array
+///
+/// \param[in] exec_space The Kokkos execution space to be used
+/// \param[in] src The input Kokkos view to be packed
+/// \param[out] dst The output Kokkos view to be packed
+/// \param[in] src_map The mapping of source view dimensions to destination view
+/// dimensions
+/// \param[in] axis The axis to be split
 template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           std::size_t DIM>
 void pack(const ExecutionSpace& exec_space, const SrcViewType& src,
@@ -357,6 +427,22 @@ void pack(const ExecutionSpace& exec_space, const SrcViewType& src,
   }
 }
 
+/// \brief Unpack data from N+1D source view to ND destination view by merging
+/// along a specified axis. The source view has an additional dimension
+/// representing the number of processes (nprocs). The additional dimension is
+/// the outermost dimension, corresponding to the dimension to be transposed.
+/// The destination data may be permuted based on the provided mapping.
+///
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam SrcViewType Kokkos View type of the source data
+/// \tparam DstViewType Kokkos View type of the destination data
+/// \tparam DIM Dimension of the mapping array
+/// \param[in] exec_space The Kokkos execution space to be used
+/// \param[in] src The input Kokkos view to be unpacked
+/// \param[out] dst The output Kokkos view to be unpacked
+/// \param[in] dst_map The mapping of destination view dimensions to source view
+/// dimensions
+/// \param[in] axis The axis to be merged
 template <typename ExecutionSpace, typename SrcViewType, typename DstViewType,
           std::size_t DIM>
 void unpack(const ExecutionSpace& exec_space, const SrcViewType& src,
