@@ -95,9 +95,11 @@ auto get_map_axes(const std::array<iType, FFT_DIM>& axes) {
 }
 
 /// \brief Count the number of components that are not equal to one in a
-/// container \tparam ContainerType The type of the container (e.g., std::array,
-/// std::vector) \param[in] values The container of values \return The number of
-/// components that are not equal to one
+/// container
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
+/// \param[in] values The container of values
+/// \return The number of components that are not equal to one
 template <typename ContainerType>
 auto count_non_ones(const ContainerType& values) {
   using value_type =
