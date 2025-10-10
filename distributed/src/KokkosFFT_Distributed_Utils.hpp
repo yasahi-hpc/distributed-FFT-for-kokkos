@@ -94,10 +94,20 @@ auto get_map_axes(const std::array<iType, FFT_DIM>& axes) {
   return std::tuple<full_axis_type, full_axis_type>({array_map, array_map_inv});
 }
 
-template <typename ArrayType>
-int countNonOneComponents(const ArrayType& arr) {
-  return std::count_if(arr.begin(), arr.end(),
-                       [](int val) { return val != 1; });
+/// \brief Count the number of components that are not equal to one in a
+/// container \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector) \param[in] values The container of values \return The number of
+/// components that are not equal to one
+template <typename ContainerType>
+auto count_non_ones(const ContainerType& values) {
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(*values.begin())>>;
+
+  static_assert(
+      std::is_integral_v<value_type>,
+      "count_non_ones: Container value type must be an integral type");
+  return std::count_if(values.cbegin(), values.cend(),
+                       [](value_type val) { return val != 1; });
 }
 
 template <typename iType, std::size_t DIM = 1>

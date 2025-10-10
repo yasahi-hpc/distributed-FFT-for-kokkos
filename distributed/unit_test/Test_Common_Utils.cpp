@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
-#include <iostream>
+#include <vector>
+#include <array>
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_Utils.hpp"
 #include "Test_Utils.hpp"
@@ -8,6 +9,16 @@
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;
 class CommonUtilsParamTests : public ::testing::TestWithParam<int> {};
+
+using base_int_types = ::testing::Types<int, std::size_t>;
+
+template <typename T>
+struct TestContainerTypes : public ::testing::Test {
+  static constexpr std::size_t rank = 5;
+  using value_type                  = T;
+  using vector_type                 = std::vector<T>;
+  using array_type                  = std::array<T, rank>;
+};
 
 void test_get_trans_axis(std::size_t nprocs) {
   using topology_type  = std::array<std::size_t, 3>;
@@ -79,6 +90,18 @@ void test_get_trans_axis(std::size_t nprocs) {
   }
 }
 
+template <typename ContainerType0, typename ContainerType1,
+          typename ContainerType2>
+void test_count_non_ones() {
+  ContainerType0 v0 = {0, 1, 4, 2, 3};
+  ContainerType1 v1 = {2, 3, 5};
+  ContainerType2 v2 = {1};
+
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::count_non_ones(v0), 4);
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::count_non_ones(v1), 3);
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::count_non_ones(v2), 0);
+}
+
 }  // namespace
 
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
@@ -88,3 +111,18 @@ TEST_P(CommonUtilsParamTests, GetTransAxis) {
 
 INSTANTIATE_TEST_SUITE_P(CommonUtilsTests, CommonUtilsParamTests,
                          ::testing::Values(1, 2, 3, 4, 5, 6));
+
+TYPED_TEST_SUITE(TestContainerTypes, base_int_types);
+
+TYPED_TEST(TestContainerTypes, test_count_non_ones_of_vector) {
+  using container_type = typename TestFixture::vector_type;
+  test_count_non_ones<container_type, container_type, container_type>();
+}
+
+TYPED_TEST(TestContainerTypes, test_count_non_ones_of_array) {
+  using value_type      = typename TestFixture::value_type;
+  using container_type0 = std::array<value_type, 5>;
+  using container_type1 = std::array<value_type, 3>;
+  using container_type2 = std::array<value_type, 1>;
+  test_count_non_ones<container_type0, container_type1, container_type2>();
+}
