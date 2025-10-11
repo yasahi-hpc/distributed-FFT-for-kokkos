@@ -90,6 +90,69 @@ void test_get_trans_axis(std::size_t nprocs) {
   }
 }
 
+void test_find_differences(std::size_t nprocs) {
+  using topology_type     = std::array<std::size_t, 3>;
+  topology_type topology0 = {nprocs, 1, 8};
+  topology_type topology1 = {nprocs, 8, 1};
+  topology_type topology2 = {8, nprocs, 1};
+
+  if (nprocs == 1) {
+    auto diff01 =
+        KokkosFFT::Distributed::Impl::find_differences(topology0, topology1);
+    auto diff02 =
+        KokkosFFT::Distributed::Impl::find_differences(topology0, topology2);
+    auto diff10 =
+        KokkosFFT::Distributed::Impl::find_differences(topology1, topology0);
+    auto diff12 =
+        KokkosFFT::Distributed::Impl::find_differences(topology1, topology2);
+    auto diff20 =
+        KokkosFFT::Distributed::Impl::find_differences(topology2, topology0);
+    auto diff21 =
+        KokkosFFT::Distributed::Impl::find_differences(topology2, topology1);
+
+    std::vector<std::size_t> ref_diff01 = {1, 2};
+    std::vector<std::size_t> ref_diff02 = {0, 2};
+    std::vector<std::size_t> ref_diff10 = {1, 2};
+    std::vector<std::size_t> ref_diff12 = {0, 1};
+    std::vector<std::size_t> ref_diff20 = {0, 2};
+    std::vector<std::size_t> ref_diff21 = {0, 1};
+
+    EXPECT_EQ(diff01, ref_diff01);
+    EXPECT_EQ(diff02, ref_diff02);
+    EXPECT_EQ(diff10, ref_diff10);
+    EXPECT_EQ(diff12, ref_diff12);
+    EXPECT_EQ(diff20, ref_diff20);
+    EXPECT_EQ(diff21, ref_diff21);
+  } else {
+    auto diff01 =
+        KokkosFFT::Distributed::Impl::find_differences(topology0, topology1);
+    auto diff02 =
+        KokkosFFT::Distributed::Impl::find_differences(topology0, topology2);
+    auto diff10 =
+        KokkosFFT::Distributed::Impl::find_differences(topology1, topology0);
+    auto diff12 =
+        KokkosFFT::Distributed::Impl::find_differences(topology1, topology2);
+    auto diff20 =
+        KokkosFFT::Distributed::Impl::find_differences(topology2, topology0);
+    auto diff21 =
+        KokkosFFT::Distributed::Impl::find_differences(topology2, topology1);
+
+    std::vector<std::size_t> ref_diff01 = {1, 2};
+    std::vector<std::size_t> ref_diff02 = {0, 1, 2};
+    std::vector<std::size_t> ref_diff10 = {1, 2};
+    std::vector<std::size_t> ref_diff12 = {0, 1};
+    std::vector<std::size_t> ref_diff20 = {0, 1, 2};
+    std::vector<std::size_t> ref_diff21 = {0, 1};
+
+    EXPECT_EQ(diff01, ref_diff01);
+    EXPECT_EQ(diff02, ref_diff02);
+    EXPECT_EQ(diff10, ref_diff10);
+    EXPECT_EQ(diff12, ref_diff12);
+    EXPECT_EQ(diff20, ref_diff20);
+    EXPECT_EQ(diff21, ref_diff21);
+  }
+}
+
 template <typename ContainerType0, typename ContainerType1,
           typename ContainerType2>
 void test_count_non_ones() {
@@ -107,6 +170,11 @@ void test_count_non_ones() {
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
   int n0 = GetParam();
   test_get_trans_axis(n0);
+}
+
+TEST_P(CommonUtilsParamTests, FindDifferences) {
+  int n0 = GetParam();
+  test_find_differences(n0);
 }
 
 INSTANTIATE_TEST_SUITE_P(CommonUtilsTests, CommonUtilsParamTests,
