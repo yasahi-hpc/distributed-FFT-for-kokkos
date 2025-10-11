@@ -145,11 +145,11 @@ auto get_slab(const std::array<std::size_t, DIM>& in_topology,
 template <typename iType, std::size_t DIM = 1>
 std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
                                      const std::array<iType, DIM>& out) {
-  std::vector<iType> diff_indices  = extract_different_indices(in, out);
-  std::set<iType> diff_value_set   = extract_different_value_set(in, out);
-  std::vector<iType> diff_non_ones = find_non_ones(in, out);
+  std::vector<iType> diff_indices = extract_different_indices(in, out);
+  std::set<iType> diff_value_set  = extract_different_value_set(in, out);
+  auto diff_non_one_indices       = extract_non_one_indices(in, out);
 
-  KOKKOSFFT_THROW_IF(diff_non_ones.size() < 3,
+  KOKKOSFFT_THROW_IF(diff_non_one_indices.size() < 3,
                      "The total number of non-one elements either in Input and "
                      "output topologies must be three.");
   KOKKOSFFT_THROW_IF(
@@ -167,10 +167,10 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
   iType idx_one_out = KokkosFFT::Impl::get_index(out_trimmed, iType(1));
 
   // Try all combinations of 2 indices for a single valid swap
-  for (size_t i = 0; i < diff_non_ones.size(); ++i) {
-    for (size_t j = i + 1; j < diff_non_ones.size(); ++j) {
-      iType idx_in  = diff_non_ones.at(i);
-      iType idx_out = diff_non_ones.at(j);
+  for (size_t i = 0; i < diff_non_one_indices.size(); ++i) {
+    for (size_t j = i + 1; j < diff_non_one_indices.size(); ++j) {
+      iType idx_in  = diff_non_one_indices.at(i);
+      iType idx_out = diff_non_one_indices.at(j);
 
       std::array<iType, DIM> mid = swap_elements(in, idx_in, idx_out);
       iType idx_one_mid          = KokkosFFT::Impl::get_index(mid, iType(1));
@@ -575,7 +575,7 @@ auto get_all_pencil_topologies(
     axes_reversed.push_back(unsigned_axis);
   }
 
-  auto non_ones                  = find_non_ones(in_topology.array());
+  auto non_ones                  = extract_non_one_values(in_topology.array());
   bool has_same_non_one_elements = has_identical_non_ones(non_ones);
 
   auto in_topology_tmp  = in_topology.array();
@@ -607,8 +607,8 @@ auto get_all_pencil_topologies(
   // If LayoutRight, (1, px, py, 1): first_non_one is px
   // If LayoutLeft, (1, py, px, 1): first_non_one is px
   auto first_non_one = std::is_same_v<InLayoutType, Kokkos::LayoutRight>
-                           ? find_non_ones(in_topology_tmp).at(0)
-                           : find_non_ones(in_topology_tmp).at(1);
+                           ? extract_non_one_values(in_topology_tmp).at(0)
+                           : extract_non_one_values(in_topology_tmp).at(1);
 
   auto to_original_topologies = [&](const topologies_type& topologies,
                                     const axes_type& trans_axes,
@@ -630,7 +630,7 @@ auto get_all_pencil_topologies(
   auto get_layout = [&](const topology_type& topology) {
     // If this condition is satisfied, it means layout right
     std::size_t is_layout_right =
-        find_non_ones(topology).at(0) == first_non_one;
+        extract_non_one_values(topology).at(0) == first_non_one;
     return is_layout_right;
   };
 
@@ -737,8 +737,8 @@ auto get_all_pencil_topologies(
     return to_original_topologies(topologies, trans_axes, layouts);
   }
 
-  std::vector<std::size_t> diff_non_ones =
-      find_non_ones(in_topology_tmp, out_topology_tmp);
+  std::vector<std::size_t> diff_non_one_indices =
+      extract_non_one_indices(in_topology_tmp, out_topology_tmp);
   auto last_axis  = axes_reversed.front();
   auto first_axis = axes_reversed.back();
   auto first_dim  = in_topology_tmp.at(last_axis);
@@ -750,7 +750,7 @@ auto get_all_pencil_topologies(
     auto non_negative_axis =
         KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    for (auto diff_idx : diff_non_ones) {
+    for (auto diff_idx : diff_non_one_indices) {
       if (shuffled_topology.at(diff_idx) == 1 && diff_idx != unsigned_axis) {
         swap_idx = diff_idx;
         break;
