@@ -121,14 +121,10 @@ auto count_non_ones(const ContainerType& values) {
 /// \return A vector of indices where the arrays differ
 template <typename ContainerType>
 auto extract_different_indices(const ContainerType& a, const ContainerType& b) {
-  using value_type =
-      std::remove_cv_t<std::remove_reference_t<decltype(*a.begin())>>;
+  KOKKOSFFT_THROW_IF(a.size() != b.size(),
+                     "Containers must have the same size.");
 
-  auto a_size = KokkosFFT::Impl::total_size(a);
-  auto b_size = KokkosFFT::Impl::total_size(b);
-  KOKKOSFFT_THROW_IF(a_size != b_size, "Containers must have the same size.");
-
-  std::vector<value_type> diffs;
+  std::vector<std::size_t> diffs;
   for (std::size_t i = 0; i < a.size(); ++i) {
     if (a[i] != b[i]) {
       diffs.push_back(i);
@@ -149,9 +145,8 @@ auto extract_different_value_set(const ContainerType& a,
                                  const ContainerType& b) {
   using value_type =
       std::remove_cv_t<std::remove_reference_t<decltype(*a.begin())>>;
-  auto a_size = KokkosFFT::Impl::total_size(a);
-  auto b_size = KokkosFFT::Impl::total_size(b);
-  KOKKOSFFT_THROW_IF(a_size != b_size, "Containers must have the same size.");
+  KOKKOSFFT_THROW_IF(a.size() != b.size(),
+                     "Containers must have the same size.");
 
   std::vector<value_type> diffs;
   for (std::size_t i = 0; i < a.size(); ++i) {

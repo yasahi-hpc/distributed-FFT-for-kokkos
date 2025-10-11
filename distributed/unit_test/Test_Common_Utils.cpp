@@ -110,12 +110,12 @@ void test_extract_different_indices(iType nprocs) {
     auto diff21 = KokkosFFT::Distributed::Impl::extract_different_indices(
         topology2, topology1);
 
-    std::vector<iType> ref_diff01 = {1, 2};
-    std::vector<iType> ref_diff02 = {0, 2};
-    std::vector<iType> ref_diff10 = {1, 2};
-    std::vector<iType> ref_diff12 = {0, 1};
-    std::vector<iType> ref_diff20 = {0, 2};
-    std::vector<iType> ref_diff21 = {0, 1};
+    std::vector<std::size_t> ref_diff01 = {1, 2};
+    std::vector<std::size_t> ref_diff02 = {0, 2};
+    std::vector<std::size_t> ref_diff10 = {1, 2};
+    std::vector<std::size_t> ref_diff12 = {0, 1};
+    std::vector<std::size_t> ref_diff20 = {0, 2};
+    std::vector<std::size_t> ref_diff21 = {0, 1};
 
     EXPECT_EQ(diff01, ref_diff01);
     EXPECT_EQ(diff02, ref_diff02);
@@ -137,12 +137,12 @@ void test_extract_different_indices(iType nprocs) {
     auto diff21 = KokkosFFT::Distributed::Impl::extract_different_indices(
         topology2, topology1);
 
-    std::vector<iType> ref_diff01 = {1, 2};
-    std::vector<iType> ref_diff02 = {0, 1, 2};
-    std::vector<iType> ref_diff10 = {1, 2};
-    std::vector<iType> ref_diff12 = {0, 1};
-    std::vector<iType> ref_diff20 = {0, 1, 2};
-    std::vector<iType> ref_diff21 = {0, 1};
+    std::vector<std::size_t> ref_diff01 = {1, 2};
+    std::vector<std::size_t> ref_diff02 = {0, 1, 2};
+    std::vector<std::size_t> ref_diff10 = {1, 2};
+    std::vector<std::size_t> ref_diff12 = {0, 1};
+    std::vector<std::size_t> ref_diff20 = {0, 1, 2};
+    std::vector<std::size_t> ref_diff21 = {0, 1};
 
     EXPECT_EQ(diff01, ref_diff01);
     EXPECT_EQ(diff02, ref_diff02);
