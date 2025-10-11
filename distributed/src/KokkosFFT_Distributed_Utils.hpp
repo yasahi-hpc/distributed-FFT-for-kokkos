@@ -112,7 +112,7 @@ auto count_non_ones(const ContainerType& values) {
                        [](value_type val) { return val != 1; });
 }
 
-/// \brief Find the differences between two arrays
+/// \brief Extract the different indices between two arrays
 /// \tparam iType The type of the array elements
 /// \tparam DIM The dimension of the arrays
 ///
@@ -120,8 +120,8 @@ auto count_non_ones(const ContainerType& values) {
 /// \param[in] b The second array
 /// \return A vector of indices where the arrays differ
 template <typename iType, std::size_t DIM = 1>
-std::vector<iType> find_differences(const std::array<iType, DIM>& a,
-                                    const std::array<iType, DIM>& b) {
+std::vector<iType> extract_different_indices(const std::array<iType, DIM>& a,
+                                             const std::array<iType, DIM>& b) {
   std::vector<iType> diffs;
   for (std::size_t i = 0; i < a.size(); ++i) {
     if (a[i] != b[i]) {
@@ -131,9 +131,16 @@ std::vector<iType> find_differences(const std::array<iType, DIM>& a,
   return diffs;
 }
 
+/// \brief Extract the different values between two arrays
+/// \tparam iType The type of the array elements
+/// \tparam DIM The dimension of the arrays
+///
+/// \param[in] a The first array
+/// \param[in] b The second array
+/// \return A vector of values where the arrays differ
 template <typename iType, std::size_t DIM = 1>
-std::set<iType> diff_sets(const std::array<iType, DIM>& a,
-                          const std::array<iType, DIM>& b) {
+std::set<iType> extract_different_value_set(const std::array<iType, DIM>& a,
+                                            const std::array<iType, DIM>& b) {
   std::vector<iType> diffs;
   for (std::size_t i = 0; i < a.size(); ++i) {
     diffs.push_back(a.at(i));
@@ -226,7 +233,8 @@ auto merge_topology(const std::array<iType, DIM>& in_topology,
   };
 
   // Check if two topologies are two convertible pencils
-  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
+  std::vector<iType> diff_indices =
+      extract_different_indices(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 2,
       "Input and output topologies must differ exactly two positions: " +
@@ -247,7 +255,8 @@ auto diff_toplogy(const std::array<iType, DIM>& in_topology,
 
   if (in_size == 1 && out_size == 1) return iType(1);
 
-  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
+  std::vector<iType> diff_indices =
+      extract_different_indices(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 1,
       "Input and output topologies must differ exactly one positions.");
@@ -271,7 +280,8 @@ auto get_trans_axis(const std::array<iType, DIM>& in_topology,
                      "Input and output topologies must not have identical "
                      "non-one elements.");
 
-  std::vector<iType> diff_indices = find_differences(in_topology, out_topology);
+  std::vector<iType> diff_indices =
+      extract_different_indices(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 2,
       "Input and output topologies must differ exactly two positions");
@@ -304,7 +314,7 @@ auto get_trans_axis(const Topology<iType, DIM, InLayoutType>& in_topology,
                      "non-one elements.");
 
   std::vector<iType> diff_indices =
-      find_differences(in_topology.array(), out_topology.array());
+      extract_different_indices(in_topology.array(), out_topology.array());
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 2,
       "Input and output topologies must differ exactly two positions");

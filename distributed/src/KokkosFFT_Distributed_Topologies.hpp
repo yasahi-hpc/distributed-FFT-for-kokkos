@@ -145,15 +145,15 @@ auto get_slab(const std::array<std::size_t, DIM>& in_topology,
 template <typename iType, std::size_t DIM = 1>
 std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
                                      const std::array<iType, DIM>& out) {
-  std::vector<iType> diff_indices  = find_differences(in, out);
-  std::set<iType> diffs            = diff_sets(in, out);
+  std::vector<iType> diff_indices  = extract_different_indices(in, out);
+  std::set<iType> diff_value_set   = extract_different_value_set(in, out);
   std::vector<iType> diff_non_ones = find_non_ones(in, out);
 
   KOKKOSFFT_THROW_IF(diff_non_ones.size() < 3,
                      "The total number of non-one elements either in Input and "
                      "output topologies must be three.");
   KOKKOSFFT_THROW_IF(
-      diff_indices.size() < 3 && diffs.size() == 3,
+      diff_indices.size() < 3 && diff_value_set.size() == 3,
       "Input and output topologies must differ exactly three positions.");
 
   // Only copy the exchangeable indices from original arrays in and out
@@ -175,8 +175,8 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
       std::array<iType, DIM> mid = swap_elements(in, idx_in, idx_out);
       iType idx_one_mid          = KokkosFFT::Impl::get_index(mid, iType(1));
 
-      auto mid_in_diff_indices  = find_differences(mid, in);
-      auto mid_out_diff_indices = find_differences(mid, out);
+      auto mid_in_diff_indices  = extract_different_indices(mid, in);
+      auto mid_out_diff_indices = extract_different_indices(mid, out);
       if ((mid_in_diff_indices.size() == 2) &&
           (mid_out_diff_indices.size() == 2) &&
           !(idx_one_mid == idx_one_in || idx_one_mid == idx_one_out)) {
