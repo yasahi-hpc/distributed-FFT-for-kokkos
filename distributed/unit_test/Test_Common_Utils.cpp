@@ -194,6 +194,44 @@ void test_count_non_ones() {
   EXPECT_EQ(KokkosFFT::Distributed::Impl::count_non_ones(v2), 0);
 }
 
+template <typename ContainerType0, typename ContainerType1,
+          typename ContainerType2>
+void test_extract_non_one_indices() {
+  ContainerType0 a0 = {1, 1, 4, 2, 3}, b0 = {1, 4, 2, 3, 1};
+  ContainerType1 a1 = {2, 3, 5}, b1 = {5, 3, 2};
+  ContainerType2 a2 = {1}, b2 = {1};
+
+  std::vector<std::size_t> ref_diff_00 = {1, 2, 3, 4};
+  std::vector<std::size_t> ref_diff_11 = {0, 1, 2};
+  std::vector<std::size_t> ref_diff_22 = {};
+
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::extract_non_one_indices(a0, b0),
+            ref_diff_00);
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::extract_non_one_indices(a1, b1),
+            ref_diff_11);
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::extract_non_one_indices(a2, b2),
+            ref_diff_22);
+}
+
+template <typename ContainerType0, typename ContainerType1,
+          typename ContainerType2, typename iType>
+void test_extract_non_one_values() {
+  ContainerType0 a0 = {1, 1, 4, 2, 3};
+  ContainerType1 a1 = {2, 3, 5};
+  ContainerType2 a2 = {1};
+
+  std::vector<iType> ref_diff_0 = {4, 2, 3};
+  std::vector<iType> ref_diff_1 = {2, 3, 5};
+  std::vector<iType> ref_diff_2 = {};
+
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::extract_non_one_values(a0),
+            ref_diff_0);
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::extract_non_one_values(a1),
+            ref_diff_1);
+  EXPECT_EQ(KokkosFFT::Distributed::Impl::extract_non_one_values(a2),
+            ref_diff_2);
+}
+
 }  // namespace
 
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
@@ -251,4 +289,35 @@ TYPED_TEST(TestContainerTypes, test_count_non_ones_of_array) {
   using container_type1 = std::array<value_type, 3>;
   using container_type2 = std::array<value_type, 1>;
   test_count_non_ones<container_type0, container_type1, container_type2>();
+}
+
+TYPED_TEST(TestContainerTypes, test_extract_non_one_indices_of_vector) {
+  using container_type = typename TestFixture::vector_type;
+  test_extract_non_one_indices<container_type, container_type,
+                               container_type>();
+}
+
+TYPED_TEST(TestContainerTypes, test_extract_non_one_indices_of_array) {
+  using value_type      = typename TestFixture::value_type;
+  using container_type0 = std::array<value_type, 5>;
+  using container_type1 = std::array<value_type, 3>;
+  using container_type2 = std::array<value_type, 1>;
+  test_extract_non_one_indices<container_type0, container_type1,
+                               container_type2>();
+}
+
+TYPED_TEST(TestContainerTypes, test_extract_non_one_values_of_vector) {
+  using container_type = typename TestFixture::vector_type;
+  using value_type     = typename TestFixture::value_type;
+  test_extract_non_one_values<container_type, container_type, container_type,
+                              value_type>();
+}
+
+TYPED_TEST(TestContainerTypes, test_extract_non_one_values_of_array) {
+  using value_type      = typename TestFixture::value_type;
+  using container_type0 = std::array<value_type, 5>;
+  using container_type1 = std::array<value_type, 3>;
+  using container_type2 = std::array<value_type, 1>;
+  test_extract_non_one_values<container_type0, container_type1, container_type2,
+                              value_type>();
 }

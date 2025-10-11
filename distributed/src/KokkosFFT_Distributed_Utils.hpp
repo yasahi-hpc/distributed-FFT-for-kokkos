@@ -121,12 +121,17 @@ auto count_non_ones(const ContainerType& values) {
 /// \return A vector of indices where the arrays differ
 template <typename ContainerType>
 auto extract_different_indices(const ContainerType& a, const ContainerType& b) {
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(*a.begin())>>;
+  static_assert(std::is_integral_v<value_type>,
+                "extract_different_indices: Container value type must be an "
+                "integral type");
   KOKKOSFFT_THROW_IF(a.size() != b.size(),
                      "Containers must have the same size.");
 
   std::vector<std::size_t> diffs;
   for (std::size_t i = 0; i < a.size(); ++i) {
-    if (a[i] != b[i]) {
+    if (a.at(i) != b.at(i)) {
       diffs.push_back(i);
     }
   }
@@ -139,12 +144,15 @@ auto extract_different_indices(const ContainerType& a, const ContainerType& b) {
 ///
 /// \param[in] a The first array
 /// \param[in] b The second array
-/// \return A vector of values where the arrays differ
+/// \return A set of values where the arrays differ
 template <typename ContainerType>
 auto extract_different_value_set(const ContainerType& a,
                                  const ContainerType& b) {
   using value_type =
       std::remove_cv_t<std::remove_reference_t<decltype(*a.begin())>>;
+  static_assert(std::is_integral_v<value_type>,
+                "extract_different_indices: Container value type must be an "
+                "integral type");
   KOKKOSFFT_THROW_IF(a.size() != b.size(),
                      "Containers must have the same size.");
 
@@ -156,38 +164,50 @@ auto extract_different_value_set(const ContainerType& a,
   return std::set<value_type>(diffs.begin(), diffs.end());
 }
 
-template <typename iType, std::size_t DIM = 1>
-std::vector<iType> find_non_ones(const std::array<iType, DIM>& a,
-                                 const std::array<iType, DIM>& b) {
-  std::vector<iType> non_ones;
+/// \brief Extract the indices where the values are not ones
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
+///
+/// \param[in] a The first array
+/// \param[in] b The second array
+/// \return A vector of indices where the one of the values are not ones
+template <typename ContainerType>
+auto extract_non_one_indices(const ContainerType& a, const ContainerType& b) {
+  using value_type = std::remove_cv_t<std::remove_reference_t<decltype(a[0])>>;
+  static_assert(
+      std::is_integral_v<value_type>,
+      "extract_non_one_indices: Container value type must be an integral type");
+  KOKKOSFFT_THROW_IF(a.size() != b.size(),
+                     "Containers must have the same size.");
+
+  std::vector<std::size_t> non_one_indices;
   for (std::size_t i = 0; i < a.size(); ++i) {
     if (a[i] != 1 || b[i] != 1) {
-      non_ones.push_back(i);
+      non_one_indices.push_back(i);
     }
   }
-  return non_ones;
+  return non_one_indices;
 }
 
-template <typename iType, std::size_t DIM = 1>
-std::vector<iType> find_non_ones(const std::array<iType, DIM>& a) {
-  std::vector<iType> non_ones;
+/// \brief Extract the non-one values
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
+///
+/// \param[in] a The first array
+/// \return A vector of non-one values
+template <typename ContainerType>
+auto extract_non_one_values(const ContainerType& a) {
+  using value_type = std::remove_cv_t<std::remove_reference_t<decltype(a[0])>>;
+  static_assert(
+      std::is_integral_v<value_type>,
+      "extract_non_one_values: Container value type must be an integral type");
+  std::vector<value_type> non_ones;
   for (std::size_t i = 0; i < a.size(); ++i) {
     if (a[i] != 1) {
       non_ones.push_back(a[i]);
     }
   }
   return non_ones;
-}
-
-template <typename iType, std::size_t DIM = 1>
-std::vector<iType> find_ones(const std::array<iType, DIM>& a) {
-  std::vector<iType> ones;
-  for (std::size_t i = 0; i < a.size(); ++i) {
-    if (a[i] == 1) {
-      ones.push_back(i);
-    }
-  }
-  return ones;
 }
 
 template <typename iType>
@@ -276,8 +296,8 @@ template <typename iType, std::size_t DIM = 1>
 auto get_trans_axis(const std::array<iType, DIM>& in_topology,
                     const std::array<iType, DIM>& out_topology,
                     iType first_non_one) {
-  auto in_non_ones  = find_non_ones(in_topology);
-  auto out_non_ones = find_non_ones(out_topology);
+  auto in_non_ones  = extract_non_one_values(in_topology);
+  auto out_non_ones = extract_non_one_values(out_topology);
   KOKKOSFFT_THROW_IF(
       in_non_ones.size() != 2 || out_non_ones.size() != 2,
       "Input and output topologies must have exactly two non-one "
@@ -309,8 +329,8 @@ template <typename iType, std::size_t DIM = 1,
           typename OutLayoutType = Kokkos::LayoutRight>
 auto get_trans_axis(const Topology<iType, DIM, InLayoutType>& in_topology,
                     const Topology<iType, DIM, OutLayoutType>& out_topology) {
-  auto in_non_ones  = find_non_ones(in_topology.array());
-  auto out_non_ones = find_non_ones(out_topology.array());
+  auto in_non_ones  = extract_non_one_values(in_topology.array());
+  auto out_non_ones = extract_non_one_values(out_topology.array());
   KOKKOSFFT_THROW_IF(
       in_non_ones.size() != 2 || out_non_ones.size() != 2,
       "Input and output topologies must have exactly two non-one "
