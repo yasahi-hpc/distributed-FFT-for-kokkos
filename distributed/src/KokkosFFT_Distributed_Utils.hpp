@@ -113,16 +113,18 @@ auto count_non_ones(const ContainerType& values) {
 }
 
 /// \brief Extract the different indices between two arrays
-/// \tparam iType The type of the array elements
-/// \tparam DIM The dimension of the arrays
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
 ///
 /// \param[in] a The first array
 /// \param[in] b The second array
 /// \return A vector of indices where the arrays differ
-template <typename iType, std::size_t DIM = 1>
-std::vector<iType> extract_different_indices(const std::array<iType, DIM>& a,
-                                             const std::array<iType, DIM>& b) {
-  std::vector<iType> diffs;
+template <typename ContainerType>
+auto extract_different_indices(const ContainerType& a, const ContainerType& b) {
+  KOKKOSFFT_THROW_IF(a.size() != b.size(),
+                     "Containers must have the same size.");
+
+  std::vector<std::size_t> diffs;
   for (std::size_t i = 0; i < a.size(); ++i) {
     if (a[i] != b[i]) {
       diffs.push_back(i);
@@ -132,21 +134,26 @@ std::vector<iType> extract_different_indices(const std::array<iType, DIM>& a,
 }
 
 /// \brief Extract the different values between two arrays
-/// \tparam iType The type of the array elements
-/// \tparam DIM The dimension of the arrays
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
 ///
 /// \param[in] a The first array
 /// \param[in] b The second array
 /// \return A vector of values where the arrays differ
-template <typename iType, std::size_t DIM = 1>
-std::set<iType> extract_different_value_set(const std::array<iType, DIM>& a,
-                                            const std::array<iType, DIM>& b) {
-  std::vector<iType> diffs;
+template <typename ContainerType>
+auto extract_different_value_set(const ContainerType& a,
+                                 const ContainerType& b) {
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(*a.begin())>>;
+  KOKKOSFFT_THROW_IF(a.size() != b.size(),
+                     "Containers must have the same size.");
+
+  std::vector<value_type> diffs;
   for (std::size_t i = 0; i < a.size(); ++i) {
     diffs.push_back(a.at(i));
     diffs.push_back(b.at(i));
   }
-  return std::set<iType>(diffs.begin(), diffs.end());
+  return std::set<value_type>(diffs.begin(), diffs.end());
 }
 
 template <typename iType, std::size_t DIM = 1>
