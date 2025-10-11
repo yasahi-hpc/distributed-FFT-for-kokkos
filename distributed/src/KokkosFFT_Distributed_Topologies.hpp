@@ -17,7 +17,7 @@ inline auto get_topology_type(const std::array<std::size_t, DIM>& topology) {
 
   auto size = KokkosFFT::Impl::total_size(topology);
   KOKKOSFFT_THROW_IF(size == 0, "topology must not be size 0.");
-  int non_one_count = countNonOneComponents(topology);
+  auto non_one_count = count_non_ones(topology);
   if (non_one_count == 0) {
     topology_type = TopologyType::Shared;
   } else if (non_one_count == 1) {
