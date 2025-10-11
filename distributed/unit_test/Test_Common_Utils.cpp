@@ -90,25 +90,25 @@ void test_get_trans_axis(std::size_t nprocs) {
   }
 }
 
-void test_find_differences(std::size_t nprocs) {
+void test_extract_different_indices(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 3>;
   topology_type topology0 = {nprocs, 1, 8};
   topology_type topology1 = {nprocs, 8, 1};
   topology_type topology2 = {8, nprocs, 1};
 
   if (nprocs == 1) {
-    auto diff01 =
-        KokkosFFT::Distributed::Impl::find_differences(topology0, topology1);
-    auto diff02 =
-        KokkosFFT::Distributed::Impl::find_differences(topology0, topology2);
-    auto diff10 =
-        KokkosFFT::Distributed::Impl::find_differences(topology1, topology0);
-    auto diff12 =
-        KokkosFFT::Distributed::Impl::find_differences(topology1, topology2);
-    auto diff20 =
-        KokkosFFT::Distributed::Impl::find_differences(topology2, topology0);
-    auto diff21 =
-        KokkosFFT::Distributed::Impl::find_differences(topology2, topology1);
+    auto diff01 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology0, topology1);
+    auto diff02 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology0, topology2);
+    auto diff10 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology1, topology0);
+    auto diff12 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology1, topology2);
+    auto diff20 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology2, topology0);
+    auto diff21 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology2, topology1);
 
     std::vector<std::size_t> ref_diff01 = {1, 2};
     std::vector<std::size_t> ref_diff02 = {0, 2};
@@ -124,18 +124,18 @@ void test_find_differences(std::size_t nprocs) {
     EXPECT_EQ(diff20, ref_diff20);
     EXPECT_EQ(diff21, ref_diff21);
   } else {
-    auto diff01 =
-        KokkosFFT::Distributed::Impl::find_differences(topology0, topology1);
-    auto diff02 =
-        KokkosFFT::Distributed::Impl::find_differences(topology0, topology2);
-    auto diff10 =
-        KokkosFFT::Distributed::Impl::find_differences(topology1, topology0);
-    auto diff12 =
-        KokkosFFT::Distributed::Impl::find_differences(topology1, topology2);
-    auto diff20 =
-        KokkosFFT::Distributed::Impl::find_differences(topology2, topology0);
-    auto diff21 =
-        KokkosFFT::Distributed::Impl::find_differences(topology2, topology1);
+    auto diff01 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology0, topology1);
+    auto diff02 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology0, topology2);
+    auto diff10 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology1, topology0);
+    auto diff12 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology1, topology2);
+    auto diff20 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology2, topology0);
+    auto diff21 = KokkosFFT::Distributed::Impl::extract_different_indices(
+        topology2, topology1);
 
     std::vector<std::size_t> ref_diff01 = {1, 2};
     std::vector<std::size_t> ref_diff02 = {0, 1, 2};
@@ -151,6 +151,36 @@ void test_find_differences(std::size_t nprocs) {
     EXPECT_EQ(diff20, ref_diff20);
     EXPECT_EQ(diff21, ref_diff21);
   }
+}
+
+void test_extract_different_value_set(std::size_t nprocs) {
+  using topology_type     = std::array<std::size_t, 3>;
+  topology_type topology0 = {nprocs, 1, 8};
+  topology_type topology1 = {nprocs, 8, 1};
+  topology_type topology2 = {8, nprocs, 1};
+
+  auto diff01 = KokkosFFT::Distributed::Impl::extract_different_value_set(
+      topology0, topology1);
+  auto diff02 = KokkosFFT::Distributed::Impl::extract_different_value_set(
+      topology0, topology2);
+  auto diff10 = KokkosFFT::Distributed::Impl::extract_different_value_set(
+      topology1, topology0);
+  auto diff12 = KokkosFFT::Distributed::Impl::extract_different_value_set(
+      topology1, topology2);
+  auto diff20 = KokkosFFT::Distributed::Impl::extract_different_value_set(
+      topology2, topology0);
+  auto diff21 = KokkosFFT::Distributed::Impl::extract_different_value_set(
+      topology2, topology1);
+
+  std::set<std::size_t> ref_diff = (nprocs == 1)
+                                       ? std::set<std::size_t>{1, 8}
+                                       : std::set<std::size_t>{1, nprocs, 8};
+  EXPECT_EQ(diff01, ref_diff);
+  EXPECT_EQ(diff02, ref_diff);
+  EXPECT_EQ(diff10, ref_diff);
+  EXPECT_EQ(diff12, ref_diff);
+  EXPECT_EQ(diff20, ref_diff);
+  EXPECT_EQ(diff21, ref_diff);
 }
 
 template <typename ContainerType0, typename ContainerType1,
@@ -172,9 +202,14 @@ TEST_P(CommonUtilsParamTests, GetTransAxis) {
   test_get_trans_axis(n0);
 }
 
-TEST_P(CommonUtilsParamTests, FindDifferences) {
+TEST_P(CommonUtilsParamTests, FindDifferentIndices) {
   int n0 = GetParam();
-  test_find_differences(n0);
+  test_extract_different_indices(n0);
+}
+
+TEST_P(CommonUtilsParamTests, FindDifferentValueSet) {
+  int n0 = GetParam();
+  test_extract_different_value_set(n0);
 }
 
 INSTANTIATE_TEST_SUITE_P(CommonUtilsTests, CommonUtilsParamTests,
