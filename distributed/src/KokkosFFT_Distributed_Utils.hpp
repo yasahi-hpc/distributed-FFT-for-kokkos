@@ -127,7 +127,7 @@ auto extract_different_indices(const ContainerType& a, const ContainerType& b) {
   auto a_size = KokkosFFT::Impl::total_size(a);
   auto b_size = KokkosFFT::Impl::total_size(b);
   KOKKOSFFT_THROW_IF(a_size != b_size, "Containers must have the same size.");
-  
+
   std::vector<value_type> diffs;
   for (std::size_t i = 0; i < a.size(); ++i) {
     if (a[i] != b[i]) {
