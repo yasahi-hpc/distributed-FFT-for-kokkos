@@ -210,10 +210,24 @@ auto extract_non_one_values(const ContainerType& a) {
   return non_ones;
 }
 
-template <typename iType>
-bool has_identical_non_ones(const std::vector<iType>& non_ones) {
+/// \brief Check if the non-one elements are identical
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
+/// \param[in] non_ones The vector of non-one elements
+/// \return True if the non-one elements are identical, false otherwise
+/// Note: This function assumes that the size of non_ones is 2
+template <typename ContainerType>
+bool has_identical_non_ones(const ContainerType& non_ones) {
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(*non_ones.begin())>>;
+  static_assert(std::is_integral_v<value_type>,
+                "has_identical_non_ones: Container value type must be an "
+                "integral type");
+
+  // If there are less than 2 non-one elements, return false
+  if (count_non_ones(non_ones) < 2) return false;
   if (non_ones.size() == 2 &&
-      std::set<iType>(non_ones.begin(), non_ones.end()).size() == 1) {
+      std::set<value_type>(non_ones.begin(), non_ones.end()).size() == 1) {
     return true;
   }
   return false;
