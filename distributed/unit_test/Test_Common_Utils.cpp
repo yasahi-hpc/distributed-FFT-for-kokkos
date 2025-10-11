@@ -90,11 +90,11 @@ void test_get_trans_axis(std::size_t nprocs) {
   }
 }
 
-void test_extract_different_indices(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {nprocs, 1, 8};
-  topology_type topology1 = {nprocs, 8, 1};
-  topology_type topology2 = {8, nprocs, 1};
+template <typename ContainerType, typename iType>
+void test_extract_different_indices(iType nprocs) {
+  ContainerType topology0 = {nprocs, 1, 8};
+  ContainerType topology1 = {nprocs, 8, 1};
+  ContainerType topology2 = {8, nprocs, 1};
 
   if (nprocs == 1) {
     auto diff01 = KokkosFFT::Distributed::Impl::extract_different_indices(
@@ -110,12 +110,12 @@ void test_extract_different_indices(std::size_t nprocs) {
     auto diff21 = KokkosFFT::Distributed::Impl::extract_different_indices(
         topology2, topology1);
 
-    std::vector<std::size_t> ref_diff01 = {1, 2};
-    std::vector<std::size_t> ref_diff02 = {0, 2};
-    std::vector<std::size_t> ref_diff10 = {1, 2};
-    std::vector<std::size_t> ref_diff12 = {0, 1};
-    std::vector<std::size_t> ref_diff20 = {0, 2};
-    std::vector<std::size_t> ref_diff21 = {0, 1};
+    std::vector<iType> ref_diff01 = {1, 2};
+    std::vector<iType> ref_diff02 = {0, 2};
+    std::vector<iType> ref_diff10 = {1, 2};
+    std::vector<iType> ref_diff12 = {0, 1};
+    std::vector<iType> ref_diff20 = {0, 2};
+    std::vector<iType> ref_diff21 = {0, 1};
 
     EXPECT_EQ(diff01, ref_diff01);
     EXPECT_EQ(diff02, ref_diff02);
@@ -137,12 +137,12 @@ void test_extract_different_indices(std::size_t nprocs) {
     auto diff21 = KokkosFFT::Distributed::Impl::extract_different_indices(
         topology2, topology1);
 
-    std::vector<std::size_t> ref_diff01 = {1, 2};
-    std::vector<std::size_t> ref_diff02 = {0, 1, 2};
-    std::vector<std::size_t> ref_diff10 = {1, 2};
-    std::vector<std::size_t> ref_diff12 = {0, 1};
-    std::vector<std::size_t> ref_diff20 = {0, 1, 2};
-    std::vector<std::size_t> ref_diff21 = {0, 1};
+    std::vector<iType> ref_diff01 = {1, 2};
+    std::vector<iType> ref_diff02 = {0, 1, 2};
+    std::vector<iType> ref_diff10 = {1, 2};
+    std::vector<iType> ref_diff12 = {0, 1};
+    std::vector<iType> ref_diff20 = {0, 1, 2};
+    std::vector<iType> ref_diff21 = {0, 1};
 
     EXPECT_EQ(diff01, ref_diff01);
     EXPECT_EQ(diff02, ref_diff02);
@@ -153,11 +153,11 @@ void test_extract_different_indices(std::size_t nprocs) {
   }
 }
 
-void test_extract_different_value_set(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {nprocs, 1, 8};
-  topology_type topology1 = {nprocs, 8, 1};
-  topology_type topology2 = {8, nprocs, 1};
+template <typename ContainerType, typename iType>
+void test_extract_different_value_set(iType nprocs) {
+  ContainerType topology0 = {nprocs, 1, 8};
+  ContainerType topology1 = {nprocs, 8, 1};
+  ContainerType topology2 = {8, nprocs, 1};
 
   auto diff01 = KokkosFFT::Distributed::Impl::extract_different_value_set(
       topology0, topology1);
@@ -172,9 +172,8 @@ void test_extract_different_value_set(std::size_t nprocs) {
   auto diff21 = KokkosFFT::Distributed::Impl::extract_different_value_set(
       topology2, topology1);
 
-  std::set<std::size_t> ref_diff = (nprocs == 1)
-                                       ? std::set<std::size_t>{1, 8}
-                                       : std::set<std::size_t>{1, nprocs, 8};
+  std::set<iType> ref_diff =
+      (nprocs == 1) ? std::set<iType>{1, 8} : std::set<iType>{1, nprocs, 8};
   EXPECT_EQ(diff01, ref_diff);
   EXPECT_EQ(diff02, ref_diff);
   EXPECT_EQ(diff10, ref_diff);
@@ -202,20 +201,44 @@ TEST_P(CommonUtilsParamTests, GetTransAxis) {
   test_get_trans_axis(n0);
 }
 
-TEST_P(CommonUtilsParamTests, FindDifferentIndices) {
-  int n0 = GetParam();
-  test_extract_different_indices(n0);
-}
-
-TEST_P(CommonUtilsParamTests, FindDifferentValueSet) {
-  int n0 = GetParam();
-  test_extract_different_value_set(n0);
-}
-
 INSTANTIATE_TEST_SUITE_P(CommonUtilsTests, CommonUtilsParamTests,
                          ::testing::Values(1, 2, 3, 4, 5, 6));
 
 TYPED_TEST_SUITE(TestContainerTypes, base_int_types);
+
+TYPED_TEST(TestContainerTypes, find_different_indices_of_vector) {
+  using value_type     = typename TestFixture::value_type;
+  using container_type = typename TestFixture::vector_type;
+
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_extract_different_indices<container_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, find_different_indices_of_array) {
+  using value_type = typename TestFixture::value_type;
+  using array_type = std::array<value_type, 3>;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_extract_different_indices<array_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, find_different_value_set_of_vector) {
+  using value_type  = typename TestFixture::value_type;
+  using vector_type = typename TestFixture::vector_type;
+
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_extract_different_value_set<vector_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, find_different_value_set_of_array) {
+  using value_type = typename TestFixture::value_type;
+  using array_type = std::array<value_type, 3>;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_extract_different_value_set<array_type, value_type>(nprocs);
+  }
+}
 
 TYPED_TEST(TestContainerTypes, test_count_non_ones_of_vector) {
   using container_type = typename TestFixture::vector_type;
