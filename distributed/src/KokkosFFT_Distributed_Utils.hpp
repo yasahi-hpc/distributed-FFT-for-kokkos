@@ -112,6 +112,13 @@ auto count_non_ones(const ContainerType& values) {
                        [](value_type val) { return val != 1; });
 }
 
+/// \brief Find the differences between two arrays
+/// \tparam iType The type of the array elements
+/// \tparam DIM The dimension of the arrays
+///
+/// \param[in] a The first array
+/// \param[in] b The second array
+/// \return A vector of indices where the arrays differ
 template <typename iType, std::size_t DIM = 1>
 std::vector<iType> find_differences(const std::array<iType, DIM>& a,
                                     const std::array<iType, DIM>& b) {
