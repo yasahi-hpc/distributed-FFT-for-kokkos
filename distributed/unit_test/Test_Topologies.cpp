@@ -2573,51 +2573,6 @@ void test_merge_topology(std::size_t nprocs) {
   EXPECT_EQ(merged34, ref_merged34);
 }
 
-void test_diff_topology(std::size_t nprocs) {
-  using topology_type      = std::array<std::size_t, 3>;
-  topology_type topology0  = {1, 1, nprocs};
-  topology_type topology1  = {1, nprocs, 1};
-  topology_type topology2  = {nprocs, 1, 1};
-  topology_type topology3  = {nprocs, 1, 8};
-  topology_type topology01 = {1, nprocs, nprocs};
-  topology_type topology02 = {nprocs, 1, nprocs};
-  topology_type topology12 = {nprocs, nprocs, 1};
-
-  std::size_t diff0_01 =
-      KokkosFFT::Distributed::Impl::diff_toplogy(topology0, topology01);
-  std::size_t diff0_02 =
-      KokkosFFT::Distributed::Impl::diff_toplogy(topology0, topology02);
-  std::size_t diff1_12 =
-      KokkosFFT::Distributed::Impl::diff_toplogy(topology1, topology12);
-  std::size_t diff2_12 =
-      KokkosFFT::Distributed::Impl::diff_toplogy(topology2, topology12);
-
-  std::size_t ref_diff0_01 = nprocs;
-  std::size_t ref_diff0_02 = nprocs;
-  std::size_t ref_diff1_12 = nprocs;
-  std::size_t ref_diff2_12 = nprocs;
-
-  EXPECT_EQ(diff0_01, ref_diff0_01);
-  EXPECT_EQ(diff0_02, ref_diff0_02);
-  EXPECT_EQ(diff1_12, ref_diff1_12);
-  EXPECT_EQ(diff2_12, ref_diff2_12);
-
-  if (nprocs == 1) {
-    std::size_t diff03 =
-        KokkosFFT::Distributed::Impl::diff_toplogy(topology0, topology3);
-    std::size_t ref_diff03 = topology3.at(2);
-    EXPECT_EQ(diff03, ref_diff03);
-  } else {
-    // Failure tests because more than two elements are different
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] std::size_t diff03 =
-              KokkosFFT::Distributed::Impl::diff_toplogy(topology0, topology3);
-        },
-        std::runtime_error);
-  }
-}
-
 void test_get_topology_type(std::size_t nprocs) {
   using topology1D_type = std::array<std::size_t, 1>;
   using topology2D_type = std::array<std::size_t, 2>;
@@ -6193,11 +6148,6 @@ INSTANTIATE_TEST_SUITE_P(PencilTests, PencilParamTests,
 TEST_P(TopologyParamTests, MergeTopology) {
   int n0 = GetParam();
   test_merge_topology(n0);
-}
-
-TEST_P(TopologyParamTests, DiffTopology) {
-  int n0 = GetParam();
-  test_diff_topology(n0);
 }
 
 TEST_P(TopologyParamTests, GetTopologyType) {

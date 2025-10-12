@@ -37,7 +37,7 @@ auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
                         const std::array<std::size_t, DIM> &out_topology) {
   std::array<std::size_t, DIM + 1> buffer_extents;
   auto merged_topology = merge_topology(in_topology, out_topology);
-  auto p0 = diff_toplogy(merged_topology, in_topology);  // return 1 or p0
+  auto p0 = diff_topology(merged_topology, in_topology);  // return 1 or p0
   if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
     buffer_extents.at(0) = p0;
     for (std::size_t i = 0; i < extents.size(); i++) {
@@ -65,8 +65,9 @@ auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
 /// \tparam LayoutType The layout type of the view (e.g., Kokkos::LayoutRight).
 /// \tparam DIM The number of dimensions of the extents.
 /// \tparam InLayoutType The layout type of the in-topology (e.g.,
-/// Kokkos::LayoutRight). \tparam OutLayoutType The layout type of the
-/// out-topology (e.g., Kokkos::LayoutRight).
+/// Kokkos::LayoutRight).
+/// \tparam OutLayoutType The layout type of the out-topology (e.g.,
+/// Kokkos::LayoutRight).
 ///
 /// \param[in] extents Extents of the global View.
 /// \param[in] in_topology A topology representing the distribution of the input

@@ -244,6 +244,8 @@ bool has_identical_non_ones(const ContainerType& non_ones) {
 /// \return A new array with the elements swapped at indices i and j
 template <typename ContainerType, typename iType>
 ContainerType swap_elements(const ContainerType& arr, iType i, iType j) {
+  static_assert(std::is_integral_v<iType>,
+                "swap_elements: Index type must be an integral type");
   ContainerType result = arr;
   std::swap(result.at(i), result.at(j));
   return result;
@@ -296,21 +298,37 @@ auto merge_topology(const std::array<iType, DIM>& in_topology,
   return topology;
 }
 
-template <typename iType, std::size_t DIM = 1>
-auto diff_toplogy(const std::array<iType, DIM>& in_topology,
-                  const std::array<iType, DIM>& out_topology) {
+/// \brief Get the non-one extent where the two topologies differ
+/// In practice, compare the merged topology with one of the input
+/// For example, if the two topologies are (1, p0, 1) and (p0, 1, 1),
+/// the merged topology is (p0, p0, 1). The two topologies differ at the first
+/// position, and the non-one extent is p0
+///
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
+/// \param[in] in_topology The input topology
+/// \param[in] out_topology The output topology
+/// \return The non-one extent where the two topologies differ. If both
+/// topologies are ones, returns 1
+/// \throws std::runtime_error if the topologies do not differ at exactly one
+/// position
+template <typename ContainerType>
+auto diff_topology(const ContainerType& in_topology,
+                   const ContainerType& out_topology) {
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(in_topology.at(0))>>;
   auto in_size  = KokkosFFT::Impl::total_size(in_topology);
   auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
-  if (in_size == 1 && out_size == 1) return iType(1);
+  if (in_size == 1 && out_size == 1) return value_type(1);
 
-  std::vector<iType> diff_indices =
-      extract_different_indices(in_topology, out_topology);
+  auto diff_indices = extract_different_indices(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 1,
       "Input and output topologies must differ exactly one positions.");
-  iType diff_idx = diff_indices.at(0);
+  auto diff_idx = diff_indices.at(0);
 
+  // Returning the non-one extent
   return std::max(in_topology.at(diff_idx), out_topology.at(diff_idx));
 }
 

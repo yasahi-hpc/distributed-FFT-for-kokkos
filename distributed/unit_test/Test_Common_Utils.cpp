@@ -284,6 +284,48 @@ void test_swap_elements(iType nprocs) {
   EXPECT_EQ(swapped_21, ref_swapped_21);
 }
 
+template <typename ContainerType, typename iType>
+void test_diff_topology(iType nprocs) {
+  ContainerType topology0  = {1, 1, nprocs};
+  ContainerType topology1  = {1, nprocs, 1};
+  ContainerType topology2  = {nprocs, 1, 1};
+  ContainerType topology3  = {nprocs, 1, 8};
+  ContainerType topology01 = {1, nprocs, nprocs};
+  ContainerType topology02 = {nprocs, 1, nprocs};
+  ContainerType topology12 = {nprocs, nprocs, 1};
+
+  iType diff0_01 =
+      KokkosFFT::Distributed::Impl::diff_topology(topology0, topology01);
+  iType diff0_02 =
+      KokkosFFT::Distributed::Impl::diff_topology(topology0, topology02);
+  iType diff1_12 =
+      KokkosFFT::Distributed::Impl::diff_topology(topology1, topology12);
+  iType diff2_12 =
+      KokkosFFT::Distributed::Impl::diff_topology(topology2, topology12);
+
+  iType ref_diff = nprocs;
+
+  EXPECT_EQ(diff0_01, ref_diff);
+  EXPECT_EQ(diff0_02, ref_diff);
+  EXPECT_EQ(diff1_12, ref_diff);
+  EXPECT_EQ(diff2_12, ref_diff);
+
+  if (nprocs == 1) {
+    iType diff03 =
+        KokkosFFT::Distributed::Impl::diff_topology(topology0, topology3);
+    iType ref_diff03 = topology3.at(2);
+    EXPECT_EQ(diff03, ref_diff03);
+  } else {
+    // Failure tests because more than two elements are different
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] iType diff03 =
+              KokkosFFT::Distributed::Impl::diff_topology(topology0, topology3);
+        },
+        std::runtime_error);
+  }
+}
+
 }  // namespace
 
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
@@ -406,5 +448,21 @@ TYPED_TEST(TestContainerTypes, test_swap_elements_of_array) {
   using array_type = std::array<value_type, 3>;
   for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
     test_swap_elements<array_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, test_diff_topology_of_vector) {
+  using container_type = typename TestFixture::vector_type;
+  using value_type     = typename TestFixture::value_type;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_diff_topology<container_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, test_diff_topology_of_array) {
+  using value_type = typename TestFixture::value_type;
+  using array_type = std::array<value_type, 3>;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_diff_topology<array_type, value_type>(nprocs);
   }
 }
