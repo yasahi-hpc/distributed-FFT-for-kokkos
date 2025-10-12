@@ -251,9 +251,18 @@ ContainerType swap_elements(const ContainerType& arr, iType i, iType j) {
   return result;
 }
 
-template <typename iType, std::size_t DIM = 1>
-auto merge_topology(const std::array<iType, DIM>& in_topology,
-                    const std::array<iType, DIM>& out_topology) {
+/// \brief Merge two topologies into one
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
+///
+/// \param[in] in_topology The input topology
+/// \param[in] out_topology The output topology
+/// \return The merged topology
+/// \throws std::runtime_error if the topologies do not have the same size or
+/// are not convertible pencils
+template <typename ContainerType>
+auto merge_topology(const ContainerType& in_topology,
+                    const ContainerType& out_topology) {
   auto in_size  = KokkosFFT::Impl::total_size(in_topology);
   auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
@@ -262,9 +271,8 @@ auto merge_topology(const std::array<iType, DIM>& in_topology,
 
   if (in_size == 1) return in_topology;
 
-  auto mismatched_extents =
-      [](std::array<iType, DIM> in_topology,
-         std::array<iType, DIM> out_topology) -> std::string {
+  auto mismatched_extents = [](ContainerType in_topology,
+                               ContainerType out_topology) -> std::string {
     std::string message;
     message += "in_topology (";
     message += std::to_string(in_topology.at(0));
@@ -284,14 +292,13 @@ auto merge_topology(const std::array<iType, DIM>& in_topology,
   };
 
   // Check if two topologies are two convertible pencils
-  std::vector<iType> diff_indices =
-      extract_different_indices(in_topology, out_topology);
+  auto diff_indices = extract_different_indices(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 2,
       "Input and output topologies must differ exactly two positions: " +
           mismatched_extents(in_topology, out_topology));
 
-  std::array<iType, DIM> topology = {};
+  ContainerType topology = in_topology;
   for (std::size_t i = 0; i < in_topology.size(); i++) {
     topology.at(i) = std::max(in_topology.at(i), out_topology.at(i));
   }

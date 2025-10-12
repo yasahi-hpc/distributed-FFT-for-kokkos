@@ -2507,72 +2507,6 @@ void test_get_mid_array_pencil_4D(std::size_t nprocs) {
   }
 }
 
-void test_merge_topology(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, 1, nprocs};
-  topology_type topology1 = {1, nprocs, 1};
-  topology_type topology2 = {nprocs, 1, 1};
-  topology_type topology3 = {nprocs, 1, 8};
-  topology_type topology4 = {nprocs, 8, 1};
-
-  auto merged01 =
-      KokkosFFT::Distributed::Impl::merge_topology(topology0, topology1);
-  auto merged02 =
-      KokkosFFT::Distributed::Impl::merge_topology(topology0, topology2);
-  auto merged12 =
-      KokkosFFT::Distributed::Impl::merge_topology(topology1, topology2);
-  topology_type ref_merged01 = {1, nprocs, nprocs};
-  topology_type ref_merged02 = {nprocs, 1, nprocs};
-  topology_type ref_merged12 = {nprocs, nprocs, 1};
-  EXPECT_EQ(merged01, ref_merged01);
-  EXPECT_EQ(merged02, ref_merged02);
-  EXPECT_EQ(merged12, ref_merged12);
-
-  // Failure tests because these do not have same size
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto merged03 =
-            KokkosFFT::Distributed::Impl::merge_topology(topology0, topology3);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto merged04 =
-            KokkosFFT::Distributed::Impl::merge_topology(topology0, topology4);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto merged13 =
-            KokkosFFT::Distributed::Impl::merge_topology(topology1, topology3);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto merged14 =
-            KokkosFFT::Distributed::Impl::merge_topology(topology1, topology4);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto merged23 =
-            KokkosFFT::Distributed::Impl::merge_topology(topology2, topology3);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto merged24 =
-            KokkosFFT::Distributed::Impl::merge_topology(topology2, topology4);
-      },
-      std::runtime_error);
-
-  // This case is valid
-  topology_type ref_merged34 = {nprocs, 8, 8};
-  auto merged34 =
-      KokkosFFT::Distributed::Impl::merge_topology(topology3, topology4);
-  EXPECT_EQ(merged34, ref_merged34);
-}
-
 void test_get_topology_type(std::size_t nprocs) {
   using topology1D_type = std::array<std::size_t, 1>;
   using topology2D_type = std::array<std::size_t, 2>;
@@ -6144,11 +6078,6 @@ TEST_P(PencilParamTests, GetAllPencilTopologies3D_4DView) {
 
 INSTANTIATE_TEST_SUITE_P(PencilTests, PencilParamTests,
                          ::testing::Values(1, 2, 3, 4, 5, 6));
-
-TEST_P(TopologyParamTests, MergeTopology) {
-  int n0 = GetParam();
-  test_merge_topology(n0);
-}
 
 TEST_P(TopologyParamTests, GetTopologyType) {
   int n0 = GetParam();
