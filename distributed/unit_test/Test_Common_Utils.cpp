@@ -285,6 +285,72 @@ void test_swap_elements(iType nprocs) {
 }
 
 template <typename ContainerType, typename iType>
+void test_merge_topology(iType nprocs) {
+  ContainerType topology0 = {1, 1, nprocs};
+  ContainerType topology1 = {1, nprocs, 1};
+  ContainerType topology2 = {nprocs, 1, 1};
+  ContainerType topology3 = {nprocs, 1, 8};
+  ContainerType topology4 = {nprocs, 8, 1};
+
+  auto merged01 =
+      KokkosFFT::Distributed::Impl::merge_topology(topology0, topology1);
+  auto merged02 =
+      KokkosFFT::Distributed::Impl::merge_topology(topology0, topology2);
+  auto merged12 =
+      KokkosFFT::Distributed::Impl::merge_topology(topology1, topology2);
+  ContainerType ref_merged01 = {1, nprocs, nprocs};
+  ContainerType ref_merged02 = {nprocs, 1, nprocs};
+  ContainerType ref_merged12 = {nprocs, nprocs, 1};
+  EXPECT_EQ(merged01, ref_merged01);
+  EXPECT_EQ(merged02, ref_merged02);
+  EXPECT_EQ(merged12, ref_merged12);
+
+  // Failure tests because these do not have same size
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged03 =
+            KokkosFFT::Distributed::Impl::merge_topology(topology0, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged04 =
+            KokkosFFT::Distributed::Impl::merge_topology(topology0, topology4);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged13 =
+            KokkosFFT::Distributed::Impl::merge_topology(topology1, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged14 =
+            KokkosFFT::Distributed::Impl::merge_topology(topology1, topology4);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged23 =
+            KokkosFFT::Distributed::Impl::merge_topology(topology2, topology3);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto merged24 =
+            KokkosFFT::Distributed::Impl::merge_topology(topology2, topology4);
+      },
+      std::runtime_error);
+
+  // This case is valid
+  ContainerType ref_merged34 = {nprocs, 8, 8};
+  auto merged34 =
+      KokkosFFT::Distributed::Impl::merge_topology(topology3, topology4);
+  EXPECT_EQ(merged34, ref_merged34);
+}
+
+template <typename ContainerType, typename iType>
 void test_diff_topology(iType nprocs) {
   ContainerType topology0  = {1, 1, nprocs};
   ContainerType topology1  = {1, nprocs, 1};
@@ -448,6 +514,22 @@ TYPED_TEST(TestContainerTypes, test_swap_elements_of_array) {
   using array_type = std::array<value_type, 3>;
   for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
     test_swap_elements<array_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, test_merge_topology_of_vector) {
+  using container_type = typename TestFixture::vector_type;
+  using value_type     = typename TestFixture::value_type;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_merge_topology<container_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, test_merge_topology_of_array) {
+  using value_type = typename TestFixture::value_type;
+  using array_type = std::array<value_type, 3>;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_merge_topology<array_type, value_type>(nprocs);
   }
 }
 
