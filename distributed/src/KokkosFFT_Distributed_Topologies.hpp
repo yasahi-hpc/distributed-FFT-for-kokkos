@@ -145,9 +145,9 @@ auto get_slab(const std::array<std::size_t, DIM>& in_topology,
 template <typename iType, std::size_t DIM = 1>
 std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
                                      const std::array<iType, DIM>& out) {
-  std::vector<iType> diff_indices = extract_different_indices(in, out);
-  std::set<iType> diff_value_set  = extract_different_value_set(in, out);
-  auto diff_non_one_indices       = extract_non_one_indices(in, out);
+  auto diff_indices         = extract_different_indices(in, out);
+  auto diff_value_set       = extract_different_value_set(in, out);
+  auto diff_non_one_indices = extract_non_one_indices(in, out);
 
   KOKKOSFFT_THROW_IF(diff_non_one_indices.size() < 3,
                      "The total number of non-one elements either in Input and "

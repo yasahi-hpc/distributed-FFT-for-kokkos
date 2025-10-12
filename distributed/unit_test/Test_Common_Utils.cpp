@@ -232,6 +232,32 @@ void test_extract_non_one_values() {
             ref_diff_2);
 }
 
+template <typename ContainerType0, typename ContainerType1, typename iType>
+void test_has_identical_non_ones(iType nprocs) {
+  iType np0                = 4;
+  ContainerType0 non_ones0 = {np0, nprocs, 2};  // The length 3 input is invalid
+  ContainerType1 non_ones1 = {np0, nprocs}, ones = {1, 1};
+
+  auto has_identical_non_ones0 =
+      KokkosFFT::Distributed::Impl::has_identical_non_ones(non_ones0);
+  auto has_identical_non_ones1 =
+      KokkosFFT::Distributed::Impl::has_identical_non_ones(non_ones1);
+  auto has_identical_non_ones2 =
+      KokkosFFT::Distributed::Impl::has_identical_non_ones(ones);
+
+  EXPECT_FALSE(has_identical_non_ones0);
+  EXPECT_FALSE(has_identical_non_ones2);
+  if (nprocs == 1) {
+    EXPECT_FALSE(has_identical_non_ones1);
+  } else {
+    if (nprocs == np0) {
+      EXPECT_TRUE(has_identical_non_ones1);
+    } else {
+      EXPECT_FALSE(has_identical_non_ones1);
+    }
+  }
+}
+
 }  // namespace
 
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
@@ -320,4 +346,23 @@ TYPED_TEST(TestContainerTypes, test_extract_non_one_values_of_array) {
   using container_type2 = std::array<value_type, 1>;
   test_extract_non_one_values<container_type0, container_type1, container_type2,
                               value_type>();
+}
+
+TYPED_TEST(TestContainerTypes, test_has_identical_non_ones_of_vector) {
+  using container_type = typename TestFixture::vector_type;
+  using value_type     = typename TestFixture::value_type;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_has_identical_non_ones<container_type, container_type, value_type>(
+        nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, test_has_identical_non_ones_of_array) {
+  using value_type      = typename TestFixture::value_type;
+  using container_type0 = std::array<value_type, 3>;
+  using container_type1 = std::array<value_type, 2>;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_has_identical_non_ones<container_type0, container_type1, value_type>(
+        nprocs);
+  }
 }
