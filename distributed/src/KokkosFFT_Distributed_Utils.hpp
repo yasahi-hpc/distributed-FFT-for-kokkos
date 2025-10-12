@@ -233,10 +233,18 @@ bool has_identical_non_ones(const ContainerType& non_ones) {
   return false;
 }
 
-template <typename iType, std::size_t DIM = 1>
-std::array<iType, DIM> swap_elements(const std::array<iType, DIM>& arr, int i,
-                                     int j) {
-  std::array<iType, DIM> result = arr;
+/// \brief Swap two elements in an array and return a new array
+/// \tparam ContainerType The type of the container (e.g., std::array,
+/// std::vector)
+/// \tparam iType The type of the index in the array
+///
+/// \param[in] arr The array to be swapped
+/// \param[in] i The index of the first element to be swapped
+/// \param[in] j The index of the second element to be swapped
+/// \return A new array with the elements swapped at indices i and j
+template <typename ContainerType, typename iType>
+ContainerType swap_elements(const ContainerType& arr, iType i, iType j) {
+  ContainerType result = arr;
   std::swap(result.at(i), result.at(j));
   return result;
 }

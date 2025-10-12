@@ -258,6 +258,32 @@ void test_has_identical_non_ones(iType nprocs) {
   }
 }
 
+template <typename ContainerType, typename iType>
+void test_swap_elements(iType nprocs) {
+  ContainerType topology = {nprocs, 1, 8};
+
+  auto swapped_01 = KokkosFFT::Distributed::Impl::swap_elements(topology, 0, 1);
+  auto swapped_02 = KokkosFFT::Distributed::Impl::swap_elements(topology, 0, 2);
+  auto swapped_10 = KokkosFFT::Distributed::Impl::swap_elements(topology, 1, 0);
+  auto swapped_12 = KokkosFFT::Distributed::Impl::swap_elements(topology, 1, 2);
+  auto swapped_20 = KokkosFFT::Distributed::Impl::swap_elements(topology, 2, 0);
+  auto swapped_21 = KokkosFFT::Distributed::Impl::swap_elements(topology, 2, 1);
+
+  ContainerType ref_swapped_01 = {1, nprocs, 8};
+  ContainerType ref_swapped_02 = {8, 1, nprocs};
+  ContainerType ref_swapped_10 = {1, nprocs, 8};
+  ContainerType ref_swapped_12 = {nprocs, 8, 1};
+  ContainerType ref_swapped_20 = {8, 1, nprocs};
+  ContainerType ref_swapped_21 = {nprocs, 8, 1};
+
+  EXPECT_EQ(swapped_01, ref_swapped_01);
+  EXPECT_EQ(swapped_02, ref_swapped_02);
+  EXPECT_EQ(swapped_10, ref_swapped_10);
+  EXPECT_EQ(swapped_12, ref_swapped_12);
+  EXPECT_EQ(swapped_20, ref_swapped_20);
+  EXPECT_EQ(swapped_21, ref_swapped_21);
+}
+
 }  // namespace
 
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
@@ -364,5 +390,21 @@ TYPED_TEST(TestContainerTypes, test_has_identical_non_ones_of_array) {
   for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
     test_has_identical_non_ones<container_type0, container_type1, value_type>(
         nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, test_swap_elements_of_vector) {
+  using container_type = typename TestFixture::vector_type;
+  using value_type     = typename TestFixture::value_type;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_swap_elements<container_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, test_swap_elements_of_array) {
+  using value_type = typename TestFixture::value_type;
+  using array_type = std::array<value_type, 3>;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_swap_elements<array_type, value_type>(nprocs);
   }
 }
