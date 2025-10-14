@@ -2,6 +2,7 @@
 #define KOKKOSFFT_DISTRIBUTED_EXTENTS_HPP
 
 #include <algorithm>
+#include <mpi.h>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Mapping.hpp"
