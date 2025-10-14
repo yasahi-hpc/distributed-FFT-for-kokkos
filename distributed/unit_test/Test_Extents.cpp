@@ -3,25 +3,26 @@
 #include "KokkosFFT_Distributed_Extents.hpp"
 
 namespace {
-using test_types = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
-                                    std::pair<float, Kokkos::LayoutRight>,
-                                    std::pair<double, Kokkos::LayoutLeft>,
-                                    std::pair<double, Kokkos::LayoutRight>>;
+using test_types =
+    ::testing::Types<std::pair<int, Kokkos::LayoutLeft>,
+                     std::pair<int, Kokkos::LayoutRight>,
+                     std::pair<std::size_t, Kokkos::LayoutLeft>,
+                     std::pair<std::size_t, Kokkos::LayoutRight>>;
 
 // Basically the same fixtures, used for labeling tests
 template <typename T>
 struct TestExtents : public ::testing::Test {
-  using float_type  = typename T::first_type;
+  using int_type    = typename T::first_type;
   using layout_type = typename T::second_type;
 };
 
-template <typename T, typename LayoutType>
+template <typename IntType, typename LayoutType>
 void test_buffer_extents() {
-  using extents_type        = std::array<std::size_t, 4>;
-  using buffer_extents_type = std::array<std::size_t, 5>;
-  using topology_type       = std::array<std::size_t, 4>;
-  const std::size_t n0 = 13, n1 = 8, n2 = 17, n3 = 5;
-  const std::size_t p0 = 2, p1 = 3;
+  using extents_type        = std::array<IntType, 4>;
+  using buffer_extents_type = std::array<IntType, 5>;
+  using topology_type       = std::array<IntType, 4>;
+  const IntType n0 = 13, n1 = 8, n2 = 17, n3 = 5;
+  const IntType p0 = 2, p1 = 3;
 
   // Global View
   extents_type extents{n0, n1, n2, n3};
@@ -68,14 +69,14 @@ void test_buffer_extents() {
       std::runtime_error);
 }
 
-template <typename T>
+template <typename IntType>
 void test_next_extents() {
-  using extents_type  = std::array<std::size_t, 4>;
-  using topology_type = std::array<std::size_t, 4>;
-  using map_type      = std::array<std::size_t, 4>;
+  using extents_type  = std::array<IntType, 4>;
+  using topology_type = std::array<IntType, 4>;
+  using map_type      = std::array<IntType, 4>;
 
-  const std::size_t n0 = 13, n1 = 8, n2 = 17, n3 = 5;
-  const std::size_t p0 = 2, p1 = 3;
+  const IntType n0 = 13, n1 = 8, n2 = 17, n3 = 5;
+  const IntType p0 = 2, p1 = 3;
 
   // Global View
   extents_type extents{n0, n1, n2, n3};
@@ -113,14 +114,14 @@ void test_next_extents() {
 TYPED_TEST_SUITE(TestExtents, test_types);
 
 TYPED_TEST(TestExtents, BufferExtents) {
-  using float_type  = typename TestFixture::float_type;
+  using int_type    = typename TestFixture::int_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_buffer_extents<float_type, layout_type>();
+  test_buffer_extents<int_type, layout_type>();
 }
 
 TYPED_TEST(TestExtents, NextExtents) {
-  using float_type = typename TestFixture::float_type;
+  using int_type = typename TestFixture::int_type;
 
-  test_next_extents<float_type>();
+  test_next_extents<int_type>();
 }

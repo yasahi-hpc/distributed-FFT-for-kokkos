@@ -23,6 +23,7 @@ namespace Impl {
 /// Buffer View (p0, n0/p0, n1/p0, n2/p1, n3)
 ///
 /// \tparam LayoutType The layout type of the view (e.g., Kokkos::LayoutRight).
+/// \tparam iType The integer type used for extents and topology.
 /// \tparam DIM The number of dimensions of the extents.
 ///
 /// \param[in] extents Extents of the global View.
@@ -32,11 +33,11 @@ namespace Impl {
 /// the output data.
 /// \return A buffer extents of the view needed for the pencil
 /// transformation.
-template <typename LayoutType, std::size_t DIM = 1>
-auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
-                        const std::array<std::size_t, DIM> &in_topology,
-                        const std::array<std::size_t, DIM> &out_topology) {
-  std::array<std::size_t, DIM + 1> buffer_extents;
+template <typename LayoutType, typename iType, std::size_t DIM>
+auto get_buffer_extents(const std::array<iType, DIM> &extents,
+                        const std::array<iType, DIM> &in_topology,
+                        const std::array<iType, DIM> &out_topology) {
+  std::array<iType, DIM + 1> buffer_extents;
   auto merged_topology = merge_topology(in_topology, out_topology);
   auto p0 = diff_topology(merged_topology, in_topology);  // return 1 or p0
   if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
@@ -64,6 +65,7 @@ auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
 /// Buffer View (p0, n0/p0, n1/p0, n2/p1, n3)
 ///
 /// \tparam LayoutType The layout type of the view (e.g., Kokkos::LayoutRight).
+/// \tparam iType The integer type used for extents and topology.
 /// \tparam DIM The number of dimensions of the extents.
 /// \tparam InLayoutType The layout type of the in-topology (e.g.,
 /// Kokkos::LayoutRight).
@@ -77,13 +79,13 @@ auto get_buffer_extents(const std::array<std::size_t, DIM> &extents,
 /// the output data.
 /// \return A buffer extents of the view needed for the pencil
 /// transformation.
-template <typename LayoutType, std::size_t DIM = 1,
+template <typename LayoutType, typename iType, std::size_t DIM = 1,
           typename InLayoutType  = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 auto get_buffer_extents(
-    const std::array<std::size_t, DIM> &extents,
-    const Topology<std::size_t, DIM, InLayoutType> &in_topology,
-    const Topology<std::size_t, DIM, OutLayoutType> &out_topology) {
+    const std::array<iType, DIM> &extents,
+    const Topology<iType, DIM, InLayoutType> &in_topology,
+    const Topology<iType, DIM, OutLayoutType> &out_topology) {
   return get_buffer_extents<LayoutType>(extents, in_topology.array(),
                                         out_topology.array());
 }
@@ -97,6 +99,7 @@ auto get_buffer_extents(
 /// map: (0, 2, 3, 1)
 /// Next extents: ((n0-1)/p0+1, (n2-1)/p1+1, n3, n1)
 ///
+/// \tparam iType The integer type used for extents and topology.
 /// \tparam DIM The number of dimensions of the extents.
 ///
 /// \param[in] extents Extents of the global View.
@@ -104,11 +107,11 @@ auto get_buffer_extents(
 /// \param[in] map A map representing how the data is permuted
 /// \return A extents of the view after the pencil transformation.
 
-template <std::size_t DIM = 1>
-auto get_next_extents(const std::array<std::size_t, DIM> &extents,
-                      const std::array<std::size_t, DIM> &topology,
-                      const std::array<std::size_t, DIM> &map) {
-  std::array<std::size_t, DIM> next_extents;
+template <typename iType, std::size_t DIM = 1>
+auto get_next_extents(const std::array<iType, DIM> &extents,
+                      const std::array<iType, DIM> &topology,
+                      const std::array<iType, DIM> &map) {
+  std::array<iType, DIM> next_extents;
 
   for (std::size_t i = 0; i < extents.size(); i++) {
     std::size_t mapped_idx = map.at(i);
