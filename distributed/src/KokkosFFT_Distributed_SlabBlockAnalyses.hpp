@@ -73,9 +73,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, out_topology);
         block0.m_in_map            = src_map;
-        block0.m_out_map  = get_dst_map<Layout, DIM>(src_map, out_axis0);
-        block0.m_in_axis  = in_axis0;
-        block0.m_out_axis = out_axis0;
+        block0.m_out_map           = get_dst_map<Layout>(src_map, out_axis0);
+        block0.m_in_axis           = in_axis0;
+        block0.m_out_axis          = out_axis0;
 
         block0.m_in_topology  = in_topology;
         block0.m_out_topology = out_topology;
@@ -155,7 +155,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       BlockInfoType block0;
       auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology);
       block0.m_in_map            = src_map;
-      block0.m_out_map           = get_dst_map<Layout, DIM>(src_map, out_axis0);
+      block0.m_out_map           = get_dst_map<Layout>(src_map, out_axis0);
       block0.m_in_axis           = in_axis0;
       block0.m_out_axis          = out_axis0;
 
@@ -293,9 +293,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, out_topology);
         block0.m_in_map            = src_map;
-        block0.m_out_map  = get_dst_map<Layout, iType, DIM>(src_map, axes1);
-        block0.m_in_axis  = in_axis0;
-        block0.m_out_axis = out_axis0;
+        block0.m_out_map           = get_dst_map<Layout>(src_map, axes1);
+        block0.m_in_axis           = in_axis0;
+        block0.m_out_axis          = out_axis0;
 
         block0.m_in_topology  = in_topology;
         block0.m_out_topology = out_topology;
@@ -346,11 +346,11 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
         block1.m_in_map            = block0.m_out_map;
-        block1.m_out_map           = axes1.size() == 0 ? src_map
-                                                       : get_dst_map<Layout, DIM>(
-                                                   block1.m_in_map, out_axis1);
-        block1.m_in_axis           = in_axis1;
-        block1.m_out_axis          = out_axis1;
+        block1.m_out_map =
+            axes1.size() == 0 ? src_map
+                              : get_dst_map<Layout>(block1.m_in_map, out_axis1);
+        block1.m_in_axis  = in_axis1;
+        block1.m_out_axis = out_axis1;
 
         block1.m_in_topology  = in_topology;
         block1.m_out_topology = out_topology;
@@ -407,9 +407,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology);
         block0.m_in_map            = src_map;
-        block0.m_out_map  = get_dst_map<Layout, iType, DIM>(src_map, axes1);
-        block0.m_in_axis  = in_axis0;
-        block0.m_out_axis = out_axis0;
+        block0.m_out_map           = get_dst_map<Layout>(src_map, axes1);
+        block0.m_in_axis           = in_axis0;
+        block0.m_out_axis          = out_axis0;
 
         block0.m_in_topology  = in_topology;
         block0.m_out_topology = mid_topology;
@@ -443,7 +443,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         auto [in_axis2, out_axis2] = get_slab(mid_topology, out_topology);
         block2.m_in_map            = block0.m_out_map;
         block2.m_out_map           = axes2.size() == 0 ? src_map
-                                                       : get_dst_map<Layout, DIM>(
+                                                       : get_dst_map<Layout>(
                                                    block0.m_out_map, out_axis2);
         block2.m_in_axis           = in_axis2;
         block2.m_out_axis          = out_axis2;
@@ -500,9 +500,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, mid_topology);
         block1.m_in_map            = map;
-        block1.m_out_map  = get_dst_map<Layout, iType, DIM>(map, axes1);
-        block1.m_in_axis  = in_axis1;
-        block1.m_out_axis = out_axis1;
+        block1.m_out_map           = get_dst_map<Layout>(map, axes1);
+        block1.m_in_axis           = in_axis1;
+        block1.m_out_axis          = out_axis1;
 
         block1.m_in_topology  = in_topology;
         block1.m_out_topology = mid_topology;
@@ -571,9 +571,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       BlockInfoType block0;
       auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology0);
       block0.m_in_map            = src_map;
-      block0.m_out_map  = get_dst_map<Layout, iType, DIM>(src_map, axes1);
-      block0.m_in_axis  = in_axis0;
-      block0.m_out_axis = out_axis0;
+      block0.m_out_map           = get_dst_map<Layout>(src_map, axes1);
+      block0.m_in_axis           = in_axis0;
+      block0.m_out_axis          = out_axis0;
 
       block0.m_in_topology  = in_topology;
       block0.m_out_topology = out_topology;
@@ -606,10 +606,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_slab(mid_topology0, mid_topology1);
       block2.m_in_map            = block0.m_out_map;
-      block2.m_out_map =
-          get_dst_map<Layout, iType, DIM>(block2.m_in_map, axes2);
-      block2.m_in_axis  = in_axis2;
-      block2.m_out_axis = out_axis2;
+      block2.m_out_map           = get_dst_map<Layout>(block2.m_in_map, axes2);
+      block2.m_in_axis           = in_axis2;
+      block2.m_out_axis          = out_axis2;
 
       block2.m_in_topology  = mid_topology0;
       block2.m_out_topology = mid_topology1;
@@ -754,9 +753,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, out_topology);
         block0.m_in_map            = src_map;
-        block0.m_out_map  = get_dst_map<Layout, iType, DIM>(src_map, axes1);
-        block0.m_in_axis  = in_axis0;
-        block0.m_out_axis = out_axis0;
+        block0.m_out_map           = get_dst_map<Layout>(src_map, axes1);
+        block0.m_in_axis           = in_axis0;
+        block0.m_out_axis          = out_axis0;
 
         block0.m_in_topology  = in_topology;
         block0.m_out_topology = out_topology;
@@ -811,8 +810,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         auto [in_axis1, out_axis1] = get_slab(in_topology, out_topology);
         block1.m_in_map            = map;
         block1.m_out_map =
-            axes1.size() == 0 ? src_map
-                              : get_dst_map<Layout, iType, DIM>(src_map, axes1);
+            axes1.size() == 0 ? src_map : get_dst_map<Layout>(src_map, axes1);
         block1.m_in_axis  = in_axis1;
         block1.m_out_axis = out_axis1;
 
@@ -868,12 +866,12 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         BlockInfoType block0;
         auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology);
         block0.m_in_map            = src_map;
-        block0.m_out_map      = get_dst_map<Layout, iType, DIM>(src_map, axes1);
-        block0.m_in_axis      = in_axis0;
-        block0.m_out_axis     = out_axis0;
-        block0.m_in_topology  = in_topology;
-        block0.m_out_topology = out_topology;
-        block0.m_in_extents   = in_extents;
+        block0.m_out_map           = get_dst_map<Layout>(src_map, axes1);
+        block0.m_in_axis           = in_axis0;
+        block0.m_out_axis          = out_axis0;
+        block0.m_in_topology       = in_topology;
+        block0.m_out_topology      = out_topology;
+        block0.m_in_extents        = in_extents;
         block0.m_out_extents =
             get_next_extents(gin_extents, mid_topology, block0.m_out_map, comm);
         block0.m_buffer_extents =
@@ -898,11 +896,10 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         BlockInfoType block2;
         auto [in_axis2, out_axis2] = get_slab(mid_topology, out_topology);
         block2.m_in_map            = block0.m_out_map;
-        block2.m_out_map           = get_dst_map<Layout, DIM>(
-            block0.m_out_map, out_axis2);  // This needs to be fixed
-        block2.m_in_axis        = in_axis2;
-        block2.m_out_axis       = out_axis2;
-        block2.m_in_topology    = mid_topology;
+        block2.m_out_map     = get_dst_map<Layout>(block0.m_out_map, out_axis2);
+        block2.m_in_axis     = in_axis2;
+        block2.m_out_axis    = out_axis2;
+        block2.m_in_topology = mid_topology;
         block2.m_out_topology   = out_topology;
         block2.m_in_extents     = block1.m_out_extents;
         block2.m_out_extents    = get_next_extents(gout_extents, out_topology,
@@ -953,9 +950,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         BlockInfoType block1;
         auto [in_axis1, out_axis1] = get_slab(in_topology, mid_topology);
         block1.m_in_map            = map;
-        block1.m_out_map  = get_dst_map<Layout, iType, DIM>(map, axes1);
-        block1.m_in_axis  = in_axis1;
-        block1.m_out_axis = out_axis1;
+        block1.m_out_map           = get_dst_map<Layout>(map, axes1);
+        block1.m_in_axis           = in_axis1;
+        block1.m_out_axis          = out_axis1;
 
         block1.m_in_topology  = in_topology;
         block1.m_out_topology = mid_topology;
@@ -1023,9 +1020,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       BlockInfoType block0;
       auto [in_axis0, out_axis0] = get_slab(in_topology, mid_topology0);
       block0.m_in_map            = src_map;
-      block0.m_out_map  = get_dst_map<Layout, iType, DIM>(src_map, axes1);
-      block0.m_in_axis  = in_axis0;
-      block0.m_out_axis = out_axis0;
+      block0.m_out_map           = get_dst_map<Layout>(src_map, axes1);
+      block0.m_in_axis           = in_axis0;
+      block0.m_out_axis          = out_axis0;
 
       block0.m_in_topology  = in_topology;
       block0.m_out_topology = out_topology;
@@ -1058,10 +1055,9 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       BlockInfoType block2;
       auto [in_axis2, out_axis2] = get_slab(mid_topology0, mid_topology1);
       block2.m_in_map            = block0.m_out_map;
-      block2.m_out_map =
-          get_dst_map<Layout, iType, DIM>(block2.m_in_map, axes2);
-      block2.m_in_axis  = in_axis2;
-      block2.m_out_axis = out_axis2;
+      block2.m_out_map           = get_dst_map<Layout>(block2.m_in_map, axes2);
+      block2.m_in_axis           = in_axis2;
+      block2.m_out_axis          = out_axis2;
 
       block2.m_in_topology  = mid_topology0;
       block2.m_out_topology = mid_topology1;
