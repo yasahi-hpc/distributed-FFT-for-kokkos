@@ -117,7 +117,7 @@ TYPED_TEST(TestExtents, BufferExtents) {
   using int_type    = typename TestFixture::int_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_buffer_extents<float_type, layout_type>();
+  test_buffer_extents<int_type, layout_type>();
 }
 
 TYPED_TEST(TestExtents, NextExtents) {
