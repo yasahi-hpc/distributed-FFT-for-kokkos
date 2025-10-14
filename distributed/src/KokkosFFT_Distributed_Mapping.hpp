@@ -27,55 +27,6 @@ namespace Impl {
 ///      axis == 0 -> (2, 1, 0)
 ///      axis == 1 -> (0, 2, 1)
 ///      axis == 2 -> (0, 1, 2)
-///
-/// \tparam LayoutType The layout type of the view
-/// \tparam DIM        The dimensionality of the map
-///
-/// \param[in] src_map The axis map of the input view
-/// \param[in] axis    The axis to be merged/split
-template <typename LayoutType, std::size_t DIM>
-auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
-                 std::size_t axis) {
-  std::vector<std::size_t> map;
-  map.reserve(DIM);
-  if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
-    for (std::size_t i = 0; i < DIM; ++i) {
-      if (src_map.at(i) != axis) map.push_back(src_map.at(i));
-    }
-    map.push_back(axis);
-  } else {
-    map.push_back(axis);
-    for (std::size_t i = 0; i < DIM; ++i) {
-      if (src_map.at(i) != axis) map.push_back(src_map.at(i));
-    }
-  }
-
-  using full_axis_type   = std::array<std::size_t, DIM>;
-  full_axis_type dst_map = {};
-  std::copy_n(map.begin(), DIM, dst_map.begin());
-
-  return dst_map;
-}
-
-/// \brief Get the mapping of the destination view from
-/// src mapping. In the middle of the parallel FFTs,
-/// the axis of the view can be changed which is stored in
-/// the src_map. The dst_map is the mapping that is ready
-/// for FFTs along the innermost direction.
-///
-/// E.g. Src Mapping (0, 1, 2) -> (0, 2, 1)
-///      This corresponds to the mapping of
-///      x -> x, y -> z, z -> y
-///
-///      Layout Left
-///      axis == 0 -> (0, 2, 1)
-///      axis == 1 -> (1, 0, 2)
-///      axis == 2 -> (2, 0, 1)
-///
-///      Layout Right
-///      axis == 0 -> (2, 1, 0)
-///      axis == 1 -> (0, 2, 1)
-///      axis == 2 -> (0, 1, 2)
 /// [TO DO] Add a test case with src_map is not
 /// in ascending order
 /// \tparam LayoutType The layout type of the view
@@ -83,10 +34,16 @@ auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
 ///
 /// \param[in] src_map The axis map of the input view
 /// \param[in] axis    The axis to be merged/split
-template <typename LayoutType, typename iType, std::size_t DIM>
-auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
-                 const std::vector<iType>& axes) {
-  std::vector<std::size_t> map;
+template <typename LayoutType, typename ContainerType, typename iType,
+          std::size_t DIM>
+auto get_dst_map(const std::array<iType, DIM>& src_map,
+                 const ContainerType& axes) {
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(*axes.begin())>>;
+  static_assert(std::is_same_v<value_type, iType>,
+                "get_dst_map: Container value type must match iType");
+
+  std::vector<iType> map;
   map.reserve(DIM);
   if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
     for (const auto src_idx : src_map) {
@@ -113,11 +70,41 @@ auto get_dst_map(const std::array<std::size_t, DIM>& src_map,
     }
   }
 
-  using full_axis_type   = std::array<std::size_t, DIM>;
+  using full_axis_type   = std::array<iType, DIM>;
   full_axis_type dst_map = {};
   std::copy_n(map.begin(), DIM, dst_map.begin());
 
   return dst_map;
+}
+
+/// \brief Get the mapping of the destination view from
+/// src mapping. In the middle of the parallel FFTs,
+/// the axis of the view can be changed which is stored in
+/// the src_map. The dst_map is the mapping that is ready
+/// for FFTs along the innermost direction.
+///
+/// E.g. Src Mapping (0, 1, 2) -> (0, 2, 1)
+///      This corresponds to the mapping of
+///      x -> x, y -> z, z -> y
+///
+///      Layout Left
+///      axis == 0 -> (0, 2, 1)
+///      axis == 1 -> (1, 0, 2)
+///      axis == 2 -> (2, 0, 1)
+///
+///      Layout Right
+///      axis == 0 -> (2, 1, 0)
+///      axis == 1 -> (0, 2, 1)
+///      axis == 2 -> (0, 1, 2)
+///
+/// \tparam LayoutType The layout type of the view
+/// \tparam DIM        The dimensionality of the map
+///
+/// \param[in] src_map The axis map of the input view
+/// \param[in] axis    The axis to be merged/split
+template <typename LayoutType, typename iType, std::size_t DIM>
+auto get_dst_map(const std::array<iType, DIM>& src_map, iType axis) {
+  return get_dst_map<LayoutType>(src_map, std::vector<iType>{axis});
 }
 
 }  // namespace Impl
