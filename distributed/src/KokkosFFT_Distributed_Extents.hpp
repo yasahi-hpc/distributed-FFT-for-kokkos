@@ -118,45 +118,6 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
   return next_extents;
 }
 
-/// \brief From the list of extents, calculate the required allocation size
-/// that is big enough to represent all of the extents.
-/// \tparam DIM The number of dimensions of the extents.
-///
-/// \param[in] extents A vector of extents, each represented as an array of size
-/// DIM.
-/// \return The total size required for the allocation.
-template <std::size_t DIM = 1>
-auto get_required_allocation_size(
-    const std::vector<std::array<std::size_t, DIM>> &extents) {
-  std::vector<std::size_t> sizes;
-  for (const auto &extent : extents) {
-    sizes.push_back(KokkosFFT::Impl::total_size(extent));
-  }
-  return *std::max_element(sizes.begin(), sizes.end());
-}
-
-/// \brief From the list of extents, calculate the required allocation size
-/// that is big enough to represent all of the extents.
-/// \tparam DIM The number of dimensions of the extents.
-///
-/// \param[in] extents A vector of extents, each represented as an array of size
-/// DIM.
-/// \param[in] byte_sizes A vector of bytes of sizes
-/// \return The total byte size required for the allocation.
-template <std::size_t DIM = 1>
-auto get_required_allocation_size(
-    const std::vector<std::array<std::size_t, DIM>> &extents,
-    std::vector<std::size_t> &byte_sizes) {
-  KOKKOSFFT_THROW_IF(extents.size() != byte_sizes.size(),
-                     "extents and byte_sizes must have the same size.");
-  std::vector<std::size_t> sizes;
-  for (std::size_t i = 0; i < extents.size(); i++) {
-    sizes.push_back(KokkosFFT::Impl::total_size(extents.at(i)) *
-                    byte_sizes.at(i));
-  }
-  return *std::max_element(sizes.begin(), sizes.end());
-}
-
 /**
  * @brief Check if input and output views have valid extents for the given axes,
  * FFT topologies, and MPI communicator.
