@@ -93,8 +93,6 @@ auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
     if (in_topology[i] != out_topology[i]) {
       if (in_topology[i] == 1) in_axis = i;
       if (out_topology[i] == 1) out_axis = i;
-      // out_axis = i;
-      // common_topology[i] = in_topology[i];
     }
   }
 
@@ -212,7 +210,7 @@ std::vector<std::vector<iType>> decompose_axes(
   std::vector<std::size_t> axes_reversed;
   for (std::size_t i = 0; i < axes.size(); ++i) {
     auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axes.at(i));
+        KokkosFFT::Impl::convert_negative_axis(axes.at(i), DIM);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     axes_reversed.push_back(unsigned_axis);
   }
@@ -286,7 +284,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
   std::vector<std::size_t> axes_reversed;
   for (std::size_t i = 0; i < axes.size(); ++i) {
     auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axes.at(i));
+        KokkosFFT::Impl::convert_negative_axis(axes.at(i), DIM);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     axes_reversed.push_back(unsigned_axis);
   }
@@ -399,8 +397,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
   // If input or output is ready, we can skip the rest of the logic
   bool is_input_ready = true;
   for (const auto& axis : axes_reversed) {
-    auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     auto dim                  = in_topology.at(unsigned_axis);
     if (dim != 1) is_input_ready = false;
@@ -408,8 +405,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 
   bool is_output_ready = true;
   for (const auto& axis : axes_reversed) {
-    auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     auto dim                  = out_topology.at(unsigned_axis);
     if (dim != 1) is_output_ready = false;
@@ -570,7 +566,7 @@ auto get_all_pencil_topologies(
   std::vector<std::size_t> axes_reversed;
   for (std::size_t i = 0; i < axes.size(); ++i) {
     auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axes.at(i));
+        KokkosFFT::Impl::convert_negative_axis(axes.at(i), DIM);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     axes_reversed.push_back(unsigned_axis);
   }
@@ -649,8 +645,7 @@ auto get_all_pencil_topologies(
   // If input or output is ready, we can skip the rest of the logic
   bool is_input_ready = true;
   for (const auto& axis : axes_reversed) {
-    auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     auto dim                  = in_topology.at(unsigned_axis);
     if (dim != 1) is_input_ready = false;
@@ -658,8 +653,7 @@ auto get_all_pencil_topologies(
 
   bool is_output_ready = true;
   for (const auto& axis : axes_reversed) {
-    auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     auto dim                  = out_topology_tmp.at(unsigned_axis);
     if (dim != 1) is_output_ready = false;
@@ -695,7 +689,7 @@ auto get_all_pencil_topologies(
     for (const auto& axis : axes_reversed) {
       std::size_t swap_idx = 0;
       auto non_negative_axis =
-          KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+          KokkosFFT::Impl::convert_negative_axis(axis, DIM);
       std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
       for (std::size_t idx = 0; idx < DIM; idx++) {
         if (shuffled_topology.at(idx) == 1 && idx != unsigned_axis) {
@@ -746,9 +740,8 @@ auto get_all_pencil_topologies(
   if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
   if (last_dim == 1 && !axes_reversed.empty()) axes_reversed.pop_back();
   for (const auto& axis : axes_reversed) {
-    std::size_t swap_idx = 0;
-    auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis<int, DIM>(axis);
+    std::size_t swap_idx   = 0;
+    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
     std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
     for (auto diff_idx : diff_non_one_indices) {
       if (shuffled_topology.at(diff_idx) == 1 && diff_idx != unsigned_axis) {

@@ -126,7 +126,8 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
 
   auto gin_extents       = get_global_shape(in, in_topology, comm);
   auto gout_extents      = get_global_shape(out, out_topology, comm);
-  auto non_negative_axes = convert_negative_axes<std::size_t, int, 2, 2>(axes);
+  auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+      KokkosFFT::Impl::convert_negative_axes(axes, 2));
   auto fft_extents =
       get_fft_extents(gin_extents, gout_extents, non_negative_axes);
   const auto [nx, ny]  = fft_extents;
@@ -225,7 +226,8 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
 
   auto gin_extents       = get_global_shape(in, in_topology, comm);
   auto gout_extents      = get_global_shape(out, out_topology, comm);
-  auto non_negative_axes = convert_negative_axes<std::size_t, int, 3, 3>(axes);
+  auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+      KokkosFFT::Impl::convert_negative_axes(axes, 3));
   auto fft_extents =
       get_fft_extents(gin_extents, gout_extents, non_negative_axes);
   const auto [nx, ny, nz] = fft_extents;

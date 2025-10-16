@@ -55,7 +55,9 @@ class InternalPlan {
     auto gin_extents  = get_global_shape(in, in_topology, comm);
     auto gout_extents = get_global_shape(out, out_topology, comm);
     auto non_negative_axes =
-        convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(axes);
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, InViewType::rank()));
+
     auto fft_extents =
         get_fft_extents(gin_extents, gout_extents, non_negative_axes);
     m_fft_size = KokkosFFT::Impl::total_size(fft_extents);
