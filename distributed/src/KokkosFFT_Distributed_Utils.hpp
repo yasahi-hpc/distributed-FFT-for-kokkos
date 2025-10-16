@@ -9,30 +9,6 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-template <typename SizeType, typename IntType, std::size_t DIM,
-          std::size_t Rank>
-auto convert_negative_axes(const std::array<IntType, DIM>& axes) {
-  static_assert(std::is_integral_v<SizeType>,
-                "convert_negative_axes: SizeType must be an integer type.");
-  static_assert(
-      std::is_integral_v<IntType> && std::is_signed_v<IntType>,
-      "convert_negative_axes: IntType must be a signed integer type.");
-  std::array<SizeType, DIM> non_negative_axes = {};
-  try {
-    for (std::size_t i = 0; i < axes.size(); i++) {
-      int axis = axes.at(i);
-      auto non_negative_axis =
-          KokkosFFT::Impl::convert_negative_axis<IntType, Rank>(axis);
-      std::size_t unsigned_axis = static_cast<SizeType>(non_negative_axis);
-      non_negative_axes.at(i)   = unsigned_axis;
-    }
-  } catch (std::runtime_error& e) {
-    KOKKOSFFT_THROW_IF(true, "All axes must be in [-rank, rank-1]");
-  }
-
-  return non_negative_axes;
-}
-
 template <typename Layout, typename iType, std::size_t DIM, std::size_t FFT_DIM>
 auto get_map_axes(const std::array<iType, FFT_DIM>& axes) {
   // Convert the input axes to be in the range of [0, rank-1]
@@ -742,7 +718,8 @@ void safe_transpose(const ExecutionSpace& exec_space, const InViewType& in,
   */
 
   std::array<std::size_t, DIM> non_negative_map =
-      convert_negative_axes<std::size_t, int, DIM, InViewType::rank()>(map);
+      KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+          KokkosFFT::Impl::convert_negative_axes(map, InViewType::rank()));
   Kokkos::Array<std::size_t, InViewType::rank()> map_array =
       KokkosFFT::Impl::to_array(non_negative_map);
   if ((in.span() >= std::size_t(std::numeric_limits<int>::max())) ||

@@ -105,7 +105,8 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
         KokkosFFT::Impl::get_map_axes(in_right, axes);
 
     auto non_negative_axes =
-        convert_negative_axes<std::size_t, int, DIM, DIM>(axes);
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     auto gin_extents        = get_global_shape(in, in_topology, comm);
     auto gout_extents       = get_global_shape(out, out_topology, comm);

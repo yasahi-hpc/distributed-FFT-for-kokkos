@@ -113,7 +113,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
     auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
 
     auto non_negative_axes =
-        convert_negative_axes<std::size_t, int, 1, DIM>(axes);
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
@@ -421,7 +422,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
     auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
 
     auto non_negative_axes =
-        convert_negative_axes<std::size_t, int, 2, DIM>(axes);
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
@@ -871,7 +873,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
     auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
 
     auto non_negative_axes =
-        convert_negative_axes<std::size_t, int, 3, DIM>(axes);
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
