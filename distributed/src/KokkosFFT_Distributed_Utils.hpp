@@ -36,17 +36,7 @@ auto convert_negative_axes(const std::array<IntType, DIM>& axes) {
 template <typename Layout, typename iType, std::size_t DIM, std::size_t FFT_DIM>
 auto get_map_axes(const std::array<iType, FFT_DIM>& axes) {
   // Convert the input axes to be in the range of [0, rank-1]
-  std::array<iType, FFT_DIM> non_negative_axes = {};
-  if constexpr (std::is_signed_v<iType>) {
-    for (std::size_t i = 0; i < FFT_DIM; i++) {
-      non_negative_axes.at(i) =
-          KokkosFFT::Impl::convert_negative_axis<iType, DIM>(axes.at(i));
-    }
-  } else {
-    for (std::size_t i = 0; i < FFT_DIM; i++) {
-      non_negative_axes.at(i) = axes.at(i);
-    }
-  }
+  auto non_negative_axes = KokkosFFT::Impl::convert_negative_axes(axes, DIM);
 
   // how indices are map
   // For 5D View and axes are (2,3), map would be (0, 1, 4, 2, 3)
@@ -91,7 +81,7 @@ auto get_map_axes(const std::array<iType, FFT_DIM>& axes) {
     array_map_inv.at(i) = KokkosFFT::Impl::get_index(array_map, i);
   }
 
-  return std::tuple<full_axis_type, full_axis_type>({array_map, array_map_inv});
+  return std::make_tuple(array_map, array_map_inv);
 }
 
 /// \brief Count the number of components that are not equal to one in a

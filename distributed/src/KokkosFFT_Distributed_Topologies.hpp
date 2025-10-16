@@ -93,8 +93,6 @@ auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
     if (in_topology[i] != out_topology[i]) {
       if (in_topology[i] == 1) in_axis = i;
       if (out_topology[i] == 1) out_axis = i;
-      // out_axis = i;
-      // common_topology[i] = in_topology[i];
     }
   }
 
