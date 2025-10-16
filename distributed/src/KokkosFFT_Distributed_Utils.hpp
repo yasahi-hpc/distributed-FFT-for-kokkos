@@ -493,7 +493,7 @@ auto get_contiguous_axes(const std::vector<iType>& axes) {
     for (std::size_t i = 0; i < axes.size(); ++i) {
       int negative_axis = -int(axes.size()) + int(i);
       contiguous_axes[i] =
-          KokkosFFT::Impl::convert_negative_axis<int, Rank>(negative_axis);
+          KokkosFFT::Impl::convert_negative_axis(negative_axis, Rank);
     }
   }
   return contiguous_axes;
