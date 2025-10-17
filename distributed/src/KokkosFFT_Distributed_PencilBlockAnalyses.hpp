@@ -42,7 +42,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1,
                               const out_topology_type& out_topology,
                               const std::array<iType, 1>& axes, MPI_Comm comm) {
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-    auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 1>(axes);
+    auto [map, map_inv] = KokkosFFT::Impl::get_map_axes<Layout, DIM>(axes);
 
     // Get all relevant topologies
     auto [all_topologies, all_trans_axes, all_layouts] =
@@ -344,7 +344,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
                               const out_topology_type& out_topology,
                               const std::array<iType, 2>& axes, MPI_Comm comm) {
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-    auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 2>(axes);
+    auto [map, map_inv] = KokkosFFT::Impl::get_map_axes<Layout, DIM>(axes);
 
     // Get all relevant topologies
     auto [all_topologies, all_trans_axes, all_layouts] =
@@ -1247,7 +1247,7 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
                               const out_topology_type& out_topology,
                               const std::array<iType, 3>& axes, MPI_Comm comm) {
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-    auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 3>(axes);
+    auto [map, map_inv] = KokkosFFT::Impl::get_map_axes<Layout, DIM>(axes);
 
     // Get all relevant topologies
     auto [all_topologies, all_trans_axes, all_layouts] =

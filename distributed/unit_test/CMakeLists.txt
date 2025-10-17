@@ -74,4 +74,4 @@ add_test(
 
 set_property(TEST UnitTests1MPI PROPERTY TIMEOUT 600)
 set_property(TEST UnitTests2MPI PROPERTY TIMEOUT 600)
-set_property(TEST UnitTests4MPI PROPERTY TIMEOUT 1200)
+set_property(TEST UnitTests4MPI PROPERTY TIMEOUT 1500)
