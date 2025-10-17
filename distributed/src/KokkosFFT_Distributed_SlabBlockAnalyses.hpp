@@ -39,7 +39,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       const extents_type& in_topology, const extents_type& out_topology,
       const std::array<iType, 1>& axes, MPI_Comm comm = MPI_COMM_WORLD) {
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-    auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 1>(axes);
+    auto [map, map_inv] = KokkosFFT::Impl::get_map_axes<Layout, DIM>(axes);
     // Get all relevant topologies
     auto all_topologies =
         get_all_slab_topologies(in_topology, out_topology, axes);
@@ -244,7 +244,8 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       const extents_type& in_topology, const extents_type& out_topology,
       const std::array<iType, 2>& axes, MPI_Comm comm = MPI_COMM_WORLD) {
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-    auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 2>(axes);
+    auto [map, map_inv] = KokkosFFT::Impl::get_map_axes<Layout, DIM>(axes);
+
     // Get all relevant topologies
     auto all_topologies =
         get_all_slab_topologies(in_topology, out_topology, axes);
@@ -703,7 +704,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
                             const std::array<iType, 3>& axes,
                             MPI_Comm comm = MPI_COMM_WORLD) {
     auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-    auto [map, map_inv] = get_map_axes<Layout, iType, DIM, 3>(axes);
+    auto [map, map_inv] = KokkosFFT::Impl::get_map_axes<Layout, DIM>(axes);
 
     // Get all relevant topologies
     auto all_topologies =

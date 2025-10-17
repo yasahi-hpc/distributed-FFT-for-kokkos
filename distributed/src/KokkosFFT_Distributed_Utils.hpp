@@ -9,57 +9,6 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-template <typename Layout, typename iType, std::size_t DIM, std::size_t FFT_DIM>
-auto get_map_axes(const std::array<iType, FFT_DIM>& axes) {
-  // Convert the input axes to be in the range of [0, rank-1]
-  auto non_negative_axes = KokkosFFT::Impl::convert_negative_axes(axes, DIM);
-
-  // how indices are map
-  // For 5D View and axes are (2,3), map would be (0, 1, 4, 2, 3)
-  constexpr iType rank = static_cast<iType>(DIM);
-  std::vector<iType> map;
-  map.reserve(rank);
-
-  if (std::is_same_v<Layout, Kokkos::LayoutRight>) {
-    // Stack axes not specified by axes (0, 1, 4)
-    for (iType i = 0; i < rank; i++) {
-      if (!KokkosFFT::Impl::is_found(non_negative_axes, i)) {
-        map.push_back(i);
-      }
-    }
-
-    // Stack axes on the map (For layout Right)
-    // Then stack (2, 3) to have (0, 1, 4, 2, 3)
-    for (auto axis : non_negative_axes) {
-      map.push_back(axis);
-    }
-  } else {
-    // For layout Left, stack innermost axes first
-    std::reverse(non_negative_axes.begin(), non_negative_axes.end());
-    for (auto axis : non_negative_axes) {
-      map.push_back(axis);
-    }
-
-    // Then stack remaining axes
-    for (iType i = 0; i < rank; i++) {
-      if (!KokkosFFT::Impl::is_found(non_negative_axes, i)) {
-        map.push_back(i);
-      }
-    }
-  }
-
-  using full_axis_type     = std::array<iType, rank>;
-  full_axis_type array_map = {}, array_map_inv = {};
-  std::copy_n(map.begin(), rank, array_map.begin());
-
-  // Construct inverse map
-  for (iType i = 0; i < rank; i++) {
-    array_map_inv.at(i) = KokkosFFT::Impl::get_index(array_map, i);
-  }
-
-  return std::make_tuple(array_map, array_map_inv);
-}
-
 /// \brief Count the number of components that are not equal to one in a
 /// container
 /// \tparam ContainerType The type of the container (e.g., std::array,
