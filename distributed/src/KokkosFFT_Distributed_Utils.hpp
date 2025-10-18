@@ -316,47 +316,32 @@ auto to_array(const std::vector<VecSizeType>& vec) {
 /// map: (0, 2, 3, 1)
 /// Next extents: (n0, n2, n3, n1)
 ///
+/// \tparam ContainerType The container type
+/// \tparam iType The integer type used for extents
 /// \tparam DIM The number of dimensions of the extents.
 ///
 /// \param[in] extents Extents of the View.
 /// \param[in] map A map representing how the data is permuted
 /// \return A extents of the permuted view
-template <typename ContainerType, std::size_t DIM = 1>
-auto get_mapped_extents(const std::array<std::size_t, DIM>& extents,
+/// \throws std::runtime_error if the size of map is not equal to DIM
+template <typename ContainerType, typename iType, std::size_t DIM>
+auto get_mapped_extents(const std::array<iType, DIM>& extents,
                         const ContainerType& map) {
-  std::array<std::size_t, DIM> mapped_extents;
-
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(map.at(0))>>;
+  static_assert(std::is_integral_v<value_type>,
+                "get_mapped_extents: Map container value type must be an "
+                "integral type");
+  KOKKOSFFT_THROW_IF(
+      map.size() != DIM,
+      "get_mapped_extents: extents size must be equal to map size.");
+  std::array<iType, DIM> mapped_extents;
   for (std::size_t i = 0; i < extents.size(); i++) {
-    std::size_t mapped_idx = map.at(i);
-    mapped_extents.at(i)   = extents.at(mapped_idx);
+    auto mapped_idx      = map.at(i);
+    mapped_extents.at(i) = extents.at(mapped_idx);
   }
 
   return mapped_extents;
-}
-
-/// \brief Calculate the permuted axes based on the map
-///
-/// Example
-/// Axes: (1, 3, 2) for (0, 1, 2, 3)
-/// map: (0, 2, 3, 1)
-/// Mapped Axes: (3, 2, 1) for (0, 2, 3, 1)
-///
-/// \tparam DIM The number of dimensions of the extents.
-///
-/// \param[in] extents Extents of the View.
-/// \param[in] map A map representing how the data is permuted
-/// \return A extents of the permuted view
-template <typename ContainerType, std::size_t DIM = 1>
-auto get_mapped_axes(const std::array<std::size_t, DIM>& axes,
-                     const ContainerType& map) {
-  std::array<std::size_t, DIM> mapped_axes;
-
-  for (std::size_t i = 0; i < axes.size(); i++) {
-    std::size_t axis  = axes.at(i);
-    mapped_axes.at(i) = KokkosFFT::Impl::get_index(map, axis);
-  }
-
-  return mapped_axes;
 }
 
 /// \brief Get the larger extents. Larger one corresponds to

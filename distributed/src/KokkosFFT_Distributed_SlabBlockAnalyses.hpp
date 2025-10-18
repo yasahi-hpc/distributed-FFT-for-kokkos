@@ -183,8 +183,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       block1.m_out_extents =
           get_next_extents(gout_extents, mid_topology, block0.m_out_map, comm);
       block1.m_block_type = BlockType::FFT;
-      block1.m_axes =  // to_vector(get_mapped_axes(axes, block0.m_out_map));
-          get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
+      block1.m_axes = get_contiguous_axes<Layout, iType, DIM>(to_vector(axes));
       m_block_infos.push_back(block1);
 
       all_max_buffer_sizes.push_back(
