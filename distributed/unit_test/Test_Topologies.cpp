@@ -2823,7 +2823,7 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
                 ref_topo2 = topology2.array(), ref_topo3 = topology3.array(),
                 ref_topo4 = topology4.array();
 
-  using axes_type = std::array<int, 1>;
+  using axes_type = std::array<std::size_t, 1>;
   axes_type axes0 = {0}, axes1 = {1}, axes2 = {2};
 
   std::vector<axes_type> all_axes = {axes0, axes1, axes2};
@@ -3114,7 +3114,7 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
                 ref_topo2 = topology2.array(), ref_topo3 = topology3.array(),
                 ref_topo4 = topology4.array(), ref_topo5 = topology5.array();
 
-  using axes_type  = std::array<int, 2>;
+  using axes_type  = std::array<std::size_t, 2>;
   axes_type axes01 = {0, 1}, axes02 = {0, 2}, axes10 = {1, 0}, axes12 = {1, 2},
             axes20 = {2, 0}, axes21 = {2, 1};
 
@@ -3636,7 +3636,7 @@ void test_get_all_pencil_topologies2D_4DView(std::size_t nprocs) {
                 ref_topo8 = topology8.array(), ref_topo9 = topology9.array(),
                 ref_topo10 = topology10.array();
 
-  using axes_type  = std::array<int, 2>;
+  using axes_type  = std::array<std::size_t, 2>;
   axes_type axes01 = {0, 1}, axes02 = {0, 2}, axes10 = {1, 0}, axes12 = {1, 2},
             axes20 = {2, 0}, axes21 = {2, 1}, axes13 = {1, 3}, axes23 = {2, 3},
             axes03 = {0, 3};
@@ -4443,7 +4443,7 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
                 ref_topo2 = topology2.array(), ref_topo3 = topology3.array(),
                 ref_topo4 = topology4.array(), ref_topo5 = topology5.array();
 
-  using axes_type   = std::array<int, 3>;
+  using axes_type   = std::array<std::size_t, 3>;
   axes_type axes012 = {0, 1, 2}, axes021 = {0, 2, 1}, axes102 = {1, 0, 2},
             axes120 = {1, 2, 0}, axes201 = {2, 0, 1}, axes210 = {2, 1, 0};
 
@@ -5079,7 +5079,7 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
                 ref_topo8 = topology8.array(), ref_topo9 = topology9.array(),
                 ref_topo10 = topology10.array();
 
-  using axes_type   = std::array<int, 3>;
+  using axes_type   = std::array<std::size_t, 3>;
   axes_type axes012 = {0, 1, 2}, axes021 = {0, 2, 1}, axes102 = {1, 0, 2},
             axes120 = {1, 2, 0}, axes201 = {2, 0, 1}, axes210 = {2, 1, 0},
             axes123 = {1, 2, 3}, axes132 = {1, 3, 2};

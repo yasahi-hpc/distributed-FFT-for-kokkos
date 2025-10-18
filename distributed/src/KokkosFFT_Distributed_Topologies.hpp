@@ -272,6 +272,8 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
     const std::array<iType, FFT_DIM>& axes) {
   static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
   static_assert(DIM >= 2 && DIM >= FFT_DIM, "DIM >= 2 and DIM >= FFT_DIM");
+  static_assert(std::is_unsigned_v<iType>,
+                "get_all_slab_topologies: axes must be unsigned");
 
   bool is_slab =
       is_slab_topology(in_topology) && is_slab_topology(out_topology);
@@ -280,14 +282,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 
   std::vector<std::array<std::size_t, DIM>> topologies;
   topologies.push_back(in_topology);
-
-  std::vector<std::size_t> axes_reversed;
-  for (std::size_t i = 0; i < axes.size(); ++i) {
-    auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis(axes.at(i), DIM);
-    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    axes_reversed.push_back(unsigned_axis);
-  }
+  auto axes_reversed = to_vector(axes);
 
   // 2D case
   std::array<std::size_t, DIM> topology = {};
@@ -552,6 +547,8 @@ auto get_all_pencil_topologies(
     const std::array<iType, FFT_DIM>& axes) {
   static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
   static_assert(DIM >= 3 && DIM >= FFT_DIM, "DIM >= 3 and DIM >= FFT_DIM");
+  static_assert(std::is_unsigned_v<iType>,
+                "get_all_pencil_topologies: axes must be unsigned");
 
   using topology_type   = std::array<std::size_t, DIM>;
   using topologies_type = std::vector<topology_type>;
@@ -563,14 +560,7 @@ auto get_all_pencil_topologies(
   KOKKOSFFT_THROW_IF(!is_pencil,
                      "Input and output topologies must be pencil topologies.");
 
-  std::vector<std::size_t> axes_reversed;
-  for (std::size_t i = 0; i < axes.size(); ++i) {
-    auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis(axes.at(i), DIM);
-    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    axes_reversed.push_back(unsigned_axis);
-  }
-
+  auto axes_reversed             = to_vector(axes);
   auto non_ones                  = extract_non_one_values(in_topology.array());
   bool has_same_non_one_elements = has_identical_non_ones(non_ones);
 
