@@ -499,12 +499,9 @@ TYPED_TEST(TopologyTest, STLAlgorithmCompatibility) {
   auto count = std::count(topology.begin(), topology.end(), this->test_data[0]);
   EXPECT_EQ(count, 1);
 
-  // Test std::for_each
-  std::size_t sum = 0;
-  std::for_each(topology.begin(), topology.end(), [&sum](const auto& val) {
-    sum += static_cast<std::size_t>(val);
-  });
-
+  // Test std::reduce
+  std::size_t sum          = std::reduce(topology.begin(), topology.end(),
+                                         std::size_t{0}, std::plus<std::size_t>{});
   std::size_t expected_sum = 0;
   for (const auto& val : this->test_data) {
     expected_sum += static_cast<std::size_t>(val);
