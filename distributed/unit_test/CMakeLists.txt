@@ -1,8 +1,9 @@
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
-    set(SOURCES Test_Main.cpp Test_TplPlan.cpp)
+    set(SOURCES Test_Main.cpp Test_Types.cpp Test_TplPlan.cpp)
 elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
     set(SOURCES
         Test_Main.cpp
+        Test_Types.cpp
         Test_All2All.cpp
         Test_Mapping.cpp
         Test_Pack.cpp
@@ -23,6 +24,7 @@ elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
 else()
     set(SOURCES
         Test_Main.cpp
+        Test_Types.cpp
         Test_All2All.cpp
         Test_Mapping.cpp
         Test_Pack.cpp
