@@ -90,38 +90,6 @@ auto get_buffer_extents(
                                         out_topology.array());
 }
 
-/// \brief Calculate the next extents based on the global extents,
-/// the topology, and the mapping.
-///
-/// Example
-/// Global View extents: (n0, n1, n2, n3)
-/// topology: {p0, 1, p1, 1} // Y-pencil
-/// map: (0, 2, 3, 1)
-/// Next extents: ((n0-1)/p0+1, (n2-1)/p1+1, n3, n1)
-///
-/// \tparam iType The integer type used for extents and topology.
-/// \tparam DIM The number of dimensions of the extents.
-///
-/// \param[in] extents Extents of the global View.
-/// \param[in] topology A topology representing the distribution of the data.
-/// \param[in] map A map representing how the data is permuted
-/// \return A extents of the view after the pencil transformation.
-
-template <typename iType, std::size_t DIM = 1>
-auto get_next_extents(const std::array<iType, DIM> &extents,
-                      const std::array<iType, DIM> &topology,
-                      const std::array<iType, DIM> &map) {
-  std::array<iType, DIM> next_extents;
-
-  for (std::size_t i = 0; i < extents.size(); i++) {
-    std::size_t mapped_idx = map.at(i);
-    next_extents.at(i) =
-        (extents.at(mapped_idx) - 1) / topology.at(mapped_idx) + 1;
-  }
-
-  return next_extents;
-}
-
 /**
  * @brief Check if input and output views have valid extents for the given axes,
  * FFT topologies, and MPI communicator.

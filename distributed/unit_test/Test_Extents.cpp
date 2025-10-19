@@ -69,46 +69,6 @@ void test_buffer_extents() {
       std::runtime_error);
 }
 
-template <typename IntType>
-void test_next_extents() {
-  using extents_type  = std::array<IntType, 4>;
-  using topology_type = std::array<IntType, 4>;
-  using map_type      = std::array<IntType, 4>;
-
-  const IntType n0 = 13, n1 = 8, n2 = 17, n3 = 5;
-  const IntType p0 = 2, p1 = 3;
-
-  // Global View
-  extents_type extents{n0, n1, n2, n3};
-
-  // X-pencil
-  topology_type topology0 = {1, p0, p1, 1};
-  map_type map0           = {0, 1, 2, 3};
-
-  // Y-pencil
-  topology_type topology1 = {p0, 1, p1, 1};
-  map_type map1           = {0, 2, 3, 1};
-
-  // Z-pencil
-  topology_type topology2 = {p0, p1, 1, 1};
-  map_type map2           = {0, 3, 1, 2};
-
-  extents_type ref_next_0{n0, (n1 - 1) / p0 + 1, (n2 - 1) / p1 + 1, n3};
-  extents_type ref_next_1{(n0 - 1) / p0 + 1, (n2 - 1) / p1 + 1, n3, n1};
-  extents_type ref_next_2{(n0 - 1) / p0 + 1, n3, (n1 - 1) / p1 + 1, n2};
-
-  extents_type next_0 =
-      KokkosFFT::Distributed::Impl::get_next_extents(extents, topology0, map0);
-  extents_type next_1 =
-      KokkosFFT::Distributed::Impl::get_next_extents(extents, topology1, map1);
-  extents_type next_2 =
-      KokkosFFT::Distributed::Impl::get_next_extents(extents, topology2, map2);
-
-  EXPECT_TRUE(next_0 == ref_next_0);
-  EXPECT_TRUE(next_1 == ref_next_1);
-  EXPECT_TRUE(next_2 == ref_next_2);
-}
-
 }  // namespace
 
 TYPED_TEST_SUITE(TestExtents, test_types);
@@ -118,10 +78,4 @@ TYPED_TEST(TestExtents, BufferExtents) {
   using layout_type = typename TestFixture::layout_type;
 
   test_buffer_extents<int_type, layout_type>();
-}
-
-TYPED_TEST(TestExtents, NextExtents) {
-  using int_type = typename TestFixture::int_type;
-
-  test_next_extents<int_type>();
 }
