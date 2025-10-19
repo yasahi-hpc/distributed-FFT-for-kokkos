@@ -426,6 +426,40 @@ void test_get_mapped_extents(iType nprocs) {
   EXPECT_EQ(mapped_extents210, ref_mapped_extents210);
 }
 
+template <typename ContainerType, typename iType>
+void test_get_fft_extents(iType nprocs) {
+  using extents_type      = std::array<iType, 3>;
+  extents_type in_extents = {nprocs, 3, 8}, out_extents = {nprocs, 3, 5};
+  ContainerType map012 = {0, 1, 2}, map021 = {0, 2, 1}, map102 = {1, 0, 2},
+                map120 = {1, 2, 0}, map201 = {2, 0, 1}, map210 = {2, 1, 0};
+  auto fft_extents012 = KokkosFFT::Distributed::Impl::get_fft_extents(
+      in_extents, out_extents, map012);
+  auto fft_extents021 = KokkosFFT::Distributed::Impl::get_fft_extents(
+      in_extents, out_extents, map021);
+  auto fft_extents102 = KokkosFFT::Distributed::Impl::get_fft_extents(
+      in_extents, out_extents, map102);
+  auto fft_extents120 = KokkosFFT::Distributed::Impl::get_fft_extents(
+      in_extents, out_extents, map120);
+  auto fft_extents201 = KokkosFFT::Distributed::Impl::get_fft_extents(
+      in_extents, out_extents, map201);
+  auto fft_extents210 = KokkosFFT::Distributed::Impl::get_fft_extents(
+      in_extents, out_extents, map210);
+
+  extents_type ref_fft_extents012 = {nprocs, 3, 8},
+               ref_fft_extents021 = {nprocs, 8, 3},
+               ref_fft_extents102 = {3, nprocs, 8},
+               ref_fft_extents120 = {3, 8, nprocs},
+               ref_fft_extents201 = {8, nprocs, 3},
+               ref_fft_extents210 = {8, 3, nprocs};
+
+  EXPECT_EQ(fft_extents012, ref_fft_extents012);
+  EXPECT_EQ(fft_extents021, ref_fft_extents021);
+  EXPECT_EQ(fft_extents102, ref_fft_extents102);
+  EXPECT_EQ(fft_extents120, ref_fft_extents120);
+  EXPECT_EQ(fft_extents201, ref_fft_extents201);
+  EXPECT_EQ(fft_extents210, ref_fft_extents210);
+}
+
 }  // namespace
 
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
@@ -596,5 +630,13 @@ TYPED_TEST(TestContainerTypes, test_get_mapped_extents_of_array) {
   using array_type = std::array<value_type, 3>;
   for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
     test_get_mapped_extents<array_type, value_type>(nprocs);
+  }
+}
+
+TYPED_TEST(TestContainerTypes, test_get_fft_extents_of_array) {
+  using value_type = typename TestFixture::value_type;
+  using array_type = std::array<value_type, 3>;
+  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
+    test_get_fft_extents<array_type, value_type>(nprocs);
   }
 }
