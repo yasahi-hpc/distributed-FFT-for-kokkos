@@ -6,15 +6,15 @@
 #include "KokkosFFT_Distributed_InternalPlan.hpp"
 
 #if defined(ENABLE_TPL_CUFFT_MP)
-#include "KokkosFFT_Distributed_CufftMp_Types.hpp"
-#include "KokkosFFT_Distributed_CufftMp_Plan.hpp"
-#include "KokkosFFT_Distributed_CufftMp_Transform.hpp"
+#include "cuFFTMp/KokkosFFT_Distributed_CufftMp_Types.hpp"
+#include "cuFFTMp/KokkosFFT_Distributed_CufftMp_Plan.hpp"
+#include "cuFFTMp/KokkosFFT_Distributed_CufftMp_Transform.hpp"
 #endif
 
 #if defined(ENABLE_TPL_ROCFFT_MPI)
-#include "KokkosFFT_Distributed_RocfftMPI_Types.hpp"
-#include "KokkosFFT_Distributed_RocfftMPI_Plan.hpp"
-#include "KokkosFFT_Distributed_RocfftMPI_Transform.hpp"
+#include "rocFFT/KokkosFFT_Distributed_RocfftMPI_Types.hpp"
+#include "rocFFT/KokkosFFT_Distributed_RocfftMPI_Plan.hpp"
+#include "rocFFT/KokkosFFT_Distributed_RocfftMPI_Transform.hpp"
 #endif
 
 namespace KokkosFFT {
