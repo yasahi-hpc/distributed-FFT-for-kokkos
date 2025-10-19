@@ -99,79 +99,339 @@ struct BlockInfo {
 
 }  // namespace Impl
 
+/// \brief A container class that wraps std::array to provide topology
+/// information for distributed FFT operations with additional
+/// std::array-compatible interface.
+///
+/// This class provides a complete std::array-compatible interface while adding
+/// layout type information for Kokkos integration. It maintains the same
+/// performance characteristics as std::array with compile-time size checking.
+///
+/// \tparam T The element type stored in the topology
+/// \tparam N The number of elements in the topology (compile-time constant)
+/// \tparam LayoutType The Kokkos layout type (default: Kokkos::LayoutRight)
 template <typename T, std::size_t N, typename LayoutType = Kokkos::LayoutRight>
 class Topology {
+ public:
+  // Type definitions (std::array compatibility)
+  using value_type       = T;
+  using size_type        = std::size_t;
+  using difference_type  = std::ptrdiff_t;
+  using reference        = T&;
+  using const_reference  = const T&;
+  using pointer          = T*;
+  using const_pointer    = const T*;
+  using iterator         = typename std::array<T, N>::iterator;
+  using const_iterator   = typename std::array<T, N>::const_iterator;
+  using reverse_iterator = typename std::array<T, N>::reverse_iterator;
+  using const_reverse_iterator =
+      typename std::array<T, N>::const_reverse_iterator;
+  using layout_type = LayoutType;
+
  private:
   std::array<T, N> m_data;
 
  public:
-  // Default constructor
+  // Constructors and assignment operators
+
+  /// \brief Default constructor - creates an uninitialized topology
   constexpr Topology() = default;
 
-  // Constructor from std::array
+  /// \brief Constructor from std::array
+  /// \param[in] arr The std::array to copy from
   constexpr Topology(const std::array<T, N>& arr) : m_data{arr} {}
 
-  // Constructor from initializer list
+  /// \brief Constructor from initializer list
+  /// \param[in] init The initializer list containing exactly N elements
+  /// \throws std::length_error if initializer list size != N
   constexpr Topology(std::initializer_list<T> init) {
     if (init.size() != N) {
       throw std::length_error("Initializer list size must match array size");
     }
-    std::copy(init.begin(), init.end(), m_data.begin());
+    auto it = init.begin();
+    for (std::size_t i = 0; i < N; ++i) {
+      m_data[i] = *it++;
+    }
   }
 
-  // Copy constructor
+  /// \brief Copy constructor
+  /// \param[in] other The topology to copy from
   constexpr Topology(const Topology& other) = default;
 
-  // Move constructor
+  /// \brief Move constructor
+  /// \param[in, out] other The topology to move from
   constexpr Topology(Topology&& other) noexcept = default;
 
-  // Copy assignment
+  /// \brief Copy assignment operator
+  /// \param[in] other The topology to copy from
+  /// \return Reference to this topology
   constexpr Topology& operator=(const Topology& other) = default;
 
-  // Move assignment
+  /// \brief Move assignment operator
+  /// \param[in, out] other The topology to move from
+  /// \return Reference to this topology
   constexpr Topology& operator=(Topology&& other) noexcept = default;
 
+  // Element access
+
+  /// \brief Access element with bounds checking
+  /// \param[in] pos The position of the element to access
+  /// \return Reference to the element at position pos
+  /// \throws std::out_of_range if pos >= N
+  constexpr reference at(size_type pos) { return m_data.at(pos); }
+
+  /// \brief Access element with bounds checking (const version)
+  /// \param[in] pos The position of the element to access
+  /// \return Const reference to the element at position pos
+  /// \throws std::out_of_range if pos >= N
+  constexpr const_reference at(size_type pos) const { return m_data.at(pos); }
+
+  /// \brief Access element without bounds checking
+  /// \param[in] pos The position of the element to access
+  /// \return Reference to the element at position pos
+  constexpr reference operator[](size_type pos) { return m_data[pos]; }
+
+  /// \brief Access element without bounds checking (const version)
+  /// \param[in] pos The position of the element to access
+  /// \return Const reference to the element at position pos
+  constexpr const_reference operator[](size_type pos) const {
+    return m_data[pos];
+  }
+
+  /// \brief Access the first element
+  /// \return Reference to the first element
+  /// \note Undefined behavior if empty() returns true
+  constexpr reference front() { return m_data.front(); }
+
+  /// \brief Access the first element (const version)
+  /// \return Const reference to the first element
+  /// \note Undefined behavior if empty() returns true
+  constexpr const_reference front() const { return m_data.front(); }
+
+  /// \brief Access the last element
+  /// \return Reference to the last element
+  /// \note Undefined behavior if empty() returns true
+  constexpr reference back() { return m_data.back(); }
+
+  /// \brief Access the last element (const version)
+  /// \return Const reference to the last element
+  /// \note Undefined behavior if empty() returns true
+  constexpr const_reference back() const { return m_data.back(); }
+
+  /// \brief Get direct access to the underlying array
+  /// \return Pointer to the underlying element storage
+  constexpr pointer data() noexcept { return m_data.data(); }
+
+  /// \brief Get direct access to the underlying array (const version)
+  /// \return Const pointer to the underlying element storage
+  constexpr const_pointer data() const noexcept { return m_data.data(); }
+
+  // Iterators
+
+  /// \brief Get iterator to the beginning
+  /// \return Iterator to the first element
+  constexpr iterator begin() noexcept { return m_data.begin(); }
+
+  /// \brief Get iterator to the end
+  /// \return Iterator to one past the last element
+  constexpr iterator end() noexcept { return m_data.end(); }
+
+  /// \brief Get const iterator to the beginning
+  /// \return Const iterator to the first element
+  constexpr const_iterator begin() const noexcept { return m_data.begin(); }
+
+  /// \brief Get const iterator to the end
+  /// \return Const iterator to one past the last element
+  constexpr const_iterator end() const noexcept { return m_data.end(); }
+
+  /// \brief Get const iterator to the beginning
+  /// \return Const iterator to the first element
+  constexpr const_iterator cbegin() const noexcept { return m_data.cbegin(); }
+
+  /// \brief Get const iterator to the end
+  /// \return Const iterator to one past the last element
+  constexpr const_iterator cend() const noexcept { return m_data.cend(); }
+
+  /// \brief Get reverse iterator to the reverse beginning
+  /// \return Reverse iterator to the last element
+  constexpr reverse_iterator rbegin() noexcept { return m_data.rbegin(); }
+
+  /// \brief Get reverse iterator to the reverse end
+  /// \return Reverse iterator to one before the first element
+  constexpr reverse_iterator rend() noexcept { return m_data.rend(); }
+
+  /// \brief Get const reverse iterator to the reverse beginning
+  /// \return Const reverse iterator to the last element
+  constexpr const_reverse_iterator rbegin() const noexcept {
+    return m_data.rbegin();
+  }
+
+  /// \brief Get const reverse iterator to the reverse end
+  /// \return Const reverse iterator to one before the first element
+  constexpr const_reverse_iterator rend() const noexcept {
+    return m_data.rend();
+  }
+
+  /// \brief Get const reverse iterator to the reverse beginning
+  /// \return Const reverse iterator to the last element
+  constexpr const_reverse_iterator crbegin() const noexcept {
+    return m_data.crbegin();
+  }
+
+  /// \brief Get const reverse iterator to the reverse end
+  /// \return Const reverse iterator to one before the first element
+  constexpr const_reverse_iterator crend() const noexcept {
+    return m_data.crend();
+  }
+
+  // Capacity
+
+  /// \brief Check if the container is empty
+  /// \return true if N == 0, false otherwise
+  constexpr bool empty() const noexcept { return N == 0; }
+
+  /// \brief Get the number of elements
+  /// \return The number of elements in the topology (always N)
+  constexpr size_type size() const noexcept { return N; }
+
+  /// \brief Get the maximum number of elements
+  /// \return The maximum number of elements (always N)
+  constexpr size_type max_size() const noexcept { return N; }
+
+  // Operations
+
+  /// \brief Fill the container with specified value
+  /// \param[in] value The value to assign to all elements
+  constexpr void fill(const T& value) { m_data.fill(value); }
+
+  /// \brief Swap contents with another topology
+  /// \param[in, out] other The topology to swap with
+  constexpr void swap(Topology& other) noexcept(
+      std::is_nothrow_swappable_v<T>) {
+    m_data.swap(other.m_data);
+  }
+
   // Comparison operators
+
+  /// \brief Equality comparison operator
+  /// \param[in] other The topology to compare with
+  /// \return true if all elements are equal, false otherwise
   constexpr bool operator==(const Topology& other) const noexcept {
     return m_data == other.m_data;
   }
 
+  /// \brief Inequality comparison operator
+  /// \param[in] other The topology to compare with
+  /// \return true if any element is not equal, false otherwise
   constexpr bool operator!=(const Topology& other) const noexcept {
     return !(*this == other);
   }
 
-  // Access element with bounds checking
-  constexpr T& at(std::size_t pos) { return m_data.at(pos); }
+  /// \brief Less-than comparison operator
+  /// \param[in] other The topology to compare with
+  /// \return true if this is lexicographically less than other
+  constexpr bool operator<(const Topology& other) const noexcept {
+    return m_data < other.m_data;
+  }
 
-  constexpr const T& at(std::size_t pos) const { return m_data.at(pos); }
+  /// \brief Less-than-or-equal comparison operator
+  /// \param[in] other The topology to compare with
+  /// \return true if this is lexicographically less than or equal to other
+  constexpr bool operator<=(const Topology& other) const noexcept {
+    return m_data <= other.m_data;
+  }
 
-  // Access element without bounds checking
-  constexpr T& operator[](std::size_t pos) { return m_data[pos]; }
+  /// \brief Greater-than comparison operator
+  /// \param[in] other The topology to compare with
+  /// \return true if this is lexicographically greater than other
+  constexpr bool operator>(const Topology& other) const noexcept {
+    return m_data > other.m_data;
+  }
 
-  constexpr const T& operator[](std::size_t pos) const { return m_data[pos]; }
+  /// \brief Greater-than-or-equal comparison operator
+  /// \param[in] other The topology to compare with
+  /// \return true if this is lexicographically greater than or equal to other
+  constexpr bool operator>=(const Topology& other) const noexcept {
+    return m_data >= other.m_data;
+  }
 
-  // Get the size of the array
-  constexpr std::size_t size() const noexcept { return N; }
+  // Additional methods for compatibility and convenience
 
-  // Get underlying data
+  /// \brief Get the underlying std::array (const version)
+  /// \return Const reference to the underlying std::array
   constexpr const std::array<T, N>& array() const noexcept { return m_data; }
 
+  /// \brief Get the underlying std::array
+  /// \return Reference to the underlying std::array
   constexpr std::array<T, N>& array() noexcept { return m_data; }
-
-  // Iterators
-  constexpr auto begin() noexcept { return m_data.begin(); }
-  constexpr auto end() noexcept { return m_data.end(); }
-  constexpr auto begin() const noexcept { return m_data.begin(); }
-  constexpr auto end() const noexcept { return m_data.end(); }
-  constexpr auto cbegin() const noexcept { return m_data.cbegin(); }
-  constexpr auto cend() const noexcept { return m_data.cend(); }
-  constexpr auto rbegin() noexcept { return m_data.rbegin(); }
-  constexpr auto rend() noexcept { return m_data.rend(); }
-  constexpr auto rbegin() const noexcept { return m_data.rbegin(); }
-  constexpr auto rend() const noexcept { return m_data.rend(); }
-  constexpr auto crbegin() const noexcept { return m_data.crbegin(); }
-  constexpr auto crend() const noexcept { return m_data.crend(); }
 };
+
+// Non-member functions for std::array compatibility
+
+/// \brief Swap two topologies
+/// \tparam T Element type
+/// \tparam N Number of elements
+/// \tparam LayoutType Layout type
+/// \param[in, out] lhs First topology
+/// \param[in, out] rhs Second topology
+template <typename T, std::size_t N, typename LayoutType>
+constexpr void swap(
+    Topology<T, N, LayoutType>& lhs,
+    Topology<T, N, LayoutType>& rhs) noexcept(noexcept(lhs.swap(rhs))) {
+  lhs.swap(rhs);
+}
+
+/// \brief Get element by index (non-member function)
+/// \tparam I Index (must be < N)
+/// \tparam T Element type
+/// \tparam N Number of elements
+/// \tparam LayoutType Layout type
+/// \param[in, out] topology The topology to access
+/// \return Reference to the element at index I
+template <std::size_t I, typename T, std::size_t N, typename LayoutType>
+constexpr T& get(Topology<T, N, LayoutType>& topology) noexcept {
+  static_assert(I < N, "Index out of bounds");
+  return topology[I];
+}
+
+/// \brief Get element by index (const non-member function)
+/// \tparam I Index (must be < N)
+/// \tparam T Element type
+/// \tparam N Number of elements
+/// \tparam LayoutType Layout type
+/// \param[in] topology The topology to access
+/// \return Const reference to the element at index I
+template <std::size_t I, typename T, std::size_t N, typename LayoutType>
+constexpr const T& get(const Topology<T, N, LayoutType>& topology) noexcept {
+  static_assert(I < N, "Index out of bounds");
+  return topology[I];
+}
+
+/// \brief Get element by index (rvalue reference version)
+/// \tparam I Index (must be < N)
+/// \tparam T Element type
+/// \tparam N Number of elements
+/// \tparam LayoutType Layout type
+/// \param[in, out] topology The topology to access
+/// \return Rvalue reference to the element at index I
+template <std::size_t I, typename T, std::size_t N, typename LayoutType>
+constexpr T&& get(Topology<T, N, LayoutType>&& topology) noexcept {
+  static_assert(I < N, "Index out of bounds");
+  return std::move(topology[I]);
+}
+
+/// \brief Get element by index (const rvalue reference version)
+/// \tparam I Index (must be < N)
+/// \tparam T Element type
+/// \tparam N Number of elements
+/// \tparam LayoutType Layout type
+/// \param[in] topology The topology to access
+/// \return Const rvalue reference to the element at index I
+template <std::size_t I, typename T, std::size_t N, typename LayoutType>
+constexpr const T&& get(const Topology<T, N, LayoutType>&& topology) noexcept {
+  static_assert(I < N, "Index out of bounds");
+  return std::move(topology[I]);
+}
 
 }  // namespace Distributed
 }  // namespace KokkosFFT
