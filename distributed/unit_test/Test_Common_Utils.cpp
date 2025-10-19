@@ -460,6 +460,72 @@ void test_get_fft_extents(iType nprocs) {
   EXPECT_EQ(fft_extents210, ref_fft_extents210);
 }
 
+template <typename ContainerType0, typename ContainerType1,
+          typename ContainerType2, typename iType>
+void test_get_contiguous_axes() {
+  const std::size_t rank = 5;
+  ContainerType0 a0 = {1, 2, 4}, b0 = {0, 3, 1};
+  ContainerType1 a1 = {2, 3}, b1 = {1, 2};
+  ContainerType2 a2 = {1}, b2 = {0};
+
+  auto left_axes_a0 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutLeft>(
+          a0, rank);
+  auto left_axes_b0 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutLeft>(
+          b0, rank);
+  auto left_axes_a1 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutLeft>(
+          a1, rank);
+  auto left_axes_b1 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutLeft>(
+          b1, rank);
+  auto left_axes_a2 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutLeft>(
+          a2, rank);
+  auto left_axes_b2 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutLeft>(
+          b2, rank);
+
+  auto right_axes_a0 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutRight>(
+          a0, rank);
+  auto right_axes_b0 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutRight>(
+          b0, rank);
+  auto right_axes_a1 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutRight>(
+          a1, rank);
+  auto right_axes_b1 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutRight>(
+          b1, rank);
+  auto right_axes_a2 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutRight>(
+          a2, rank);
+  auto right_axes_b2 =
+      KokkosFFT::Distributed::Impl::get_contiguous_axes<Kokkos::LayoutRight>(
+          b2, rank);
+
+  std::vector<iType> ref_left_axes_a0 = {2, 1, 0}, ref_left_axes_a1 = {1, 0},
+                     ref_left_axes_a2  = {0};
+  std::vector<iType> ref_right_axes_a0 = {2, 3, 4}, ref_right_axes_a1 = {3, 4},
+                     ref_right_axes_a2 = {4};
+
+  EXPECT_EQ(left_axes_a0, ref_left_axes_a0);
+  EXPECT_EQ(left_axes_b0, ref_left_axes_a0);
+  EXPECT_EQ(left_axes_a1, ref_left_axes_a1);
+  EXPECT_EQ(left_axes_b1, ref_left_axes_a1);
+  EXPECT_EQ(left_axes_a2, ref_left_axes_a2);
+  EXPECT_EQ(left_axes_b2, ref_left_axes_a2);
+
+  EXPECT_EQ(right_axes_a0, ref_right_axes_a0);
+  EXPECT_EQ(right_axes_b0, ref_right_axes_a0);
+  EXPECT_EQ(right_axes_a1, ref_right_axes_a1);
+  EXPECT_EQ(right_axes_b1, ref_right_axes_a1);
+  EXPECT_EQ(right_axes_a2, ref_right_axes_a2);
+  EXPECT_EQ(right_axes_b2, ref_right_axes_a2);
+}
+
 }  // namespace
 
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
@@ -639,4 +705,20 @@ TYPED_TEST(TestContainerTypes, test_get_fft_extents_of_array) {
   for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
     test_get_fft_extents<array_type, value_type>(nprocs);
   }
+}
+
+TYPED_TEST(TestContainerTypes, test_get_contiguous_axes_of_vector) {
+  using container_type = typename TestFixture::vector_type;
+  using value_type     = typename TestFixture::value_type;
+  test_get_contiguous_axes<container_type, container_type, container_type,
+                           value_type>();
+}
+
+TYPED_TEST(TestContainerTypes, test_get_contiguous_axes_of_array) {
+  using value_type      = typename TestFixture::value_type;
+  using container_type0 = std::array<value_type, 3>;
+  using container_type1 = std::array<value_type, 2>;
+  using container_type2 = std::array<value_type, 1>;
+  test_get_contiguous_axes<container_type0, container_type1, container_type2,
+                           value_type>();
 }

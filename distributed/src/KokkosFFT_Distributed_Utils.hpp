@@ -403,34 +403,39 @@ auto get_padded_extents(const std::array<std::size_t, DIM>& extents,
   return padded_extents;
 }
 
-/// \brief Calculate the permuted axes based on the map
+/// \brief Calculate the axes to have contiguous axes
+/// based on the layout
 ///
 /// Example
-/// Axes: (1, 3, 2) for (0, 1, 2, 3)
-/// map: (0, 2, 3, 1)
-/// Mapped Axes: (3, 2, 1) for (0, 2, 3, 1)
+/// Axes: (1, 3, 2)
+/// LayoutLeft -> (2, 1, 0)
+/// LayoutRight -> (-3, -2, -1)
 ///
-/// \tparam DIM The number of dimensions of the extents.
+/// \tparam Layout The layout type
+/// \tparam ContainerType The container type
 ///
-/// \param[in] extents Extents of the View.
-/// \param[in] map A map representing how the data is permuted
-/// \return A extents of the permuted view
-template <typename Layout, typename iType, std::size_t Rank>
-auto get_contiguous_axes(const std::vector<iType>& axes) {
-  std::vector<iType> contiguous_axes(axes.size());
+/// \param[in] axes Axes of the transform
+/// \param[in] rank The rank of the View
+/// \return A vector of contiguous axes used for FFT
+/// \throws std::runtime_error if the size of axes is greater than rank
+template <typename Layout, typename ContainerType>
+auto get_contiguous_axes(const ContainerType& axes,
+                         [[maybe_unused]] std::size_t rank) {
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(axes.at(0))>>;
+  std::vector<value_type> contiguous_axes(axes.size());
 
   if (std::is_same_v<Layout, Kokkos::LayoutLeft>) {
-    for (std::size_t i = 0; i < axes.size(); ++i) {
-      contiguous_axes[i] = static_cast<iType>(i);
-    }
+    // Construct the contiguous data and then reverse it
     // Reverse the axes to have the inner most axes first
     // (0, 1, 2) -> (2, 1, 0)
+    std::iota(contiguous_axes.begin(), contiguous_axes.end(), 0);
     std::reverse(contiguous_axes.begin(), contiguous_axes.end());
   } else {
     for (std::size_t i = 0; i < axes.size(); ++i) {
       int negative_axis = -int(axes.size()) + int(i);
-      contiguous_axes[i] =
-          KokkosFFT::Impl::convert_negative_axis(negative_axis, Rank);
+      contiguous_axes.at(i) =
+          KokkosFFT::Impl::convert_negative_axis(negative_axis, rank);
     }
   }
   return contiguous_axes;
