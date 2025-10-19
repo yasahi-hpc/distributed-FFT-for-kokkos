@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <array>
 #include <algorithm>
+#include <numeric>
 #include <type_traits>
 #include "KokkosFFT_Distributed_Types.hpp"
 
