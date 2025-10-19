@@ -1,6 +1,7 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_UTILS_HPP
 #define KOKKOSFFT_DISTRIBUTED_UTILS_HPP
 
+#include <algorithm>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Types.hpp"
@@ -336,10 +337,9 @@ auto get_mapped_extents(const std::array<iType, DIM>& extents,
       map.size() != DIM,
       "get_mapped_extents: extents size must be equal to map size.");
   std::array<iType, DIM> mapped_extents;
-  for (std::size_t i = 0; i < extents.size(); i++) {
-    auto mapped_idx      = map.at(i);
-    mapped_extents.at(i) = extents.at(mapped_idx);
-  }
+  std::transform(
+      map.begin(), map.end(), mapped_extents.begin(),
+      [&](std::size_t mapped_idx) { return extents.at(mapped_idx); });
 
   return mapped_extents;
 }
@@ -371,12 +371,12 @@ auto get_fft_extents(const std::array<iType, DIM>& in_extents,
   static_assert(DIM >= FFT_DIM,
                 "get_fft_extents: View rank must be larger than or equal to "
                 "the Rank of FFT axes");
-  std::array<iType, FFT_DIM> fft_extents;
 
-  for (std::size_t i = 0; i < fft_extents.size(); i++) {
-    auto axis         = axes.at(i);
-    fft_extents.at(i) = std::max(in_extents.at(axis), out_extents.at(axis));
-  }
+  std::array<iType, FFT_DIM> fft_extents;
+  std::transform(axes.begin(), axes.end(), fft_extents.begin(),
+                 [&](iType axis) {
+                   return std::max(in_extents.at(axis), out_extents.at(axis));
+                 });
 
   return fft_extents;
 }
