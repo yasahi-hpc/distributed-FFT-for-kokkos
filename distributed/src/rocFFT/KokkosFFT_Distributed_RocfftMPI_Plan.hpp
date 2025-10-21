@@ -36,6 +36,8 @@ bool is_tpl_available(
 
   auto in_topo = in_topology.array(), out_topo = out_topology.array();
 
+  if (in_topo == out_topo) return false;
+
   bool is_slab   = is_slab_topology(in_topo) && is_slab_topology(out_topo);
   bool is_pencil = is_pencil_topology(in_topo) && is_pencil_topology(out_topo);
 
@@ -74,25 +76,6 @@ auto convert_int_type_and_reverse(const std::vector<InType>& in)
   return out;
 }
 
-// Helper to compute strides from extents
-// (n0, n1, n2) -> (1, n0, n0*n1)
-// (n0, n1) -> (1, n0)
-// (n0) -> (1)
-template <typename InType, typename OutType>
-auto compute_strides(const std::vector<InType>& extents)
-    -> std::vector<OutType> {
-  std::vector<OutType> out = {1};
-  auto reversed_extents    = extents;
-  std::reverse(reversed_extents.begin(), reversed_extents.end());
-
-  for (std::size_t i = 1; i < reversed_extents.size(); i++) {
-    out.push_back(static_cast<OutType>(reversed_extents.at(i - 1)) *
-                  out.at(i - 1));
-  }
-
-  return out;
-}
-
 // General interface
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType, std::size_t DIM>
@@ -112,21 +95,17 @@ std::size_t create_plan(
       "(LayoutLeft/LayoutRight), "
       "and the same rank. ExecutionSpace must be accessible to the data in "
       "InViewType and OutViewType.");
-  using in_value_type  = typename InViewType::non_const_value_type;
-  using out_value_type = typename OutViewType::non_const_value_type;
-  using LayoutType     = typename InViewType::array_layout;
-
   if constexpr (InViewType::rank() == DIM) {
     auto gin_extents  = get_global_shape(in, in_topology, comm);
     auto gout_extents = get_global_shape(out, out_topology, comm);
 
     auto non_negative_axes =
-        convert_negative_axes<std::size_t, int, DIM, DIM>(axes);
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, DIM));
+
     auto fft_extents =
         get_fft_extents(gin_extents, gout_extents, non_negative_axes);
-    std::size_t fft_size =
-        std::accumulate(fft_extents.begin(), fft_extents.end(), 1,
-                        std::multiplies<std::size_t>());
+    auto fft_size = KokkosFFT::Impl::total_size(fft_extents);
 
     auto [in_extents, in_starts] =
         get_local_extents(gin_extents, in_topology, comm);
@@ -143,10 +122,9 @@ std::size_t create_plan(
     auto out_lower = to_vector(out_starts);
     auto out_upper = to_vector(out_ends);
 
-    auto in_strides =
-        compute_strides<std::size_t, std::size_t>(to_vector(gin_extents));
+    auto in_strides = to_vector(KokkosFFT::Impl::compute_strides(gin_extents));
     auto out_strides =
-        compute_strides<std::size_t, std::size_t>(to_vector(gout_extents));
+        to_vector(KokkosFFT::Impl::compute_strides(gout_extents));
     auto reversed_fft_extents =
         convert_int_type_and_reverse<std::size_t, std::size_t>(
             to_vector(fft_extents));
