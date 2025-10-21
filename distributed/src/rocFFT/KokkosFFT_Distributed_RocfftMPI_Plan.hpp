@@ -95,10 +95,6 @@ std::size_t create_plan(
       "(LayoutLeft/LayoutRight), "
       "and the same rank. ExecutionSpace must be accessible to the data in "
       "InViewType and OutViewType.");
-  using in_value_type  = typename InViewType::non_const_value_type;
-  using out_value_type = typename OutViewType::non_const_value_type;
-  using LayoutType     = typename InViewType::array_layout;
-
   if constexpr (InViewType::rank() == DIM) {
     auto gin_extents  = get_global_shape(in, in_topology, comm);
     auto gout_extents = get_global_shape(out, out_topology, comm);
