@@ -294,18 +294,58 @@ auto get_trans_axis(const std::array<iType, DIM>& in_topology,
   return trans_axis;
 }
 
-template <typename SizeType, std::size_t DIM>
-auto to_vector(const std::array<SizeType, DIM>& arr) {
-  std::vector<SizeType> vec(arr.begin(), arr.end());
-  return vec;
+/// \brief Convert a std::array to std::vector
+/// \tparam ArrayType The type of the std::array
+/// \param[in, out] arr The input std::array
+/// \return A std::vector containing the elements of the input array
+template <typename ArrayType>
+auto to_vector(ArrayType&& arr) {
+  using array_type = std::decay_t<ArrayType>;
+  static_assert(KokkosFFT::Impl::is_std_array_v<array_type>,
+                "to_vector: Input type must be a std::array");
+
+  using value_type        = typename array_type::value_type;
+  constexpr std::size_t N = std::tuple_size_v<array_type>;
+
+  if constexpr (std::is_rvalue_reference_v<ArrayType&&>) {
+    // Move elements from the rvalue array
+    std::vector<value_type> vec;
+    vec.reserve(N);
+    std::move(arr.begin(), arr.end(), std::back_inserter(vec));
+    return vec;
+  } else {
+    // Copy elements from the lvalue array
+    std::vector<value_type> vec(arr.begin(), arr.end());
+    return vec;
+  }
 }
 
-template <typename ArraySizeType, typename VecSizeType, std::size_t DIM>
-auto to_array(const std::vector<VecSizeType>& vec) {
+/// \brief Convert a std::vector to std::array (rvalue version)
+/// \tparam T The type of the elements in the std::vector
+/// \tparam N The size of the std::array
+/// \param[in, out] vec The input std::vector
+/// \return A std::array containing the elements of the input vector
+template <typename T, std::size_t N>
+auto to_array(std::vector<T>&& vec) {
   KOKKOSFFT_THROW_IF(
-      vec.size() != DIM,
+      vec.size() != N,
       "to_array: Vector size must match the specified dimension.");
-  std::array<ArraySizeType, DIM> arr;
+  std::array<T, N> arr;
+  std::move(vec.begin(), vec.end(), arr.begin());
+  return arr;
+}
+
+/// \brief Convert a std::vector to std::array (lvalue version)
+/// \tparam T The type of the elements in the std::vector
+/// \tparam N The size of the std::array
+/// \param[in] vec The input std::vector
+/// \return A std::array containing the elements of the input vector
+template <std::size_t N, typename T>
+auto to_array(const std::vector<T>& vec) {
+  KOKKOSFFT_THROW_IF(
+      vec.size() != N,
+      "to_array: Vector size must match the specified dimension.");
+  std::array<T, N> arr;
   std::copy(vec.begin(), vec.end(), arr.begin());
   return arr;
 }
