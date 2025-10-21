@@ -271,10 +271,12 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
 
       m_forward_plan = std::make_unique<FFTForwardPlanType>(
           m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-          to_array<int, std::size_t, 1>(block.m_axes));
+          KokkosFFT::Impl::convert_base_int_type<int>(
+              to_array<1>(block.m_axes)));
       m_backward_plan = std::make_unique<FFTBackwardPlanType>(
           m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-          to_array<int, std::size_t, 1>(block.m_axes));
+          KokkosFFT::Impl::convert_base_int_type<int>(
+              to_array<1>(block.m_axes)));
       if (block_idx == 0) {
         // In this case, input data needed to be transposed locally
         if (block.m_in_map != src_map) {
@@ -714,17 +716,21 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
         if (block.m_axes.size() == 1) {
           m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
               m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<1>(block.m_axes)));
           m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
               m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<1>(block.m_axes)));
         } else {
           m_fft2_plan0 = std::make_unique<FFT2ForwardPlanType0>(
               m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<2>(block.m_axes)));
           m_ifft2_plan0 = std::make_unique<FFT2BackwardPlanType0>(
               m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<2>(block.m_axes)));
         }
         m_in_out_ptr.push_back(ptr_pair_type{nullptr, m_out_T.data()});
       } else {
@@ -736,11 +742,13 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
         m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
             m_exec_space, m_fft_view, m_fft_view, KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block.m_axes));
+            KokkosFFT::Impl::convert_base_int_type<int>(
+                to_array<1>(block.m_axes)));
         m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
             m_exec_space, m_fft_view, m_fft_view,
             KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block.m_axes));
+            KokkosFFT::Impl::convert_base_int_type<int>(
+                to_array<1>(block.m_axes)));
         m_in_out_ptr.push_back(
             ptr_pair_type{m_fft_view.data(), m_fft_view.data()});
       }
@@ -1330,24 +1338,30 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
         if (block.m_axes.size() == 1) {
           m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
               m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<1>(block.m_axes)));
           m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
               m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<1>(block.m_axes)));
         } else if (block.m_axes.size() == 2) {
           m_fft2_plan0 = std::make_unique<FFT2ForwardPlanType0>(
               m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<2>(block.m_axes)));
           m_ifft2_plan0 = std::make_unique<FFT2BackwardPlanType0>(
               m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<2>(block.m_axes)));
         } else {
           m_fft3_plan0 = std::make_unique<FFT3ForwardPlanType0>(
               m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 3>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<3>(block.m_axes)));
           m_ifft3_plan0 = std::make_unique<FFT3BackwardPlanType0>(
               m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 3>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<3>(block.m_axes)));
         }
         m_in_out_ptr.push_back(ptr_pair_type{nullptr, m_out_T.data()});
       } else if (block.m_block_idx == 1) {
@@ -1362,20 +1376,24 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
           m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
               m_exec_space, m_fft_view0, m_fft_view0,
               KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 1>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<1>(block.m_axes)));
           m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
               m_exec_space, m_fft_view0, m_fft_view0,
               KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 1>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<1>(block.m_axes)));
         } else {
           m_fft2_plan1 = std::make_unique<FFT2ForwardPlanType1>(
               m_exec_space, m_fft_view0, m_fft_view0,
               KokkosFFT::Direction::forward,
-              to_array<int, std::size_t, 2>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<2>(block.m_axes)));
           m_ifft2_plan1 = std::make_unique<FFT2BackwardPlanType1>(
               m_exec_space, m_fft_view0, m_fft_view0,
               KokkosFFT::Direction::backward,
-              to_array<int, std::size_t, 2>(block.m_axes));
+              KokkosFFT::Impl::convert_base_int_type<int>(
+                  to_array<2>(block.m_axes)));
         }
         m_in_out_ptr.push_back(
             ptr_pair_type{m_fft_view0.data(), m_fft_view0.data()});
@@ -1389,11 +1407,13 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
         m_fft_plan2 = std::make_unique<FFTForwardPlanType1>(
             m_exec_space, m_fft_view1, m_fft_view1,
             KokkosFFT::Direction::forward,
-            to_array<int, std::size_t, 1>(block.m_axes));
+            KokkosFFT::Impl::convert_base_int_type<int>(
+                to_array<1>(block.m_axes)));
         m_ifft_plan2 = std::make_unique<FFTBackwardPlanType1>(
             m_exec_space, m_fft_view1, m_fft_view1,
             KokkosFFT::Direction::backward,
-            to_array<int, std::size_t, 1>(block.m_axes));
+            KokkosFFT::Impl::convert_base_int_type<int>(
+                to_array<1>(block.m_axes)));
         m_in_out_ptr.push_back(
             ptr_pair_type{m_fft_view1.data(), m_fft_view1.data()});
       }
