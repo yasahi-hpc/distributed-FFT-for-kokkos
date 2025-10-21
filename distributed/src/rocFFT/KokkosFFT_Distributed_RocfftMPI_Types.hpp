@@ -22,7 +22,7 @@ struct ScopedRocfftField {
   ScopedRocfftField(const std::vector<std::size_t> &field_lower,
                     const std::vector<std::size_t> &field_upper,
                     const std::vector<std::size_t> &brick_stride,
-                    int deviceID) {
+                    std::size_t batch_size, int deviceID) {
     rocfft_status status = rocfft_field_create(&m_field);
     KOKKOSFFT_THROW_IF(status != rocfft_status_success,
                        "rocfft_field_create failed");
