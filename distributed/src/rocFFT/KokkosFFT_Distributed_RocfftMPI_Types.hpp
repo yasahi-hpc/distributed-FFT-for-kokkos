@@ -14,6 +14,11 @@ struct ScopedRocfftField {
   rocfft_field m_field = nullptr;
 
  public:
+  /// \param[in] field_lower (start0, start1, ..., start_batch)
+  /// \param[in] field_upper (end0, end1, ..., end_batch)
+  /// \param[in] brick_stride (stride0, stride1, ..., stride_batch)
+  /// \param[in] batch_size
+  /// \param[in] deviceID
   ScopedRocfftField(const std::vector<std::size_t> &field_lower,
                     const std::vector<std::size_t> &field_upper,
                     const std::vector<std::size_t> &brick_stride,
@@ -21,10 +26,20 @@ struct ScopedRocfftField {
     rocfft_status status = rocfft_field_create(&m_field);
     KOKKOSFFT_THROW_IF(status != rocfft_status_success,
                        "rocfft_field_create failed");
+
+    std::vector<std::size_t> lower   = field_lower;
+    std::vector<std::size_t> upper   = field_upper;
+    std::vector<std::size_t> strides = brick_stride;
+    lower.push_back(0);
+    upper.push_back(batch_size);
+    strides.push_back(0);
+
+    // Strides would be compued by
+    // (1, extents[n-1], strides[1] * extents[n-2], ...)
     rocfft_brick brick = nullptr;
-    status =
-        rocfft_brick_create(&brick, field_lower.data(), field_upper.data(),
-                            brick_stride.data(), field_lower.size(), deviceID);
+    status             = rocfft_brick_create(&brick, lower.data(), upper.data(),
+                                             strides.data(), lower.size(), deviceID);
+
     KOKKOSFFT_THROW_IF(status != rocfft_status_success,
                        "rocfft_brick_create failed");
     status = rocfft_field_add_brick(m_field, brick);
@@ -48,6 +63,7 @@ struct ScopedRocfftField {
   rocfft_field field() const noexcept { return m_field; }
 };
 
+/// \brief A class that wraps rocFFT plan with MPI
 template <typename ExecutionSpace, typename T1, typename T2>
 struct ScopedRocfftMPIPlan {
  private:
@@ -90,10 +106,10 @@ struct ScopedRocfftMPIPlan {
     KOKKOSFFT_THROW_IF(status != rocfft_status_success,
                        "rocfft_plan_description_set_data_layout failed");
 
-    ScopedRocfftField scoped_infield(lower_input, upper_input, strides_input,
+    ScopedRocfftField scoped_infield(lower_input, upper_input, strides_input, 1,
                                      0);
     ScopedRocfftField scoped_outfield(lower_output, upper_output,
-                                      strides_output, 0);
+                                      strides_output, 1, 0);
     status = rocfft_plan_description_add_infield(m_description,
                                                  scoped_infield.field());
     KOKKOSFFT_THROW_IF(status != rocfft_status_success,
@@ -179,18 +195,18 @@ struct ScopedRocfftMPIBidirectionalPlan {
 
  public:
   ScopedRocfftMPIBidirectionalPlan(
+      const std::vector<std::size_t> &length,
       const std::vector<std::size_t> &lower_input,
       const std::vector<std::size_t> &upper_input,
       const std::vector<std::size_t> &lower_output,
       const std::vector<std::size_t> &upper_output,
       const std::vector<std::size_t> &strides_input,
-      const std::vector<std::size_t> &strides_output,
-      const std::vector<std::size_t> &length, const MPI_Comm &comm)
-      : m_plan_forward(lower_input, upper_input, lower_output, upper_output,
-                       strides_input, strides_output, length,
+      const std::vector<std::size_t> &strides_output, const MPI_Comm &comm)
+      : m_plan_forward(length, lower_input, upper_input, lower_output,
+                       upper_output, strides_input, strides_output,
                        KokkosFFT::Direction::forward, comm),
-        m_plan_backward(lower_output, upper_output, lower_input, upper_input,
-                        strides_output, strides_input, length,
+        m_plan_backward(length, lower_output, upper_output, lower_input,
+                        upper_input, strides_output, strides_input,
                         KokkosFFT::Direction::backward, comm) {}
 
   ScopedRocfftMPIBidirectionalPlan() = delete;
@@ -213,7 +229,7 @@ struct ScopedRocfftMPIBidirectionalPlan {
     m_plan_backward.commit(exec_space);
   }
 
-  std::string label() const { return std::string("RocfftMPIPlan"); }
+  std::string label() const { return std::string("rocFFTMPIPlan"); }
 };
 
 template <typename ExecutionSpace, typename T1, typename T2>
