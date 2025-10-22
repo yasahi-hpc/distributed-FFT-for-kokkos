@@ -207,21 +207,15 @@ template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
 std::vector<std::vector<iType>> decompose_axes(
     const std::vector<std::array<std::size_t, DIM>>& topologies,
     const std::array<iType, FFT_DIM>& axes) {
-  std::vector<std::size_t> axes_reversed;
-  for (std::size_t i = 0; i < axes.size(); ++i) {
-    auto non_negative_axis =
-        KokkosFFT::Impl::convert_negative_axis(axes.at(i), DIM);
-    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    axes_reversed.push_back(unsigned_axis);
-  }
+  auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+      KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
   // Reverse the axes e.g. {0, 2, 1} -> {1, 2, 0}
-  std::reverse(axes_reversed.begin(), axes_reversed.end());
+  std::vector<std::size_t> axes_reversed =
+      KokkosFFT::Impl::reversed(to_vector(non_negative_axes));
 
   std::vector<std::vector<iType>> all_axes = {};
   for (auto topology : topologies) {
-    // KOKKOSFFT_THROW_IF(!is_slab_topology(topology),
-    //                  "Topology must be a slab topology.");
     std::vector<iType> ready_axes;
     for (auto axis : axes_reversed) {
       if (topology.at(axis) > 1) break;
@@ -229,8 +223,7 @@ std::vector<std::vector<iType>> decompose_axes(
     }
     // We need to reverse the axes again
     // i.e. {1, 2} -> {2, 1}
-    std::reverse(ready_axes.begin(), ready_axes.end());
-    all_axes.push_back(ready_axes);
+    all_axes.push_back(KokkosFFT::Impl::reversed(ready_axes));
 
     // Remove already registered axes
     for (auto axis : ready_axes) {
