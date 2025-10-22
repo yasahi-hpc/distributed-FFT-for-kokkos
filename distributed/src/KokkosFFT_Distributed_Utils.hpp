@@ -470,7 +470,7 @@ auto get_contiguous_axes(const ContainerType& axes,
     // Reverse the axes to have the inner most axes first
     // (0, 1, 2) -> (2, 1, 0)
     std::iota(contiguous_axes.begin(), contiguous_axes.end(), 0);
-    std::reverse(contiguous_axes.begin(), contiguous_axes.end());
+    KokkosFFT::Impl::reversed(contiguous_axes);
   } else {
     for (std::size_t i = 0; i < axes.size(); ++i) {
       int negative_axis = -int(axes.size()) + int(i);

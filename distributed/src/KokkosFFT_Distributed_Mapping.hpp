@@ -56,8 +56,7 @@ auto get_dst_map(const std::array<iType, DIM>& src_map,
     }
   } else {
     // For layout Left, stack innermost axes first
-    std::vector<iType> axes_reversed(axes);
-    std::reverse(axes_reversed.begin(), axes_reversed.end());
+    auto axes_reversed = KokkosFFT::Impl::reversed(axes);
     for (auto axis : axes_reversed) {
       map.push_back(axis);
     }

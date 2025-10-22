@@ -61,28 +61,6 @@ bool is_tpl_available(
       Topology<std::size_t, OutViewType::rank()>(out_topology));
 }
 
-// Helper to compute strides from extents
-// (n0, n1, n2) -> (1, n0, n0*n1)
-// (n0, n1) -> (1, n0)
-// (n0) -> (1)
-template <std::size_t DIM = 1>
-auto compute_strides(const std::array<std::size_t, DIM>& extents) {
-  std::array<std::size_t, DIM> strides;
-
-  auto reversed_extents = extents;
-  std::reverse(reversed_extents.begin(), reversed_extents.end());
-
-  strides.at(0) = 1;
-  for (std::size_t i = 1; i < reversed_extents.size(); i++) {
-    strides.at(i) = strides.at(i - 1) * reversed_extents.at(i - 1);
-  }
-
-  // Need to reverse back to original order
-  std::reverse(strides.begin(), strides.end());
-
-  return strides;
-}
-
 // General interface
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType, std::size_t DIM>
@@ -174,8 +152,10 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
     auto mapped_in_ends           = get_mapped_extents(in_ends, map);
     auto mapped_out_ends          = get_mapped_extents(out_ends, map);
 
-    auto in_strides  = compute_strides(mapped_in_padded_extents);
-    auto out_strides = compute_strides(mapped_out_extents);
+    auto in_strides = KokkosFFT::Impl::reversed(
+        KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));
+    auto out_strides = KokkosFFT::Impl::reversed(
+        KokkosFFT::Impl::compute_strides(mapped_out_extents));
 
     using int_vec_type  = std::vector<int>;
     using long_vec_type = std::vector<long long int>;
@@ -279,8 +259,10 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
     auto mapped_in_ends           = get_mapped_extents(in_ends, map);
     auto mapped_out_ends          = get_mapped_extents(out_ends, map);
 
-    auto in_strides  = compute_strides(mapped_in_padded_extents);
-    auto out_strides = compute_strides(mapped_out_extents);
+    auto in_strides = KokkosFFT::Impl::reversed(
+        KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));
+    auto out_strides = KokkosFFT::Impl::reversed(
+        KokkosFFT::Impl::compute_strides(mapped_out_extents));
 
     using int_vec_type  = std::vector<int>;
     using long_vec_type = std::vector<long long int>;
