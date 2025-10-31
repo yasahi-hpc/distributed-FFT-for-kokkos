@@ -1,7 +1,6 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_NCCL_All2All_HPP
 #define KOKKOSFFT_DISTRIBUTED_NCCL_All2All_HPP
 
-#include <nccl.h>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <KokkosFFT.hpp>
@@ -77,17 +76,22 @@ struct All2All<ExecutionSpace, ViewType, ScopedNCCLComm> {
     auto* send_data = reinterpret_cast<floating_point_type*>(send.data());
     auto* recv_data = reinterpret_cast<floating_point_type*>(recv.data());
 
-#if NCCL_VERSION_CODE >= NCCL_VERSION(2, 28, 0)
-    ncclAlltoAll(send_data, recv_data, count, type, comm,
-                 exec_space.cuda_stream());
+#if defined(KOKKOS_ENABLE_CUDA)
+    auto stream = exec_space.cuda_stream();
+#elif defined(KOKKOS_ENABLE_HIP)
+    auto stream = exec_space.hip_stream();
 #else
+    static_assert(false,
+                  "You need to enable CUDA (HIP) backend to use NCCL (RCCL).");
+#endif
 
+#if NCCL_VERSION_CODE >= NCCL_VERSION(2, 28, 0)
+    ncclAlltoAll(send_data, recv_data, count, type, comm, stream);
+#else
     ncclGroupStart();
     for (int r = 0; r < size; ++r) {
-      ncclSend(send_data + r * count, count, type, r, comm,
-               exec_space.cuda_stream());
-      ncclRecv(recv_data + r * count, count, type, r, comm,
-               exec_space.cuda_stream());
+      ncclSend(send_data + r * count, count, type, r, comm, stream);
+      ncclRecv(recv_data + r * count, count, type, r, comm, stream);
     }
     ncclGroupEnd();
 #endif

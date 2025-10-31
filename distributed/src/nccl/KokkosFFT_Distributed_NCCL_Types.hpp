@@ -2,7 +2,15 @@
 #define KOKKOSFFT_DISTRIBUTED_NCCL_TYPES_HPP
 
 #include <cstdint>
+
+#if defined(KOKKOS_ENABLE_CUDA)
 #include <nccl.h>
+#elif defined(KOKKOS_ENABLE_HIP)
+#include <rccl/rccl.h>
+#else
+static_assert(false,
+              "You need to enable CUDA (HIP) backend to use NCCL (RCCL).");
+#endif
 
 namespace KokkosFFT {
 namespace Distributed {
