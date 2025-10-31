@@ -137,6 +137,16 @@ jobs:
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror" -DKokkosFFT_ENABLE_ROCFFT=ON
               distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_ROCFFT_MPI=ON
             cmake_build_type: Release
+          - name: rocm-rccl
+            image: rocm
+            compiler:
+              cxx: hipcc
+            cmake_flags:
+              cxx_standard: 20
+              kokkos: -DKokkos_ENABLE_HIP=ON -DKokkos_ARCH_VEGA90A=ON
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror" -DKokkosFFT_ENABLE_ROCFFT=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_RCCL=ON
+            cmake_build_type: Release
           ##- name: sycl
           ##  image: intel
           ##  compiler:
@@ -168,6 +178,14 @@ jobs:
               name: host_device
           - backend:
               name: serial
+            target:
+              name: host_device
+          - backend:
+              name: cuda-nccl
+            target:
+              name: host_device
+          - backend:
+              name: rocm-rccl
             target:
               name: host_device
 
