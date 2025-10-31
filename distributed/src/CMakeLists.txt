@@ -14,6 +14,12 @@ if(ENABLE_NCCL AND Kokkos_ENABLE_CUDA)
   target_link_libraries(distributed INTERFACE NCCL::NCCL)
 endif()
 
+if(ENABLE_RCCL AND Kokkos_ENABLE_HIP)
+  find_package(RCCL REQUIRED)
+  target_compile_definitions(distributed INTERFACE ENABLE_TPL_NCCL)
+  target_link_libraries(distributed INTERFACE roc::rccl)
+endif()
+
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
   find_package(cuFFTMp REQUIRED)
   target_include_directories(distributed INTERFACE ${cuFFTMp_INCLUDE_DIRS})

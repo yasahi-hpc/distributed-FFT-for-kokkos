@@ -1,9 +1,8 @@
-#ifndef KOKKOSFFT_DISTRIBUTED_NCCL_Comm_HPP
-#define KOKKOSFFT_DISTRIBUTED_NCCL_Comm_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_NCCL_COMM_HPP
+#define KOKKOSFFT_DISTRIBUTED_NCCL_COMM_HPP
 
 #include <cstdint>
 #include <mpi.h>
-#include <nccl.h>
 #include "KokkosFFT_Distributed_NCCL_Types.hpp"
 
 namespace KokkosFFT {
