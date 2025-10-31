@@ -26,7 +26,7 @@ struct TestAll2All : public ::testing::Test {
 };
 
 template <typename T, typename LayoutType>
-void test_all2all_view2D(int rank, int nprocs) {
+void test_all2all_view2D(int rank, int nprocs, bool use_tpl_wrapper) {
   using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
 
   const std::size_t n0 = 16, n1 = 15;
@@ -81,7 +81,12 @@ void test_all2all_view2D(int rank, int nprocs) {
   Kokkos::deep_copy(ref, h_ref);
 
   execution_space exec;
-  KokkosFFT::Distributed::Impl::all2all(exec, send, recv, MPI_COMM_WORLD);
+  if (use_tpl_wrapper) {
+    KokkosFFT::Distributed::Impl::TplComm comm(MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::all2all(exec, send, recv, comm);
+  } else {
+    KokkosFFT::Distributed::Impl::all2all(exec, send, recv, MPI_COMM_WORLD);
+  }
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
   T epsilon = std::numeric_limits<T>::epsilon() * 100;
@@ -96,7 +101,7 @@ void test_all2all_view2D(int rank, int nprocs) {
 }
 
 template <typename T, typename LayoutType>
-void test_all2all_view2D_incorrect_proc_size(int nprocs) {
+void test_all2all_view2D_incorrect_proc_size(int nprocs, bool use_tpl_wrapper) {
   using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
 
   const std::size_t n0 = 16, n1 = 15;
@@ -119,9 +124,15 @@ void test_all2all_view2D_incorrect_proc_size(int nprocs) {
       recv("recv", n0_buffer, n1_buffer, n2_buffer);
 
   execution_space exec;
-  EXPECT_THROW(
-      KokkosFFT::Distributed::Impl::all2all(exec, send, recv, MPI_COMM_WORLD),
-      std::runtime_error);
+  if (use_tpl_wrapper) {
+    KokkosFFT::Distributed::Impl::TplComm comm(MPI_COMM_WORLD);
+    EXPECT_THROW(KokkosFFT::Distributed::Impl::all2all(exec, send, recv, comm),
+                 std::runtime_error);
+  } else {
+    EXPECT_THROW(
+        KokkosFFT::Distributed::Impl::all2all(exec, send, recv, MPI_COMM_WORLD),
+        std::runtime_error);
+  }
 }
 
 }  // namespace
@@ -131,12 +142,27 @@ TYPED_TEST_SUITE(TestAll2All, test_types);
 TYPED_TEST(TestAll2All, View2D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
-  test_all2all_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs);
+  test_all2all_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs,
+                                               false);
+}
+
+TYPED_TEST(TestAll2All, View2D_with_wrapper) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+  test_all2all_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs,
+                                               true);
 }
 
 TYPED_TEST(TestAll2All, View2D_incorrect_proc_size) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
   test_all2all_view2D_incorrect_proc_size<float_type, layout_type>(
-      this->m_nprocs);
+      this->m_nprocs, false);
+}
+
+TYPED_TEST(TestAll2All, View2D_incorrect_proc_size_with_wrapper) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+  test_all2all_view2D_incorrect_proc_size<float_type, layout_type>(
+      this->m_nprocs, true);
 }

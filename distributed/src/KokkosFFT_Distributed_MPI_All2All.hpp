@@ -1,5 +1,5 @@
-#ifndef KOKKOSFFT_DISTRIBUTED_ALL2ALL_HPP
-#define KOKKOSFFT_DISTRIBUTED_ALL2ALL_HPP
+#ifndef KOKKOSFFT_DISTRIBUTED_MPI_ALL2ALL_HPP
+#define KOKKOSFFT_DISTRIBUTED_MPI_ALL2ALL_HPP
 
 #include <type_traits>
 #include <mpi.h>
@@ -7,7 +7,7 @@
 #include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Types.hpp"
-#include "KokkosFFT_Distributed_TplComm.hpp"
+#include "KokkosFFT_Distributed_MPI_Comm.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -36,7 +36,7 @@ struct All2All;
 /// input and output views. It will raise an error if the nprocs obtained from
 /// the input and output views is not the same as the MPI size.
 template <typename ExecutionSpace, typename ViewType>
-struct All2All<ExecutionSpace, ViewType, MPI_Comm> {
+struct All2All<ExecutionSpace, ViewType, ScopedMPIComm> {
   static_assert(ViewType::rank() >= 2,
                 "All2All: View rank must be larger than or equal to 2");
   using value_type = typename ViewType::non_const_value_type;
@@ -53,11 +53,10 @@ struct All2All<ExecutionSpace, ViewType, MPI_Comm> {
   /// instance)
   /// \throws std::runtime_error if the extent of the dimension to be transposed
   /// does not match MPI size
-  All2All(const ViewType& send, const ViewType& recv,
-          const MPI_Comm& comm            = MPI_COMM_WORLD,
+  All2All(const ViewType& send, const ViewType& recv, const ScopedMPIComm& comm,
           const ExecutionSpace exec_space = ExecutionSpace())
       : m_exec_space(exec_space),
-        m_comm(comm),
+        m_comm(comm.comm()),
         m_mpi_data_type(MPIDataType<value_type>::type()) {
     using LayoutType = typename ViewType::array_layout;
     std::string msg  = KokkosFFT::Impl::is_real_v<value_type>
@@ -71,8 +70,7 @@ struct All2All<ExecutionSpace, ViewType, MPI_Comm> {
                         ? recv.extent_int(ViewType::rank() - 1)
                         : recv.extent_int(0);
 
-    int size = 0;
-    ::MPI_Comm_size(m_comm, &size);
+    int size = comm.size();
     KOKKOSFFT_THROW_IF(
         (size_send != size) || (size_recv != size),
         "Extent of dimension to be transposed: " + std::to_string(size_send) +
@@ -84,23 +82,6 @@ struct All2All<ExecutionSpace, ViewType, MPI_Comm> {
                    send_count, m_mpi_data_type, m_comm);
   }
 };
-
-/// \brief MPI all-to-all communication for distributed data redistribution
-/// \tparam ExecutionSpace Kokkos execution space type
-/// \tparam ViewType Kokkos View type containing the data to be communicated,
-/// must have rank >= 2
-///
-/// \param[in] exec_space Execution space
-/// \param[in] send Input view to be sent
-/// \param[in] recv Output view to be received
-/// \param[in] comm MPI or Collective communicator wrapper
-template <typename ExecutionSpace, typename ViewType, typename CommType>
-void all2all(const ExecutionSpace& exec_space, const ViewType& send,
-             const ViewType& recv, const CommType& comm) {
-  static_assert(ViewType::rank() >= 2,
-                "all2all: View rank must be larger than or equal to 2");
-  All2All<ExecutionSpace, ViewType, CommType>(send, recv, comm, exec_space);
-}
 
 }  // namespace Impl
 }  // namespace Distributed
