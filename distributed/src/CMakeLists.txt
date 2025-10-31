@@ -8,6 +8,12 @@ target_link_libraries(distributed
     MPI::MPI_CXX
 )
 
+if(ENABLE_NCCL AND Kokkos_ENABLE_CUDA)
+  find_package(NCCL REQUIRED)
+  target_compile_definitions(distributed INTERFACE ENABLE_TPL_NCCL)
+  target_link_libraries(distributed INTERFACE NCCL::NCCL)
+endif()
+
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
   find_package(cuFFTMp REQUIRED)
   target_include_directories(distributed INTERFACE ${cuFFTMp_INCLUDE_DIRS})
