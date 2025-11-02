@@ -13,6 +13,7 @@ set(KOKKOS_REQUIRED_VERSION 4.5.0)
 set(KOKKOSFFT_REQUIRED_VERSION 0.4.0)
 
 option(ENABLE_TESTS "Build tests" OFF)
+option(ENABLE_BENCHMARK "Build benchmarks" OFF)
 option(ENABLE_EXAMPLES "Build examples" OFF)
 option(ENABLE_NCCL "Enable NCCL as a communication backend on NVIDIA GPUs" OFF)
 option(ENABLE_RCCL "Enable RCCL as a communication backend on AMD GPUs" OFF)
@@ -20,7 +21,6 @@ option(ENABLE_CUFFT_MP "Enable cufft-mp as a KokkosFFT backend on NVIDIA GPUs" O
 option(ENABLE_ROCFFT_MPI "Enable rocfft-mpi as a KokkosFFT backend on AMD GPUs" OFF)
 option(ENABLE_INTERNAL_KOKKOS "Build internal Kokkos instead of relying on external one" OFF)
 option(ENABLE_INTERNAL_KOKKOSFFT "Build internal Kokkos-fft instead of relying on external one" OFF)
-
 
 if (NOT ENABLE_INTERNAL_KOKKOS)
     # First check, Kokkos is added as subdirectory or not
@@ -55,6 +55,26 @@ if(ENABLE_TESTS)
     add_subdirectory(tpls/googletest)
   endif()
 endif()
+
+# Google benchmark
+if(ENABLE_BENCHMARK)
+  find_package(benchmark CONFIG)
+  if(NOT benchmark_FOUND)
+    add_subdirectory(tpls/benchmark)
+  endif()
+  include(KokkosFFT_Git_Hash)
+endif()
+
+# Configure files to display configuration
+# Configure the library
+set(PACKAGE_NAME_CONFIG_FILES KokkosFFT_Distributed_config.hpp KokkosFFT_Distributed_Version_Info.hpp)
+
+foreach(CONFIG_FILE ${PACKAGE_NAME_CONFIG_FILES})
+  configure_file(cmake/${CONFIG_FILE}.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/distributed/src/${CONFIG_FILE}
+                 @ONLY
+  )
+endforeach()
 
 add_subdirectory(distributed)
 
