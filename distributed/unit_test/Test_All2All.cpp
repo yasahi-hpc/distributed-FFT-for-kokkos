@@ -604,6 +604,19 @@ TYPED_TEST(TestAll2All, View2D_row) {
                                                    this->m_npx, false);
 }
 
+TYPED_TEST(TestAll2All, View2D_row_with_wrapper) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+
+  test_all2all_view2D_row<float_type, layout_type>(this->m_rank, this->m_npx,
+                                                   this->m_npx, true);
+}
+
 TYPED_TEST(TestAll2All, View2D_col) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
@@ -615,4 +628,17 @@ TYPED_TEST(TestAll2All, View2D_col) {
 
   test_all2all_view2D_col<float_type, layout_type>(this->m_rank, this->m_npx,
                                                    this->m_npx, false);
+}
+
+TYPED_TEST(TestAll2All, View2D_col_with_wrapper) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+
+  test_all2all_view2D_col<float_type, layout_type>(this->m_rank, this->m_npx,
+                                                   this->m_npx, true);
 }
