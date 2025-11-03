@@ -202,8 +202,8 @@ void test_pack_view2D(std::size_t rank, std::size_t nprocs, int order = 0) {
 
   // Make permuted local views with safe_transpose
   execution_space exec;
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t0, u_p_t0, int_map);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t1, u_p_t1, int_map);
+  KokkosFFT::Impl::transpose(exec, u_t0, u_p_t0, int_map, true);
+  KokkosFFT::Impl::transpose(exec, u_t1, u_p_t1, int_map, true);
   exec.fence();
 
   // Apply pack kernel
@@ -478,9 +478,9 @@ void test_pack_view3D(std::size_t rank, std::size_t nprocs, int order = 0) {
 
   // Make permuted local views with safe_transpose
   execution_space exec;
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t0, u_p_t0, int_map);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t1, u_p_t1, int_map);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_t2, u_p_t2, int_map);
+  KokkosFFT::Impl::transpose(exec, u_t0, u_p_t0, int_map, true);
+  KokkosFFT::Impl::transpose(exec, u_t1, u_p_t1, int_map, true);
+  KokkosFFT::Impl::transpose(exec, u_t2, u_p_t2, int_map, true);
   exec.fence();
 
   // Apply pack kernel
