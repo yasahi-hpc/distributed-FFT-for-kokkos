@@ -3,7 +3,6 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "KokkosFFT_Distributed_Utils.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -39,7 +38,7 @@ inline void exec_plan(
       reinterpret_cast<out_value_type*>(desc->descriptor->data[0]),
       KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(out_extents));
 
-  safe_transpose(exec_space, in, in_desc, in_map);
+  KokkosFFT::Impl::transpose(exec_space, in, in_desc, in_map, true);
   {
     Kokkos::Profiling::ScopedRegion region("exec_plan[TPL_cufftMpExec]");
     auto const cufft_direction = direction == KokkosFFT::Direction::forward
@@ -50,7 +49,7 @@ inline void exec_plan(
     KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS,
                        "cufftXtExecDescriptor failed");
   }
-  safe_transpose(exec_space, out_desc, out, out_map);
+  KokkosFFT::Impl::transpose(exec_space, out_desc, out, out_map, true);
 }
 
 }  // namespace Impl

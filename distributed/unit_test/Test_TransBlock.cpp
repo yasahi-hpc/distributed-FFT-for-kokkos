@@ -376,16 +376,11 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
       Kokkos::subview(gu, Kokkos::ALL, range_gu0_dim1, range_gu0_dim2);
   Kokkos::deep_copy(u_0_012, sub_gu_0);
   Kokkos::deep_copy(ref_u_0_012, sub_gu_0);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_0_012, ref_u_0_021,
-                                               int_map021);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_0_012, ref_u_0_102,
-                                               int_map102);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_0_012, ref_u_0_120,
-                                               int_map120);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_0_012, ref_u_0_201,
-                                               int_map201);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_0_012, ref_u_0_210,
-                                               int_map210);
+  KokkosFFT::Impl::transpose(exec, u_0_012, ref_u_0_021, int_map021, true);
+  KokkosFFT::Impl::transpose(exec, u_0_012, ref_u_0_102, int_map102, true);
+  KokkosFFT::Impl::transpose(exec, u_0_012, ref_u_0_120, int_map120, true);
+  KokkosFFT::Impl::transpose(exec, u_0_012, ref_u_0_201, int_map201, true);
+  KokkosFFT::Impl::transpose(exec, u_0_012, ref_u_0_210, int_map210, true);
 
   // Topo 1
   Kokkos::pair<std::size_t, std::size_t> range_gu1_dim0(
@@ -396,16 +391,11 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
       Kokkos::subview(gu, range_gu1_dim0, Kokkos::ALL, range_gu1_dim2);
   Kokkos::deep_copy(u_1_012, sub_gu_1);
   Kokkos::deep_copy(ref_u_1_012, sub_gu_1);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_1_012, ref_u_1_021,
-                                               int_map021);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_1_012, ref_u_1_102,
-                                               int_map102);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_1_012, ref_u_1_120,
-                                               int_map120);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_1_012, ref_u_1_201,
-                                               int_map201);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_1_012, ref_u_1_210,
-                                               int_map210);
+  KokkosFFT::Impl::transpose(exec, u_1_012, ref_u_1_021, int_map021, true);
+  KokkosFFT::Impl::transpose(exec, u_1_012, ref_u_1_102, int_map102, true);
+  KokkosFFT::Impl::transpose(exec, u_1_012, ref_u_1_120, int_map120, true);
+  KokkosFFT::Impl::transpose(exec, u_1_012, ref_u_1_201, int_map201, true);
+  KokkosFFT::Impl::transpose(exec, u_1_012, ref_u_1_210, int_map210, true);
 
   // Topo 2
   Kokkos::pair<std::size_t, std::size_t> range_gu2_dim0(
@@ -416,16 +406,11 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
       Kokkos::subview(gu, range_gu2_dim0, range_gu2_dim1, Kokkos::ALL);
   Kokkos::deep_copy(u_2_012, sub_gu_2);
   Kokkos::deep_copy(ref_u_2_012, sub_gu_2);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_2_012, ref_u_2_021,
-                                               int_map021);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_2_012, ref_u_2_102,
-                                               int_map102);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_2_012, ref_u_2_120,
-                                               int_map120);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_2_012, ref_u_2_201,
-                                               int_map201);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_2_012, ref_u_2_210,
-                                               int_map210);
+  KokkosFFT::Impl::transpose(exec, u_2_012, ref_u_2_021, int_map021, true);
+  KokkosFFT::Impl::transpose(exec, u_2_012, ref_u_2_102, int_map102, true);
+  KokkosFFT::Impl::transpose(exec, u_2_012, ref_u_2_120, int_map120, true);
+  KokkosFFT::Impl::transpose(exec, u_2_012, ref_u_2_201, int_map201, true);
+  KokkosFFT::Impl::transpose(exec, u_2_012, ref_u_2_210, int_map210, true);
 
   // Topo 3
   Kokkos::pair<std::size_t, std::size_t> range_gu3_dim0(
@@ -436,16 +421,11 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
       Kokkos::subview(gu, range_gu3_dim0, range_gu3_dim1, Kokkos::ALL);
   Kokkos::deep_copy(u_3_012, sub_gu_3);
   Kokkos::deep_copy(ref_u_3_012, sub_gu_3);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_3_012, ref_u_3_021,
-                                               int_map021);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_3_012, ref_u_3_102,
-                                               int_map102);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_3_012, ref_u_3_120,
-                                               int_map120);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_3_012, ref_u_3_201,
-                                               int_map201);
-  KokkosFFT::Distributed::Impl::safe_transpose(exec, u_3_012, ref_u_3_210,
-                                               int_map210);
+  KokkosFFT::Impl::transpose(exec, u_3_012, ref_u_3_021, int_map021, true);
+  KokkosFFT::Impl::transpose(exec, u_3_012, ref_u_3_102, int_map102, true);
+  KokkosFFT::Impl::transpose(exec, u_3_012, ref_u_3_120, int_map120, true);
+  KokkosFFT::Impl::transpose(exec, u_3_012, ref_u_3_201, int_map201, true);
+  KokkosFFT::Impl::transpose(exec, u_3_012, ref_u_3_210, int_map210, true);
 
   // Define cart comm
   std::vector<int> dims;
