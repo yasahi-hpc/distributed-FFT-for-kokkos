@@ -22,6 +22,28 @@ option(ENABLE_ROCFFT_MPI "Enable rocfft-mpi as a KokkosFFT backend on AMD GPUs" 
 option(ENABLE_INTERNAL_KOKKOS "Build internal Kokkos instead of relying on external one" OFF)
 option(ENABLE_INTERNAL_KOKKOSFFT "Build internal Kokkos-fft instead of relying on external one" OFF)
 
+# Check the device tpls usage
+set(ENABLED_DEVICE_COMM_TPLS "")
+set(KOKKOSFFT_DEVICE_COMM_TPL_LIST "NCCL" "RCCL")
+foreach(DEVICE_COMM_TPL IN LISTS KOKKOSFFT_DEVICE_COMM_TPL_LIST)
+  if(ENABLE_${DEVICE_COMM_TPL})
+    list(APPEND ENABLED_DEVICE_COMM_TPLS ${DEVICE_COMM_TPL})
+  endif()
+endforeach()
+
+# Get the number of enabled tpls
+list(LENGTH ENABLED_DEVICE_COMM_TPLS COUNT)
+if(COUNT GREATER 1)
+  message(FATAL_ERROR "Error: Only one device tpls may be enabled. The following options are enabled: ${ENABLED_DEVICE_COMM_TPLS}")
+endif()
+
+# Set the global variables
+if(ENABLED_DEVICE_COMM_TPLS)
+  foreach(DEVICE_COMM_TPL IN LISTS ENABLED_DEVICE_COMM_TPLS)
+    set(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_${DEVICE_COMM_TPL} TRUE)
+  endforeach()
+endif()
+
 if (NOT ENABLE_INTERNAL_KOKKOS)
     # First check, Kokkos is added as subdirectory or not
     if(NOT TARGET Kokkos::kokkos)

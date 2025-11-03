@@ -57,33 +57,20 @@ void benchmark_all2all(benchmark::State& state) {
   state.counters["bytes"] = send.size() * 2;
 }
 
-BENCHMARK(benchmark_all2all<float, Kokkos::LayoutLeft>)
-    ->ArgName("N")
-    ->RangeMultiplier(2)
-    ->Range(256, 4096)
-    ->UseManualTime()
-    ->Unit(benchmark::kMicrosecond);
+#define BENCHMARK_All2All(type, layout, start, stop) \
+  BENCHMARK(benchmark_all2all<type, Kokkos::layout>) \
+      ->UseManualTime()                              \
+      ->Unit(benchmark::kMillisecond)                \
+      ->ArgName("N")                                 \
+      ->RangeMultiplier(2)                           \
+      ->Range(start, stop)
 
-BENCHMARK(benchmark_all2all<float, Kokkos::LayoutRight>)
-    ->ArgName("N")
-    ->RangeMultiplier(2)
-    ->Range(256, 4096)
-    ->UseManualTime()
-    ->Unit(benchmark::kMicrosecond);
+BENCHMARK_All2All(float, LayoutLeft, 256, 4096);
+BENCHMARK_All2All(float, LayoutRight, 256, 4096);
+BENCHMARK_All2All(double, LayoutLeft, 256, 4096);
+BENCHMARK_All2All(double, LayoutRight, 256, 4096);
 
-BENCHMARK(benchmark_all2all<double, Kokkos::LayoutLeft>)
-    ->ArgName("N")
-    ->RangeMultiplier(2)
-    ->Range(256, 4096)
-    ->UseManualTime()
-    ->Unit(benchmark::kMicrosecond);
-
-BENCHMARK(benchmark_all2all<double, Kokkos::LayoutRight>)
-    ->ArgName("N")
-    ->RangeMultiplier(2)
-    ->Range(256, 4096)
-    ->UseManualTime()
-    ->Unit(benchmark::kMicrosecond);
+#undef BENCHMARK_All2All
 
 }  // namespace Benchmark
 }  // namespace Distributed

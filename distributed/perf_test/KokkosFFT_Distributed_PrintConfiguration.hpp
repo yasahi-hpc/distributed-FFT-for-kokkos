@@ -1,9 +1,10 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_PRINT_CONFIGURATION_HPP
 #define KOKKOSFFT_DISTRIBUTED_PRINT_CONFIGURATION_HPP
 
+#include <iostream>
+#include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_config.hpp"
 #include "KokkosFFT_Distributed_TplsVersion.hpp"
-#include <iostream>
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -40,7 +41,7 @@ inline void print_hipfft_version_if_enabled(std::ostream& os) {
 }
 
 inline void print_enabled_tpls(std::ostream& os) {
-#ifdef KOKKOSFFT_ENABLE_TPL_FFTW
+#if defined(KOKKOSFFT_ENABLE_TPL_FFTW)
   os << "  "
      << "KOKKOSFFT_ENABLE_TPL_FFTW: yes\n";
 #else
@@ -50,7 +51,7 @@ inline void print_enabled_tpls(std::ostream& os) {
 
   print_cufft_version_if_enabled(os);
 
-#ifdef KOKKOSFFT_ENABLE_TPL_HIPFFT
+#if defined(KOKKOSFFT_ENABLE_TPL_HIPFFT)
   os << "  "
      << "KOKKOSFFT_ENABLE_TPL_HIPFFT: yes\n";
 #else
@@ -58,12 +59,28 @@ inline void print_enabled_tpls(std::ostream& os) {
      << "KOKKOSFFT_ENABLE_TPL_HIPFFT: no\n";
 #endif
 
-#ifdef KOKKOSFFT_ENABLE_TPL_ONEMKL
+#if defined(KOKKOSFFT_ENABLE_TPL_ONEMKL)
   os << "  "
      << "KOKKOSFFT_ENABLE_TPL_ONEMKL: yes\n";
 #else
   os << "  "
      << "KOKKOSFFT_ENABLE_TPL_ONEMKL: no\n";
+#endif
+
+#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL)
+  os << "  "
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL: yes\n";
+#else
+  os << "  "
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL: no\n";
+#endif
+
+#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL)
+  os << "  "
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL: yes\n";
+#else
+  os << "  "
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL: no\n";
 #endif
 }
 
