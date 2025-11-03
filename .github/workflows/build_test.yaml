@@ -55,7 +55,7 @@ jobs:
               cxx_standard: 17
               kokkos: -DKokkos_ENABLE_SERIAL=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
-              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_BENCHMARK=OFF
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Debug
           - name: openmp
             image: gcc
@@ -65,7 +65,7 @@ jobs:
               cxx_standard: 17
               kokkos: -DKokkos_ENABLE_OPENMP=ON -DKokkos_ENABLE_SERIAL=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_BENCHMARK=OFF
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Debug
           - name: threads
             image: gcc
@@ -75,7 +75,7 @@ jobs:
               cxx_standard: 20
               kokkos: -DKokkos_ENABLE_THREADS=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_BENCHMARK=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Release
           - name: serial
             image: gcc
@@ -85,7 +85,7 @@ jobs:
               cxx_standard: 17
               kokkos: -DKokkos_ENABLE_SERIAL=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_BENCHMARK=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON
             cmake_build_type: Release
           - name: cuda
             image: nvcc
