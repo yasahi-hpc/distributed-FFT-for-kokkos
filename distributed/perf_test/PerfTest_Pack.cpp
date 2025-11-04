@@ -19,7 +19,6 @@ auto prepare_benchmark(const std::size_t size, const std::size_t nprocs) {
   using DstViewType    = Kokkos::View<dst_data_type, LayoutType, exec_space>;
   using map_type       = std::array<std::size_t, DIM>;
   using src_shape_type = std::array<std::size_t, DIM>;
-  using dst_shape_type = std::array<std::size_t, DIM + 1>;
 
   src_shape_type global_extents = {};
   src_shape_type local_extents  = {};
