@@ -92,99 +92,31 @@ void benchmark_pack(benchmark::State& state) {
 
 // 2D cases
 BENCHMARK_Pack(double, LayoutLeft, 2, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 2, 1, 0, 64, 1024, 8, 64);
 BENCHMARK_Pack(double, LayoutLeft, 2, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 2, 1, 1, 64, 1024, 8, 64);
 BENCHMARK_Pack(double, LayoutRight, 2, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 2, 1, 0, 64, 1024, 8, 64);
 BENCHMARK_Pack(double, LayoutRight, 2, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 2, 1, 1, 64, 1024, 8, 64);
 
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 1, 0, 64, 1024, 8, 64);
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 1, 1, 64, 1024, 8, 64);
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 1, 0, 64, 1024, 8, 64);
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 1, 1, 64, 1024, 8, 64);
 
 // 3D cases
 BENCHMARK_Pack(double, LayoutLeft, 3, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 1, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 2, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 3, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 4, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 5, 0, 64, 1024, 8, 64);
 BENCHMARK_Pack(double, LayoutLeft, 3, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 1, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 2, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 3, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 4, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 5, 1, 64, 1024, 8, 64);
 BENCHMARK_Pack(double, LayoutLeft, 3, 0, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 1, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 2, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 3, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 4, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 5, 2, 64, 1024, 8, 64);
 
 BENCHMARK_Pack(double, LayoutRight, 3, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 1, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 2, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 3, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 4, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 5, 0, 64, 1024, 8, 64);
 BENCHMARK_Pack(double, LayoutRight, 3, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 1, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 2, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 3, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 4, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 5, 1, 64, 1024, 8, 64);
 BENCHMARK_Pack(double, LayoutRight, 3, 0, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 1, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 2, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 3, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 4, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 5, 2, 64, 1024, 8, 64);
 
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 1, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 2, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 3, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 4, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 5, 0, 64, 1024, 8, 64);
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 1, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 2, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 3, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 4, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 5, 1, 64, 1024, 8, 64);
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 1, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 2, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 3, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 4, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 5, 2, 64, 1024, 8, 64);
 
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 1, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 2, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 3, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 4, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 5, 0, 64, 1024, 8, 64);
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 1, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 2, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 3, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 4, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 5, 1, 64, 1024, 8, 64);
 BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 1, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 2, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 3, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 4, 2, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 5, 2, 64, 1024, 8, 64);
 
 #undef BENCHMARK_All2All
 
