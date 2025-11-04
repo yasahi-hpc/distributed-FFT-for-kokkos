@@ -80,6 +80,7 @@ endif()
 
 # Google benchmark
 if(ENABLE_BENCHMARK)
+  option(BENCHMARK_ENABLE_TESTING "Enable testing of the benchmark library." OFF)
   find_package(benchmark CONFIG)
   if(NOT benchmark_FOUND)
     add_subdirectory(tpls/benchmark)
@@ -101,5 +102,5 @@ endforeach()
 add_subdirectory(distributed)
 
 if(ENABLE_EXAMPLES)
-    add_subdirectory(examples)
+  add_subdirectory(examples)
 endif()

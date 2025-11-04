@@ -10,7 +10,10 @@
 #include "KokkosFFT_Distributed_PrintConfiguration.hpp"
 #include <KokkosFFT_Distributed_Version_Info.hpp>
 
-namespace KokkosFFTBenchmark {
+namespace KokkosFFT {
+namespace Distributed {
+namespace Benchmark {
+
 /// \brief Remove unwanted spaces and colon signs from input string. In case of
 /// invalid input it will return an empty string.
 inline std::string remove_unwanted_characters(std::string str) {
@@ -96,8 +99,8 @@ inline void add_benchmark_context(bool verbose = false) {
  * operations
  */
 template <typename InViewType, typename OutViewType>
-void report_results(benchmark::State& state, InViewType in, OutViewType out,
-                    double time) {
+void report_results(benchmark::State& state, const InViewType& in,
+                    const OutViewType& out, double time) {
   // data processed in megabytes
   const double in_data_processed =
       static_cast<double>(in.size() * sizeof(typename InViewType::value_type)) /
@@ -115,6 +118,8 @@ void report_results(benchmark::State& state, InViewType in, OutViewType out,
                          benchmark::Counter::kIsIterationInvariantRate);
 }
 
-}  // namespace KokkosFFTBenchmark
+}  // namespace Benchmark
+}  // namespace Distributed
+}  // namespace KokkosFFT
 
 #endif
