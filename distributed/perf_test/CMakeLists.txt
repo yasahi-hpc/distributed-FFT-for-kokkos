@@ -23,6 +23,8 @@ set(BENCHMARK_NAME Perftest)
 add_executable(${BENCHMARK_NAME}
   BenchmarkMain.cpp
   PerfTest_Pack.cpp
+  PerfTest_Unpack.cpp
+  PerfTest_Transpose.cpp
 )
 
 target_link_libraries(${BENCHMARK_NAME} PUBLIC benchmark::benchmark distributed)

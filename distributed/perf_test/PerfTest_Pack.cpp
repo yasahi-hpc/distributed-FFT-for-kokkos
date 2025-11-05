@@ -7,12 +7,11 @@
 namespace KokkosFFT {
 namespace Distributed {
 namespace Benchmark {
-
 using exec_space = Kokkos::DefaultExecutionSpace;
 
 template <typename T, typename LayoutType, std::size_t DIM, std::size_t order,
           std::size_t axis>
-auto prepare_benchmark(const std::size_t size, const std::size_t nprocs) {
+static void benchmark_pack(benchmark::State& state) {
   using src_data_type  = KokkosFFT::Impl::add_pointer_n_t<T, DIM>;
   using dst_data_type  = KokkosFFT::Impl::add_pointer_n_t<T, DIM + 1>;
   using SrcViewType    = Kokkos::View<src_data_type, LayoutType, exec_space>;
@@ -20,16 +19,16 @@ auto prepare_benchmark(const std::size_t size, const std::size_t nprocs) {
   using map_type       = std::array<std::size_t, DIM>;
   using src_shape_type = std::array<std::size_t, DIM>;
 
-  src_shape_type global_extents = {};
-  src_shape_type local_extents  = {};
-  map_type src_topology = {}, dst_topology = {};
+  std::size_t size = state.range(0), nprocs = state.range(1);
 
+  src_shape_type global_extents = {}, local_extents = {};
+  map_type src_topology = {}, dst_topology = {};
   for (std::size_t i = 0; i < global_extents.size(); i++) {
     global_extents.at(i) = size;
   }
 
   // Only consider X->Y, Y->Z and Z->X packing
-  for (std::size_t i = 0; i < global_extents.size(); i++) {
+  for (std::size_t i = 0; i < src_topology.size(); i++) {
     src_topology.at(i) = i == ((axis + DIM - 1) % DIM) ? nprocs : 1;
     dst_topology.at(i) = i == axis ? nprocs : 1;
   }
@@ -62,15 +61,6 @@ auto prepare_benchmark(const std::size_t size, const std::size_t nprocs) {
   DstViewType dst("dst",
                   KokkosFFT::Impl::create_layout<LayoutType>(dst_extents));
 
-  return std::make_tuple(src, dst, src_map);
-}
-
-template <typename T, typename LayoutType, std::size_t DIM, std::size_t order,
-          std::size_t axis>
-void benchmark_pack(benchmark::State& state) {
-  std::size_t size = state.range(0), nprocs = state.range(1);
-  auto [src, dst, src_map] =
-      prepare_benchmark<T, LayoutType, DIM, order, axis>(size, nprocs);
   exec_space exec;
   for (auto _ : state) {
     Kokkos::Timer timer;
@@ -90,34 +80,35 @@ void benchmark_pack(benchmark::State& state) {
       ->Ranges({{b0, e0}, {b1, e1}})
 
 // 2D cases
-BENCHMARK_Pack(double, LayoutLeft, 2, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 2, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 2, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 2, 0, 1, 64, 1024, 8, 64);
+// BENCHMARK_Pack(double, LayoutLeft, 2, 0, 0, 64, 1024, 16, 64);
+// BENCHMARK_Pack(double, LayoutLeft, 2, 0, 1, 64, 1024, 16, 64);
+// BENCHMARK_Pack(double, LayoutRight, 2, 0, 0, 64, 1024, 16, 64);
+// BENCHMARK_Pack(double, LayoutRight, 2, 0, 1, 64, 1024, 16, 64);
 
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 1, 64, 1024, 8, 64);
+// BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 0, 64, 1024, 16,
+// 64); BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 1, 64, 1024,
+// 16, 64); BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 0, 64,
+// 1024, 16, 64); BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 1,
+// 64, 1024, 16, 64);
 
 // 3D cases
-BENCHMARK_Pack(double, LayoutLeft, 3, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutLeft, 3, 0, 2, 64, 1024, 8, 64);
+// BENCHMARK_Pack(double, LayoutLeft, 3, 0, 0, 64, 1024, 16, 64);
+// BENCHMARK_Pack(double, LayoutLeft, 3, 0, 1, 64, 1024, 16, 64);
+// BENCHMARK_Pack(double, LayoutLeft, 3, 0, 2, 64, 1024, 16, 64);
 
-BENCHMARK_Pack(double, LayoutRight, 3, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(double, LayoutRight, 3, 0, 2, 64, 1024, 8, 64);
+// BENCHMARK_Pack(double, LayoutRight, 3, 0, 0, 64, 1024, 16, 64);
+// BENCHMARK_Pack(double, LayoutRight, 3, 0, 1, 64, 1024, 16, 64);
+// BENCHMARK_Pack(double, LayoutRight, 3, 0, 2, 64, 1024, 16, 64);
 
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 2, 64, 1024, 8, 64);
+BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 0, 64, 1024, 16, 64);
+BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 1, 64, 1024, 16, 64);
+BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 3, 0, 2, 64, 1024, 16, 64);
 
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 0, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 1, 64, 1024, 8, 64);
-BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 2, 64, 1024, 8, 64);
+BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 0, 64, 1024, 16, 64);
+BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 1, 64, 1024, 16, 64);
+BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 3, 0, 2, 64, 1024, 16, 64);
 
-#undef BENCHMARK_All2All
+#undef BENCHMARK_Pack
 
 }  // namespace Benchmark
 }  // namespace Distributed
