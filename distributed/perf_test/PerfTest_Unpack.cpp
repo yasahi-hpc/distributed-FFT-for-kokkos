@@ -142,12 +142,13 @@ static void benchmark_unpack(benchmark::State& state) {
 // BENCHMARK_Unpack(double, LayoutRight, 2, 0, 1, 64, 1024, 8, 64);
 
 // BENCHMARK_Unpack(Kokkos::complex<double>, LayoutLeft, 2, 0, 0, 64, 1024, 8,
-// 64); BENCHMARK_Unpack(Kokkos::complex<double>, LayoutLeft, 2, 0, 1, 64, 1024,
-// 8, 64); BENCHMARK_Unpack(Kokkos::complex<double>, LayoutRight, 2, 0, 0, 64,
-// 1024, 8,
-//                  64);
+// 64);
+// BENCHMARK_Unpack(Kokkos::complex<double>, LayoutLeft, 2, 0, 1, 64, 1024, 8,
+// 64);
+// BENCHMARK_Unpack(Kokkos::complex<double>, LayoutRight, 2, 0, 0, 64, 1024, 8,
+// 64);
 // BENCHMARK_Unpack(Kokkos::complex<double>, LayoutRight, 2, 0, 1, 64, 1024, 8,
-//                  64);
+// 64);
 
 // 3D cases
 // BENCHMARK_Unpack(double, LayoutLeft, 3, 0, 0, 64, 1024, 16, 64);

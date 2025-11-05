@@ -86,10 +86,13 @@ static void benchmark_pack(benchmark::State& state) {
 // BENCHMARK_Pack(double, LayoutRight, 2, 0, 1, 64, 1024, 16, 64);
 
 // BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 0, 64, 1024, 16,
-// 64); BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 1, 64, 1024,
-// 16, 64); BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 0, 64,
-// 1024, 16, 64); BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 1,
-// 64, 1024, 16, 64);
+// 64);
+// BENCHMARK_Pack(Kokkos::complex<double>, LayoutLeft, 2, 0, 1, 64, 1024, 16,
+// 64);
+// BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 0, 64, 1024, 16,
+// 64);
+// BENCHMARK_Pack(Kokkos::complex<double>, LayoutRight, 2, 0, 1, 64, 1024, 16,
+// 64);
 
 // 3D cases
 // BENCHMARK_Pack(double, LayoutLeft, 3, 0, 0, 64, 1024, 16, 64);

@@ -99,11 +99,10 @@ static void benchmark_transpose(benchmark::State& state) {
 // BENCHMARK_Transpose(double, LayoutRight, 2, 0, 64, 1024, 16, 64);
 // BENCHMARK_Transpose(double, LayoutRight, 2, 1, 64, 1024, 16, 64);
 
-// BENCHMARK_Transpose(Kokkos::complex<double>, LayoutLeft, 2, 0, 64, 1024, 16,
-// 64); BENCHMARK_Transpose(Kokkos::complex<double>, LayoutLeft, 2, 1, 64, 1024,
-// 16, 64); BENCHMARK_Transpose(Kokkos::complex<double>, LayoutRight, 2, 0, 64,
-// 1024, 16, 64); BENCHMARK_Transpose(Kokkos::complex<double>, LayoutRight, 2,
-// 1, 64, 1024, 16, 64);
+// BENCHMARK_Transpose(Kokkos::complex<double>, LayoutLeft, 2, 0, 64, 1024, 16, 64);
+// BENCHMARK_Transpose(Kokkos::complex<double>, LayoutLeft, 2, 1, 64, 1024, 16, 64);
+// BENCHMARK_Transpose(Kokkos::complex<double>, LayoutRight, 2, 0, 64, 1024, 16, 64);
+// BENCHMARK_Transpose(Kokkos::complex<double>, LayoutRight, 2, 1, 64, 1024, 16, 64);
 
 // 3D cases
 // BENCHMARK_Transpose(double, LayoutLeft, 3, 0, 64, 1024, 16, 64);
