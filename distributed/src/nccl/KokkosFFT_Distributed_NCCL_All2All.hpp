@@ -34,7 +34,7 @@ struct All2All;
 /// input and output views. It will raise an error if the nprocs obtained from
 /// the input and output views is not the same as the MPI size.
 template <typename ExecutionSpace, typename ViewType>
-struct All2All<ExecutionSpace, ViewType, ScopedNCCLComm> {
+struct All2All<ExecutionSpace, ViewType, ScopedNCCLComm<ExecutionSpace>> {
   static_assert(ViewType::rank() >= 2,
                 "All2All: View rank must be larger than or equal to 2");
   using value_type = typename ViewType::non_const_value_type;
