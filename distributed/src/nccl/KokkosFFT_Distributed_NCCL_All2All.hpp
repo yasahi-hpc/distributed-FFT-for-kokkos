@@ -50,7 +50,7 @@ struct All2All<ExecutionSpace, ViewType, ScopedNCCLComm<ExecutionSpace>> {
   /// \throws std::runtime_error if the extent of the dimension to be transposed
   /// does not match MPI size
   All2All(const ViewType& send, const ViewType& recv,
-          const ScopedNCCLComm& scoped_comm,
+          const ScopedNCCLComm<ExecutionSpace>& scoped_comm,
           const ExecutionSpace& exec_space = ExecutionSpace()) {
     using LayoutType = typename ViewType::array_layout;
     int size_send    = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
