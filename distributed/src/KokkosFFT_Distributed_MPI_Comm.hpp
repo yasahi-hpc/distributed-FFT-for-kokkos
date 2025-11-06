@@ -13,8 +13,8 @@ template <typename ExecutionSpace>
 struct ScopedMPIComm {
  private:
   using execution_space = ExecutionSpace;
-  execution_space m_exec_space;
   MPI_Comm m_comm;
+  execution_space m_exec_space;
   int m_rank = 0;
   int m_size = 1;
 
