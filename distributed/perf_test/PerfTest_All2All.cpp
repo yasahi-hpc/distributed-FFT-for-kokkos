@@ -8,6 +8,8 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Benchmark {
 
+using execution_space = Kokkos::DefaultExecutionSpace;
+
 template <typename ExecutionSpace, typename CommType, typename ViewType>
 void BM_all2all(benchmark::State&, const CommType& comm,
                 const ExecutionSpace& exec_space, const ViewType& send,
@@ -25,29 +27,26 @@ void benchmark_all2all(benchmark::State& state) {
   }
 
   const int n = state.range(0);
-  if (n % size != 0) {
-    state.SkipWithError("Input size must be divisible by number of ranks");
-  }
 
   using View3DType =
       Kokkos::View<T***, LayoutType, Kokkos::DefaultExecutionSpace>;
 
   int n0_buffer = 0, n1_buffer = 0, n2_buffer = 0;
   if constexpr (std::is_same<LayoutType, Kokkos::LayoutLeft>::value) {
-    n0_buffer = n / size;
+    n0_buffer = (n - 1) / size + 1;
     n1_buffer = n;
     n2_buffer = size;
   } else {
     n0_buffer = size;
     n1_buffer = n;
-    n2_buffer = n / size;
+    n2_buffer = (n - 1) / size + 1;
   }
   View3DType send("send", n0_buffer, n1_buffer, n2_buffer),
       recv("recv", n0_buffer, n1_buffer, n2_buffer);
 
-  Kokkos::DefaultExecutionSpace exec_space;
-  using CommType = KokkosFFT::Distributed::Impl::TplComm;
-  CommType comm(MPI_COMM_WORLD);
+  using CommType = KokkosFFT::Distributed::Impl::TplComm<execution_space>;
+  execution_space exec_space;
+  CommType comm(MPI_COMM_WORLD, exec_space);
   while (state.KeepRunning()) {
     do_iteration(
         state, comm,
