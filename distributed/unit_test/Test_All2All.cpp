@@ -108,6 +108,7 @@ struct TestAll2All : public ::testing::Test {
 /// \param[in] use_tpl_wrapper Whether to use template wrapper
 template <typename T, typename LayoutType>
 void test_all2all_view2D(int rank, int nprocs, bool use_tpl_wrapper) {
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
 
   const std::size_t n0 = 16, n1 = 15;
@@ -136,23 +137,33 @@ void test_all2all_view2D(int rank, int nprocs, bool use_tpl_wrapper) {
     for (std::size_t i1 = 0; i1 < send.extent(1); i1++) {
       for (std::size_t i0 = 0; i0 < send.extent(0); i0++) {
         if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-          T value =
-              static_cast<T>(rank * send.size() + i0 + i1 * send.extent(0) +
-                             i2 * send.extent(0) * send.extent(1));
-          T value_T =
-              static_cast<T>(i2 * send.size() + i0 + i1 * send.extent(0) +
-                             rank * send.extent(0) * send.extent(1));
-          h_send(i0, i1, i2) = value;
-          h_ref(i0, i1, i2)  = value_T;
+          float_type value = static_cast<float_type>(
+              rank * send.size() + i0 + i1 * send.extent(0) +
+              i2 * send.extent(0) * send.extent(1));
+          float_type value_T = static_cast<float_type>(
+              i2 * send.size() + i0 + i1 * send.extent(0) +
+              rank * send.extent(0) * send.extent(1));
+          if constexpr (KokkosFFT::Impl::is_complex_v<T>) {
+            h_send(i0, i1, i2) = T(value, value);
+            h_ref(i0, i1, i2)  = T(value_T, value_T);
+          } else {
+            h_send(i0, i1, i2) = value;
+            h_ref(i0, i1, i2)  = value_T;
+          }
         } else {
-          T value =
-              static_cast<T>(rank * send.size() + i2 + i1 * send.extent(2) +
-                             i0 * send.extent(2) * send.extent(1));
-          T value_T =
-              static_cast<T>(i0 * send.size() + i2 + i1 * send.extent(2) +
-                             rank * send.extent(2) * send.extent(1));
-          h_send(i0, i1, i2) = value;
-          h_ref(i0, i1, i2)  = value_T;
+          float_type value = static_cast<float_type>(
+              rank * send.size() + i2 + i1 * send.extent(2) +
+              i0 * send.extent(2) * send.extent(1));
+          float_type value_T = static_cast<float_type>(
+              i0 * send.size() + i2 + i1 * send.extent(2) +
+              rank * send.extent(2) * send.extent(1));
+          if constexpr (KokkosFFT::Impl::is_complex_v<T>) {
+            h_send(i0, i1, i2) = T(value, value);
+            h_ref(i0, i1, i2)  = T(value_T, value_T);
+          } else {
+            h_send(i0, i1, i2) = value;
+            h_ref(i0, i1, i2)  = value_T;
+          }
         }
       }
     }
@@ -171,7 +182,7 @@ void test_all2all_view2D(int rank, int nprocs, bool use_tpl_wrapper) {
   }
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
-  T epsilon = std::numeric_limits<T>::epsilon() * 100;
+  auto epsilon = std::numeric_limits<float_type>::epsilon() * 100;
   for (std::size_t i2 = 0; i2 < send.extent(2); i2++) {
     for (std::size_t i1 = 0; i1 < send.extent(1); i1++) {
       for (std::size_t i0 = 0; i0 < send.extent(0); i0++) {
@@ -291,6 +302,7 @@ void test_all2all_view2D_incorrect_proc_size(int nprocs, bool use_tpl_wrapper) {
 /// \param[in] use_tpl_wrapper Whether to use template wrapper
 template <typename T, typename LayoutType>
 void test_all2all_view2D_row(int rank, int npx, int npy, bool use_tpl_wrapper) {
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
 
   const std::size_t n0 = 8, n1 = 8;
@@ -319,23 +331,33 @@ void test_all2all_view2D_row(int rank, int npx, int npy, bool use_tpl_wrapper) {
     for (std::size_t i1 = 0; i1 < send.extent(1); i1++) {
       for (std::size_t i0 = 0; i0 < send.extent(0); i0++) {
         if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-          T value =
-              static_cast<T>((ry * (n1 / npy) + i1) +
-                             (rx * (n0 / npx) + i0) * n1 + i2 * send.extent(2));
-          T value_T =
-              static_cast<T>(i1 + rx * send.extent(1) + ry * (n1 / npy) +
-                             i0 * n1 + i2 * (n0 / npx) * n1);
-          h_send(i0, i1, i2) = value;
-          h_ref(i0, i1, i2)  = value_T;
+          float_type value = static_cast<float_type>(
+              (ry * (n1 / npy) + i1) + (rx * (n0 / npx) + i0) * n1 +
+              i2 * send.extent(2));
+          float_type value_T = static_cast<float_type>(
+              i1 + rx * send.extent(1) + ry * (n1 / npy) + i0 * n1 +
+              i2 * (n0 / npx) * n1);
+          if constexpr (KokkosFFT::Impl::is_complex_v<T>) {
+            h_send(i0, i1, i2) = T(value, value);
+            h_ref(i0, i1, i2)  = T(value_T, value_T);
+          } else {
+            h_send(i0, i1, i2) = value;
+            h_ref(i0, i1, i2)  = value_T;
+          }
         } else {
-          T value =
-              static_cast<T>((ry * (n1 / npy) + i2) +
-                             (rx * (n0 / npx) + i1) * n1 + i0 * send.extent(0));
-          T value_T =
-              static_cast<T>(i2 + rx * send.extent(0) + ry * (n1 / npy) +
-                             i1 * n1 + i0 * (n0 / npx) * n1);
-          h_send(i0, i1, i2) = value;
-          h_ref(i0, i1, i2)  = value_T;
+          float_type value = static_cast<float_type>(
+              (ry * (n1 / npy) + i2) + (rx * (n0 / npx) + i1) * n1 +
+              i0 * send.extent(0));
+          float_type value_T = static_cast<float_type>(
+              i2 + rx * send.extent(0) + ry * (n1 / npy) + i1 * n1 +
+              i0 * (n0 / npx) * n1);
+          if constexpr (KokkosFFT::Impl::is_complex_v<T>) {
+            h_send(i0, i1, i2) = T(value, value);
+            h_ref(i0, i1, i2)  = T(value_T, value_T);
+          } else {
+            h_send(i0, i1, i2) = value;
+            h_ref(i0, i1, i2)  = value_T;
+          }
         }
       }
     }
@@ -368,7 +390,7 @@ void test_all2all_view2D_row(int rank, int npx, int npy, bool use_tpl_wrapper) {
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
-  T epsilon = std::numeric_limits<T>::epsilon() * 100;
+  auto epsilon = std::numeric_limits<float_type>::epsilon() * 100;
   for (std::size_t i2 = 0; i2 < send.extent(2); i2++) {
     for (std::size_t i1 = 0; i1 < send.extent(1); i1++) {
       for (std::size_t i0 = 0; i0 < send.extent(0); i0++) {
@@ -471,6 +493,7 @@ void test_all2all_view2D_row(int rank, int npx, int npy, bool use_tpl_wrapper) {
 /// \param[in] use_tpl_wrapper Whether to use template wrapper
 template <typename T, typename LayoutType>
 void test_all2all_view2D_col(int rank, int npx, int npy, bool use_tpl_wrapper) {
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
 
   const std::size_t n0 = 8, n1 = 8;
@@ -499,21 +522,33 @@ void test_all2all_view2D_col(int rank, int npx, int npy, bool use_tpl_wrapper) {
     for (std::size_t i1 = 0; i1 < send.extent(1); i1++) {
       for (std::size_t i0 = 0; i0 < send.extent(0); i0++) {
         if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-          T value   = static_cast<T>((ry * send.extent(1) + i1) +
-                                   (rx * (n0 / npx) + i0) * n1 +
-                                   i2 * send.extent(2) * n1);
-          T value_T = static_cast<T>(i1 + (i0 + ry * send.extent(0)) * n1 +
-                                     (i2 + rx * n1) * (n0 / npx));
-          h_send(i0, i1, i2) = value;
-          h_ref(i0, i1, i2)  = value_T;
+          float_type value = static_cast<float_type>(
+              (ry * send.extent(1) + i1) + (rx * (n0 / npx) + i0) * n1 +
+              i2 * send.extent(2) * n1);
+          float_type value_T =
+              static_cast<float_type>(i1 + (i0 + ry * send.extent(0)) * n1 +
+                                      (i2 + rx * n1) * (n0 / npx));
+          if constexpr (KokkosFFT::Impl::is_complex_v<T>) {
+            h_send(i0, i1, i2) = T(value, value);
+            h_ref(i0, i1, i2)  = T(value_T, value_T);
+          } else {
+            h_send(i0, i1, i2) = value;
+            h_ref(i0, i1, i2)  = value_T;
+          }
         } else {
-          T value   = static_cast<T>((ry * send.extent(2) + i2) +
-                                   (rx * (n0 / npx) + i1) * n1 +
-                                   i0 * send.extent(0) * n1);
-          T value_T = static_cast<T>(i2 + (i1 + ry * send.extent(0)) * n1 +
-                                     (i0 + rx * n1) * (n0 / npx));
-          h_send(i0, i1, i2) = value;
-          h_ref(i0, i1, i2)  = value_T;
+          float_type value = static_cast<float_type>(
+              (ry * send.extent(2) + i2) + (rx * (n0 / npx) + i1) * n1 +
+              i0 * send.extent(0) * n1);
+          float_type value_T =
+              static_cast<float_type>(i2 + (i1 + ry * send.extent(0)) * n1 +
+                                      (i0 + rx * n1) * (n0 / npx));
+          if constexpr (KokkosFFT::Impl::is_complex_v<T>) {
+            h_send(i0, i1, i2) = T(value, value);
+            h_ref(i0, i1, i2)  = T(value_T, value_T);
+          } else {
+            h_send(i0, i1, i2) = value;
+            h_ref(i0, i1, i2)  = value_T;
+          }
         }
       }
     }
@@ -547,7 +582,7 @@ void test_all2all_view2D_col(int rank, int npx, int npy, bool use_tpl_wrapper) {
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
-  T epsilon = std::numeric_limits<T>::epsilon() * 100;
+  auto epsilon = std::numeric_limits<float_type>::epsilon() * 100;
   for (std::size_t i2 = 0; i2 < send.extent(2); i2++) {
     for (std::size_t i1 = 0; i1 < send.extent(1); i1++) {
       for (std::size_t i0 = 0; i0 < send.extent(0); i0++) {
@@ -565,18 +600,34 @@ void test_all2all_view2D_col(int rank, int npx, int npy, bool use_tpl_wrapper) {
 
 TYPED_TEST_SUITE(TestAll2All, test_types);
 
-TYPED_TEST(TestAll2All, View2D) {
+TYPED_TEST(TestAll2All, RView2D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
   test_all2all_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs,
                                                false);
 }
 
-TYPED_TEST(TestAll2All, View2D_with_wrapper) {
+TYPED_TEST(TestAll2All, CView2D) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  test_all2all_view2D<complex_type, layout_type>(this->m_rank, this->m_nprocs,
+                                                 false);
+}
+
+TYPED_TEST(TestAll2All, RView2D_with_wrapper) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
   test_all2all_view2D<float_type, layout_type>(this->m_rank, this->m_nprocs,
                                                true);
+}
+
+TYPED_TEST(TestAll2All, CView2D_with_wrapper) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  test_all2all_view2D<complex_type, layout_type>(this->m_rank, this->m_nprocs,
+                                                 true);
 }
 
 TYPED_TEST(TestAll2All, View2D_incorrect_proc_size) {
@@ -593,7 +644,7 @@ TYPED_TEST(TestAll2All, View2D_incorrect_proc_size_with_wrapper) {
       this->m_nprocs, true);
 }
 
-TYPED_TEST(TestAll2All, View2D_row) {
+TYPED_TEST(TestAll2All, RView2D_row) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
@@ -606,7 +657,21 @@ TYPED_TEST(TestAll2All, View2D_row) {
                                                    this->m_npx, false);
 }
 
-TYPED_TEST(TestAll2All, View2D_row_with_wrapper) {
+TYPED_TEST(TestAll2All, CView2D_row) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+
+  test_all2all_view2D_row<complex_type, layout_type>(this->m_rank, this->m_npx,
+                                                     this->m_npx, false);
+}
+
+TYPED_TEST(TestAll2All, RView2D_row_with_wrapper) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
@@ -619,7 +684,21 @@ TYPED_TEST(TestAll2All, View2D_row_with_wrapper) {
                                                    this->m_npx, true);
 }
 
-TYPED_TEST(TestAll2All, View2D_col) {
+TYPED_TEST(TestAll2All, CView2D_row_with_wrapper) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+
+  test_all2all_view2D_row<complex_type, layout_type>(this->m_rank, this->m_npx,
+                                                     this->m_npx, true);
+}
+
+TYPED_TEST(TestAll2All, RView2D_col) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
@@ -632,7 +711,21 @@ TYPED_TEST(TestAll2All, View2D_col) {
                                                    this->m_npx, false);
 }
 
-TYPED_TEST(TestAll2All, View2D_col_with_wrapper) {
+TYPED_TEST(TestAll2All, CView2D_col) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+
+  test_all2all_view2D_col<complex_type, layout_type>(this->m_rank, this->m_npx,
+                                                     this->m_npx, false);
+}
+
+TYPED_TEST(TestAll2All, RView2D_col_with_wrapper) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
@@ -643,4 +736,18 @@ TYPED_TEST(TestAll2All, View2D_col_with_wrapper) {
 
   test_all2all_view2D_col<float_type, layout_type>(this->m_rank, this->m_npx,
                                                    this->m_npx, true);
+}
+
+TYPED_TEST(TestAll2All, CView2D_col_with_wrapper) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+
+  test_all2all_view2D_col<complex_type, layout_type>(this->m_rank, this->m_npx,
+                                                     this->m_npx, true);
 }
