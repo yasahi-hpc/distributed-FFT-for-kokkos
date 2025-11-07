@@ -72,7 +72,7 @@ struct All2All<ExecutionSpace, ViewType, ScopedNCCLComm<ExecutionSpace>> {
     // we cast them in float data type
     const int size_factor = KokkosFFT::Impl::is_real_v<value_type> ? 1 : 2;
     int count       = size_factor * static_cast<int>(send.size()) / size_send;
-    auto type       = NCCLDataType<value_type>::type();
+    auto type       = NCCLDataType<floating_point_type>::type();
     auto* send_data = reinterpret_cast<floating_point_type*>(send.data());
     auto* recv_data = reinterpret_cast<floating_point_type*>(recv.data());
 
