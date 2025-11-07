@@ -21,8 +21,7 @@ struct ScopedNCCLComm {
   int m_size = 1;
 
  public:
-  explicit ScopedNCCLComm(const MPI_Comm &comm,
-                          const execution_space &exec_space)
+  explicit ScopedNCCLComm(MPI_Comm comm, const execution_space &exec_space)
       : m_exec_space(exec_space) {
     ::MPI_Comm_rank(comm, &m_rank);
     ::MPI_Comm_size(comm, &m_size);
@@ -33,11 +32,44 @@ struct ScopedNCCLComm {
     ::MPI_Barrier(comm);
     ncclCommInitRank(&m_comm, m_size, id, m_rank);
   }
-  explicit ScopedNCCLComm(const MPI_Comm &comm)
+  explicit ScopedNCCLComm(MPI_Comm comm)
       : ScopedNCCLComm(comm, execution_space{}) {}
 
   ScopedNCCLComm() = delete;
-  ~ScopedNCCLComm() { ncclCommDestroy(m_comm); }
+
+  // Delete copy semantics
+  ScopedNCCLComm(const ScopedNCCLComm &)            = delete;
+  ScopedNCCLComm &operator=(const ScopedNCCLComm &) = delete;
+
+  // Allow move semantics
+  ScopedNCCLComm(ScopedNCCLComm &&other) noexcept
+      : m_exec_space(other.m_exec_space),
+        m_comm(other.m_comm),
+        m_rank(other.m_rank),
+        m_size(other.m_size) {
+    other.m_comm = nullptr;
+  }
+
+  // Move assignment operator
+  ScopedNCCLComm &operator=(ScopedNCCLComm &&other) noexcept {
+    if (this != &other) {
+      if (m_comm) {
+        ncclCommDestroy(m_comm);
+        m_comm = nullptr;
+      }
+      m_exec_space = other.m_exec_space;
+      m_comm       = other.m_comm;
+      m_rank       = other.m_rank;
+      m_size       = other.m_size;
+      other.m_comm = nullptr;
+    }
+    return *this;
+  }
+
+  ~ScopedNCCLComm() {
+    ncclCommDestroy(m_comm);
+    m_comm = nullptr;
+  }
 
   ncclComm_t comm() const { return m_comm; }
   execution_space exec_space() const { return m_exec_space; }

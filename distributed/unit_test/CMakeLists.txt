@@ -5,6 +5,7 @@ elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
         Test_Main.cpp
         Test_Types.cpp
         Test_All2All.cpp
+        Test_TplComm.cpp
         Test_Mapping.cpp
         Test_Pack.cpp
         Test_Unpack.cpp
@@ -26,6 +27,7 @@ else()
         Test_Main.cpp
         Test_Types.cpp
         Test_All2All.cpp
+        Test_TplComm.cpp
         Test_Mapping.cpp
         Test_Pack.cpp
         Test_Unpack.cpp
