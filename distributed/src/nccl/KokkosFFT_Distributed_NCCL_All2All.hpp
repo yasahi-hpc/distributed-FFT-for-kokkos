@@ -51,7 +51,7 @@ struct All2All<ExecutionSpace, ViewType, ScopedNCCLComm<ExecutionSpace>> {
   /// does not match MPI size
   All2All(const ViewType& send, const ViewType& recv,
           const ScopedNCCLComm<ExecutionSpace>& scoped_comm,
-          const ExecutionSpace& exec_space) {
+          const ExecutionSpace&) {
     using LayoutType = typename ViewType::array_layout;
     int size_send    = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
                            ? send.extent_int(ViewType::rank() - 1)
