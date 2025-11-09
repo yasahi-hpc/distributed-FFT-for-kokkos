@@ -105,34 +105,35 @@ void test_trans_block_view2D(std::size_t nprocs, int order = 0) {
   Kokkos::deep_copy(u_y_T_ref, u_y_T);
 
   execution_space exec;
+  KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(MPI_COMM_WORLD,
+                                                              exec);
 
   if (order == 0) {
     // Order reserved, but distribution changed
     KokkosFFT::Distributed::Impl::TransBlock trans_block_x2y(
-        exec, buffer_01, src_map, 0, src_map, 1, MPI_COMM_WORLD);
-    trans_block_x2y(u_x, u_y, send_buffer, recv_buffer,
+        exec, buffer_01, src_map, 0, src_map, 1);
+    trans_block_x2y(comm, u_x, u_y, send_buffer, recv_buffer,
                     KokkosFFT::Direction::forward);
-
     EXPECT_TRUE(allclose(exec, u_y, u_y_ref));
 
     // Recover u_y from u_y_ref
     Kokkos::deep_copy(u_y, u_y_ref);
 
-    trans_block_x2y(u_y, u_x, send_buffer, recv_buffer,
+    trans_block_x2y(comm, u_y, u_x, send_buffer, recv_buffer,
                     KokkosFFT::Direction::backward);
     EXPECT_TRUE(allclose(exec, u_x, u_x_ref));
   } else {
     // Order changed, and distribution changed
     KokkosFFT::Distributed::Impl::TransBlock trans_block_x2y(
-        exec, buffer_01, src_map, 0, dst_map, 1, MPI_COMM_WORLD);
-    trans_block_x2y(u_x, u_y_T, send_buffer, recv_buffer,
+        exec, buffer_01, src_map, 0, dst_map, 1);
+    trans_block_x2y(comm, u_x, u_y_T, send_buffer, recv_buffer,
                     KokkosFFT::Direction::forward);
 
     EXPECT_TRUE(allclose(exec, u_y_T, u_y_T_ref));
 
     KokkosFFT::Distributed::Impl::TransBlock trans_block_y2x(
-        exec, buffer_01, src_map, 1, dst_map, 0, MPI_COMM_WORLD);
-    trans_block_y2x(u_y, u_x_T, send_buffer, recv_buffer,
+        exec, buffer_01, src_map, 1, dst_map, 0);
+    trans_block_y2x(comm, u_y, u_x_T, send_buffer, recv_buffer,
                     KokkosFFT::Direction::forward);
     EXPECT_TRUE(allclose(exec, u_x_T, u_x_T_ref));
   }
@@ -455,13 +456,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_1(
-        exec, buffer_01, map012, 0, map021, 1, row_comm);
-    trans_block_0_1(u_0_012, u_1_021, send_buffer01, recv_buffer01,
+        exec, buffer_01, map012, 0, map021, 1);
+    trans_block_0_1(row_comm, u_0_012, u_1_021, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_021, ref_u_1_021));
 
-    trans_block_0_1(u_1_021, u_0_012, send_buffer01, recv_buffer01,
+    trans_block_0_1(row_comm, u_1_021, u_0_012, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -469,13 +470,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_1(
-        exec, buffer_01, map012, 0, map102, 1, row_comm);
-    trans_block_0_1(u_0_012, u_1_102, send_buffer01, recv_buffer01,
+        exec, buffer_01, map012, 0, map102, 1);
+    trans_block_0_1(row_comm, u_0_012, u_1_102, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_102, ref_u_1_102));
 
-    trans_block_0_1(u_1_102, u_0_012, send_buffer01, recv_buffer01,
+    trans_block_0_1(row_comm, u_1_102, u_0_012, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -483,13 +484,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_1(
-        exec, buffer_01, map012, 0, map120, 1, row_comm);
-    trans_block_0_1(u_0_012, u_1_120, send_buffer01, recv_buffer01,
+        exec, buffer_01, map012, 0, map120, 1);
+    trans_block_0_1(row_comm, u_0_012, u_1_120, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_120, ref_u_1_120));
 
-    trans_block_0_1(u_1_120, u_0_012, send_buffer01, recv_buffer01,
+    trans_block_0_1(row_comm, u_1_120, u_0_012, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -497,13 +498,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_1(
-        exec, buffer_01, map012, 0, map201, 1, row_comm);
-    trans_block_0_1(u_0_012, u_1_201, send_buffer01, recv_buffer01,
+        exec, buffer_01, map012, 0, map201, 1);
+    trans_block_0_1(row_comm, u_0_012, u_1_201, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_201, ref_u_1_201));
 
-    trans_block_0_1(u_1_201, u_0_012, send_buffer01, recv_buffer01,
+    trans_block_0_1(row_comm, u_1_201, u_0_012, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -511,13 +512,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_1(
-        exec, buffer_01, map012, 0, map210, 1, row_comm);
-    trans_block_0_1(u_0_012, u_1_210, send_buffer01, recv_buffer01,
+        exec, buffer_01, map012, 0, map210, 1);
+    trans_block_0_1(row_comm, u_0_012, u_1_210, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_210, ref_u_1_210));
 
-    trans_block_0_1(u_1_210, u_0_012, send_buffer01, recv_buffer01,
+    trans_block_0_1(row_comm, u_1_210, u_0_012, send_buffer01, recv_buffer01,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -525,13 +526,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_3(
-        exec, buffer_03, map012, 0, map012, 2, col_comm);
-    trans_block_0_3(u_0_012, u_3_012, send_buffer03, recv_buffer03,
+        exec, buffer_03, map012, 0, map012, 2);
+    trans_block_0_3(col_comm, u_0_012, u_3_012, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_3_012, ref_u_3_012));
 
-    trans_block_0_3(u_3_012, u_0_012, send_buffer03, recv_buffer03,
+    trans_block_0_3(col_comm, u_3_012, u_0_012, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -539,13 +540,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_3(
-        exec, buffer_03, map012, 0, map021, 2, col_comm);
-    trans_block_0_3(u_0_012, u_3_021, send_buffer03, recv_buffer03,
+        exec, buffer_03, map012, 0, map021, 2);
+    trans_block_0_3(col_comm, u_0_012, u_3_021, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_3_021, ref_u_3_021));
 
-    trans_block_0_3(u_3_021, u_0_012, send_buffer03, recv_buffer03,
+    trans_block_0_3(col_comm, u_3_021, u_0_012, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -553,13 +554,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_3(
-        exec, buffer_03, map012, 0, map102, 2, col_comm);
-    trans_block_0_3(u_0_012, u_3_102, send_buffer03, recv_buffer03,
+        exec, buffer_03, map012, 0, map102, 2);
+    trans_block_0_3(col_comm, u_0_012, u_3_102, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_3_102, ref_u_3_102));
 
-    trans_block_0_3(u_3_102, u_0_012, send_buffer03, recv_buffer03,
+    trans_block_0_3(col_comm, u_3_102, u_0_012, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -567,13 +568,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_3(
-        exec, buffer_03, map012, 0, map120, 2, col_comm);
-    trans_block_0_3(u_0_012, u_3_120, send_buffer03, recv_buffer03,
+        exec, buffer_03, map012, 0, map120, 2);
+    trans_block_0_3(col_comm, u_0_012, u_3_120, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_3_120, ref_u_3_120));
 
-    trans_block_0_3(u_3_120, u_0_012, send_buffer03, recv_buffer03,
+    trans_block_0_3(col_comm, u_3_120, u_0_012, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -581,13 +582,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_3(
-        exec, buffer_03, map012, 0, map201, 2, col_comm);
-    trans_block_0_3(u_0_012, u_3_201, send_buffer03, recv_buffer03,
+        exec, buffer_03, map012, 0, map201, 2);
+    trans_block_0_3(col_comm, u_0_012, u_3_201, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_3_201, ref_u_3_201));
 
-    trans_block_0_3(u_3_201, u_0_012, send_buffer03, recv_buffer03,
+    trans_block_0_3(col_comm, u_3_201, u_0_012, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -595,13 +596,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_3(
-        exec, buffer_03, map012, 0, map210, 2, col_comm);
-    trans_block_0_3(u_0_012, u_3_210, send_buffer03, recv_buffer03,
+        exec, buffer_03, map012, 0, map210, 2);
+    trans_block_0_3(col_comm, u_0_012, u_3_210, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_3_210, ref_u_3_210));
 
-    trans_block_0_3(u_3_210, u_0_012, send_buffer03, recv_buffer03,
+    trans_block_0_3(col_comm, u_3_210, u_0_012, send_buffer03, recv_buffer03,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_0_012, ref_u_0_012));
@@ -609,13 +610,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_1_2(
-        exec, buffer_12, map012, 1, map012, 2, col_comm);
-    trans_block_1_2(u_1_012, u_2_012, send_buffer12, recv_buffer12,
+        exec, buffer_12, map012, 1, map012, 2);
+    trans_block_1_2(col_comm, u_1_012, u_2_012, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_2_012, ref_u_2_012));
 
-    trans_block_1_2(u_2_012, u_1_012, send_buffer12, recv_buffer12,
+    trans_block_1_2(col_comm, u_2_012, u_1_012, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_012, ref_u_1_012));
@@ -623,13 +624,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_1_2(
-        exec, buffer_12, map012, 1, map021, 2, col_comm);
-    trans_block_1_2(u_1_012, u_2_021, send_buffer12, recv_buffer12,
+        exec, buffer_12, map012, 1, map021, 2);
+    trans_block_1_2(col_comm, u_1_012, u_2_021, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_2_021, ref_u_2_021));
 
-    trans_block_1_2(u_2_021, u_1_012, send_buffer12, recv_buffer12,
+    trans_block_1_2(col_comm, u_2_021, u_1_012, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_012, ref_u_1_012));
@@ -637,13 +638,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_1_2(
-        exec, buffer_12, map012, 1, map102, 2, col_comm);
-    trans_block_1_2(u_1_012, u_2_102, send_buffer12, recv_buffer12,
+        exec, buffer_12, map012, 1, map102, 2);
+    trans_block_1_2(col_comm, u_1_012, u_2_102, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_2_102, ref_u_2_102));
 
-    trans_block_1_2(u_2_102, u_1_012, send_buffer12, recv_buffer12,
+    trans_block_1_2(col_comm, u_2_102, u_1_012, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_012, ref_u_1_012));
@@ -651,13 +652,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_1_2(
-        exec, buffer_12, map012, 1, map120, 2, col_comm);
-    trans_block_1_2(u_1_012, u_2_120, send_buffer12, recv_buffer12,
+        exec, buffer_12, map012, 1, map120, 2);
+    trans_block_1_2(col_comm, u_1_012, u_2_120, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_2_120, ref_u_2_120));
 
-    trans_block_1_2(u_2_120, u_1_012, send_buffer12, recv_buffer12,
+    trans_block_1_2(col_comm, u_2_120, u_1_012, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_012, ref_u_1_012));
@@ -665,13 +666,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_1_2(
-        exec, buffer_12, map012, 1, map201, 2, col_comm);
-    trans_block_1_2(u_1_012, u_2_201, send_buffer12, recv_buffer12,
+        exec, buffer_12, map012, 1, map201, 2);
+    trans_block_1_2(col_comm, u_1_012, u_2_201, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_2_201, ref_u_2_201));
 
-    trans_block_1_2(u_2_201, u_1_012, send_buffer12, recv_buffer12,
+    trans_block_1_2(col_comm, u_2_201, u_1_012, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_012, ref_u_1_012));
@@ -679,13 +680,13 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
 
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_1_2(
-        exec, buffer_12, map012, 1, map210, 2, col_comm);
-    trans_block_1_2(u_1_012, u_2_210, send_buffer12, recv_buffer12,
+        exec, buffer_12, map012, 1, map210, 2);
+    trans_block_1_2(col_comm, u_1_012, u_2_210, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::forward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_2_210, ref_u_2_210));
 
-    trans_block_1_2(u_2_210, u_1_012, send_buffer12, recv_buffer12,
+    trans_block_1_2(col_comm, u_2_210, u_1_012, send_buffer12, recv_buffer12,
                     KokkosFFT::Direction::backward);
     exec.fence();
     EXPECT_TRUE(allclose(exec, u_1_012, ref_u_1_012));

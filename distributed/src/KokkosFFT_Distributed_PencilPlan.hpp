@@ -62,6 +62,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
       Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
 
   // Type for transpose Block
+  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
   using TransBlockType = TransBlock<ExecutionSpace, DIM>;
 
   using FFTForwardPlanType =
@@ -78,6 +79,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
   // Cartesian Communicators
   MPI_Comm m_cart_comm;
   std::vector<MPI_Comm> m_cart_comms;
+  std::vector<std::unique_ptr<CommType>> m_cart_tpl_comms;
 
   // Analyse topology
   std::unique_ptr<PencilBlockAnalysesType> m_block_analyses;
@@ -144,6 +146,10 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
     ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
 
     m_cart_comms = {row_comm, col_comm};
+    m_cart_tpl_comms.emplace_back(
+        std::make_unique<CommType>(row_comm, exec_space));
+    m_cart_tpl_comms.emplace_back(
+        std::make_unique<CommType>(col_comm, exec_space));
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
@@ -313,8 +319,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
       }
       m_trans_blocks.push_back(std::make_unique<TransBlockType>(
           m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis,
-          m_cart_comms.at(block.m_comm_axis)));
+          block.m_out_map, block.m_out_axis));
     }
   }
 
@@ -331,7 +336,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
         forward_fft(in, out_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            in, m_in_T, m_send_buffer_allocation, m_recv_buffer_allocation,
+            *m_cart_tpl_comms.at(block.m_comm_axis), in, m_in_T,
+            m_send_buffer_allocation, m_recv_buffer_allocation,
             KokkosFFT::Direction::forward);
       }
     } else {
@@ -361,9 +367,9 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view, out_view2,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::forward);
+        (*m_trans_blocks.at(block.m_block_idx))(
+            *m_cart_tpl_comms.at(block.m_comm_axis), out_view, out_view2,
+            send_buffer, recv_buffer, KokkosFFT::Direction::forward);
       }
     }
   }
@@ -381,7 +387,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
         backward_fft(out_view, in);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            m_in_T, in, m_recv_buffer_allocation, m_send_buffer_allocation,
+            *m_cart_tpl_comms.at(block.m_comm_axis), m_in_T, in,
+            m_recv_buffer_allocation, m_send_buffer_allocation,
             KokkosFFT::Direction::backward);
       }
     } else {
@@ -411,9 +418,9 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view2, out_view,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::backward);
+        (*m_trans_blocks.at(block.m_block_idx))(
+            *m_cart_tpl_comms.at(block.m_comm_axis), out_view2, out_view,
+            send_buffer, recv_buffer, KokkosFFT::Direction::backward);
       }
     }
   }
@@ -448,6 +455,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
       Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
 
   // Type for transpose Block
+  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
   using TransBlockType = TransBlock<ExecutionSpace, DIM>;
 
   // First FFT to perform can be Real to Complex
@@ -475,6 +483,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
   // Cartesian Communicators
   MPI_Comm m_cart_comm;
   std::vector<MPI_Comm> m_cart_comms;
+  std::vector<std::unique_ptr<CommType>> m_cart_tpl_comms;
 
   // Analyse topology
   std::unique_ptr<PencilBlockAnalysesType> m_block_analyses;
@@ -548,6 +557,10 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
     ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
 
     m_cart_comms = {row_comm, col_comm};
+    m_cart_tpl_comms.emplace_back(
+        std::make_unique<CommType>(row_comm, exec_space));
+    m_cart_tpl_comms.emplace_back(
+        std::make_unique<CommType>(col_comm, exec_space));
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
@@ -796,8 +809,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
     } else {
       m_trans_blocks.push_back(std::make_unique<TransBlockType>(
           m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis,
-          m_cart_comms.at(block.m_comm_axis)));
+          block.m_out_map, block.m_out_axis));
 
       if (m_in_out_ptr.size() == 0) {
         m_in_out_ptr.push_back(
@@ -829,7 +841,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
         forward_fft<0>(in, out_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            in, m_in_T, m_send_buffer_allocation, m_recv_buffer_allocation,
+            *m_cart_tpl_comms.at(block.m_comm_axis), in, m_in_T,
+            m_send_buffer_allocation, m_recv_buffer_allocation,
             KokkosFFT::Direction::forward);
       }
     } else {
@@ -882,9 +895,9 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view, out_view2,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::forward);
+        (*m_trans_blocks.at(block.m_block_idx))(
+            *m_cart_tpl_comms.at(block.m_comm_axis), out_view, out_view2,
+            send_buffer, recv_buffer, KokkosFFT::Direction::forward);
       }
     }
   }
@@ -902,7 +915,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
         backward_fft<0>(out_view, in);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            m_in_T, in, m_recv_buffer_allocation, m_send_buffer_allocation,
+            *m_cart_tpl_comms.at(block.m_comm_axis), m_in_T, in,
+            m_recv_buffer_allocation, m_send_buffer_allocation,
             KokkosFFT::Direction::backward);
       }
     } else {
@@ -952,9 +966,9 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view2, out_view,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::backward);
+        (*m_trans_blocks.at(block.m_block_idx))(
+            *m_cart_tpl_comms.at(block.m_comm_axis), out_view2, out_view,
+            send_buffer, recv_buffer, KokkosFFT::Direction::backward);
       }
     }
   }
@@ -1000,6 +1014,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
       Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
 
   // Type for transpose Block
+  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
   using TransBlockType = TransBlock<ExecutionSpace, DIM>;
 
   // First FFT to perform can be Real to Complex
@@ -1035,6 +1050,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
   // Cartesian Communicators
   MPI_Comm m_cart_comm;
   std::vector<MPI_Comm> m_cart_comms;
+  std::vector<std::unique_ptr<CommType>> m_cart_tpl_comms;
 
   // Analyse topology
   std::unique_ptr<PencilBlockAnalysesType> m_block_analyses;
@@ -1114,6 +1130,10 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
     ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
 
     m_cart_comms = {row_comm, col_comm};
+    m_cart_tpl_comms.emplace_back(
+        std::make_unique<CommType>(row_comm, exec_space));
+    m_cart_tpl_comms.emplace_back(
+        std::make_unique<CommType>(col_comm, exec_space));
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
@@ -1479,8 +1499,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
     } else {
       m_trans_blocks.push_back(std::make_unique<TransBlockType>(
           m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis,
-          m_cart_comms.at(block.m_comm_axis)));
+          block.m_out_map, block.m_out_axis));
 
       if (m_in_out_ptr.size() == 0) {
         m_in_out_ptr.push_back(
@@ -1512,7 +1531,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
         forward_fft<0>(in, out_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            in, m_in_T, m_send_buffer_allocation, m_recv_buffer_allocation,
+            *m_cart_tpl_comms.at(block.m_comm_axis), in, m_in_T,
+            m_send_buffer_allocation, m_recv_buffer_allocation,
             KokkosFFT::Direction::forward);
       }
     } else {
@@ -1569,9 +1589,9 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view, out_view2,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::forward);
+        (*m_trans_blocks.at(block.m_block_idx))(
+            *m_cart_tpl_comms.at(block.m_comm_axis), out_view, out_view2,
+            send_buffer, recv_buffer, KokkosFFT::Direction::forward);
       }
     }
   }
@@ -1589,7 +1609,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
         backward_fft<0>(out_view, in);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            m_in_T, in, m_recv_buffer_allocation, m_send_buffer_allocation,
+            *m_cart_tpl_comms.at(block.m_comm_axis), m_in_T, in,
+            m_recv_buffer_allocation, m_send_buffer_allocation,
             KokkosFFT::Direction::backward);
       }
     } else {
@@ -1643,9 +1664,9 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view2, out_view,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::backward);
+        (*m_trans_blocks.at(block.m_block_idx))(
+            *m_cart_tpl_comms.at(block.m_comm_axis), out_view2, out_view,
+            send_buffer, recv_buffer, KokkosFFT::Direction::backward);
       }
     }
   }

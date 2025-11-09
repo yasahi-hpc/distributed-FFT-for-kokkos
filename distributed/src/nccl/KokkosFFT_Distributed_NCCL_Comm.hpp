@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
+#include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Comm.hpp"
 #include "KokkosFFT_Distributed_NCCL_Types.hpp"
 
@@ -30,7 +31,8 @@ struct ScopedNCCLComm {
     if (m_rank == 0) ncclGetUniqueId(&id);
     ::MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, comm);
     ::MPI_Barrier(comm);
-    ncclCommInitRank(&m_comm, m_size, id, m_rank);
+    ncclResult_t res = ncclCommInitRank(&m_comm, m_size, id, m_rank);
+    KOKKOSFFT_THROW_IF(res != ncclSuccess, "ncclCommInitRank failed");
   }
   explicit ScopedNCCLComm(MPI_Comm comm)
       : ScopedNCCLComm(comm, execution_space{}) {}
@@ -54,7 +56,8 @@ struct ScopedNCCLComm {
   ScopedNCCLComm &operator=(ScopedNCCLComm &&other) noexcept {
     if (this != &other) {
       if (m_comm) {
-        ncclCommDestroy(m_comm);
+        ncclResult_t res = ncclCommDestroy(m_comm);
+        KOKKOSFFT_THROW_IF(res != ncclSuccess, "ncclCommDestroy failed");
         m_comm = nullptr;
       }
       m_exec_space = other.m_exec_space;
@@ -67,7 +70,8 @@ struct ScopedNCCLComm {
   }
 
   ~ScopedNCCLComm() {
-    ncclCommDestroy(m_comm);
+    ncclResult_t res = ncclCommDestroy(m_comm);
+    if (res != ncclSuccess) Kokkos::abort("ncclCommDestroy failed");
     m_comm = nullptr;
   }
 

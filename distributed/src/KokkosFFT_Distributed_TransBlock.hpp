@@ -6,6 +6,7 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_PackUnpack.hpp"
 #include "KokkosFFT_Distributed_All2All.hpp"
+#include "KokkosFFT_Distributed_Helper.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -23,24 +24,21 @@ class TransBlock {
   buffer_extents_type m_buffer_extents;
   extents_type m_src_map, m_dst_map;
   std::size_t m_src_axis, m_dst_axis;
-  MPI_Comm m_comm;
 
  public:
   explicit TransBlock(const ExecutionSpace& exec_space,
                       const buffer_extents_type& buffer_extents,
                       const extents_type& src_map, std::size_t src_axis,
-                      const extents_type& dst_map, std::size_t dst_axis,
-                      MPI_Comm comm = MPI_COMM_WORLD)
+                      const extents_type& dst_map, std::size_t dst_axis)
       : m_exec(exec_space),
         m_buffer_extents(buffer_extents),
         m_src_map(src_map),
         m_dst_map(dst_map),
         m_src_axis(src_axis),
-        m_dst_axis(dst_axis),
-        m_comm(comm) {}
+        m_dst_axis(dst_axis) {}
 
-  template <typename ViewType, typename BufferType>
-  void operator()(const ViewType& in, const ViewType& out,
+  template <typename CommType, typename ViewType, typename BufferType>
+  void operator()(const CommType& comm, const ViewType& in, const ViewType& out,
                   const BufferType& send, const BufferType& recv,
                   KokkosFFT::Direction direction) const {
     using value_type = typename ViewType::non_const_value_type;
@@ -70,7 +68,7 @@ class TransBlock {
 
     pack(m_exec, in, send_buffer, src_map, src_axis);
     m_exec.fence();
-    all2all(m_exec, send_buffer, recv_buffer, m_comm);
+    all2all(m_exec, send_buffer, recv_buffer, comm);
     unpack(m_exec, recv_buffer, out, dst_map, dst_axis);
   }
 
@@ -78,8 +76,6 @@ class TransBlock {
   template <typename ViewType, typename BufferType>
   void good(const ViewType& in, const ViewType& out, const BufferType& send,
             const BufferType& recv) const {
-    // static_assert(BufferType::rank() == ViewType::rank() + 1);
-
     using view_value_type   = typename ViewType::non_const_value_type;
     using buffer_value_type = typename BufferType::non_const_value_type;
 
