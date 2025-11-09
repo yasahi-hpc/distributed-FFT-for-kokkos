@@ -51,7 +51,7 @@ struct All2All<ExecutionSpace, ViewType, ScopedNCCLComm<ExecutionSpace>> {
   /// does not match MPI size
   All2All(const ViewType& send, const ViewType& recv,
           const ScopedNCCLComm<ExecutionSpace>& scoped_comm,
-          const ExecutionSpace& exec_space = ExecutionSpace()) {
+          const ExecutionSpace& exec_space) {
     using LayoutType = typename ViewType::array_layout;
     int size_send    = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
                            ? send.extent_int(ViewType::rank() - 1)
@@ -77,23 +77,29 @@ struct All2All<ExecutionSpace, ViewType, ScopedNCCLComm<ExecutionSpace>> {
     auto* recv_data = reinterpret_cast<floating_point_type*>(recv.data());
 
 #if defined(KOKKOS_ENABLE_CUDA)
-    auto stream = exec_space.cuda_stream();
+    auto stream = scoped_comm.exec_space().cuda_stream();
 #elif defined(KOKKOS_ENABLE_HIP)
-    auto stream = exec_space.hip_stream();
+    auto stream = scoped_comm.exec_space().hip_stream();
 #else
     static_assert(false,
                   "You need to enable CUDA (HIP) backend to use NCCL (RCCL).");
 #endif
 
 #if NCCL_VERSION_CODE >= NCCL_VERSION(2, 28, 0)
-    ncclAlltoAll(send_data, recv_data, count, type, comm, stream);
+    ncclResult_t res =
+        ncclAlltoAll(send_data, recv_data, count, type, comm, stream);
+    KOKKOSFFT_THROW_IF(res != ncclSuccess, "ncclAlltoAll failed");
 #else
-    ncclGroupStart();
+    ncclResult_t res = ncclGroupStart();
+    KOKKOSFFT_THROW_IF(res != ncclSuccess, "ncclGroupStart failed");
     for (int r = 0; r < size; ++r) {
-      ncclSend(send_data + r * count, count, type, r, comm, stream);
-      ncclRecv(recv_data + r * count, count, type, r, comm, stream);
+      res = ncclSend(send_data + r * count, count, type, r, comm, stream);
+      KOKKOSFFT_THROW_IF(res != ncclSuccess, "ncclSend failed");
+      res = ncclRecv(recv_data + r * count, count, type, r, comm, stream);
+      KOKKOSFFT_THROW_IF(res != ncclSuccess, "ncclRecv failed");
     }
-    ncclGroupEnd();
+    res = ncclGroupEnd();
+    KOKKOSFFT_THROW_IF(res != ncclSuccess, "ncclGroupEnd failed");
 #endif
   }
 };

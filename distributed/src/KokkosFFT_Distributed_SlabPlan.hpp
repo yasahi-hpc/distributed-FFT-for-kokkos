@@ -55,6 +55,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
       Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
 
   // Type for transpose Block
+  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
   using TransBlockType = TransBlock<ExecutionSpace, DIM>;
 
   using FFTForwardPlanType =
@@ -66,7 +67,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
   axes_type m_axes;
   topology_type m_in_topology;
   topology_type m_out_topology;
-  MPI_Comm m_comm;
+  CommType m_comm;
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
@@ -100,7 +101,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
         m_axes(axes),
         m_in_topology(in_topology),
         m_out_topology(out_topology),
-        m_comm(comm) {
+        m_comm(comm, exec_space) {
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
@@ -109,8 +110,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
     auto out_extents = KokkosFFT::Impl::extract_extents(out);
 
-    auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
-    auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
+    auto gin_extents  = get_global_shape(in, m_in_topology, comm);
+    auto gout_extents = get_global_shape(out, m_out_topology, comm);
 
     auto non_negative_axes =
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(
@@ -118,7 +119,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        out_topology, non_negative_axes, comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 3),
@@ -258,7 +259,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
     } else {
       m_trans_blocks.push_back(std::make_unique<TransBlockType>(
           m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis, m_comm));
+          block.m_out_map, block.m_out_axis));
     }
   }
 
@@ -280,15 +281,15 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
         forward_fft(in, out_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            in, in_view, m_send_buffer_allocation, m_recv_buffer_allocation,
-            KokkosFFT::Direction::forward);
+            m_comm, in, in_view, m_send_buffer_allocation,
+            m_recv_buffer_allocation, KokkosFFT::Direction::forward);
       }
     } else {
       if (block_type == BlockType::FFT) {
         forward_fft(in_view, out_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            out_view, out_view_T, m_send_buffer_allocation,
+            m_comm, out_view, out_view_T, m_send_buffer_allocation,
             m_recv_buffer_allocation, KokkosFFT::Direction::forward);
       }
     }
@@ -312,15 +313,15 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
         backward_fft(out, in_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            out, out_view, m_recv_buffer_allocation, m_send_buffer_allocation,
-            KokkosFFT::Direction::backward);
+            m_comm, out, out_view, m_recv_buffer_allocation,
+            m_send_buffer_allocation, KokkosFFT::Direction::backward);
       }
     } else {
       if (block_type == BlockType::FFT) {
         backward_fft(out_view, in_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            in_view, in_view_T, m_recv_buffer_allocation,
+            m_comm, in_view, in_view_T, m_recv_buffer_allocation,
             m_send_buffer_allocation, KokkosFFT::Direction::backward);
       }
     }
@@ -358,6 +359,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
       Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
 
   // Type for transpose Block
+  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
   using TransBlockType = TransBlock<ExecutionSpace, DIM>;
 
   // First FFT to perform can be Real to Complex
@@ -380,7 +382,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
   axes_type m_axes;
   topology_type m_in_topology;
   topology_type m_out_topology;
-  MPI_Comm m_comm;
+  CommType m_comm;
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
@@ -419,7 +421,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
         m_axes(axes),
         m_in_topology(in_topology),
         m_out_topology(out_topology),
-        m_comm(comm) {
+        m_comm(comm, exec_space) {
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
@@ -428,8 +430,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
     auto out_extents = KokkosFFT::Impl::extract_extents(out);
 
-    auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
-    auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
+    auto gin_extents  = get_global_shape(in, m_in_topology, comm);
+    auto gout_extents = get_global_shape(out, m_out_topology, comm);
 
     auto non_negative_axes =
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(
@@ -437,7 +439,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        out_topology, non_negative_axes, comm);
 
     KOKKOSFFT_THROW_IF(m_block_analyses->m_block_infos.size() > 5,
                        "Maximum five blocks are expected");
@@ -652,7 +654,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
     } else {
       m_trans_blocks.push_back(std::make_unique<TransBlockType>(
           m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis, m_comm));
+          block.m_out_map, block.m_out_axis));
     }
   }
 
@@ -670,8 +672,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
         forward_fft<0>(in, out_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            in, m_in_T, m_send_buffer_allocation, m_recv_buffer_allocation,
-            KokkosFFT::Direction::forward);
+            m_comm, in, m_in_T, m_send_buffer_allocation,
+            m_recv_buffer_allocation, KokkosFFT::Direction::forward);
       }
     } else {
       if (block_type == BlockType::FFT) {
@@ -712,7 +714,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view, out_view2,
+        (*m_trans_blocks.at(block.m_block_idx))(m_comm, out_view, out_view2,
                                                 send_buffer, recv_buffer,
                                                 KokkosFFT::Direction::forward);
       }
@@ -733,8 +735,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
         backward_fft<0>(out_view, in);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            m_in_T, in, m_recv_buffer_allocation, m_send_buffer_allocation,
-            KokkosFFT::Direction::backward);
+            m_comm, m_in_T, in, m_recv_buffer_allocation,
+            m_send_buffer_allocation, KokkosFFT::Direction::backward);
       }
     } else {
       if (block_type == BlockType::FFT) {
@@ -775,7 +777,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view2, out_view,
+        (*m_trans_blocks.at(block.m_block_idx))(m_comm, out_view2, out_view,
                                                 send_buffer, recv_buffer,
                                                 KokkosFFT::Direction::backward);
       }
@@ -816,6 +818,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
       Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
 
   // Type for transpose Block
+  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
   using TransBlockType = TransBlock<ExecutionSpace, DIM>;
 
   // First FFT to perform can be Real to Complex
@@ -846,7 +849,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
   axes_type m_axes;
   topology_type m_in_topology;
   topology_type m_out_topology;
-  MPI_Comm m_comm;
+  CommType m_comm;
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
@@ -888,7 +891,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
         m_axes(axes),
         m_in_topology(in_topology),
         m_out_topology(out_topology),
-        m_comm(comm) {
+        m_comm(comm, exec_space) {
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
@@ -897,8 +900,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
     auto out_extents = KokkosFFT::Impl::extract_extents(out);
 
-    auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
-    auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
+    auto gin_extents  = get_global_shape(in, m_in_topology, comm);
+    auto gout_extents = get_global_shape(out, m_out_topology, comm);
 
     auto non_negative_axes =
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(
@@ -906,7 +909,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
         in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        out_topology, non_negative_axes, comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 5),
@@ -1184,7 +1187,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
     } else {
       m_trans_blocks.push_back(std::make_unique<TransBlockType>(
           m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis, m_comm));
+          block.m_out_map, block.m_out_axis));
     }
   }
 
@@ -1202,8 +1205,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
         forward_fft<0>(in, out_view);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            in, m_in_T, m_send_buffer_allocation, m_recv_buffer_allocation,
-            KokkosFFT::Direction::forward);
+            m_comm, in, m_in_T, m_send_buffer_allocation,
+            m_recv_buffer_allocation, KokkosFFT::Direction::forward);
       }
     } else {
       if (block_type == BlockType::FFT) {
@@ -1244,7 +1247,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view, out_view2,
+        (*m_trans_blocks.at(block.m_block_idx))(m_comm, out_view, out_view2,
                                                 send_buffer, recv_buffer,
                                                 KokkosFFT::Direction::forward);
       }
@@ -1265,8 +1268,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
         backward_fft<0>(out_view, in);
       } else if (block_type == BlockType::Transpose) {
         (*m_trans_blocks.at(block.m_block_idx))(
-            m_in_T, in, m_recv_buffer_allocation, m_send_buffer_allocation,
-            KokkosFFT::Direction::backward);
+            m_comm, m_in_T, in, m_recv_buffer_allocation,
+            m_send_buffer_allocation, KokkosFFT::Direction::backward);
       }
     } else {
       if (block_type == BlockType::FFT) {
@@ -1307,7 +1310,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
           recv_buffer = m_send_buffer_allocation;
         }
 
-        (*m_trans_blocks.at(block.m_block_idx))(out_view2, out_view,
+        (*m_trans_blocks.at(block.m_block_idx))(m_comm, out_view2, out_view,
                                                 send_buffer, recv_buffer,
                                                 KokkosFFT::Direction::backward);
       }
