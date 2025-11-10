@@ -17,6 +17,14 @@
 #include <hipfft/hipfft.h>
 #endif
 
+#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL)
+#include <nccl.h>
+#endif
+
+#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL)
+#include <rccl/rccl.h>
+#endif
+
 namespace KokkosFFT {
 namespace Distributed {
 #if defined(KOKKOSFFT_ENABLE_TPL_CUFFT)
@@ -55,6 +63,26 @@ inline std::string hipfft_version_string() {
   return ss.str();
 }
 #endif
+
+#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL) || \
+    defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL)
+inline std::string nccl_version_string() {
+  int version;
+  ncclResult_t result = ncclGetVersion(&version);
+
+  int major = version / 1000;
+  int minor = (version % 1000) / 100;
+  int patch = version % 100;
+
+  // Print version
+  std::stringstream ss;
+
+  ss << major << "." << minor << "." << patch;
+
+  return ss.str();
+}
+#endif
+
 }  // namespace Distributed
 }  // namespace KokkosFFT
 #endif
