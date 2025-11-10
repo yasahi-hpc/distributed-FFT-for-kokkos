@@ -1,8 +1,4 @@
-#include <mpi.h>
-#include <sstream>
-#include <iostream>
 #include <gtest/gtest.h>
-#include <Kokkos_Core.hpp>
 #include "oneCCL/KokkosFFT_Distributed_oneCCL_Types.hpp"
 
 namespace {

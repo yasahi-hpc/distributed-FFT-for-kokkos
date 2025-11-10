@@ -26,7 +26,7 @@ struct ScopedoneCCLComm {
     ::MPI_Comm_rank(comm, &m_rank);
     ::MPI_Comm_size(comm, &m_size);
 
-    /* create kvs */
+    // create kvs
     ccl::shared_ptr_class<ccl::kvs> kvs;
     ccl::kvs::address_type main_addr;
     if (m_rank == 0) {
@@ -38,7 +38,7 @@ struct ScopedoneCCLComm {
       kvs = ccl::create_kvs(main_addr);
     }
 
-    /* create communicator */
+    // create communicator
     sycl::queue q = exec_space.sycl_queue();
     auto dev      = ccl::create_device(q.get_device());
     auto ctx      = ccl::create_context(q.get_context());
