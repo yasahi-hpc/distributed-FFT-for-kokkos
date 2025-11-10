@@ -127,7 +127,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
     }
 
     int periods[2] = {1, 1};  // Periodic in all directions
-    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 1, &m_cart_comm);
+    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 0, &m_cart_comm);
 
     // split into row‐ and col‐ communicators
     ::MPI_Comm row_comm, col_comm;
@@ -538,7 +538,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
     }
 
     int periods[2] = {1, 1};  // Periodic in all directions
-    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 1, &m_cart_comm);
+    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 0, &m_cart_comm);
 
     // split into row‐ and col‐ communicators
     ::MPI_Comm row_comm, col_comm;
@@ -1111,7 +1111,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
     }
 
     int periods[2] = {1, 1};  // Periodic in all directions
-    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 1, &m_cart_comm);
+    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 0, &m_cart_comm);
 
     // split into row‐ and col‐ communicators
     ::MPI_Comm row_comm, col_comm;
