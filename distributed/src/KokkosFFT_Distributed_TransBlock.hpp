@@ -68,7 +68,7 @@ class TransBlock {
 
     pack(m_exec, in, send_buffer, src_map, src_axis);
     m_exec.fence();
-    all2all(m_exec, send_buffer, recv_buffer, comm);
+    all2all(send_buffer, recv_buffer, comm);
     unpack(m_exec, recv_buffer, out, dst_map, dst_axis);
   }
 

@@ -20,6 +20,12 @@ if(ENABLE_RCCL AND Kokkos_ENABLE_HIP)
   target_link_libraries(distributed INTERFACE roc::rccl)
 endif()
 
+if(ENABLE_ONECCL AND Kokkos_ENABLE_SYCL)
+  find_package(oneCCL REQUIRED)
+  target_compile_definitions(distributed INTERFACE ENABLE_TPL_ONECCL)
+  target_link_libraries(distributed INTERFACE oneCCL::oneCCL)
+endif()
+
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
   find_package(cuFFTMp REQUIRED)
   target_include_directories(distributed INTERFACE ${cuFFTMp_INCLUDE_DIRS})
