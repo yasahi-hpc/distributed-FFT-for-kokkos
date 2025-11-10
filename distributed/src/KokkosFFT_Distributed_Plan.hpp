@@ -77,12 +77,17 @@ internal_plan_factory(
 
 }  // namespace Impl
 
+/// \brief Distributed FFT Plan class
+/// \tparam ExecutionSpace Kokkos execution space
+/// \tparam InViewType Input Kokkos view type
+/// \tparam OutViewType Output Kokkos view type
+/// \tparam DIM Rank of FFT axes (default: 1)
+/// \tparam InLayoutType Layout of input topology (default: LayoutRight)
+/// \tparam OutLayoutType Layout of output topology (default: LayoutRight)
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 class Plan {
-  static_assert(DIM >= 1 && DIM <= 3,
-                "Plan: the Rank of FFT axes must be between 1 and 3");
   using InternalPlanType =
       Impl::InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
   using axes_type = KokkosFFT::axis_type<DIM>;
@@ -90,11 +95,25 @@ class Plan {
       Topology<std::size_t, InViewType::rank(), InLayoutType>;
   using out_topology_type =
       Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
-  using extents_type = std::array<std::size_t, InViewType::rank()>;
+  using extents_type   = std::array<std::size_t, InViewType::rank()>;
+  using out_value_type = typename OutViewType::non_const_value_type;
+  static_assert(DIM >= 1 && DIM <= 3,
+                "Plan: the Rank of FFT axes must be between 1 and 3");
+  static_assert(KokkosFFT::Impl::is_complex_v<out_value_type>,
+                "Plan: the output type must be complex, while the input type "
+                "can be either real or complex");
 
   std::unique_ptr<InternalPlanType> m_internal_plan;
 
  public:
+  /// \brief Distributed FFT Plan constructor
+  /// \param[in] exec_space Kokkos execution space
+  /// \param[in] in Input Kokkos view
+  /// \param[in] out Output Kokkos view
+  /// \param[in] axes FFT axes
+  /// \param[in] in_topology Input topology in std::array
+  /// \param[in] out_topology Output topology in std::array
+  /// \param[in] comm MPI communicator
   explicit Plan(
       const ExecutionSpace& exec_space, const InViewType& in,
       const OutViewType& out, const axes_type& axes,
@@ -105,6 +124,15 @@ class Plan {
              Topology<std::size_t, InViewType::rank()>(in_topology),
              Topology<std::size_t, OutViewType::rank()>(out_topology), comm,
              norm) {}
+
+  /// \brief Distributed FFT Plan constructor
+  /// \param[in] exec_space Kokkos execution space
+  /// \param[in] in Input Kokkos view
+  /// \param[in] out Output Kokkos view
+  /// \param[in] axes FFT axes
+  /// \param[in] in_topology Input topology
+  /// \param[in] out_topology Output topology
+  /// \param[in] comm MPI communicator
   explicit Plan(
       const ExecutionSpace& exec_space, const InViewType& in,
       const OutViewType& out, const axes_type& axes,
@@ -115,15 +143,31 @@ class Plan {
         exec_space, in, out, axes, in_topology, out_topology, comm, norm);
   }
 
+  /// \brief Distributed FFT forward operation
+  /// \param[in] in Input Kokkos view
+  /// \param[out] out Output Kokkos view
   void forward_impl(const InViewType& in, const OutViewType& out) const {
     m_internal_plan->forward(in, out);
   }
 
+  /// \brief Distributed FFT backward operation
+  /// \param[in] out Output Kokkos view
+  /// \param[out] in Input Kokkos view
   void backward_impl(const OutViewType& out, const InViewType& in) const {
     m_internal_plan->backward(out, in);
   }
 };
 
+/// \brief Distributed FFT execute function
+/// \tparam PlanType Distributed FFT plan
+/// \tparam InViewType Input Kokkos view type
+/// \tparam OutViewType Output Kokkos view type
+///
+/// \param[in] plan Distributed FFT plan
+/// \param[in] in Input Kokkos view
+/// \param[out] out Output Kokkos view
+/// \param[in] direction FFT direction
+/// \throw std::runtime_error if the FFT direction is invalid
 template <typename PlanType, typename InViewType, typename OutViewType>
 void execute(const PlanType& plan, const InViewType& in, const OutViewType& out,
              KokkosFFT::Direction direction) {
