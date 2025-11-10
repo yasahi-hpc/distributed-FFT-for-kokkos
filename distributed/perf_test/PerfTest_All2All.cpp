@@ -2,20 +2,11 @@
 #include "Benchmark_Context.hpp"
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_All2All.hpp"
-#include "PerfTest_Utils.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
 namespace Benchmark {
-
 using execution_space = Kokkos::DefaultExecutionSpace;
-
-template <typename ExecutionSpace, typename CommType, typename ViewType>
-void BM_all2all(benchmark::State&, const CommType& comm,
-                const ExecutionSpace& exec_space, const ViewType& send,
-                const ViewType& recv) {
-  KokkosFFT::Distributed::Impl::all2all(exec_space, send, recv, comm);
-}
 
 template <typename T, typename LayoutType>
 void benchmark_all2all(benchmark::State& state) {
@@ -47,13 +38,16 @@ void benchmark_all2all(benchmark::State& state) {
   using CommType = KokkosFFT::Distributed::Impl::TplComm<execution_space>;
   execution_space exec_space;
   CommType comm(MPI_COMM_WORLD, exec_space);
-  while (state.KeepRunning()) {
-    do_iteration(
-        state, comm,
-        BM_all2all<Kokkos::DefaultExecutionSpace, CommType, View3DType>,
-        exec_space, send, recv);
+  for (auto _ : state) {
+    Kokkos::Timer timer;
+    KokkosFFT::Distributed::Impl::all2all(exec_space, send, recv, comm);
+    exec_space.fence();
+    auto elapsed = timer.seconds();
+    double max_elapsed_second;
+    MPI_Allreduce(&elapsed, &max_elapsed_second, 1, MPI_DOUBLE, MPI_MAX,
+                  MPI_COMM_WORLD);
+    report_results(state, send, recv, max_elapsed_second);
   }
-  state.counters["bytes"] = send.size() * 2;
 }
 
 #define BENCHMARK_All2All(type, layout, start, stop) \
