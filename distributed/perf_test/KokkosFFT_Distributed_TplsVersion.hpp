@@ -75,8 +75,8 @@ inline std::string nccl_version_string() {
     exit(EXIT_FAILURE);
   }
 
-  int major = version / 1000;
-  int minor = (version % 1000) / 100;
+  int major = version / 10000;
+  int minor = (version % 10000) / 100;
   int patch = version % 100;
 
   // Print version

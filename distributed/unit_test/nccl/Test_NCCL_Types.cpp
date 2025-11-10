@@ -1,8 +1,4 @@
-#include <mpi.h>
-#include <sstream>
-#include <iostream>
 #include <gtest/gtest.h>
-#include <Kokkos_Core.hpp>
 #include "nccl/KokkosFFT_Distributed_NCCL_Types.hpp"
 
 namespace {

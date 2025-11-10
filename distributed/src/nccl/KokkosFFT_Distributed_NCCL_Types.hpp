@@ -2,6 +2,7 @@
 #define KOKKOSFFT_DISTRIBUTED_NCCL_TYPES_HPP
 
 #include <cstdint>
+#include <Kokkos_Core.hpp>
 
 #if defined(KOKKOS_ENABLE_CUDA)
 #include <nccl.h>
