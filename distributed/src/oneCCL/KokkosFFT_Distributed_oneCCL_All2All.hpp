@@ -11,7 +11,7 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief MPI all-to-all communication for distributed data redistribution
+/// \brief oneCCL all-to-all communication for distributed data redistribution
 /// \tparam ViewType Kokkos View type containing the data to be communicated,
 /// must have rank >= 2
 ///
@@ -27,16 +27,16 @@ void all2all(const ViewType& send, const ViewType& recv,
   using value_type = typename ViewType::non_const_value_type;
   using floating_point_type =
       KokkosFFT::Impl::base_floating_point_type<value_type>;
-  std::string msg  = KokkosFFT::Impl::is_real_v<value_type>
-                         ? "KokkosFFT::Distributed::all2all[TPL_oneCCL,real]"
-                         : "KokkosFFT::Distributed::all2all[TPL_oneCCL,complex]";
+  std::string msg = KokkosFFT::Impl::is_real_v<value_type>
+                        ? "KokkosFFT::Distributed::all2all[TPL_oneCCL,real]"
+                        : "KokkosFFT::Distributed::all2all[TPL_oneCCL,complex]";
   Kokkos::Profiling::ScopedRegion region(msg);
-  int size_send    = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
-                         ? send.extent_int(ViewType::rank() - 1)
-                         : send.extent_int(0);
-  int size_recv    = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
-                         ? recv.extent_int(ViewType::rank() - 1)
-                         : recv.extent_int(0);
+  int size_send = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
+                      ? send.extent_int(ViewType::rank() - 1)
+                      : send.extent_int(0);
+  int size_recv = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
+                      ? recv.extent_int(ViewType::rank() - 1)
+                      : recv.extent_int(0);
 
   const auto& comms = scoped_comm.comms();
   auto stream       = scoped_comm.stream();

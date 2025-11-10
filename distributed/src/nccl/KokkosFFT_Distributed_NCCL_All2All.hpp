@@ -28,9 +28,9 @@ void all2all(const ViewType& send, const ViewType& recv,
   using value_type = typename ViewType::non_const_value_type;
   using floating_point_type =
       KokkosFFT::Impl::base_floating_point_type<value_type>;
-  std::string msg  = KokkosFFT::Impl::is_real_v<value_type>
-                         ? "KokkosFFT::Distributed::all2all[TPL_NCCL,real]"
-                         : "KokkosFFT::Distributed::all2all[TPL_NCCL,complex]";
+  std::string msg = KokkosFFT::Impl::is_real_v<value_type>
+                        ? "KokkosFFT::Distributed::all2all[TPL_NCCL,real]"
+                        : "KokkosFFT::Distributed::all2all[TPL_NCCL,complex]";
   Kokkos::Profiling::ScopedRegion region(msg);
   int size_send = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
                       ? send.extent_int(ViewType::rank() - 1)
