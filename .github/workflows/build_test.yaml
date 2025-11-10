@@ -155,7 +155,7 @@ jobs:
               # building for Intel PVC was unsuccessful without the proper
               # device, so for now, we simply generate generic Intel GPU code
               cxx_standard: 17
-              kokkos: -DKokkos_ENABLE_SYCL=ON -DKokkos_ARCH_INTEL_PVC=ON
+              kokkos: -DKokkos_ENABLE_SYCL=ON -DKokkos_ARCH_INTEL_GEN=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra"
               distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_BENCHMARK=ON
             cmake_build_type: Release
