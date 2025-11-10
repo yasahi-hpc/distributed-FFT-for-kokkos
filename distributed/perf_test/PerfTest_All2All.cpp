@@ -40,7 +40,7 @@ void benchmark_all2all(benchmark::State& state) {
   CommType comm(MPI_COMM_WORLD, exec_space);
   for (auto _ : state) {
     Kokkos::Timer timer;
-    KokkosFFT::Distributed::Impl::all2all(exec_space, send, recv, comm);
+    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
     exec_space.fence();
     auto elapsed = timer.seconds();
     double max_elapsed_second;

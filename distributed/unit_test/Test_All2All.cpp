@@ -176,9 +176,9 @@ void test_all2all_view2D(int rank, int nprocs, bool use_tpl_wrapper) {
   if (use_tpl_wrapper) {
     KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(MPI_COMM_WORLD,
                                                                 exec);
-    KokkosFFT::Distributed::Impl::all2all(exec, send, recv, comm);
+    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
   } else {
-    KokkosFFT::Distributed::Impl::all2all(exec, send, recv, MPI_COMM_WORLD);
+    KokkosFFT::Distributed::Impl::all2all(send, recv, MPI_COMM_WORLD);
   }
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
 
@@ -220,11 +220,11 @@ void test_all2all_view2D_incorrect_proc_size(int nprocs, bool use_tpl_wrapper) {
   if (use_tpl_wrapper) {
     KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(MPI_COMM_WORLD,
                                                                 exec);
-    EXPECT_THROW(KokkosFFT::Distributed::Impl::all2all(exec, send, recv, comm),
+    EXPECT_THROW(KokkosFFT::Distributed::Impl::all2all(send, recv, comm),
                  std::runtime_error);
   } else {
     EXPECT_THROW(
-        KokkosFFT::Distributed::Impl::all2all(exec, send, recv, MPI_COMM_WORLD),
+        KokkosFFT::Distributed::Impl::all2all(send, recv, MPI_COMM_WORLD),
         std::runtime_error);
   }
 }
@@ -383,9 +383,9 @@ void test_all2all_view2D_row(int rank, int npx, int npy, bool use_tpl_wrapper) {
   execution_space exec;
   if (use_tpl_wrapper) {
     KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(row_comm, exec);
-    KokkosFFT::Distributed::Impl::all2all(exec, send, recv, comm);
+    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
   } else {
-    KokkosFFT::Distributed::Impl::all2all(exec, send, recv, row_comm);
+    KokkosFFT::Distributed::Impl::all2all(send, recv, row_comm);
   }
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
@@ -575,9 +575,9 @@ void test_all2all_view2D_col(int rank, int npx, int npy, bool use_tpl_wrapper) {
   execution_space exec;
   if (use_tpl_wrapper) {
     KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(col_comm, exec);
-    KokkosFFT::Distributed::Impl::all2all(exec, send, recv, comm);
+    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
   } else {
-    KokkosFFT::Distributed::Impl::all2all(exec, send, recv, col_comm);
+    KokkosFFT::Distributed::Impl::all2all(send, recv, col_comm);
   }
 
   auto h_recv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);

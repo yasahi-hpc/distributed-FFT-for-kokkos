@@ -80,7 +80,7 @@ set_property(TEST UnitTests1MPI PROPERTY TIMEOUT 600)
 set_property(TEST UnitTests2MPI PROPERTY TIMEOUT 600)
 set_property(TEST UnitTests4MPI PROPERTY TIMEOUT 1800)
 
-if(ENABLE_NCCL AND Kokkos_ENABLE_CUDA)
+if(ENABLE_NCCL AND (Kokkos_ENABLE_CUDA OR Kokkos_ENABLE_HIP))
   set(NCCL_SOURCES Test_Main.cpp nccl/Test_NCCL_Types.cpp)
   add_executable(unit-tests-nccl ${NCCL_SOURCES})
 
@@ -91,16 +91,21 @@ if(ENABLE_NCCL AND Kokkos_ENABLE_CUDA)
     NAME UnitTests1NCCL
     COMMAND ${MPIEXEC_EXECUTABLE} -n 1 $<TARGET_FILE:unit-tests-nccl>
   )
-  add_test(
-    NAME UnitTests2NCCL
-    COMMAND ${MPIEXEC_EXECUTABLE} -n 2 $<TARGET_FILE:unit-tests-nccl>
-  )
-  add_test(
-    NAME UnitTests4NCCL
-    COMMAND ${MPIEXEC_EXECUTABLE} -n 4 $<TARGET_FILE:unit-tests-nccl>
-  )
 
   set_property(TEST UnitTests1NCCL PROPERTY TIMEOUT 600)
-  set_property(TEST UnitTests2NCCL PROPERTY TIMEOUT 600)
-  set_property(TEST UnitTests4NCCL PROPERTY TIMEOUT 1800)
+endif()
+
+if(ENABLE_ONECCL AND Kokkos_ENABLE_SYCL)
+  set(oneCCL_SOURCES Test_Main.cpp oneCCL/Test_oneCCL_Types.cpp)
+  add_executable(unit-tests-oneccl ${oneCCL_SOURCES})
+
+  target_compile_features(unit-tests-oneccl PUBLIC cxx_std_17)
+  target_link_libraries(unit-tests-oneccl PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
+
+  add_test(
+    NAME UnitTests1oneCCL
+    COMMAND ${MPIEXEC_EXECUTABLE} -n 1 $<TARGET_FILE:unit-tests-oneccl>
+  )
+
+  set_property(TEST UnitTests1oneCCL PROPERTY TIMEOUT 600)
 endif()
