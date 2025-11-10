@@ -1,4 +1,4 @@
-ARG BASE=intel/oneapi-basekit:2025.1.0-0-devel-ubuntu24.04
+ARG BASE=intel/oneapi-basekit:2025.3.0-0-devel-ubuntu24.04
 FROM $BASE
 
 ARG ADDITIONAL_PACKAGES
@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
         git \
         ccache \
         libfftw3-dev \
+        openmpi-bin \
+        libopenmpi-dev \
         $ADDITIONAL_PACKAGES \
         && \
     apt-get clean && \

@@ -13,6 +13,7 @@ namespace Distributed {
 namespace Impl {
 
 struct ScopedoneCCLComm {
+ private:
   Kokkos::SYCL m_exec_space;
   ccl::vector_class<ccl::communicator> m_comms;
   ccl::vector_class<ccl::stream> m_streams;
