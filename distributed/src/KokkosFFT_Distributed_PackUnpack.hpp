@@ -97,9 +97,16 @@ struct Pack {
           Kokkos::RangePolicy<ExecutionSpace, Kokkos::IndexType<iType>>;
       return range_policy_type(space, 0, x.extent(0));
     } else {
+      using LayoutType = typename DstViewType::array_layout;
+      static const Kokkos::Iterate outer_iteration_pattern =
+          KokkosFFT::Impl::layout_iterate_type_selector<
+              LayoutType>::outer_iteration_pattern;
+      static const Kokkos::Iterate inner_iteration_pattern =
+          KokkosFFT::Impl::layout_iterate_type_selector<
+              LayoutType>::inner_iteration_pattern;
       using iterate_type =
-          Kokkos::Rank<m_rank_truncated, Kokkos::Iterate::Default,
-                       Kokkos::Iterate::Default>;
+          Kokkos::Rank<m_rank_truncated, outer_iteration_pattern,
+                       inner_iteration_pattern>;
       using mdrange_policy_type =
           Kokkos::MDRangePolicy<ExecutionSpace, iterate_type,
                                 Kokkos::IndexType<iType>>;
@@ -258,9 +265,16 @@ struct Unpack {
           Kokkos::RangePolicy<ExecutionSpace, Kokkos::IndexType<iType>>;
       return range_policy_type(space, 0, x.extent(0));
     } else {
+      using LayoutType = typename SrcViewType::array_layout;
+      static const Kokkos::Iterate outer_iteration_pattern =
+          KokkosFFT::Impl::layout_iterate_type_selector<
+              LayoutType>::outer_iteration_pattern;
+      static const Kokkos::Iterate inner_iteration_pattern =
+          KokkosFFT::Impl::layout_iterate_type_selector<
+              LayoutType>::inner_iteration_pattern;
       using iterate_type =
-          Kokkos::Rank<m_rank_truncated, Kokkos::Iterate::Default,
-                       Kokkos::Iterate::Default>;
+          Kokkos::Rank<m_rank_truncated, outer_iteration_pattern,
+                       inner_iteration_pattern>;
       using mdrange_policy_type =
           Kokkos::MDRangePolicy<ExecutionSpace, iterate_type,
                                 Kokkos::IndexType<iType>>;

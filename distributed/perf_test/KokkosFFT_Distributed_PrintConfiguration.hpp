@@ -40,6 +40,26 @@ inline void print_hipfft_version_if_enabled(std::ostream& os) {
 #endif
 }
 
+inline void print_nccl_version_if_enabled(std::ostream& os) {
+#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL)
+  os << "  "
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL: " << nccl_version_string()
+     << "\n";
+#else
+  os << "  "
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL: no\n";
+#endif
+
+#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL)
+  os << "  "
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL: " << nccl_version_string()
+     << "\n";
+#else
+  os << "  "
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL: no\n";
+#endif
+}
+
 inline void print_enabled_tpls(std::ostream& os) {
 #if defined(KOKKOSFFT_ENABLE_TPL_FFTW)
   os << "  "
@@ -50,14 +70,8 @@ inline void print_enabled_tpls(std::ostream& os) {
 #endif
 
   print_cufft_version_if_enabled(os);
-
-#if defined(KOKKOSFFT_ENABLE_TPL_HIPFFT)
-  os << "  "
-     << "KOKKOSFFT_ENABLE_TPL_HIPFFT: yes\n";
-#else
-  os << "  "
-     << "KOKKOSFFT_ENABLE_TPL_HIPFFT: no\n";
-#endif
+  print_rocfft_version_if_enabled(os);
+  print_hipfft_version_if_enabled(os);
 
 #if defined(KOKKOSFFT_ENABLE_TPL_ONEMKL)
   os << "  "
@@ -67,20 +81,14 @@ inline void print_enabled_tpls(std::ostream& os) {
      << "KOKKOSFFT_ENABLE_TPL_ONEMKL: no\n";
 #endif
 
-#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL)
-  os << "  "
-     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL: yes\n";
-#else
-  os << "  "
-     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_NCCL: no\n";
-#endif
+  print_nccl_version_if_enabled(os);
 
-#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL)
+#if defined(KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_ONECCL)
   os << "  "
-     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL: yes\n";
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_ONECCL: yes\n";
 #else
   os << "  "
-     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL: no\n";
+     << "KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_ONECCL: no\n";
 #endif
 }
 

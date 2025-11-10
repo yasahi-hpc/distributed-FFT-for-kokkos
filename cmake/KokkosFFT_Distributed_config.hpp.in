@@ -13,4 +13,7 @@
 /* RCCL */
 #cmakedefine KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_RCCL
 
+/* oneCCL */
+#cmakedefine KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_ONECCL
+
 #endif
