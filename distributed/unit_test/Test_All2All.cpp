@@ -6,9 +6,9 @@
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;
 using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
-                                         std::pair<float, Kokkos::LayoutRight>,
-                                         std::pair<double, Kokkos::LayoutLeft>,
-                                         std::pair<double, Kokkos::LayoutRight>>;
+                                    std::pair<float, Kokkos::LayoutRight>,
+                                    std::pair<double, Kokkos::LayoutLeft>,
+                                    std::pair<double, Kokkos::LayoutRight>>;
 
 // Basically the same fixtures, used for labeling tests
 template <typename T>
