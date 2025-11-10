@@ -27,8 +27,8 @@ void all2all(const ViewType& send, const ViewType& recv, const MPI_Comm& comm) {
   using value_type = typename ViewType::non_const_value_type;
   using LayoutType = typename ViewType::array_layout;
   std::string msg  = KokkosFFT::Impl::is_real_v<value_type>
-                         ? "KokkosFFT::Distributed::MPI_all2all (real)"
-                         : "KokkosFFT::Distributed::MPI_all2all (complex)";
+                         ? "KokkosFFT::Distributed::all2all[TPL_MPI,real]"
+                         : "KokkosFFT::Distributed::all2all[TPL_MPI,complex]";
   Kokkos::Profiling::ScopedRegion region(msg);
   int size_send = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
                       ? send.extent_int(ViewType::rank() - 1)
