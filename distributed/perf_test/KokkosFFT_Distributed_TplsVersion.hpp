@@ -1,9 +1,9 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_TPLS_VERSIONS_HPP
 #define KOKKOSFFT_DISTRIBUTED_TPLS_VERSIONS_HPP
 
-#include "KokkosFFT_Distributed_config.hpp"
 #include <sstream>
 #include <iostream>
+#include "KokkosFFT_Distributed_config.hpp"
 
 #if defined(KOKKOSFFT_ENABLE_TPL_CUFFT)
 #include "cufft.h"
@@ -69,6 +69,11 @@ inline std::string hipfft_version_string() {
 inline std::string nccl_version_string() {
   int version;
   ncclResult_t result = ncclGetVersion(&version);
+  if (result != ncclSuccess) {
+    std::cerr << "Failed to get NCCL version: " << ncclGetErrorString(result)
+              << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
   int major = version / 1000;
   int minor = (version % 1000) / 100;
