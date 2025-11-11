@@ -17,9 +17,17 @@ struct TestoneCCLType : public ::testing::Test {
 template <typename T>
 void test_oneCCL_data_type() {
   ccl::datatype oneCCL_data_type =
-      KokkosFFT::Distributed::Impl::oneCCLDataType<T>::type();
+      KokkosFFT::Distributed::Impl::oneccl_datatype_v<T>;
 
-  if constexpr (std::is_same_v<T, int>) {
+  if constexpr (std::is_same_v<T, int8_t>) {
+    ASSERT_EQ(oneCCL_data_type, ccl::datatype::int8);
+  } else if constexpr (std::is_same_v<T, uint8_t>) {
+    ASSERT_EQ(oneCCL_data_type, ccl::datatype::uint8);
+  } else if constexpr (std::is_same_v<T, int16_t>) {
+    ASSERT_EQ(oneCCL_data_type, ccl::datatype::int16);
+  } else if constexpr (std::is_same_v<T, uint16_t>) {
+    ASSERT_EQ(oneCCL_data_type, ccl::datatype::uint16);
+  } else if constexpr (std::is_same_v<T, int>) {
     ASSERT_EQ(oneCCL_data_type, ccl::datatype::int32);
   } else if constexpr (std::is_same_v<T, std::int32_t>) {
     ASSERT_EQ(oneCCL_data_type, ccl::datatype::int32);

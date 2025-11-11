@@ -17,9 +17,15 @@ struct TestNCCLType : public ::testing::Test {
 template <typename T>
 void test_nccl_data_type() {
   ncclDataType_t nccl_data_type =
-      KokkosFFT::Distributed::Impl::NCCLDataType<T>::type();
+      KokkosFFT::Distributed::Impl::nccl_datatype_v<T>;
 
-  if constexpr (std::is_same_v<T, int>) {
+  if constexpr (std::is_same_v<T, char>) {
+    ASSERT_EQ(nccl_data_type, ncclChar);
+  } else if constexpr (std::is_same_v<T, std::int8_t>) {
+    ASSERT_EQ(nccl_data_type, ncclInt8);
+  } else if constexpr (std::is_same_v<T, std::uint8_t>) {
+    ASSERT_EQ(nccl_data_type, ncclUint8);
+  } else if constexpr (std::is_same_v<T, int>) {
     ASSERT_EQ(nccl_data_type, ncclInt);
   } else if constexpr (std::is_same_v<T, std::int32_t>) {
     ASSERT_EQ(nccl_data_type, ncclInt32);

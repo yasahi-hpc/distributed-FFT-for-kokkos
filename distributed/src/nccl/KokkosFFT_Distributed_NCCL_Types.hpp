@@ -17,37 +17,39 @@ namespace Distributed {
 namespace Impl {
 
 template <typename ValueType>
-struct NCCLDataType {};
+auto nccl_datatype() -> ncclDataType_t {
+  using T = std::decay_t<ValueType>;
 
-template <>
-struct NCCLDataType<int> {
-  static inline ncclDataType_t type() noexcept { return ncclInt; }
-};
+  if constexpr (std::is_same_v<T, char>) {
+    return ncclChar;
+  } else if constexpr (std::is_same_v<T, std::int8_t>) {
+    return ncclInt8;
+  } else if constexpr (std::is_same_v<T, std::uint8_t>) {
+    return ncclUint8;
+  } else if constexpr (std::is_same_v<T, int>) {
+    return ncclInt;
+  } else if constexpr (std::is_same_v<T, std::int32_t>) {
+    return ncclInt32;
+  } else if constexpr (std::is_same_v<T, std::uint32_t>) {
+    return ncclUint32;
+  } else if constexpr (std::is_same_v<T, std::int64_t>) {
+    return ncclInt64;
+  } else if constexpr (std::is_same_v<T, std::uint64_t>) {
+    return ncclUint64;
+  } else if constexpr (std::is_same_v<T, float>) {
+    return ncclFloat;
+  } else if constexpr (std::is_same_v<T, double>) {
+    return ncclDouble;
+  } else {
+    static_assert(
+        std::is_void_v<T>,
+        "KokkosFFT::Distributed::Impl::nccl_datatype: unsupported data type");
+    return ncclChar;  // unreachable
+  }
+}
 
-template <>
-struct NCCLDataType<std::uint32_t> {
-  static inline ncclDataType_t type() noexcept { return ncclUint32; }
-};
-
-template <>
-struct NCCLDataType<std::int64_t> {
-  static inline ncclDataType_t type() noexcept { return ncclInt64; }
-};
-
-template <>
-struct NCCLDataType<std::uint64_t> {
-  static inline ncclDataType_t type() noexcept { return ncclUint64; }
-};
-
-template <>
-struct NCCLDataType<float> {
-  static inline ncclDataType_t type() noexcept { return ncclFloat; }
-};
-
-template <>
-struct NCCLDataType<double> {
-  static inline ncclDataType_t type() noexcept { return ncclDouble; }
-};
+template <typename ValueType>
+inline ncclDataType_t nccl_datatype_v = nccl_datatype<ValueType>();
 
 }  // namespace Impl
 }  // namespace Distributed
