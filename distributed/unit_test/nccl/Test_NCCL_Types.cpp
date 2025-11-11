@@ -6,8 +6,9 @@
 #include "nccl/KokkosFFT_Distributed_NCCL_Types.hpp"
 
 namespace {
-using test_types = ::testing::Types<int, std::int32_t, std::uint32_t,
-                                    std::int64_t, std::uint64_t, float, double>;
+using test_types =
+    ::testing::Types<char, std::int8_t, std::uint8_t, int, std::int32_t,
+                     std::uint32_t, std::int64_t, std::uint64_t, float, double>;
 
 template <typename T>
 struct TestNCCLType : public ::testing::Test {
