@@ -8,6 +8,22 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Execute the cuFFTMp plan for distributed FFT
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam PlanType ScopedCufftMpPlan type
+/// \tparam InViewType Kokkos View type for input data
+/// \tparam OutViewType Kokkos View type for output data
+///
+/// \param[in] exec_space Kokkos execution space
+/// \param[in] scoped_plan cuFFTMp plan
+/// \param[in] in Input data view
+/// \param[out] out Output data view
+/// \param[in] in_extents Extents of the input data
+/// \param[in] out_extents Extents of the output data
+/// \param[in] in_map Axis mapping for input data
+/// \param[in] out_map Axis mapping for output data
+/// \param[in] direction Direction of the FFT (forward/backward)
+/// \throws std::runtime_error if cufftXtExecDescriptor fails
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>
 inline void exec_plan(
@@ -40,7 +56,7 @@ inline void exec_plan(
 
   KokkosFFT::Impl::transpose(exec_space, in, in_desc, in_map, true);
   {
-    Kokkos::Profiling::ScopedRegion region("exec_plan[TPL_cufftMpExec]");
+    Kokkos::Profiling::ScopedRegion region("exec_plan[TPL_cuFFTMp]");
     auto const cufft_direction = direction == KokkosFFT::Direction::forward
                                      ? CUFFT_FORWARD
                                      : CUFFT_INVERSE;
