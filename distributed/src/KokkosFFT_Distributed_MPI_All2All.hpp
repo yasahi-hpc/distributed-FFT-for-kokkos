@@ -43,7 +43,7 @@ void all2all(const ViewType& send, const ViewType& recv, const MPI_Comm& comm) {
       "Extent of dimension to be transposed: " + std::to_string(size_send) +
           " does not match MPI size: " + std::to_string(size));
   // Compute the outermost dimension size
-  auto mpi_data_type = MPIDataType<value_type>::type();
+  auto mpi_data_type = mpi_datatype_v<value_type>;
   int send_count     = static_cast<int>(send.size()) / size_send;
   ::MPI_Alltoall(send.data(), send_count, mpi_data_type, recv.data(),
                  send_count, mpi_data_type, comm);

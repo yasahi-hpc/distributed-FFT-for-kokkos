@@ -46,7 +46,7 @@ auto get_global_shape(
 
   std::vector<std::size_t> gathered_extents(ViewType::rank() * total_size);
   std::array<std::size_t, ViewType::rank()> global_extents = {};
-  MPI_Datatype mpi_data_type = MPIDataType<std::size_t>::type();
+  MPI_Datatype mpi_data_type = mpi_datatype_v<std::size_t>;
 
   // Data are stored as
   // rank0: extents
@@ -162,7 +162,7 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
 template <typename ContainerType>
 auto get_max(const ContainerType &values, MPI_Comm comm) {
   using value_type = KokkosFFT::Impl::base_container_value_type<ContainerType>;
-  MPI_Datatype mpi_data_type = MPIDataType<value_type>::type();
+  MPI_Datatype mpi_data_type = mpi_datatype_v<value_type>;
   value_type max_value       = 0;
   value_type lmax_value      = *std::max_element(values.begin(), values.end());
 
@@ -234,7 +234,7 @@ auto get_local_extents(const std::array<std::size_t, DIM> &extents,
   }
 
   std::vector<std::size_t> gathered_extents(DIM * total_size);
-  MPI_Datatype mpi_data_type = Impl::MPIDataType<std::size_t>::type();
+  MPI_Datatype mpi_data_type = Impl::mpi_datatype_v<std::size_t>;
 
   // Data are stored as
   // rank0: extents
