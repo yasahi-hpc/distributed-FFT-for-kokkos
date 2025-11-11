@@ -2,8 +2,10 @@
 #include "oneCCL/KokkosFFT_Distributed_oneCCL_Types.hpp"
 
 namespace {
-using test_types = ::testing::Types<int, std::int32_t, std::uint32_t,
-                                    std::int64_t, std::uint64_t, float, double>;
+using test_types =
+    ::testing::Types<std::int8_t, std::uint8_t, std::int16_t, std::uint16_t,
+                     int, std::int32_t, std::uint32_t, std::int64_t,
+                     std::uint64_t, float, double>;
 
 template <typename T>
 struct TestoneCCLType : public ::testing::Test {
@@ -13,9 +15,17 @@ struct TestoneCCLType : public ::testing::Test {
 template <typename T>
 void test_oneCCL_data_type() {
   ccl::datatype oneCCL_data_type =
-      KokkosFFT::Distributed::Impl::oneCCLDataType<T>::type();
+      KokkosFFT::Distributed::Impl::oneccl_datatype_v<T>;
 
-  if constexpr (std::is_same_v<T, int>) {
+  if constexpr (std::is_same_v<T, std::int8_t>) {
+    ASSERT_EQ(oneCCL_data_type, ccl::datatype::int8);
+  } else if constexpr (std::is_same_v<T, std::uint8_t>) {
+    ASSERT_EQ(oneCCL_data_type, ccl::datatype::uint8);
+  } else if constexpr (std::is_same_v<T, std::int16_t>) {
+    ASSERT_EQ(oneCCL_data_type, ccl::datatype::int16);
+  } else if constexpr (std::is_same_v<T, std::uint16_t>) {
+    ASSERT_EQ(oneCCL_data_type, ccl::datatype::uint16);
+  } else if constexpr (std::is_same_v<T, int>) {
     ASSERT_EQ(oneCCL_data_type, ccl::datatype::int32);
   } else if constexpr (std::is_same_v<T, std::int32_t>) {
     ASSERT_EQ(oneCCL_data_type, ccl::datatype::int32);

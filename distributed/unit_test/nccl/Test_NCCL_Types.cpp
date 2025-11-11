@@ -2,8 +2,9 @@
 #include "nccl/KokkosFFT_Distributed_NCCL_Types.hpp"
 
 namespace {
-using test_types = ::testing::Types<int, std::int32_t, std::uint32_t,
-                                    std::int64_t, std::uint64_t, float, double>;
+using test_types =
+    ::testing::Types<char, std::int8_t, std::uint8_t, int, std::int32_t,
+                     std::uint32_t, std::int64_t, std::uint64_t, float, double>;
 
 template <typename T>
 struct TestNCCLType : public ::testing::Test {
@@ -13,9 +14,15 @@ struct TestNCCLType : public ::testing::Test {
 template <typename T>
 void test_nccl_data_type() {
   ncclDataType_t nccl_data_type =
-      KokkosFFT::Distributed::Impl::NCCLDataType<T>::type();
+      KokkosFFT::Distributed::Impl::nccl_datatype_v<T>;
 
-  if constexpr (std::is_same_v<T, int>) {
+  if constexpr (std::is_same_v<T, char>) {
+    ASSERT_EQ(nccl_data_type, ncclChar);
+  } else if constexpr (std::is_same_v<T, std::int8_t>) {
+    ASSERT_EQ(nccl_data_type, ncclInt8);
+  } else if constexpr (std::is_same_v<T, std::uint8_t>) {
+    ASSERT_EQ(nccl_data_type, ncclUint8);
+  } else if constexpr (std::is_same_v<T, int>) {
     ASSERT_EQ(nccl_data_type, ncclInt);
   } else if constexpr (std::is_same_v<T, std::int32_t>) {
     ASSERT_EQ(nccl_data_type, ncclInt32);
