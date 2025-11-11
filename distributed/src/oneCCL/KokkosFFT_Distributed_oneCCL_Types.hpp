@@ -44,7 +44,7 @@ auto oneccl_datatype() -> ccl::datatype {
 }
 
 template <typename ValueType>
-inline onecclDataType_t oneccl_datatype_v = oneccl_datatype<ValueType>();
+inline ccl::datatype oneccl_datatype_v = oneccl_datatype<ValueType>();
 
 }  // namespace Impl
 }  // namespace Distributed
