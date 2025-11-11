@@ -11,6 +11,21 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Check if cuFFTMp TPL can be used for the given transform parameters
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam InViewType Kokkos View type for input data
+/// \tparam OutViewType Kokkos View type for output data
+/// \tparam DIM Number of transform dimensions
+/// \tparam InLayoutType Layout type of input topology
+/// \tparam OutLayoutType Layout type of output topology
+///
+/// \param[in] exec_space Kokkos execution space
+/// \param[in] in Input data view
+/// \param[in] out Output data view
+/// \param[in] axes Axes along which to perform the FFT
+/// \param[in] in_topology Topology of input data distribution
+/// \param[in] out_topology Topology of output data distribution
+/// \return true if cuFFTMp TPL can be used, false otherwise
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -48,6 +63,19 @@ bool is_tpl_available(
   return false;
 }
 
+/// \brief Check if cuFFTMp TPL can be used for the given transform parameters
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam InViewType Kokkos View type for input data
+/// \tparam OutViewType Kokkos View type for output data
+/// \tparam DIM Number of transform dimensions
+///
+/// \param[in] exec_space Kokkos execution space
+/// \param[in] in Input data view
+/// \param[in] out Output data view
+/// \param[in] axes Axes along which to perform the FFT
+/// \param[in] in_topology Topology of input data distribution
+/// \param[in] out_topology Topology of output data distribution
+/// \return true if cuFFTMp TPL can be used, false otherwise
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM>
 bool is_tpl_available(
@@ -61,7 +89,8 @@ bool is_tpl_available(
       Topology<std::size_t, OutViewType::rank()>(out_topology));
 }
 
-// General interface
+/// \brief General interface to create a cuFFTMp plan for distributed FFT
+/// Should not be called directly
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType, std::size_t DIM>
 std::size_t create_plan(
@@ -75,7 +104,23 @@ std::size_t create_plan(
   return 1;
 }
 
-// 2D transform
+/// \brief Create a 2D cuFFTMp plan for distributed FFT
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam PlanType ScopedCufftMpPlan type
+/// \tparam InViewType Kokkos View type for input data
+/// \tparam OutViewType Kokkos View type for output data
+/// \tparam DIM Number of transform dimensions
+///
+/// \param[in] exec_space Kokkos execution space
+/// \param[out] plan Unique pointer to the cuFFTMp plan to be created
+/// \param[in] in Input data view
+/// \param[in] out Output data view
+/// \param[in] axes Axes along which to perform the FFT
+/// \param[in] map Axis mapping for data distribution
+/// \param[in] in_topology Topology of input data distribution
+/// \param[in] out_topology Topology of output data distribution
+/// \param[in] comm MPI communicator
+/// \return Size of the FFT
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>
 std::size_t create_plan(const ExecutionSpace& exec_space,
@@ -100,7 +145,7 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
   KOKKOSFFT_THROW_IF(in_topology == out_topology,
                      "Input and output topologies must not be identical");
 
-  Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_CufftMp]");
+  Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_cuFFTMp]");
 
   auto gin_extents       = get_global_shape(in, in_topology, comm);
   auto gout_extents      = get_global_shape(out, out_topology, comm);
@@ -177,7 +222,23 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
   return fft_size;
 }
 
-// 3D transform
+/// \brief Create a 3D cuFFTMp plan for distributed FFT
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam PlanType ScopedCufftMpPlan type
+/// \tparam InViewType Kokkos View type for input data
+/// \tparam OutViewType Kokkos View type for output data
+/// \tparam DIM Number of transform dimensions
+///
+/// \param[in] exec_space Kokkos execution space
+/// \param[out] plan Unique pointer to the cuFFTMp plan to be created
+/// \param[in] in Input data view
+/// \param[in] out Output data view
+/// \param[in] axes Axes along which to perform the FFT
+/// \param[in] map Axis mapping for data distribution
+/// \param[in] in_topology Topology of input data distribution
+/// \param[in] out_topology Topology of output data distribution
+/// \param[in] comm MPI communicator
+/// \return Size of the FFT
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>
 std::size_t create_plan(const ExecutionSpace& exec_space,
@@ -202,7 +263,7 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
   KOKKOSFFT_THROW_IF(in_topology == out_topology,
                      "Input and output topologies must not be identical");
 
-  Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_CufftMp]");
+  Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_cuFFTMp]");
 
   auto gin_extents       = get_global_shape(in, in_topology, comm);
   auto gout_extents      = get_global_shape(out, out_topology, comm);
