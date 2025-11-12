@@ -25,21 +25,22 @@ int main(int argc, char **argv) {
 
   Kokkos::initialize(argc, argv);
   {
-    benchmark::Initialize(&argc, argv);
-    benchmark::SetDefaultTimeUnit(benchmark::kSecond);
-    KokkosFFT::Distributed::Benchmark::add_benchmark_context(true);
+    ::benchmark::Initialize(&argc, argv);
+    ::benchmark::SetDefaultTimeUnit(benchmark::kSecond);
 
-    if (rank == 0)
+    if (rank == 0) {
       // root process will use a reporter from the usual set provided by
       // ::benchmark
+      KokkosFFT::Distributed::Benchmark::add_benchmark_context(true);
       ::benchmark::RunSpecifiedBenchmarks();
-    else {
+    } else {
       // reporting from other processes is disabled by passing a custom reporter
       NullReporter null;
-      ::benchmark::RunSpecifiedBenchmarks(&null);
+      ::benchmark::RunSpecifiedBenchmarks(/* display_reporter = */ &null,
+                                          /* file_reporter = */ &null);
     }
 
-    benchmark::Shutdown();
+    ::benchmark::Shutdown();
   }
   Kokkos::finalize();
   MPI_Finalize();
