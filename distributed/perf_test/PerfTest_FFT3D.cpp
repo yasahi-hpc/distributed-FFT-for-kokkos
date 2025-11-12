@@ -21,6 +21,7 @@ static void benchmark_fft3D(benchmark::State& state) {
     state.SkipWithError(
         "The total processes of benchmark_fft3D: " + std::to_string(size) +
         " must be divisible by " + std::to_string(py));
+    return;
   }
   const std::size_t px = size / py;
 
@@ -28,6 +29,7 @@ static void benchmark_fft3D(benchmark::State& state) {
     state.SkipWithError("The total size of benchmark_fft3D: " +
                         std::to_string(n) + " must be divisible by " +
                         std::to_string(px) + " and " + std::to_string(py));
+    return;
   }
 
   // Z-pencil or X-slab (if py == 1)
