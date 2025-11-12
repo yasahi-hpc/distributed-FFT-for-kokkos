@@ -18,21 +18,17 @@ static void benchmark_fft3D(benchmark::State& state) {
   const std::size_t n = state.range(0), py = state.range(1);
 
   if (size % py != 0) {
-    if (rank == 0) {
-      state.SkipWithError(
-          "The total processes of benchmark_fft3D: " + std::to_string(size) +
-          " must be divisible by " + std::to_string(py));
-    }
+    state.SkipWithError(
+        "The total processes of benchmark_fft3D: " + std::to_string(size) +
+        " must be divisible by " + std::to_string(py));
     return;
   }
   const std::size_t px = size / py;
 
   if (n % px != 0 || n % py != 0) {
-    if (rank == 0) {
-      state.SkipWithError("The total size of benchmark_fft3D: " +
-                          std::to_string(n) + " must be divisible by " +
-                          std::to_string(px) + " and " + std::to_string(py));
-    }
+    state.SkipWithError("The total size of benchmark_fft3D: " +
+                        std::to_string(n) + " must be divisible by " +
+                        std::to_string(px) + " and " + std::to_string(py));
     return;
   }
 
