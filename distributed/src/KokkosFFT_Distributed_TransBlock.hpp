@@ -18,8 +18,6 @@ class TransBlock {
   using buffer_extents_type = KokkosFFT::shape_type<DIM + 1>;
   using extents_type        = KokkosFFT::shape_type<DIM>;
 
-  static constexpr std::size_t Rank = DIM;
-
   ExecutionSpace m_exec;
   buffer_extents_type m_buffer_extents;
   extents_type m_src_map, m_dst_map;
