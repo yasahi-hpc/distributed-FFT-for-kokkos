@@ -12,7 +12,6 @@ namespace Distributed {
 namespace Impl {
 
 /// \brief NCCL all-to-all communication for distributed data redistribution
-/// \tparam ExecutionSpace Kokkos execution space type
 /// \tparam ViewType Kokkos View type containing the data to be communicated,
 /// must have rank >= 2
 ///
