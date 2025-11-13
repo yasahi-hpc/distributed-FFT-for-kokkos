@@ -19,9 +19,9 @@ namespace Impl {
 /// \param[in] send Input view to be sent
 /// \param[out] recv Output view to be received
 /// \param[in] scoped_comm NCCL communicator wrapper
-template <typename ExecutionSpace, typename ViewType>
+template <typename ViewType>
 void all2all(const ViewType& send, const ViewType& recv,
-             const ScopedNCCLComm<ExecutionSpace>& scoped_comm) {
+             const ScopedNCCLComm& scoped_comm) {
   static_assert(ViewType::rank() >= 2,
                 "all2all: View rank must be larger than or equal to 2");
   using LayoutType = typename ViewType::array_layout;
