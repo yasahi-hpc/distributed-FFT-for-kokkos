@@ -347,140 +347,117 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 
   std::vector<std::array<std::size_t, DIM>> topologies;
   topologies.push_back(in_topology);
-  auto axes_reversed = to_vector(axes);
+  auto p = KokkosFFT::Impl::total_size(in_topology);
+
+  auto add_topology_at = [&](std::size_t axis) {
+    std::array<std::size_t, DIM> t;
+    t.fill(1);
+    t.at(axis) = p;
+    if (topologies.back() != t) {
+      topologies.push_back(t);
+    }
+  };
+
+  auto add_topology_at_first_one = [&](std::array<std::size_t, DIM> topo) {
+    for (std::size_t i = 0; i < DIM; ++i) {
+      if (topo.at(i) == 1) {
+        add_topology_at(i);
+        break;
+      }
+    }
+  };
+
+  auto finalize = [&]() {
+    if (topologies.back() != out_topology) {
+      topologies.push_back(out_topology);
+    }
+    return topologies;
+  };
+
+  auto axes_vec = to_vector(axes);
 
   // 2D case
-  std::array<std::size_t, DIM> topology = {};
-  topology.fill(1);
-
   if constexpr (DIM == 2 && FFT_DIM == 2) {
     if (in_topology == out_topology) {
-      auto p = KokkosFFT::Impl::total_size(in_topology);
-      for (std::size_t i = 0; i < DIM; ++i) {
-        if (in_topology.at(i) == 1) {
-          topology.at(i) = p;
-          break;
-        }
-      }
-      topologies.push_back(topology);
+      add_topology_at_first_one(in_topology);
     } else {
       // In case one transpose needed for first fft
       // then we need to add two swapped topologies
       auto last_axis = axes.back();
       auto first_dim = in_topology.at(last_axis);
       if (first_dim != 1) {
-        auto p = KokkosFFT::Impl::total_size(in_topology);
-        for (std::size_t i = 0; i < DIM; ++i) {
-          if (in_topology.at(i) == 1) {
-            topology.at(i) = p;
-            break;
-          }
+        add_topology_at_first_one(in_topology);
+        if (topologies.back() != in_topology) {
+          topologies.push_back(in_topology);
         }
-        topologies.push_back(topology);
-        topologies.push_back(in_topology);
       }
     }
-
-    if (topologies.back() == out_topology) return topologies;
-    topologies.push_back(out_topology);
-    return topologies;
+    return finalize();
   }
 
   // 3D case
   if constexpr (DIM == 3 && FFT_DIM == 3) {
     if (in_topology == out_topology) {
-      auto p = KokkosFFT::Impl::total_size(in_topology);
-      topology.fill(p);
       auto last_axis = axes.back();
       auto first_dim = in_topology.at(last_axis);
       if (first_dim != 1) {
-        for (std::size_t i = 1; i < axes.size(); ++i) {
-          topology.at(axes.at(i)) = 1;
-        }
+        add_topology_at(axes.at(0));
       } else {
-        for (std::size_t i = 0; i < axes.size() - 1; ++i) {
-          topology.at(axes.at(i)) = 1;
-        }
+        add_topology_at(axes.back());
       }
-      topologies.push_back(topology);
     } else {
-      auto p = KokkosFFT::Impl::total_size(in_topology);
-      topology.fill(p);
       auto last_axis = axes.back();
       auto first_dim = in_topology.at(last_axis);
       if (first_dim != 1) {
-        for (std::size_t i = 1; i < axes.size(); ++i) {
-          topology.at(axes.at(i)) = 1;
-        }
-        topologies.push_back(topology);
+        add_topology_at(axes.at(0));
         auto last_dim = out_topology.at(axes.front());
         if (last_dim != 1) {
-          topology.fill(1);
-          for (std::size_t i = 0; i < DIM; ++i) {
-            if (topologies.back().at(i) == 1) {
-              topology.at(i) = p;
-              break;
-            }
-          }
-          topologies.push_back(topology);
+          add_topology_at_first_one(topologies.back());
         }
       } else {
         auto mid_dim = in_topology.at(axes.at(1));
         if (mid_dim != 1) {
-          topology.fill(p);
-          for (std::size_t i = 0; i < axes.size() - 1; ++i) {
-            topology.at(axes.at(i)) = 1;
-          }
-          topologies.push_back(topology);
+          add_topology_at(axes.back());
         } else {
           auto last_dim = out_topology.at(axes.front());
           if (last_dim != 1) {
-            topology.fill(1);
-            for (std::size_t i = 0; i < DIM; ++i) {
-              if (topologies.back().at(i) == 1) {
-                topology.at(i) = p;
-                break;
-              }
-            }
-            topologies.push_back(topology);
+            add_topology_at_first_one(topologies.back());
           }
         }
       }
     }
-
-    if (topologies.back() == out_topology) return topologies;
-    topologies.push_back(out_topology);
-    return topologies;
+    return finalize();
   }
 
   // Batched case
   // If input or output is ready, we can skip the rest of the logic
-  bool is_input_ready = true;
-  for (const auto& axis : axes_reversed) {
-    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
-    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    auto dim                  = in_topology.at(unsigned_axis);
-    if (dim != 1) is_input_ready = false;
-  }
+  auto axes_reversed     = axes_vec;
+  auto is_topology_ready = [&](const std::array<std::size_t, DIM>& topo) {
+    bool is_ready = true;
+    for (const auto& axis : axes_reversed) {
+      if (topo.at(axis) > 1) is_ready = false;
+    }
+    return is_ready;
+  };
 
-  bool is_output_ready = true;
-  for (const auto& axis : axes_reversed) {
-    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
-    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    auto dim                  = out_topology.at(unsigned_axis);
-    if (dim != 1) is_output_ready = false;
-  }
-
-  if (is_input_ready || is_output_ready) {
-    if (topologies.back() != out_topology) topologies.push_back(out_topology);
-    return topologies;
+  if (is_topology_ready(in_topology) || is_topology_ready(out_topology)) {
+    return finalize();
   }
 
   // If the conditions above are not satisfied, we need a
   // intermediate topology
-  if constexpr (DIM > 3 && FFT_DIM == 3) {
+  if constexpr (FFT_DIM == 1) {
+    for (std::size_t i = 0; i < DIM; ++i) {
+      if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
+        add_topology_at(i);
+        break;
+      }
+    }
+
+    return finalize();
+  } else if constexpr (DIM > 3 && FFT_DIM == 3) {
     // First, remove the already ready axes
-    std::vector<std::size_t> sorted_axes = axes_reversed;
+    auto sorted_axes = axes_vec;
     std::sort(sorted_axes.begin(), sorted_axes.end());
     std::reverse(axes_reversed.begin(), axes_reversed.end());
 
@@ -491,15 +468,12 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
       ready_axes.push_back(axis);
     }
 
-    auto p = KokkosFFT::Impl::total_size(in_topology);
     if (ready_axes.size() == 0) {
-      topology.at(axes_reversed.back()) = p;
-      topologies.push_back(topology);
+      add_topology_at(axes_reversed.back());
       for (auto axis : axes_reversed) {
-        if (topology.at(axis) > 1) break;
+        if (topologies.back().at(axis) > 1) break;
         ready_axes.push_back(axis);
       }
-      topology.fill(1);
     }
 
     // Remove already registered axes
@@ -510,41 +484,18 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
       }
     }
     // test if output is ready
-    bool is_ready = true;
-    for (const auto& axis : axes_reversed) {
-      if (out_topology.at(axis) > 1) is_ready = false;
-    }
-    if (is_ready) {
-      topologies.push_back(out_topology);
-    } else {
+    bool is_ready = is_topology_ready(out_topology);
+    if (!is_ready) {
       // Need to find a new topology
       for (auto axis : sorted_axes) {
         if (!KokkosFFT::Impl::is_found(axes_reversed, axis)) {
-          topology.at(axis) = p;
-          topologies.push_back(topology);
+          add_topology_at(axis);
           break;
         }
       }
     }
 
-    if (topologies.back() == out_topology) return topologies;
-    topologies.push_back(out_topology);
-
-    return topologies;
-  } else if constexpr (FFT_DIM == 1) {
-    for (std::size_t i = 0; i < DIM; ++i) {
-      if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
-        auto p         = KokkosFFT::Impl::total_size(in_topology);
-        topology.at(i) = p;
-        topologies.push_back(topology);
-        break;
-      }
-    }
-
-    if (topologies.back() == out_topology) return topologies;
-    topologies.push_back(out_topology);
-
-    return topologies;
+    return finalize();
   } else {
     // First, remove the already ready axes
     std::reverse(axes_reversed.begin(), axes_reversed.end());
@@ -564,29 +515,18 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
     }
 
     // test if output is ready
-    bool is_ready = true;
-    for (const auto& axis : axes_reversed) {
-      if (out_topology.at(axis) > 1) is_ready = false;
-    }
-    if (is_ready) {
-      topologies.push_back(out_topology);
-    } else {
+    bool is_ready = is_topology_ready(out_topology);
+    if (!is_ready) {
       // Need to find a new topology
-      auto p = KokkosFFT::Impl::total_size(in_topology);
-      topology.fill(1);
       for (std::size_t i = 0; i < DIM; ++i) {
         if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
-          topology.at(i) = p;
-          topologies.push_back(topology);
+          add_topology_at(i);
           break;
         }
       }
     }
 
-    if (topologies.back() == out_topology) return topologies;
-    topologies.push_back(out_topology);
-
-    return topologies;
+    return finalize();
   }
 }
 
