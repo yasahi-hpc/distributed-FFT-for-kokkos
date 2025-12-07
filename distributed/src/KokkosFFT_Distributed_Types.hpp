@@ -15,9 +15,11 @@ namespace Distributed {
 namespace Impl {
 
 enum class TopologyType {
-  Pencil,
-  Slab,
+  Empty,
   Shared,
+  Slab,
+  Pencil,
+  Brick,
   Invalid,
 };
 

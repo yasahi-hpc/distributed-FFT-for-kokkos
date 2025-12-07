@@ -11,11 +11,17 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief get the topology type from the given topology container
+/// \brief Get the topology type from the given topology container
+/// Empty topology: 0 is included in the topology
+/// Shared topology: non-one element is not included in the topology
+/// Slab topology: 1 non-one element is included in the topology
+/// Pencil topology: 2 non-one elements are included in the topology
+/// Brick topology: 3 non-one elements are included in the topology
+/// Invalid topology: more than 3 non-one elements are included in the topology
+///
 /// \tparam ContainerType Topology container type (std::array or Topology)
 /// \param[in] topology Topology container
 /// \return TopologyType enum value representing the topology type
-/// \throws std::runtime_error if topology is invalid
 template <typename ContainerType>
 inline auto get_topology_type(const ContainerType& topology) {
   static_assert(
@@ -24,7 +30,11 @@ inline auto get_topology_type(const ContainerType& topology) {
   TopologyType topology_type = TopologyType::Invalid;
 
   auto size = KokkosFFT::Impl::total_size(topology);
-  KOKKOSFFT_THROW_IF(size == 0, "topology must not be size 0.");
+  if (size == 0) {
+    topology_type = TopologyType::Empty;
+    return topology_type;
+  }
+
   auto non_one_count = count_non_ones(topology);
   if (non_one_count == 0) {
     topology_type = TopologyType::Shared;
@@ -32,9 +42,8 @@ inline auto get_topology_type(const ContainerType& topology) {
     topology_type = TopologyType::Slab;
   } else if (non_one_count == 2) {
     topology_type = TopologyType::Pencil;
-  } else {
-    KOKKOSFFT_THROW_IF(true,
-                       "topology must have at most two non-one elements.");
+  } else if (non_one_count == 3) {
+    topology_type = TopologyType::Brick;
   }
 
   return topology_type;
@@ -50,12 +59,7 @@ inline bool are_shared_topologies(const Topologies&... topologies) {
                 "are_shared_topologies: topologies must be either in "
                 "std::array or Topology");
   auto is_shared_topology = [](const auto& topology) {
-    bool is_shared = false;
-    try {
-      is_shared = get_topology_type(topology) == TopologyType::Shared;
-    } catch (std::runtime_error& e) {
-    }
-    return is_shared;
+    return get_topology_type(topology) == TopologyType::Shared;
   };
   return (is_shared_topology(topologies) && ...);
 }
@@ -70,12 +74,7 @@ inline bool are_slab_topologies(const Topologies&... topologies) {
                 "are_slab_topologies: topologies must be either in std::array "
                 "or Topology");
   auto is_slab_topology = [](const auto& topology) {
-    bool is_slab = false;
-    try {
-      is_slab = get_topology_type(topology) == TopologyType::Slab;
-    } catch (std::runtime_error& e) {
-    }
-    return is_slab;
+    return get_topology_type(topology) == TopologyType::Slab;
   };
   return (is_slab_topology(topologies) && ...);
 }
@@ -90,14 +89,57 @@ inline bool are_pencil_topologies(const Topologies&... topologies) {
                 "are_pencil_topologies: topologies must be either in "
                 "std::array or Topology");
   auto is_pencil_topology = [](const auto& topology) {
-    bool is_pencil = false;
-    try {
-      is_pencil = get_topology_type(topology) == TopologyType::Pencil;
-    } catch (std::runtime_error& e) {
-    }
-    return is_pencil;
+    return get_topology_type(topology) == TopologyType::Pencil;
   };
   return (is_pencil_topology(topologies) && ...);
+}
+
+/// \brief Check if all given topologies are of Brick type
+/// \tparam Topologies Variadic template parameter for topology container types
+/// \param[in] topologies Topology containers
+/// \return true if all topologies are Brick type, false otherwise
+template <class... Topologies>
+inline bool are_brick_topologies(const Topologies&... topologies) {
+  static_assert((are_allowed_topologies_v<Topologies...>),
+                "are_brick_topologies: topologies must be either in "
+                "std::array or Topology");
+  auto is_brick_topology = [](const auto& topology) {
+    return get_topology_type(topology) == TopologyType::Brick;
+  };
+  return (is_brick_topology(topologies) && ...);
+}
+
+/// \brief Get the topology type from the given topology containers
+///
+/// \tparam Topologies Variadic template parameter for topology container types
+/// \param[in] topology Topology container
+/// \return TopologyType enum value representing the topology type
+template <class... Topologies>
+inline auto get_common_topology_type(const Topologies&... topologies) {
+  static_assert((are_allowed_topologies_v<Topologies...>),
+                "are_brick_topologies: topologies must be either in "
+                "std::array or Topology");
+
+  // Quick return if empty topology is found
+  auto is_empty = [](const auto& topology) {
+    return get_topology_type(topology) == TopologyType::Empty;
+  };
+  if ((is_empty(topologies) || ...)) {
+    return TopologyType::Empty;
+  }
+
+  TopologyType topology_type = TopologyType::Invalid;
+  if (are_shared_topologies(topologies...)) {
+    topology_type = TopologyType::Shared;
+  } else if (are_slab_topologies(topologies...)) {
+    topology_type = TopologyType::Slab;
+  } else if (are_pencil_topologies(topologies...)) {
+    topology_type = TopologyType::Pencil;
+  } else if (are_brick_topologies(topologies...)) {
+    topology_type = TopologyType::Brick;
+  }
+
+  return topology_type;
 }
 
 // Can we also check that this is a slab?

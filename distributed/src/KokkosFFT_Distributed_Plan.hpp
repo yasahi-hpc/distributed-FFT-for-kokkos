@@ -44,18 +44,16 @@ internal_plan_factory(
     }
   }
 #endif
-  bool is_shared = are_shared_topologies(in_topology, out_topology);
-  bool is_slab   = are_slab_topologies(in_topology, out_topology);
-  bool is_pencil = are_pencil_topologies(in_topology, out_topology);
-  if (is_shared) {
+  auto topology_type = get_common_topology_type(in_topology, out_topology);
+  if (topology_type == TopologyType::Shared) {
     return std::make_unique<
         SharedPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
         exec_space, in, out, axes, in_topology, out_topology, comm, norm);
-  } else if (is_slab) {
+  } else if (topology_type == TopologyType::Slab) {
     return std::make_unique<
         SlabPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
         exec_space, in, out, axes, in_topology, out_topology, comm, norm);
-  } else if (is_pencil) {
+  } else if (topology_type == TopologyType::Pencil) {
     if constexpr (InViewType::rank() >= 3) {
       return std::make_unique<
           PencilPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
@@ -65,6 +63,10 @@ internal_plan_factory(
       throw std::runtime_error(
           "Pencil plan supports 3D or higher dimensional Views");
     }
+  } else if (topology_type == TopologyType::Empty) {
+    throw std::runtime_error("Empty topology is not supported for FFT plan.");
+  } else if (topology_type == TopologyType::Brick) {
+    throw std::runtime_error("Brick topology is not supported for FFT plan.");
   } else {
     // Default case for unsupported topologies
     throw std::runtime_error("Unsupported topology for FFT plan.");
