@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 #include <Kokkos_Core.hpp>
+#include <KokkosFFT.hpp>
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -432,6 +433,42 @@ constexpr const T&& get(const Topology<T, N, LayoutType>&& topology) noexcept {
   static_assert(I < N, "Index out of bounds");
   return std::move(topology[I]);
 }
+
+template <typename T>
+struct is_topology : std::false_type {};
+
+template <typename T, std::size_t N, typename LayoutType>
+struct is_topology<Topology<T, N, LayoutType>> : std::true_type {};
+
+/// \brief Helper to check if a type is a Topology
+template <typename T>
+inline constexpr bool is_topology_v = is_topology<T>::value;
+
+/// \brief Helper to check if a type is either std::array or Topology
+template <typename T>
+struct is_allowed_topology
+    : std::integral_constant<bool, KokkosFFT::Impl::is_std_array_v<T> ||
+                                       is_topology_v<T>> {};
+
+template <typename T>
+inline constexpr bool is_allowed_topology_v = is_allowed_topology<T>::value;
+
+/// \breif Helper to check if all types are either std::array or Topology
+template <typename... Ts>
+struct are_allowed_topologies;
+
+template <typename T>
+struct are_allowed_topologies<T> : is_allowed_topology<T> {};
+
+template <typename Head, typename... Tail>
+struct are_allowed_topologies<Head, Tail...>
+    : std::integral_constant<bool, is_allowed_topology_v<Head> &&
+                                       are_allowed_topologies<Tail...>::value> {
+};
+
+template <typename... Ts>
+inline constexpr bool are_allowed_topologies_v =
+    are_allowed_topologies<Ts...>::value;
 
 }  // namespace Distributed
 }  // namespace KokkosFFT

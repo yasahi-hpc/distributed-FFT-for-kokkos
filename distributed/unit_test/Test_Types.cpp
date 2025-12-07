@@ -22,6 +22,22 @@ struct TopologyTest : public ::testing::Test {
   }
 };
 
+template <typename T>
+struct CompileTestTopologyTypes : public ::testing::Test {
+  static constexpr std::size_t rank = 3;
+  using value_type                  = T;
+  using vector_type                 = std::vector<T>;
+  using std_array_type              = std::array<T, rank>;
+  using topology_left_type =
+      KokkosFFT::Distributed::Topology<T, rank, Kokkos::LayoutLeft>;
+  using topology_right_type =
+      KokkosFFT::Distributed::Topology<T, rank, Kokkos::LayoutRight>;
+
+  virtual void SetUp() {
+    GTEST_SKIP() << "Skipping all tests for this fixture";
+  }
+};
+
 // Type definitions for parameterized tests
 using TopologyTypes =
     ::testing::Types<KokkosFFT::Distributed::Topology<int, 3>,
@@ -29,7 +45,76 @@ using TopologyTypes =
                      KokkosFFT::Distributed::Topology<float, 5>,
                      KokkosFFT::Distributed::Topology<std::size_t, 2> >;
 
+using DataTypes = ::testing::Types<int, double, float, std::size_t>;
+
+TYPED_TEST_SUITE(CompileTestTopologyTypes, DataTypes);
 TYPED_TEST_SUITE(TopologyTest, TopologyTypes);
+
+TYPED_TEST(CompileTestTopologyTypes, is_topology) {
+  using vector_type         = typename TestFixture::vector_type;
+  using std_array_type      = typename TestFixture::std_array_type;
+  using topology_left_type  = typename TestFixture::topology_left_type;
+  using topology_right_type = typename TestFixture::topology_right_type;
+
+  static_assert(!KokkosFFT::Distributed::is_topology_v<vector_type>,
+                "std::vector should not be recognized as Topology");
+  static_assert(!KokkosFFT::Distributed::is_topology_v<std_array_type>,
+                "std::array should not be recognized as Topology");
+  static_assert(KokkosFFT::Distributed::is_topology_v<topology_left_type>,
+                "Topology with LayoutLeft should be recognized as Topology");
+  static_assert(KokkosFFT::Distributed::is_topology_v<topology_right_type>,
+                "Topology with LayoutRight should be recognized as Topology");
+}
+
+TYPED_TEST(CompileTestTopologyTypes, is_allowed_topology) {
+  using vector_type         = typename TestFixture::vector_type;
+  using std_array_type      = typename TestFixture::std_array_type;
+  using topology_left_type  = typename TestFixture::topology_left_type;
+  using topology_right_type = typename TestFixture::topology_right_type;
+
+  static_assert(!KokkosFFT::Distributed::is_allowed_topology_v<vector_type>,
+                "std::vector should not be allowed as Topology");
+  static_assert(KokkosFFT::Distributed::is_allowed_topology_v<std_array_type>,
+                "std::array should be allowed as Topology");
+  static_assert(
+      KokkosFFT::Distributed::is_allowed_topology_v<topology_left_type>,
+      "Topology with LayoutLeft should be allowed as Topology");
+  static_assert(
+      KokkosFFT::Distributed::is_allowed_topology_v<topology_right_type>,
+      "Topology with LayoutRight should be allowed as Topology");
+}
+
+TYPED_TEST(CompileTestTopologyTypes, are_allowed_topologies) {
+  using vector_type         = typename TestFixture::vector_type;
+  using std_array_type      = typename TestFixture::std_array_type;
+  using topology_left_type  = typename TestFixture::topology_left_type;
+  using topology_right_type = typename TestFixture::topology_right_type;
+
+  static_assert(!KokkosFFT::Distributed::are_allowed_topologies_v<vector_type>,
+                "std::vector should not be recognized as Topology");
+  static_assert(
+      KokkosFFT::Distributed::are_allowed_topologies_v<std_array_type>,
+      "std::array should be recognized as Topology");
+  static_assert(
+      KokkosFFT::Distributed::are_allowed_topologies_v<topology_left_type>,
+      "Topology with LayoutLeft should be recognized as Topology");
+  static_assert(
+      KokkosFFT::Distributed::are_allowed_topologies_v<topology_right_type>,
+      "Topology with LayoutRight should be recognized as Topology");
+
+  static_assert(
+      !KokkosFFT::Distributed::are_allowed_topologies_v<std_array_type,
+                                                        vector_type>,
+      "Combination with std::vector should not be allowed");
+  static_assert(
+      KokkosFFT::Distributed::are_allowed_topologies_v<std_array_type,
+                                                       topology_left_type>,
+      "Combination with std::array and Topology should be allowed");
+  static_assert(
+      KokkosFFT::Distributed::are_allowed_topologies_v<topology_left_type,
+                                                       topology_right_type>,
+      "Combination with Topologies should be allowed");
+}
 
 // Test type definitions and aliases
 TEST(TopologyTypeTest, TypeDefinitions) {

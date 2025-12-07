@@ -44,13 +44,9 @@ internal_plan_factory(
     }
   }
 #endif
-
-  auto in_topo = in_topology.array(), out_topo = out_topology.array();
-
-  bool is_shared = is_shared_topology(in_topo) && is_shared_topology(out_topo);
-  bool is_slab   = is_slab_topology(in_topo) && is_slab_topology(out_topo);
-  bool is_pencil = is_pencil_topology(in_topo) && is_pencil_topology(out_topo);
-
+  bool is_shared = are_shared_topologies(in_topology, out_topology);
+  bool is_slab   = are_slab_topologies(in_topology, out_topology);
+  bool is_pencil = are_pencil_topologies(in_topology, out_topology);
   if (is_shared) {
     return std::make_unique<
         SharedPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(

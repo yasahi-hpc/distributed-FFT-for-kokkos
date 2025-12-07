@@ -11,8 +11,16 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-template <std::size_t DIM = 1>
-inline auto get_topology_type(const std::array<std::size_t, DIM>& topology) {
+/// \brief get the topology type from the given topology container
+/// \tparam ContainerType Topology container type (std::array or Topology)
+/// \param[in] topology Topology container
+/// \return TopologyType enum value representing the topology type
+/// \throws std::runtime_error if topology is invalid
+template <typename ContainerType>
+inline auto get_topology_type(const ContainerType& topology) {
+  static_assert(
+      (is_allowed_topology_v<ContainerType>),
+      "get_topology_type: topologies must be either in std::array or Topology");
   TopologyType topology_type = TopologyType::Invalid;
 
   auto size = KokkosFFT::Impl::total_size(topology);
@@ -32,40 +40,64 @@ inline auto get_topology_type(const std::array<std::size_t, DIM>& topology) {
   return topology_type;
 }
 
-template <std::size_t DIM = 1>
-inline bool is_shared_topology(const std::array<std::size_t, DIM>& topology) {
-  bool is_shared = false;
-  try {
-    is_shared = get_topology_type(topology) == TopologyType::Shared;
-  } catch (std::runtime_error& e) {
-  }
-  return is_shared;
+/// \brief Check if all given topologies are of Shared type
+/// \tparam Topologies Variadic template parameter for topology container types
+/// \param[in] topologies Topology containers
+/// \return true if all topologies are Shared type, false otherwise
+template <class... Topologies>
+inline bool are_shared_topologies(const Topologies&... topologies) {
+  static_assert((are_allowed_topologies_v<Topologies...>),
+                "are_shared_topologies: topologies must be either in "
+                "std::array or Topology");
+  auto is_shared_topology = [](const auto& topology) {
+    bool is_shared = false;
+    try {
+      is_shared = get_topology_type(topology) == TopologyType::Shared;
+    } catch (std::runtime_error& e) {
+    }
+    return is_shared;
+  };
+  return (is_shared_topology(topologies) && ...);
 }
 
-template <std::size_t DIM = 1>
-inline bool is_slab_topology(const std::array<std::size_t, DIM>& topology) {
-  bool is_slab = false;
-  try {
-    is_slab = get_topology_type(topology) == TopologyType::Slab;
-  } catch (std::runtime_error& e) {
-  }
-  return is_slab;
+/// \brief Check if all given topologies are of Slab type
+/// \tparam Topologies Variadic template parameter for topology container types
+/// \param[in] topologies Topology containers
+/// \return true if all topologies are Slab type, false otherwise
+template <class... Topologies>
+inline bool are_slab_topologies(const Topologies&... topologies) {
+  static_assert((are_allowed_topologies_v<Topologies...>),
+                "are_slab_topologies: topologies must be either in std::array "
+                "or Topology");
+  auto is_slab_topology = [](const auto& topology) {
+    bool is_slab = false;
+    try {
+      is_slab = get_topology_type(topology) == TopologyType::Slab;
+    } catch (std::runtime_error& e) {
+    }
+    return is_slab;
+  };
+  return (is_slab_topology(topologies) && ...);
 }
 
-template <std::size_t DIM = 1>
-inline bool is_pencil_topology(const std::array<std::size_t, DIM>& topology) {
-  bool is_pencil = false;
-  try {
-    is_pencil = get_topology_type(topology) == TopologyType::Pencil;
-  } catch (std::runtime_error& e) {
-  }
-  return is_pencil;
-}
-
-template <std::size_t DIM = 1, typename LayoutType = Kokkos::LayoutRight>
-inline bool is_pencil_topology(
-    const Topology<std::size_t, DIM, LayoutType>& topology) {
-  return is_pencil_topology(topology.array());
+/// \brief Check if all given topologies are of Pencil type
+/// \tparam Topologies Variadic template parameter for topology container types
+/// \param[in] topologies Topology containers
+/// \return true if all topologies are Pencil type, false otherwise
+template <class... Topologies>
+inline bool are_pencil_topologies(const Topologies&... topologies) {
+  static_assert((are_allowed_topologies_v<Topologies...>),
+                "are_pencil_topologies: topologies must be either in "
+                "std::array or Topology");
+  auto is_pencil_topology = [](const auto& topology) {
+    bool is_pencil = false;
+    try {
+      is_pencil = get_topology_type(topology) == TopologyType::Pencil;
+    } catch (std::runtime_error& e) {
+    }
+    return is_pencil;
+  };
+  return (is_pencil_topology(topologies) && ...);
 }
 
 // Can we also check that this is a slab?
@@ -121,8 +153,7 @@ auto get_slab(const std::array<std::size_t, DIM>& in_topology,
   KOKKOSFFT_THROW_IF(in_size != out_size,
                      "Input and output topologies must have the same size.");
 
-  bool is_slab =
-      is_slab_topology(in_topology) && is_slab_topology(out_topology);
+  bool is_slab = are_slab_topologies(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(!is_slab,
                      "Input and output topologies must be slab topologies.");
 
@@ -268,8 +299,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
   static_assert(std::is_unsigned_v<iType>,
                 "get_all_slab_topologies: axes must be unsigned");
 
-  bool is_slab =
-      is_slab_topology(in_topology) && is_slab_topology(out_topology);
+  bool is_slab = are_slab_topologies(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(!is_slab,
                      "Input and output topologies must be slab topologies.");
 
@@ -548,8 +578,8 @@ auto get_all_pencil_topologies(
   using axes_type       = std::vector<std::size_t>;
   using layouts_type    = std::vector<std::size_t>;
 
-  bool is_pencil = is_pencil_topology(in_topology.array()) &&
-                   is_pencil_topology(out_topology.array());
+  bool is_pencil = are_pencil_topologies(in_topology, out_topology);
+
   KOKKOSFFT_THROW_IF(!is_pencil,
                      "Input and output topologies must be pencil topologies.");
 
