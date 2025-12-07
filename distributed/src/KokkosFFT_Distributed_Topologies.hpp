@@ -561,7 +561,6 @@ auto get_all_pencil_topologies(
   using layouts_type    = std::vector<std::size_t>;
 
   bool is_pencil = are_pencil_topologies(in_topology, out_topology);
-
   KOKKOSFFT_THROW_IF(!is_pencil,
                      "Input and output topologies must be pencil topologies.");
 
@@ -632,148 +631,85 @@ auto get_all_pencil_topologies(
   topologies.push_back(in_topology_tmp);
   layouts.push_back(get_layout(in_topology_tmp));
 
-  // 3D case
-  std::array<std::size_t, DIM> topology = {};
-  topology.fill(1);
+  auto add_topology = [&](const topology_type& topo) {
+    if (topologies.back() != topo) {
+      trans_axes.push_back(
+          get_trans_axis(topologies.back(), topo, first_non_one));
+      topologies.push_back(topo);
+      layouts.push_back(get_layout(topo));
+    }
+  };
+
+  auto try_add_mid_topology = [&]() {
+    try {
+      auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
+      add_topology(mid_topology);
+    } catch (std::runtime_error& e) {
+    }
+  };
+
+  auto finalize = [&]() {
+    add_topology(out_topology_tmp);
+    return to_original_topologies(topologies, trans_axes, layouts);
+  };
+
+  auto is_topology_ready = [&](const std::array<std::size_t, DIM>& topo,
+                               const std::vector<iType>& current_axes) {
+    for (const auto& axis : current_axes) {
+      if (topo.at(axis) != 1) return false;
+    }
+    return true;
+  };
 
   // Batched case
   // If input or output is ready, we can skip the rest of the logic
-  bool is_input_ready = true;
-  for (const auto& axis : axes_reversed) {
-    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
-    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    auto dim                  = in_topology.at(unsigned_axis);
-    if (dim != 1) is_input_ready = false;
-  }
-
-  bool is_output_ready = true;
-  for (const auto& axis : axes_reversed) {
-    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
-    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    auto dim                  = out_topology_tmp.at(unsigned_axis);
-    if (dim != 1) is_output_ready = false;
-  }
-
-  if (is_input_ready || is_output_ready) {
-    try {
-      auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
-      trans_axes.push_back(
-          get_trans_axis(topologies.back(), mid_topology, first_non_one));
-      topologies.push_back(mid_topology);
-      layouts.push_back(get_layout(mid_topology));
-    } catch (std::runtime_error& e) {
-    }
-    if (topologies.back() != out_topology_tmp) {
-      trans_axes.push_back(
-          get_trans_axis(topologies.back(), out_topology_tmp, first_non_one));
-      topologies.push_back(out_topology_tmp);
-      layouts.push_back(get_layout(out_topology_tmp));
-    }
-    return to_original_topologies(topologies, trans_axes, layouts);
+  if (is_topology_ready(in_topology_tmp, axes_reversed) ||
+      is_topology_ready(out_topology_tmp, axes_reversed)) {
+    try_add_mid_topology();
+    return finalize();
   }
 
   std::reverse(axes_reversed.begin(), axes_reversed.end());
   std::array<std::size_t, DIM> shuffled_topology = in_topology_tmp;
-  if (in_topology_tmp == out_topology_tmp) {
-    auto last_axis  = axes_reversed.front();
-    auto first_axis = axes_reversed.back();
-    auto first_dim  = in_topology_tmp.at(last_axis);
-    auto last_dim   = out_topology_tmp.at(first_axis);
-    if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
-    if (last_dim == 1 && !axes_reversed.empty()) axes_reversed.pop_back();
-    for (const auto& axis : axes_reversed) {
-      std::size_t swap_idx = 0;
-      auto non_negative_axis =
-          KokkosFFT::Impl::convert_negative_axis(axis, DIM);
-      std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-      for (std::size_t idx = 0; idx < DIM; idx++) {
-        if (shuffled_topology.at(idx) == 1 && idx != unsigned_axis) {
-          swap_idx = idx;
-          break;
-        }
-      }
-      shuffled_topology =
-          swap_elements(shuffled_topology, unsigned_axis, swap_idx);
 
-      if (topologies.back() != shuffled_topology) {
-        trans_axes.push_back(get_trans_axis(topologies.back(),
-                                            shuffled_topology, first_non_one));
-        topologies.push_back(shuffled_topology);
-        layouts.push_back(get_layout(shuffled_topology));
-      }
-    }
-
-    if (topologies.back() == out_topology_tmp) {
-      return to_original_topologies(topologies, trans_axes, layouts);
-    }
-
-    try {
-      auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
-      trans_axes.push_back(
-          get_trans_axis(topologies.back(), mid_topology, first_non_one));
-      topologies.push_back(mid_topology);
-      layouts.push_back(get_layout(mid_topology));
-    } catch (std::runtime_error& e) {
-    }
-
-    if (topologies.back() == out_topology_tmp)
-      return to_original_topologies(topologies, trans_axes, layouts);
-
-    trans_axes.push_back(
-        get_trans_axis(topologies.back(), out_topology_tmp, first_non_one));
-    topologies.push_back(out_topology_tmp);
-    layouts.push_back(get_layout(out_topology_tmp));
-    return to_original_topologies(topologies, trans_axes, layouts);
-  }
-
-  std::vector<std::size_t> diff_non_one_indices =
-      extract_non_one_indices(in_topology_tmp, out_topology_tmp);
   auto last_axis  = axes_reversed.front();
   auto first_axis = axes_reversed.back();
   auto first_dim  = in_topology_tmp.at(last_axis);
   auto last_dim   = out_topology_tmp.at(first_axis);
   if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
   if (last_dim == 1 && !axes_reversed.empty()) axes_reversed.pop_back();
+
   for (const auto& axis : axes_reversed) {
-    std::size_t swap_idx   = 0;
-    auto non_negative_axis = KokkosFFT::Impl::convert_negative_axis(axis, DIM);
-    std::size_t unsigned_axis = static_cast<std::size_t>(non_negative_axis);
-    for (auto diff_idx : diff_non_one_indices) {
-      if (shuffled_topology.at(diff_idx) == 1 && diff_idx != unsigned_axis) {
-        swap_idx = diff_idx;
-        break;
+    std::size_t swap_idx = 0;
+
+    if (in_topology_tmp == out_topology_tmp) {
+      for (std::size_t idx = 0; idx < DIM; idx++) {
+        if (shuffled_topology.at(idx) == 1 && idx != axis) {
+          swap_idx = idx;
+          break;
+        }
+      }
+    } else {
+      auto diff_non_one_indices =
+          extract_non_one_indices(in_topology_tmp, out_topology_tmp);
+      for (auto diff_idx : diff_non_one_indices) {
+        if (shuffled_topology.at(diff_idx) == 1 && diff_idx != axis) {
+          swap_idx = diff_idx;
+          break;
+        }
       }
     }
-    shuffled_topology =
-        swap_elements(shuffled_topology, unsigned_axis, swap_idx);
+    shuffled_topology = swap_elements(shuffled_topology, axis, swap_idx);
 
-    if (topologies.back() != shuffled_topology) {
-      trans_axes.push_back(
-          get_trans_axis(topologies.back(), shuffled_topology, first_non_one));
-      topologies.push_back(shuffled_topology);
-      layouts.push_back(get_layout(shuffled_topology));
-    }
+    add_topology(shuffled_topology);
   }
-  if (topologies.back() == out_topology_tmp)
-    return to_original_topologies(topologies, trans_axes, layouts);
 
-  try {
-    auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
-    trans_axes.push_back(
-        get_trans_axis(topologies.back(), mid_topology, first_non_one));
-    topologies.push_back(mid_topology);
-    layouts.push_back(get_layout(mid_topology));
-  } catch (std::runtime_error& e) {
+  if (topologies.back() == out_topology_tmp) {
+    return to_original_topologies(topologies, trans_axes, layouts);
   }
-  if (topologies.back() == out_topology_tmp)
-    return to_original_topologies(topologies, trans_axes, layouts);
 
-  trans_axes.push_back(
-      get_trans_axis(topologies.back(), out_topology_tmp, first_non_one));
-  topologies.push_back(out_topology_tmp);
-  layouts.push_back(get_layout(out_topology_tmp));
-
-  return to_original_topologies(topologies, trans_axes, layouts);
+  try_add_mid_topology();
+  return finalize();
 }
 
 }  // namespace Impl
