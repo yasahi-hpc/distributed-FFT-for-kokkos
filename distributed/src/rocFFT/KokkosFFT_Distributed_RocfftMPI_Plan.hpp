@@ -34,12 +34,10 @@ bool is_tpl_available(
   bool is_transpose_needed = KokkosFFT::Impl::is_transpose_needed(map);
   if (is_transpose_needed) return false;
 
-  auto in_topo = in_topology.array(), out_topo = out_topology.array();
+  if (in_topology == out_topology) return false;
 
-  if (in_topo == out_topo) return false;
-
-  bool is_slab   = is_slab_topology(in_topo) && is_slab_topology(out_topo);
-  bool is_pencil = is_pencil_topology(in_topo) && is_pencil_topology(out_topo);
+  bool is_slab   = are_slab_topologies(in_topology, out_topology);
+  bool is_pencil = are_pencil_topologies(in_topology, out_topology);
 
   if constexpr (InViewType::rank() == 2 && DIM == 2) {
     if (is_slab) return true;

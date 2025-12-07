@@ -1383,8 +1383,7 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     KOKKOSFFT_THROW_IF(in_size != out_size,
                        "Input and output topologies must have the same size.");
 
-    bool is_slab = is_slab_topology(in_topology.array()) &&
-                   is_slab_topology(out_topology.array());
+    bool is_slab = are_slab_topologies(in_topology, out_topology);
     KOKKOSFFT_THROW_IF(!is_slab,
                        "Input and output topologies must be slab topologies.");
   }
