@@ -285,7 +285,7 @@ std::vector<std::vector<iType>> decompose_axes(
 
   // Reverse the axes e.g. {0, 2, 1} -> {1, 2, 0}
   std::vector<std::size_t> axes_reversed =
-      KokkosFFT::Impl::reversed(to_vector(non_negative_axes));
+      KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(non_negative_axes));
 
   std::vector<std::vector<iType>> all_axes = {};
   for (auto topology : topologies) {
@@ -374,7 +374,7 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
     return topologies;
   };
 
-  auto axes_vec = to_vector(axes);
+  auto axes_vec = KokkosFFT::Impl::to_vector(axes);
 
   // 2D case
   if constexpr (DIM == 2 && FFT_DIM == 2) {
@@ -564,7 +564,7 @@ auto get_all_pencil_topologies(
   KOKKOSFFT_THROW_IF(!is_pencil,
                      "Input and output topologies must be pencil topologies.");
 
-  auto axes_reversed             = to_vector(axes);
+  auto axes_reversed             = KokkosFFT::Impl::to_vector(axes);
   auto non_ones                  = extract_non_one_values(in_topology.array());
   bool has_same_non_one_elements = has_identical_non_ones(non_ones);
 

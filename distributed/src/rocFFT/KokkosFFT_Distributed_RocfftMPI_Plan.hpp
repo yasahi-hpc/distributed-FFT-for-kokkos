@@ -115,17 +115,18 @@ std::size_t create_plan(
     std::transform(out_starts.begin(), out_starts.end(), out_extents.begin(),
                    out_ends.begin(), std::plus<std::size_t>());
 
-    auto in_lower  = to_vector(in_starts);
-    auto in_upper  = to_vector(in_ends);
-    auto out_lower = to_vector(out_starts);
-    auto out_upper = to_vector(out_ends);
+    auto in_lower  = KokkosFFT::Impl::to_vector(in_starts);
+    auto in_upper  = KokkosFFT::Impl::to_vector(in_ends);
+    auto out_lower = KokkosFFT::Impl::to_vector(out_starts);
+    auto out_upper = KokkosFFT::Impl::to_vector(out_ends);
 
-    auto in_strides = to_vector(KokkosFFT::Impl::compute_strides(gin_extents));
-    auto out_strides =
-        to_vector(KokkosFFT::Impl::compute_strides(gout_extents));
+    auto in_strides = KokkosFFT::Impl::to_vector(
+        KokkosFFT::Impl::compute_strides(gin_extents));
+    auto out_strides = KokkosFFT::Impl::to_vector(
+        KokkosFFT::Impl::compute_strides(gout_extents));
     auto reversed_fft_extents =
         convert_int_type_and_reverse<std::size_t, std::size_t>(
-            to_vector(fft_extents));
+            KokkosFFT::Impl::to_vector(fft_extents));
     plan = std::make_unique<PlanType>(reversed_fft_extents, in_lower, in_upper,
                                       out_lower, out_upper, in_strides,
                                       out_strides, comm);

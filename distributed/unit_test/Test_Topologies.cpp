@@ -6272,11 +6272,9 @@ void test_decompose_axes_slab(std::size_t nprocs) {
       auto all_axes_4_3 =
           KokkosFFT::Distributed::Impl::decompose_axes(topologies_4_3, axes);
       std::vector<vec_axes_type>
-          ref_all_axes2 = {KokkosFFT::Distributed::Impl::to_vector(axes), {}},
-          ref_all_axes3 = {KokkosFFT::Distributed::Impl::to_vector(axes),
-                           {},
-                           {}},
-          ref_all_axes4 = {KokkosFFT::Distributed::Impl::to_vector(axes), {}};
+          ref_all_axes2 = {KokkosFFT::Impl::to_vector(axes), {}},
+          ref_all_axes3 = {KokkosFFT::Impl::to_vector(axes), {}, {}},
+          ref_all_axes4 = {KokkosFFT::Impl::to_vector(axes), {}};
       EXPECT_EQ(all_axes_0_1, ref_all_axes2);
       EXPECT_EQ(all_axes_0_2, ref_all_axes2);
       EXPECT_EQ(all_axes_1_2, ref_all_axes2);
