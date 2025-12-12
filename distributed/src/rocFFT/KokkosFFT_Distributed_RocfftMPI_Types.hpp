@@ -99,7 +99,7 @@ struct ScopedRocfftMPIPlan {
     constexpr auto transform_type =
         KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
     auto [in_array_type, out_array_type, fft_direction] =
-        get_in_out_array_type(transform_type, direction);
+        KokkosFFT::Impl::get_in_out_array_type(transform_type, direction);
     status = rocfft_plan_description_set_data_layout(
         m_description, in_array_type, out_array_type, nullptr, nullptr, 0,
         nullptr, 0, 0, nullptr, 0);
@@ -151,36 +151,6 @@ struct ScopedRocfftMPIPlan {
 
   rocfft_plan plan() const noexcept { return m_plan; }
   void commit(const Kokkos::HIP & /*exec_space*/) const {}
-
-  // Helper to get input and output array type and direction from transform type
-  auto get_in_out_array_type(KokkosFFT::Impl::FFTWTransformType type,
-                             KokkosFFT::Direction direction) {
-    rocfft_array_type in_array_type, out_array_type;
-    rocfft_transform_type fft_direction;
-
-    if (type == KokkosFFT::Impl::FFTWTransformType::C2C ||
-        type == KokkosFFT::Impl::FFTWTransformType::Z2Z) {
-      in_array_type  = rocfft_array_type_complex_interleaved;
-      out_array_type = rocfft_array_type_complex_interleaved;
-      fft_direction  = direction == KokkosFFT::Direction::forward
-                           ? rocfft_transform_type_complex_forward
-                           : rocfft_transform_type_complex_inverse;
-    } else if (type == KokkosFFT::Impl::FFTWTransformType::R2C ||
-               type == KokkosFFT::Impl::FFTWTransformType::D2Z) {
-      in_array_type  = rocfft_array_type_real;
-      out_array_type = rocfft_array_type_hermitian_interleaved;
-      fft_direction  = rocfft_transform_type_real_forward;
-    } else if (type == KokkosFFT::Impl::FFTWTransformType::C2R ||
-               type == KokkosFFT::Impl::FFTWTransformType::Z2D) {
-      in_array_type  = rocfft_array_type_hermitian_interleaved;
-      out_array_type = rocfft_array_type_real;
-      fft_direction  = rocfft_transform_type_real_inverse;
-    }
-
-    return std::tuple<rocfft_array_type, rocfft_array_type,
-                      rocfft_transform_type>(
-        {in_array_type, out_array_type, fft_direction});
-  }
 };
 
 template <typename ExecutionSpace, typename T1, typename T2>
