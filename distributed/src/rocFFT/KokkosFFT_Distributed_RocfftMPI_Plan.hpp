@@ -61,19 +61,6 @@ bool is_tpl_available(
       Topology<std::size_t, OutViewType::rank()>(out_topology));
 }
 
-// Helper to convert the integer type of vectors
-template <typename InType, typename OutType>
-auto convert_int_type_and_reverse(const std::vector<InType>& in)
-    -> std::vector<OutType> {
-  std::vector<OutType> out(in.size());
-  std::transform(
-      in.cbegin(), in.cend(), out.begin(),
-      [](const InType v) -> OutType { return static_cast<OutType>(v); });
-
-  std::reverse(out.begin(), out.end());
-  return out;
-}
-
 // General interface
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType, std::size_t DIM>
@@ -125,7 +112,7 @@ std::size_t create_plan(
     auto out_strides = KokkosFFT::Impl::to_vector(
         KokkosFFT::Impl::compute_strides(gout_extents));
     auto reversed_fft_extents =
-        convert_int_type_and_reverse<std::size_t, std::size_t>(
+        KokkosFFT::Impl::convert_int_type_and_reverse<std::size_t, std::size_t>(
             KokkosFFT::Impl::to_vector(fft_extents));
     plan = std::make_unique<PlanType>(reversed_fft_extents, in_lower, in_upper,
                                       out_lower, out_upper, in_strides,
