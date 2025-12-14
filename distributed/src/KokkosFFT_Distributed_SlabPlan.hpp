@@ -398,6 +398,10 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
   AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation,
       m_fft_buffer_allocation;
 
+#if defined(KOKKOS_ENABLE_SYCL)
+  AllocationViewType m_fft_buffer_allocation1;
+#endif
+
   // Internal transpose blocks
   std::vector<std::unique_ptr<TransBlockType>> m_trans_blocks;
 
@@ -463,6 +467,22 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
 
     // Using aligned data
     std::size_t workspace_size = 0;
+#if defined(KOKKOS_ENABLE_SYCL)
+    workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+        *m_fft_plan0, *m_ifft_plan0);
+    m_fft_buffer_allocation =
+        AllocationViewType("fft_buffer_allocation", workspace_size);
+    m_fft_plan0->set_work_area(m_fft_buffer_allocation);
+    m_ifft_plan0->set_work_area(m_fft_buffer_allocation);
+    if (m_fft_plan1 != nullptr) {
+      workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+          *m_fft_plan1, *m_ifft_plan1);
+      m_fft_buffer_allocation1 =
+          AllocationViewType("fft_buffer_allocation1", workspace_size);
+      m_fft_plan1->set_work_area(m_fft_buffer_allocation1);
+      m_ifft_plan1->set_work_area(m_fft_buffer_allocation1);
+    }
+#else
     if (m_fft_plan1 != nullptr) {
       workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
           *m_fft_plan0, *m_fft_plan1, *m_ifft_plan0, *m_ifft_plan1);
@@ -480,6 +500,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
       m_fft_plan0->set_work_area(m_fft_buffer_allocation);
       m_ifft_plan0->set_work_area(m_fft_buffer_allocation);
     }
+#endif
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {
@@ -856,6 +877,10 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
   AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation,
       m_fft_buffer_allocation;
 
+#if defined(KOKKOS_ENABLE_SYCL)
+  AllocationViewType m_fft_buffer_allocation1;
+#endif
+
   // Internal transpose blocks
   std::vector<std::unique_ptr<TransBlockType>> m_trans_blocks;
 
@@ -920,6 +945,22 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
                        "Internal views are not set");
 
     std::size_t workspace_size = 0;
+#if defined(KOKKOS_ENABLE_SYCL)
+    workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+        *m_fft_plan0, *m_ifft_plan0);
+    m_fft_buffer_allocation =
+        AllocationViewType("fft_buffer_allocation", workspace_size);
+    m_fft_plan0->set_work_area(m_fft_buffer_allocation);
+    m_ifft_plan0->set_work_area(m_fft_buffer_allocation);
+    if (m_fft_plan1 != nullptr) {
+      workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+          *m_fft_plan1, *m_ifft_plan1);
+      m_fft_buffer_allocation1 =
+          AllocationViewType("fft_buffer_allocation1", workspace_size);
+      m_fft_plan1->set_work_area(m_fft_buffer_allocation1);
+      m_ifft_plan1->set_work_area(m_fft_buffer_allocation1);
+    }
+#else
     if (m_fft_plan1 != nullptr) {
       workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
           *m_fft_plan0, *m_fft_plan1, *m_ifft_plan0, *m_ifft_plan1);
@@ -937,6 +978,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
       m_fft_plan0->set_work_area(m_fft_buffer_allocation);
       m_ifft_plan0->set_work_area(m_fft_buffer_allocation);
     }
+#endif
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {

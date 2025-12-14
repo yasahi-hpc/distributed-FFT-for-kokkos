@@ -500,6 +500,11 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
   using ptr_pair_type = std::pair<complex_type*, complex_type*>;
   AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation,
       m_fft_buffer_allocation;
+
+#if defined(KOKKOS_ENABLE_SYCL)
+  AllocationViewType m_fft_buffer_allocation1;
+#endif
+
   std::vector<ptr_pair_type> m_in_out_ptr;
 
   // Internal transpose blocks
@@ -604,6 +609,22 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
 
     // Using aligned data
     std::size_t workspace_size = 0;
+#if defined(KOKKOS_ENABLE_SYCL)
+    workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+        *m_fft_plan0, *m_ifft_plan0);
+    m_fft_buffer_allocation =
+        AllocationViewType("fft_buffer_allocation", workspace_size);
+    m_fft_plan0->set_work_area(m_fft_buffer_allocation);
+    m_ifft_plan0->set_work_area(m_fft_buffer_allocation);
+    if (m_fft_plan1 != nullptr) {
+      workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+          *m_fft_plan1, *m_ifft_plan1);
+      m_fft_buffer_allocation1 =
+          AllocationViewType("fft_buffer_allocation1", workspace_size);
+      m_fft_plan1->set_work_area(m_fft_buffer_allocation1);
+      m_ifft_plan1->set_work_area(m_fft_buffer_allocation1);
+    }
+#else
     if (m_fft_plan1 != nullptr) {
       workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
           *m_fft_plan0, *m_fft_plan1, *m_ifft_plan0, *m_ifft_plan1);
@@ -621,6 +642,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
       m_fft_plan0->set_work_area(m_fft_buffer_allocation);
       m_ifft_plan0->set_work_area(m_fft_buffer_allocation);
     }
+#endif
   }
 
   ~PencilInternalPlan() {
@@ -1058,6 +1080,10 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
   using ptr_pair_type = std::pair<complex_type*, complex_type*>;
   AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation,
       m_fft_buffer_allocation;
+
+#if defined(KOKKOS_ENABLE_SYCL)
+  AllocationViewType m_fft_buffer_allocation1, m_fft_buffer_allocation2;
+#endif
   std::vector<ptr_pair_type> m_in_out_ptr;
 
   // Internal transpose blocks
@@ -1163,6 +1189,31 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
                        "m_in_out_ptr must have the size of nb_blocks");
 
     std::size_t workspace_size = 0;
+#if defined(KOKKOS_ENABLE_SYCL)
+    workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+        *m_fft_plan0, *m_ifft_plan0);
+    m_fft_buffer_allocation =
+        AllocationViewType("fft_buffer_allocation", workspace_size);
+    m_fft_plan0->set_work_area(m_fft_buffer_allocation);
+    m_ifft_plan0->set_work_area(m_fft_buffer_allocation);
+    if (m_fft_plan1 != nullptr) {
+      workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+          *m_fft_plan1, *m_ifft_plan1);
+      m_fft_buffer_allocation1 =
+          AllocationViewType("fft_buffer_allocation1", workspace_size);
+      m_fft_plan1->set_work_area(m_fft_buffer_allocation1);
+      m_ifft_plan1->set_work_area(m_fft_buffer_allocation1);
+    }
+
+    if (m_fft_plan2 != nullptr) {
+      workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
+          *m_fft_plan2, *m_ifft_plan2);
+      m_fft_buffer_allocation2 =
+          AllocationViewType("fft_buffer_allocation2", workspace_size);
+      m_fft_plan2->set_work_area(m_fft_buffer_allocation2);
+      m_ifft_plan2->set_work_area(m_fft_buffer_allocation2);
+    }
+#else
     if (m_fft_plan2 != nullptr) {
       workspace_size = KokkosFFT::compute_required_workspace_size<complex_type>(
           *m_fft_plan0, *m_fft_plan1, *m_fft_plan2, *m_ifft_plan0,
@@ -1192,6 +1243,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
       m_fft_plan0->set_work_area(m_fft_buffer_allocation);
       m_ifft_plan0->set_work_area(m_fft_buffer_allocation);
     }
+#endif
   }
 
   ~PencilInternalPlan() {
