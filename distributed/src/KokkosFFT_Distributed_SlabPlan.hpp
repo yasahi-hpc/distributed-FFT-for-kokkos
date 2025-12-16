@@ -1302,6 +1302,9 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
   using axes_type = KokkosFFT::axis_type<DIM>;
 
+  //! The real value type for normalization
+  using normalization_float_type = double;
+
   //! Execution space
   ExecutionSpace m_exec_space;
 
@@ -1319,7 +1322,7 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
                      OutLayoutType>::get_norm;
   using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>::get_fft_size;
+                     OutLayoutType>::get_fft_extents;
 
  public:
   explicit SlabPlan(
@@ -1361,15 +1364,17 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
     m_internal_plan.forward(in, out);
-    KokkosFFT::Impl::normalize(m_exec_space, out, KokkosFFT::Direction::forward,
-                               get_norm(), get_fft_size());
+    KokkosFFT::Impl::normalize<normalization_float_type>(
+        m_exec_space, out, KokkosFFT::Direction::forward, get_norm(),
+        get_fft_extents());
   }
 
   void backward(const OutViewType& out, const InViewType& in) const override {
     good(in, out);
     m_internal_plan.backward(out, in);
-    KokkosFFT::Impl::normalize(m_exec_space, in, KokkosFFT::Direction::backward,
-                               get_norm(), get_fft_size());
+    KokkosFFT::Impl::normalize<normalization_float_type>(
+        m_exec_space, in, KokkosFFT::Direction::backward, get_norm(),
+        get_fft_extents());
   }
 
   std::string label() const override { return std::string("SlabPlan"); }

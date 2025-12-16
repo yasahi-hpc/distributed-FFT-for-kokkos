@@ -358,7 +358,7 @@ auto get_mapped_extents(const std::array<iType, DIM>& extents,
   return mapped_extents;
 }
 
-/// \brief Get the larger extents. Larger one corresponds to
+/// \brief Compute the larger extents. Larger one corresponds to
 /// the extents to FFT library. This is a helper for vendor library
 /// which supports 2D or 3D non-batched FFTs.
 ///
@@ -374,17 +374,18 @@ auto get_mapped_extents(const std::array<iType, DIM>& extents,
 /// \param[in] out_extents Extents of the global output View.
 /// \return A extents of the permuted view
 template <typename iType, std::size_t DIM, std::size_t FFT_DIM>
-auto get_fft_extents(const std::array<iType, DIM>& in_extents,
-                     const std::array<iType, DIM>& out_extents,
-                     const std::array<iType, FFT_DIM>& axes) {
+auto compute_fft_extents(const std::array<iType, DIM>& in_extents,
+                         const std::array<iType, DIM>& out_extents,
+                         const std::array<iType, FFT_DIM>& axes) {
   static_assert(std::is_integral_v<iType>,
-                "get_fft_extents: iType must be an integral type");
+                "compute_fft_extents: iType must be an integral type");
   static_assert(
       FFT_DIM >= 1 && FFT_DIM <= KokkosFFT::MAX_FFT_DIM,
-      "get_fft_extents: the Rank of FFT axes must be between 1 and 3");
-  static_assert(DIM >= FFT_DIM,
-                "get_fft_extents: View rank must be larger than or equal to "
-                "the Rank of FFT axes");
+      "compute_fft_extents: the Rank of FFT axes must be between 1 and 3");
+  static_assert(
+      DIM >= FFT_DIM,
+      "compute_fft_extents: View rank must be larger than or equal to "
+      "the Rank of FFT axes");
 
   std::array<iType, FFT_DIM> fft_extents;
   std::transform(axes.begin(), axes.end(), fft_extents.begin(),
