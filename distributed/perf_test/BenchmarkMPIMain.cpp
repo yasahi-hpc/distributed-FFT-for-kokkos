@@ -1,3 +1,5 @@
+#include <string>
+#include <cstdlib>
 #include <mpi.h>
 #include <benchmark/benchmark.h>
 #include "Benchmark_Context.hpp"
@@ -12,6 +14,18 @@ class NullReporter : public ::benchmark::BenchmarkReporter {
   virtual void ReportRuns(const std::vector<Run> &) {}
   virtual void Finalize() {}
 };
+
+bool has_output_flag(int argc, char **argv) {
+  for (int i = 0; i < argc; ++i) {
+    std::string arg = argv[i];
+    if (arg.find("--benchmark_out=") == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool has_output_envvar() { return std::getenv("BENCHMARK_OUT") != nullptr; }
 
 int main(int argc, char **argv) {
   int provided;
@@ -36,8 +50,13 @@ int main(int argc, char **argv) {
     } else {
       // reporting from other processes is disabled by passing a custom reporter
       NullReporter null;
-      ::benchmark::RunSpecifiedBenchmarks(/* display_reporter = */ &null,
-                                          /* file_reporter = */ &null);
+      bool has_file_output = has_output_flag(argc, argv) || has_output_envvar();
+      if (has_file_output) {
+        ::benchmark::RunSpecifiedBenchmarks(/* display_reporter = */ &null,
+                                            /* file_reporter = */ &null);
+      } else {
+        ::benchmark::RunSpecifiedBenchmarks(/* display_reporter = */ &null);
+      }
     }
 
     ::benchmark::Shutdown();
