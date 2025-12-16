@@ -16,8 +16,9 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 class InternalPlan {
-  using axes_type    = KokkosFFT::axis_type<DIM>;
-  using extents_type = KokkosFFT::shape_type<InViewType::rank()>;
+  using axes_type        = KokkosFFT::axis_type<DIM>;
+  using extents_type     = KokkosFFT::shape_type<InViewType::rank()>;
+  using fft_extents_type = KokkosFFT::shape_type<DIM>;
   using in_topology_type =
       KokkosFFT::Distributed::Topology<std::size_t, InViewType::rank(),
                                        InLayoutType>;
@@ -32,7 +33,7 @@ class InternalPlan {
   KokkosFFT::Normalization m_norm;
 
   //! FFT size
-  std::size_t m_fft_size = 1;
+  fft_extents_type m_fft_extents;
 
  public:
   explicit InternalPlan(const ExecutionSpace& exec_space, const InViewType& in,
@@ -58,9 +59,8 @@ class InternalPlan {
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(
             KokkosFFT::Impl::convert_negative_axes(axes, InViewType::rank()));
 
-    auto fft_extents =
-        get_fft_extents(gin_extents, gout_extents, non_negative_axes);
-    m_fft_size = KokkosFFT::Impl::total_size(fft_extents);
+    m_fft_extents =
+        compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
   }
 
   virtual ~InternalPlan() = default;
@@ -79,7 +79,7 @@ class InternalPlan {
 
  protected:
   KokkosFFT::Normalization get_norm() const { return m_norm; }
-  std::size_t get_fft_size() const { return m_fft_size; }
+  auto get_fft_extents() const { return m_fft_extents; }
 
   void good(const InViewType& in, const OutViewType& out) const {
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);

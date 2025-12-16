@@ -64,14 +64,13 @@ bool is_tpl_available(
 // General interface
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType, std::size_t DIM>
-std::size_t create_plan(
-    const ExecutionSpace& exec_space, std::unique_ptr<PlanType>& plan,
-    const InViewType& in, const OutViewType& out,
-    const KokkosFFT::axis_type<DIM>& axes,
-    const KokkosFFT::axis_type<DIM>& /*map*/,
-    const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
-    const KokkosFFT::shape_type<InViewType::rank()>& out_topology,
-    const MPI_Comm& comm) {
+void create_plan(const ExecutionSpace& exec_space,
+                 std::unique_ptr<PlanType>& plan, const InViewType& in,
+                 const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
+                 const KokkosFFT::axis_type<DIM>& /*map*/,
+                 const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
+                 const KokkosFFT::shape_type<InViewType::rank()>& out_topology,
+                 const MPI_Comm& comm) {
   static_assert(
       KokkosFFT::Impl::are_operatable_views_v<ExecutionSpace, InViewType,
                                               OutViewType>,
@@ -89,9 +88,7 @@ std::size_t create_plan(
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     auto fft_extents =
-        get_fft_extents(gin_extents, gout_extents, non_negative_axes);
-    auto fft_size = KokkosFFT::Impl::total_size(fft_extents);
-
+        compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
     auto [in_extents, in_starts] =
         get_local_extents(gin_extents, in_topology, comm);
     auto [out_extents, out_starts] =
@@ -118,10 +115,8 @@ std::size_t create_plan(
                                       out_lower, out_upper, in_strides,
                                       out_strides, comm);
     plan->commit(exec_space);
-    return fft_size;
   } else {
     KOKKOSFFT_THROW_IF(true, "Plan can be made for 2D or 3D Views only");
-    return 1;
   }
 }
 

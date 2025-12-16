@@ -42,6 +42,9 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       typename InternalTplPlanType<ExecutionSpace, in_value_type,
                                    out_value_type>::type;
 
+  //! The real value type for normalization
+  using normalization_float_type = double;
+
  private:
   //! Execution space
   ExecutionSpace m_exec_space;
@@ -62,10 +65,10 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   extents_type m_in_mapped_extents, m_out_mapped_extents;
   ///@}
 
-  std::size_t m_fft_size;
-
   using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
   using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::get_norm;
+  using InternalPlan<ExecutionSpace, InViewType, OutViewType,
+                     DIM>::get_fft_extents;
 
  public:
   explicit TplPlan(
@@ -128,8 +131,8 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     KokkosFFT::Impl::setup<ExecutionSpace, float_type>();
 
     // Only support 2D or 3D FFTs
-    m_fft_size = create_plan(m_exec_space, m_plan, in, out, axes, m_in_map,
-                             in_topology.array(), out_topology.array(), comm);
+    create_plan(m_exec_space, m_plan, in, out, axes, m_in_map,
+                in_topology.array(), out_topology.array(), comm);
   }
 
   ~TplPlan() noexcept = default;
@@ -163,8 +166,8 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
                     KokkosFFT::Direction direction) const {
     exec_plan(m_exec_space, plan, in, out, in_extents, out_extents, in_map,
               out_map, direction);
-    KokkosFFT::Impl::normalize(m_exec_space, out, direction, get_norm(),
-                               m_fft_size);
+    KokkosFFT::Impl::normalize<normalization_float_type>(
+        m_exec_space, out, direction, get_norm(), get_fft_extents());
   }
 };
 

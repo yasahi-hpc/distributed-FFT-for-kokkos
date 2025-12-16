@@ -91,15 +91,14 @@ bool is_tpl_available(
 /// Should not be called directly
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType, std::size_t DIM>
-std::size_t create_plan(
-    const ExecutionSpace& exec_space, std::unique_ptr<PlanType>& plan,
-    const InViewType& in, const OutViewType& out,
-    const KokkosFFT::axis_type<DIM>& axes, const KokkosFFT::axis_type<DIM>& map,
-    const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
-    const KokkosFFT::shape_type<InViewType::rank()>& out_topology,
-    const MPI_Comm& comm) {
+void create_plan(const ExecutionSpace& exec_space,
+                 std::unique_ptr<PlanType>& plan, const InViewType& in,
+                 const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
+                 const KokkosFFT::axis_type<DIM>& map,
+                 const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
+                 const KokkosFFT::shape_type<InViewType::rank()>& out_topology,
+                 const MPI_Comm& comm) {
   KOKKOSFFT_THROW_IF(true, "Plan can be made for 2D or 3D Views only");
-  return 1;
 }
 
 /// \brief Create a 2D cuFFTMp plan for distributed FFT
@@ -118,17 +117,15 @@ std::size_t create_plan(
 /// \param[in] in_topology Topology of input data distribution
 /// \param[in] out_topology Topology of output data distribution
 /// \param[in] comm MPI communicator
-/// \return Size of the FFT
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>
-std::size_t create_plan(const ExecutionSpace& exec_space,
-                        std::unique_ptr<PlanType>& plan, const InViewType& in,
-                        const OutViewType& out,
-                        const KokkosFFT::axis_type<2>& axes,
-                        const KokkosFFT::axis_type<2>& map,
-                        const KokkosFFT::shape_type<2>& in_topology,
-                        const KokkosFFT::shape_type<2>& out_topology,
-                        const MPI_Comm& comm) {
+void create_plan(const ExecutionSpace& exec_space,
+                 std::unique_ptr<PlanType>& plan, const InViewType& in,
+                 const OutViewType& out, const KokkosFFT::axis_type<2>& axes,
+                 const KokkosFFT::axis_type<2>& map,
+                 const KokkosFFT::shape_type<2>& in_topology,
+                 const KokkosFFT::shape_type<2>& out_topology,
+                 const MPI_Comm& comm) {
   static_assert(
       KokkosFFT::Impl::are_operatable_views_v<ExecutionSpace, InViewType,
                                               OutViewType>,
@@ -150,11 +147,8 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
   auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
       KokkosFFT::Impl::convert_negative_axes(axes, 2));
   auto fft_extents =
-      get_fft_extents(gin_extents, gout_extents, non_negative_axes);
-  const auto [nx, ny]  = fft_extents;
-  std::size_t fft_size = std::accumulate(fft_extents.begin(), fft_extents.end(),
-                                         1, std::multiplies<std::size_t>());
-
+      compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
+  const auto [nx, ny]     = fft_extents;
   auto last_axis          = axes.back();
   auto in_first_dim       = in_topology.at(last_axis),
        out_first_dim      = out_topology.at(last_axis);
@@ -216,8 +210,6 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
                                       strides_output, comm);
     plan->commit(exec_space);
   }
-
-  return fft_size;
 }
 
 /// \brief Create a 3D cuFFTMp plan for distributed FFT
@@ -236,17 +228,15 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
 /// \param[in] in_topology Topology of input data distribution
 /// \param[in] out_topology Topology of output data distribution
 /// \param[in] comm MPI communicator
-/// \return Size of the FFT
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType>
-std::size_t create_plan(const ExecutionSpace& exec_space,
-                        std::unique_ptr<PlanType>& plan, const InViewType& in,
-                        const OutViewType& out,
-                        const KokkosFFT::axis_type<3>& axes,
-                        const KokkosFFT::axis_type<3>& map,
-                        const KokkosFFT::shape_type<3>& in_topology,
-                        const KokkosFFT::shape_type<3>& out_topology,
-                        const MPI_Comm& comm) {
+void create_plan(const ExecutionSpace& exec_space,
+                 std::unique_ptr<PlanType>& plan, const InViewType& in,
+                 const OutViewType& out, const KokkosFFT::axis_type<3>& axes,
+                 const KokkosFFT::axis_type<3>& map,
+                 const KokkosFFT::shape_type<3>& in_topology,
+                 const KokkosFFT::shape_type<3>& out_topology,
+                 const MPI_Comm& comm) {
   static_assert(
       KokkosFFT::Impl::are_operatable_views_v<ExecutionSpace, InViewType,
                                               OutViewType>,
@@ -268,10 +258,8 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
   auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
       KokkosFFT::Impl::convert_negative_axes(axes, 3));
   auto fft_extents =
-      get_fft_extents(gin_extents, gout_extents, non_negative_axes);
+      compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
   const auto [nx, ny, nz] = fft_extents;
-  std::size_t fft_size = std::accumulate(fft_extents.begin(), fft_extents.end(),
-                                         1, std::multiplies<std::size_t>());
 
   // In case of slab geometry, we need to check that the first dimension is
   // ready
@@ -338,8 +326,6 @@ std::size_t create_plan(const ExecutionSpace& exec_space,
                                       strides_output, comm);
     plan->commit(exec_space);
   }
-
-  return fft_size;
 }
 
 }  // namespace Impl
