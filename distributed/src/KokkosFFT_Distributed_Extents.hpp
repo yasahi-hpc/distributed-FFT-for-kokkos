@@ -13,6 +13,28 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Compute padded extents from the extents in Fourier space
+///
+/// Example
+/// in extents: (8, 7, 8)
+/// out extents: (8, 7, 5)
+///
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] in_extents Extents of the global input View.
+/// \param[in] out_extents Extents of the global output View.
+/// \param[in] axes Axes of the transform
+/// \return A extents of the permuted view
+template <std::size_t DIM>
+auto compute_padded_extents(const std::array<std::size_t, DIM> &extents,
+                            const std::array<std::size_t, DIM> &axes) {
+  std::array<std::size_t, DIM> padded_extents = extents;
+  auto last_axis                              = axes.back();
+  padded_extents.at(last_axis) = padded_extents.at(last_axis) * 2;
+
+  return padded_extents;
+}
+
 /// \brief Calculate the buffer extents based on the global extents,
 /// the in-topology, and the out-topology.
 ///
