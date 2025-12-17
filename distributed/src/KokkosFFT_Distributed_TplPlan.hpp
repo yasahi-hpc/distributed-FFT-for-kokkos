@@ -3,6 +3,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include "KokkosFFT_Distributed_Extents.hpp"
 #include "KokkosFFT_Distributed_InternalPlan.hpp"
 
 #if defined(ENABLE_TPL_CUFFT_MP)
@@ -115,7 +116,8 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     auto gout_extents       = get_global_shape(out, out_topology, comm);
     auto gin_padded_extents = gin_extents;
     if (KokkosFFT::Impl::is_real_v<in_value_type>) {
-      gin_padded_extents = get_padded_extents(gout_extents, non_negative_axes);
+      gin_padded_extents =
+          compute_padded_extents(gout_extents, non_negative_axes);
     }
 
     auto [in_extents, in_starts] =
