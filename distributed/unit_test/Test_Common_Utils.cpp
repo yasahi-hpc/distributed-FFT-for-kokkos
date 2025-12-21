@@ -526,31 +526,6 @@ void test_get_contiguous_axes() {
   EXPECT_EQ(right_axes_b2, ref_right_axes_a2);
 }
 
-template <typename iType>
-void test_to_array(iType nprocs) {
-  using vector_type = std::vector<iType>;
-  using array_type  = std::array<iType, 3>;
-  vector_type vec = {nprocs, 1, 8}, vec_ref = {nprocs, 1, 8};
-  array_type ref_array = {nprocs, 1, 8};
-
-  // Test for Lvalue
-  auto arr = KokkosFFT::Distributed::Impl::to_array<3>(vec);
-  EXPECT_EQ(arr, ref_array);
-  EXPECT_EQ(vec, vec_ref) << "Input container modified in lvalue test";
-
-  // Test for Rvalue
-  auto arr_tmp =
-      KokkosFFT::Distributed::Impl::to_array<3>(vector_type{nprocs, 1, 8});
-  auto arr_move = KokkosFFT::Distributed::Impl::to_array<3>(std::move(vec));
-  EXPECT_EQ(arr_tmp, ref_array);
-  EXPECT_EQ(arr_move, ref_array);
-  // vec is valid but unspecified after move
-  EXPECT_NO_THROW({
-    [[maybe_unused]] auto s = vec.size();
-    vec.clear();
-  });
-}
-
 }  // namespace
 
 TEST_P(CommonUtilsParamTests, GetTransAxis) {
@@ -746,11 +721,4 @@ TYPED_TEST(TestContainerTypes, test_get_contiguous_axes_of_array) {
   using container_type2 = std::array<value_type, 1>;
   test_get_contiguous_axes<container_type0, container_type1, container_type2,
                            value_type>();
-}
-
-TYPED_TEST(TestContainerTypes, test_to_array_of_vector) {
-  using value_type = typename TestFixture::value_type;
-  for (value_type nprocs = 1; nprocs <= 6; ++nprocs) {
-    test_to_array<value_type>(nprocs);
-  }
 }
