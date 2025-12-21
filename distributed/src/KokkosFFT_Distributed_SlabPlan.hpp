@@ -630,7 +630,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
 
     if (block_type == BlockType::FFT) {
       if (block.m_block_idx == 0) {
-        m_fft_dims.at(0) = block.m_axes.size();
+        m_fft_dims.at(0) = block.m_fft_dim;
         m_in_T           = InViewType(
             reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
@@ -640,10 +640,10 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
 
         m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
             m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            block.m_axes.size());
+            block.m_fft_dim);
         m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
             m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            block.m_axes.size());
+            block.m_fft_dim);
       } else {
         m_out_T2 = OutViewType(
             m_send_buffer_allocation.data(),
@@ -1106,7 +1106,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 
     if (block_type == BlockType::FFT) {
       if (block.m_block_idx == 0) {
-        m_fft_dims.at(0) = block.m_axes.size();
+        m_fft_dims.at(0) = block.m_fft_dim;
         m_in_T           = InViewType(
             reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
@@ -1116,20 +1116,20 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 
         m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
             m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            block.m_axes.size());
+            block.m_fft_dim);
         m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
             m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            block.m_axes.size());
+            block.m_fft_dim);
       } else {
         m_out_T2 = OutViewType(
             m_send_buffer_allocation.data(),
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
         m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
             m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::forward,
-            block.m_axes.size());
+            block.m_fft_dim);
         m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
             m_exec_space, m_out_T2, m_out_T2, KokkosFFT::Direction::backward,
-            block.m_axes.size());
+            block.m_fft_dim);
       }
 
       if (block_idx == 0) {
