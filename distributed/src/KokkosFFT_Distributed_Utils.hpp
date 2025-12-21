@@ -294,36 +294,6 @@ auto get_trans_axis(const std::array<iType, DIM>& in_topology,
   return trans_axis;
 }
 
-/// \brief Convert a std::vector to std::array (rvalue version)
-/// \tparam T The type of the elements in the std::vector
-/// \tparam N The size of the std::array
-/// \param[in, out] vec The input std::vector
-/// \return A std::array containing the elements of the input vector
-template <typename T, std::size_t N>
-auto to_array(std::vector<T>&& vec) {
-  KOKKOSFFT_THROW_IF(
-      vec.size() != N,
-      "to_array: Vector size must match the specified dimension.");
-  std::array<T, N> arr;
-  std::move(vec.begin(), vec.end(), arr.begin());
-  return arr;
-}
-
-/// \brief Convert a std::vector to std::array (lvalue version)
-/// \tparam T The type of the elements in the std::vector
-/// \tparam N The size of the std::array
-/// \param[in] vec The input std::vector
-/// \return A std::array containing the elements of the input vector
-template <std::size_t N, typename T>
-auto to_array(const std::vector<T>& vec) {
-  KOKKOSFFT_THROW_IF(
-      vec.size() != N,
-      "to_array: Vector size must match the specified dimension.");
-  std::array<T, N> arr;
-  std::copy(vec.begin(), vec.end(), arr.begin());
-  return arr;
-}
-
 /// \brief Calculate the permuted extents based on the map
 ///
 /// Example
