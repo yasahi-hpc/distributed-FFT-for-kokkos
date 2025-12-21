@@ -12,6 +12,15 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Distributed FFT transposition block
+/// 0. Sanity check
+/// 1. Pack
+/// 2. Fence
+/// 3. All2All
+/// 4. Unpack
+///
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam DIM Rank of in/out View
 template <typename ExecutionSpace, std::size_t DIM>
 class TransBlock {
   using execSpace           = ExecutionSpace;
@@ -24,6 +33,16 @@ class TransBlock {
   std::size_t m_src_axis, m_dst_axis;
 
  public:
+  /// \brief Constructor for TransBlock
+  /// This class does not assume any data type at the construction time
+  /// It only describes the shape of the buffer and mappings
+  ///
+  /// \param[in] exec_space Kokkos execution space
+  /// \param[in] buffer_extents The extents of the buffer
+  /// \param[in] src_map The map of the source view
+  /// \param[in] src_axis The axis to be split
+  /// \param[in] dst_map The map of the destination view
+  /// \param[in] dst_axis The axis to be merged
   explicit TransBlock(const ExecutionSpace& exec_space,
                       const buffer_extents_type& buffer_extents,
                       const extents_type& src_map, std::size_t src_axis,
@@ -35,6 +54,27 @@ class TransBlock {
         m_src_axis(src_axis),
         m_dst_axis(dst_axis) {}
 
+  /// \brief Operator for TransBlock
+  /// This operator does the following:
+  /// 0. Sanity check
+  /// 1. Pack
+  /// 2. Fence
+  /// 3. All2All
+  /// 4. Unpack
+  /// As send/recv buffers are unmanaged views with 1 extra dimension,
+  /// the maximum dimension of the input/output view is 7.
+  /// Mappings are reversed for backward direction.
+  ///
+  /// \tparam CommType Type of communicator wrapper
+  /// \tparam ViewType Type of input/output views
+  /// \tparam BufferType Type of send/receive buffers
+  /// \param[in] comm communicator wrapper
+  /// \param[in] in Input view
+  /// \param[in] out Output view
+  /// \param[in] send Send buffer
+  /// \param[in] recv Receive buffer
+  /// \param[in] direction Direction of transpose operation used for either
+  /// forward or backward direction
   template <typename CommType, typename ViewType, typename BufferType>
   void operator()(const CommType& comm, const ViewType& in, const ViewType& out,
                   const BufferType& send, const BufferType& recv,
@@ -71,6 +111,16 @@ class TransBlock {
   }
 
  private:
+  /// \brief Sanity check for input/output views and buffers
+  /// \tparam ViewType Type of input/output views
+  /// \tparam BufferType Type of send/receive buffers
+  /// \param[in] in Input view
+  /// \param[out] out Output view
+  /// \param[in,out] send Send buffer
+  /// \param[in,out] recv Receive buffer
+  /// \throw std::runtime_error if input and output views have larger size than
+  /// send and receive buffers. If send and receive buffers are aliasing with
+  /// input and output views, throw std::runtime_error
   template <typename ViewType, typename BufferType>
   void good(const ViewType& in, const ViewType& out, const BufferType& send,
             const BufferType& recv) const {
@@ -80,9 +130,8 @@ class TransBlock {
     static_assert(std::is_same_v<buffer_value_type, view_value_type>);
 
     auto buffer_size = send.size();
-
-    auto in_size  = in.size();
-    auto out_size = out.size();
+    auto in_size     = in.size();
+    auto out_size    = out.size();
     KOKKOSFFT_THROW_IF(
         in_size > buffer_size || out_size > buffer_size,
         "Input and output views must be smaller than the send and receive "
