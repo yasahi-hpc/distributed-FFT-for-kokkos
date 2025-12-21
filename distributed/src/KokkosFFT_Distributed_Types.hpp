@@ -14,17 +14,33 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Enumeration of different topology types for distributed FFT
 enum class TopologyType {
+  //! The topology includes zero elements
   Empty,
+
+  //! No-MPI aware topology (parallelization on batch direction only)
   Shared,
+
+  //! Slab (1D) decomposition topology
   Slab,
+
+  //! Pencil (2D) decomposition topology
   Pencil,
+
+  //! Brick (3D) decomposition topology
   Brick,
+
+  //! Invalid topology
   Invalid,
 };
 
+/// \brief Enumeration of different block types in a distributed FFT plan
 enum class BlockType {
+  //! A transpose block
   Transpose,
+
+  //! An FFT block
   FFT,
 };
 
