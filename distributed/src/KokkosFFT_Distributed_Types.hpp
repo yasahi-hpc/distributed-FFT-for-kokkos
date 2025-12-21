@@ -89,7 +89,10 @@ struct BlockInfo {
   std::size_t m_out_axis = 0;
 
   //! The axes along which the FFT is performed
-  axes_type m_axes;
+  // axes_type m_axes;
+
+  //! The FFT dimension
+  std::size_t m_fft_dim = 0;
 
   //! The axis along which the MPI all2all is performed
   std::size_t m_comm_axis = 0;
@@ -108,7 +111,7 @@ struct BlockInfo {
            m_buffer_extents == other.m_buffer_extents &&
            m_in_map == other.m_in_map && m_out_map == other.m_out_map &&
            m_in_axis == other.m_in_axis && m_out_axis == other.m_out_axis &&
-           m_axes == other.m_axes && m_comm_axis == other.m_comm_axis &&
+           m_fft_dim == other.m_fft_dim && m_comm_axis == other.m_comm_axis &&
            m_block_type == other.m_block_type &&
            m_block_idx == other.m_block_idx;
   }

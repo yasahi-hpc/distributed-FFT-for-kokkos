@@ -58,7 +58,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       block.m_out_extents =
           get_next_extents(gout_extents, in_topology, map, comm);
       block.m_block_type = BlockType::FFT;
-      block.m_axes       = get_contiguous_axes<Layout>(axes, DIM);
+      block.m_fft_dim    = axes.size();
       m_block_infos.push_back(block);
 
       // Data is always complex
@@ -100,7 +100,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         block1.m_out_extents =
             get_mapped_extents(out_extents, block0.m_out_map);
         block1.m_block_type = BlockType::FFT;
-        block1.m_axes       = get_contiguous_axes<Layout>(axes, DIM);
+        block1.m_fft_dim    = axes.size();
         block1.m_in_map     = block0.m_out_map;
         block1.m_out_map    = block0.m_out_map;
         m_block_infos.push_back(block1);
@@ -117,7 +117,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
         block0.m_out_extents =
             get_next_extents(gout_extents, in_topology, map, comm);
         block0.m_block_type = BlockType::FFT;
-        block0.m_axes       = get_contiguous_axes<Layout>(axes, DIM);
+        block0.m_fft_dim    = axes.size();
         m_block_infos.push_back(block0);
         all_max_buffer_sizes.push_back(
             KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
@@ -181,7 +181,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 1> {
       block1.m_out_extents =
           get_next_extents(gout_extents, mid_topology, block0.m_out_map, comm);
       block1.m_block_type = BlockType::FFT;
-      block1.m_axes       = get_contiguous_axes<Layout>(axes, DIM);
+      block1.m_fft_dim    = axes.size();
       m_block_infos.push_back(block1);
 
       all_max_buffer_sizes.push_back(
@@ -265,7 +265,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       block.m_out_extents =
           get_next_extents(gout_extents, in_topology, map, comm);
       block.m_block_type = BlockType::FFT;
-      block.m_axes       = get_contiguous_axes<Layout>(axes, DIM);
+      block.m_fft_dim    = axes.size();
       m_block_infos.push_back(block);
 
       // Data is always complex
@@ -318,7 +318,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block1.m_out_extents =
             get_mapped_extents(out_extents, block0.m_out_map);
         block1.m_block_type = BlockType::FFT;
-        block1.m_axes       = get_contiguous_axes<Layout>(axes, DIM);
+        block1.m_fft_dim    = axes.size();
         block1.m_in_map     = block0.m_out_map;
         block1.m_out_map    = block0.m_out_map;
         m_block_infos.push_back(block1);
@@ -335,7 +335,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block0.m_out_extents =
             get_next_extents(gout_extents, in_topology, map, comm);
         block0.m_block_type = BlockType::FFT;
-        block0.m_axes       = get_contiguous_axes<Layout>(axes0, DIM);
+        block0.m_fft_dim    = axes0.size();
         m_block_infos.push_back(block0);
         all_max_buffer_sizes.push_back(
             KokkosFFT::Impl::total_size(block0.m_out_extents) * 2);
@@ -372,7 +372,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
           block2.m_in_extents  = block1.m_out_extents;
           block2.m_out_extents = block1.m_out_extents;
           block2.m_block_type  = BlockType::FFT;
-          block2.m_axes        = get_contiguous_axes<Layout>(axes1, DIM);
+          block2.m_fft_dim     = axes1.size();
           block2.m_in_map      = block1.m_out_map;
           block2.m_out_map     = block1.m_out_map;
           block2.m_block_idx   = 1;
@@ -430,7 +430,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block1.m_out_extents = get_next_extents(gout_extents, mid_topology,
                                                 block0.m_out_map, comm);
         block1.m_block_type  = BlockType::FFT;
-        block1.m_axes        = get_contiguous_axes<Layout>(axes1, DIM);
+        block1.m_fft_dim     = axes1.size();
         m_block_infos.push_back(block1);
 
         all_max_buffer_sizes.push_back(
@@ -468,7 +468,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
           block3.m_in_extents  = block2.m_out_extents;
           block3.m_out_extents = block2.m_out_extents;
           block3.m_block_type  = BlockType::FFT;
-          block3.m_axes        = get_contiguous_axes<Layout>(axes2, DIM);
+          block3.m_fft_dim     = axes2.size();
           block3.m_in_map      = block2.m_out_map;
           block3.m_out_map     = block2.m_out_map;
           block3.m_block_idx   = 1;
@@ -487,7 +487,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block0.m_out_extents =
             get_next_extents(gout_extents, in_topology, map, comm);
         block0.m_block_type = BlockType::FFT;
-        block0.m_axes       = get_contiguous_axes<Layout>(axes0, DIM);
+        block0.m_fft_dim    = axes0.size();
         m_block_infos.push_back(block0);
 
         // Data is always complex
@@ -523,7 +523,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
         block2.m_out_extents = get_next_extents(
             gout_extents, block1.m_out_topology, block1.m_out_map, comm);
         block2.m_block_type = BlockType::FFT;
-        block2.m_axes       = get_contiguous_axes<Layout>(axes1, DIM);
+        block2.m_fft_dim    = axes1.size();
         block2.m_block_idx  = 1;
         m_block_infos.push_back(block2);
 
@@ -594,7 +594,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       block1.m_out_extents =
           get_next_extents(gout_extents, mid_topology0, block0.m_out_map, comm);
       block1.m_block_type = BlockType::FFT;
-      block1.m_axes       = get_contiguous_axes<Layout>(axes1, DIM);
+      block1.m_fft_dim    = axes1.size();
       m_block_infos.push_back(block1);
 
       all_max_buffer_sizes.push_back(
@@ -629,7 +629,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2> {
       block3.m_in_extents  = block2.m_out_extents;
       block3.m_out_extents = block2.m_out_extents;
       block3.m_block_type  = BlockType::FFT;
-      block3.m_axes        = get_contiguous_axes<Layout>(axes2, DIM);
+      block3.m_fft_dim     = axes2.size();
       block3.m_in_map      = block2.m_out_map;
       block3.m_out_map     = block2.m_out_map;
       block3.m_block_idx   = 1;
@@ -723,7 +723,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       block.m_out_extents =
           get_next_extents(gout_extents, in_topology, map, comm);
       block.m_block_type = BlockType::FFT;
-      block.m_axes       = get_contiguous_axes<Layout>(axes, DIM);
+      block.m_fft_dim    = axes.size();
       m_block_infos.push_back(block);
 
       // Data is always complex
@@ -777,7 +777,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block1.m_out_extents =
             get_mapped_extents(out_extents, block0.m_out_map);
         block1.m_block_type = BlockType::FFT;
-        block1.m_axes       = get_contiguous_axes<Layout>(axes, DIM);
+        block1.m_fft_dim    = axes.size();
         block1.m_in_map     = block0.m_out_map;
         block1.m_out_map    = block0.m_out_map;
         m_block_infos.push_back(block1);
@@ -795,7 +795,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block0.m_out_extents =
             get_next_extents(gout_extents, in_topology, map, comm);
         block0.m_block_type = BlockType::FFT;
-        block0.m_axes       = get_contiguous_axes<Layout>(axes0, DIM);
+        block0.m_fft_dim    = axes0.size();
         m_block_infos.push_back(block0);
 
         // Data is always complex
@@ -833,7 +833,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
           block2.m_out_extents = get_next_extents(gout_extents, out_topology,
                                                   block1.m_out_map, comm);
           block2.m_block_type  = BlockType::FFT;
-          block2.m_axes        = get_contiguous_axes<Layout>(axes1, DIM);
+          block2.m_fft_dim     = axes1.size();
           block2.m_in_map      = block1.m_out_map;
           block2.m_out_map     = block1.m_out_map;
           block2.m_block_idx   = 1;
@@ -885,7 +885,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block1.m_out_extents = get_next_extents(gout_extents, mid_topology,
                                                 block0.m_out_map, comm);
         block1.m_block_type  = BlockType::FFT;
-        block1.m_axes        = get_contiguous_axes<Layout>(axes1, DIM);
+        block1.m_fft_dim     = axes1.size();
         m_block_infos.push_back(block1);
         all_max_buffer_sizes.push_back(
             KokkosFFT::Impl::total_size(block1.m_out_extents) * 2);
@@ -916,7 +916,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
           block3.m_in_extents  = block2.m_out_extents;
           block3.m_out_extents = block2.m_out_extents;
           block3.m_block_type  = BlockType::FFT;
-          block3.m_axes        = get_contiguous_axes<Layout>(axes2, DIM);
+          block3.m_fft_dim     = axes2.size();
           block3.m_in_map      = block2.m_out_map;
           block3.m_out_map     = block2.m_out_map;
           block3.m_block_idx   = 1;
@@ -936,7 +936,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
         block0.m_out_extents =
             get_next_extents(gout_extents, in_topology, map, comm);
         block0.m_block_type = BlockType::FFT;
-        block0.m_axes       = get_contiguous_axes<Layout>(axes0, DIM);
+        block0.m_fft_dim    = axes0.size();
         m_block_infos.push_back(block0);
 
         // Data is always complex
@@ -973,7 +973,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
             gout_extents, block1.m_out_topology, block1.m_out_map, comm);
         block2.m_block_type = BlockType::FFT;
         block2.m_block_idx  = 1;
-        block2.m_axes       = get_contiguous_axes<Layout>(axes1, DIM);
+        block2.m_fft_dim    = axes1.size();
         m_block_infos.push_back(block2);
 
         all_max_buffer_sizes.push_back(
@@ -1042,7 +1042,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       block1.m_out_extents =
           get_next_extents(gout_extents, mid_topology0, block0.m_out_map, comm);
       block1.m_block_type = BlockType::FFT;
-      block1.m_axes       = get_contiguous_axes<Layout>(axes1, DIM);
+      block1.m_fft_dim    = axes1.size();
       m_block_infos.push_back(block1);
 
       all_max_buffer_sizes.push_back(
@@ -1077,7 +1077,7 @@ struct SlabBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3> {
       block3.m_in_extents  = block2.m_out_extents;
       block3.m_out_extents = block2.m_out_extents;
       block3.m_block_type  = BlockType::FFT;
-      block3.m_axes        = get_contiguous_axes<Layout>(axes2, DIM);
+      block3.m_fft_dim     = axes2.size();
       block3.m_in_map      = block2.m_out_map;
       block3.m_out_map     = block2.m_out_map;
       block3.m_block_idx   = 1;

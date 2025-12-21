@@ -782,7 +782,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
 
     if (block_type == BlockType::FFT) {
       if (block.m_block_idx == 0) {
-        m_fft_dims.at(0) = block.m_axes.size();
+        m_fft_dims.at(0) = block.m_fft_dim;
         m_in_T           = InViewType(
             reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
@@ -792,10 +792,10 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
 
         m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
             m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            block.m_axes.size());
+            block.m_fft_dim);
         m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
             m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            block.m_axes.size());
+            block.m_fft_dim);
         m_in_out_ptr.push_back(ptr_pair_type{nullptr, m_out_T.data()});
       } else {
         auto* last_ptr = m_in_out_ptr.back().second;
@@ -1412,7 +1412,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
 
     if (block_type == BlockType::FFT) {
       if (block.m_block_idx == 0) {
-        m_fft_dims.at(0) = block.m_axes.size();
+        m_fft_dims.at(0) = block.m_fft_dim;
         m_in_T           = InViewType(
             reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
@@ -1422,13 +1422,13 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
 
         m_fft_plan0 = std::make_unique<FFTForwardPlanType0>(
             m_exec_space, m_in_T, m_out_T, KokkosFFT::Direction::forward,
-            block.m_axes.size());
+            block.m_fft_dim);
         m_ifft_plan0 = std::make_unique<FFTBackwardPlanType0>(
             m_exec_space, m_out_T, m_in_T, KokkosFFT::Direction::backward,
-            block.m_axes.size());
+            block.m_fft_dim);
         m_in_out_ptr.push_back(ptr_pair_type{nullptr, m_out_T.data()});
       } else if (block.m_block_idx == 1) {
-        m_fft_dims.at(1) = block.m_axes.size();
+        m_fft_dims.at(1) = block.m_fft_dim;
         auto* last_ptr   = m_in_out_ptr.back().second;
 
         m_fft_view0 = OutViewType(
@@ -1437,14 +1437,14 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
 
         m_fft_plan1 = std::make_unique<FFTForwardPlanType1>(
             m_exec_space, m_fft_view0, m_fft_view0,
-            KokkosFFT::Direction::forward, block.m_axes.size());
+            KokkosFFT::Direction::forward, block.m_fft_dim);
         m_ifft_plan1 = std::make_unique<FFTBackwardPlanType1>(
             m_exec_space, m_fft_view0, m_fft_view0,
-            KokkosFFT::Direction::backward, block.m_axes.size());
+            KokkosFFT::Direction::backward, block.m_fft_dim);
         m_in_out_ptr.push_back(
             ptr_pair_type{m_fft_view0.data(), m_fft_view0.data()});
       } else {
-        m_fft_dims.at(2) = block.m_axes.size();
+        m_fft_dims.at(2) = block.m_fft_dim;
         auto* last_ptr   = m_in_out_ptr.back().second;
 
         m_fft_view1 = OutViewType(
