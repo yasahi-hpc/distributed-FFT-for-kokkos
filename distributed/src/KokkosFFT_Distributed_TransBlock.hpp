@@ -35,7 +35,7 @@ class TransBlock {
  public:
   /// \brief Constructor for TransBlock
   /// This class does not assume any data type at the construction time
-  /// In only describes the shape of the buffer and maps
+  /// It only describes the shape of the buffer and mappings
   ///
   /// \param[in] exec_space Kokkos execution space
   /// \param[in] buffer_extents The extents of the buffer
