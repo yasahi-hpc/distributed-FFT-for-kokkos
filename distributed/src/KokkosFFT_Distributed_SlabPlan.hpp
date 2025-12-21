@@ -388,7 +388,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
-  std::size_t first_FFT_dim = 1;
+  std::array<std::size_t, 1> m_fft_dims = {};
 
   // Buffer view types
   InViewType m_in_T;
@@ -521,17 +521,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
   template <std::size_t STEP, typename InType, typename OutType>
   void forward_fft(const InType& in, const OutType& out) const {
     if constexpr (STEP == 0) {
-      if (first_FFT_dim == 1) {
-        if (m_map_forward_in == int_map_type{}) {
-          KokkosFFT::execute(*m_fft_plan0, in, out,
-                             KokkosFFT::Normalization::none);
-        } else {
-          KokkosFFT::Impl::transpose(m_exec_space, in, m_in_T, m_map_forward_in,
-                                     true);
-          KokkosFFT::execute(*m_fft_plan0, m_in_T, out,
-                             KokkosFFT::Normalization::none);
-        }
-      } else if (first_FFT_dim == 2) {
+      if (m_fft_dims.at(STEP) == 2) {
         if (m_map_forward_in == int_map_type{} &&
             m_map_forward_out == int_map_type{}) {
           KokkosFFT::execute(*m_fft_plan0, in, out,
@@ -556,18 +546,26 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
           KokkosFFT::Impl::transpose(m_exec_space, m_out_T, out,
                                      m_map_forward_out, true);
         }
-      }
-    } else if constexpr (STEP == 1) {
-      if (first_FFT_dim == 1) {
-        if (m_map_forward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_fft_plan1, in, out,
+      } else {
+        if (m_map_forward_in == int_map_type{}) {
+          KokkosFFT::execute(*m_fft_plan0, in, out,
                              KokkosFFT::Normalization::none);
         } else {
-          KokkosFFT::execute(*m_fft_plan1, in, m_out_T2,
+          KokkosFFT::Impl::transpose(m_exec_space, in, m_in_T, m_map_forward_in,
+                                     true);
+          KokkosFFT::execute(*m_fft_plan0, m_in_T, out,
                              KokkosFFT::Normalization::none);
-          KokkosFFT::Impl::transpose(m_exec_space, m_out_T2, out,
-                                     m_map_forward_out, true);
         }
+      }
+    } else if constexpr (STEP == 1) {
+      if (m_map_forward_out == int_map_type{}) {
+        KokkosFFT::execute(*m_fft_plan1, in, out,
+                           KokkosFFT::Normalization::none);
+      } else {
+        KokkosFFT::execute(*m_fft_plan1, in, m_out_T2,
+                           KokkosFFT::Normalization::none);
+        KokkosFFT::Impl::transpose(m_exec_space, m_out_T2, out,
+                                   m_map_forward_out, true);
       }
     }
   }
@@ -575,17 +573,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
   template <std::size_t STEP, typename InType, typename OutType>
   void backward_fft(const OutType& out, const InType& in) const {
     if constexpr (STEP == 0) {
-      if (first_FFT_dim == 1) {
-        if (m_map_backward_out == int_map_type{}) {
-          KokkosFFT::execute(*m_ifft_plan0, out, in,
-                             KokkosFFT::Normalization::none);
-        } else {
-          KokkosFFT::execute(*m_ifft_plan0, out, m_in_T,
-                             KokkosFFT::Normalization::none);
-          KokkosFFT::Impl::transpose(m_exec_space, m_in_T, in,
-                                     m_map_backward_out, true);
-        }
-      } else if (first_FFT_dim == 2) {
+      if (m_fft_dims.at(STEP) == 2) {
         if (m_map_backward_in == int_map_type{} &&
             m_map_backward_out == int_map_type{}) {
           KokkosFFT::execute(*m_ifft_plan0, out, in,
@@ -611,6 +599,16 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
           KokkosFFT::Impl::transpose(m_exec_space, m_in_T, in,
                                      m_map_backward_out, true);
         }
+      } else {
+        if (m_map_backward_out == int_map_type{}) {
+          KokkosFFT::execute(*m_ifft_plan0, out, in,
+                             KokkosFFT::Normalization::none);
+        } else {
+          KokkosFFT::execute(*m_ifft_plan0, out, m_in_T,
+                             KokkosFFT::Normalization::none);
+          KokkosFFT::Impl::transpose(m_exec_space, m_in_T, in,
+                                     m_map_backward_out, true);
+        }
       }
     } else if constexpr (STEP == 1) {
       if (m_map_backward_in == int_map_type{}) {
@@ -632,8 +630,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
 
     if (block_type == BlockType::FFT) {
       if (block.m_block_idx == 0) {
-        first_FFT_dim = block.m_axes.size();
-        m_in_T        = InViewType(
+        m_fft_dims.at(0) = block.m_axes.size();
+        m_in_T           = InViewType(
             reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
         m_out_T = OutViewType(
@@ -727,7 +725,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
         }
 
         if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          out_view  = first_FFT_dim == 1 ? m_out_T2 : m_out_T;
+          out_view  = m_fft_dims.at(0) == 1 ? m_out_T2 : m_out_T;
           out_view2 = out;
         }
 
@@ -790,7 +788,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
         }
 
         if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          out_view  = first_FFT_dim == 1 ? m_out_T2 : m_out_T;
+          out_view  = m_fft_dims.at(0) == 1 ? m_out_T2 : m_out_T;
           out_view2 = out;
         }
 
@@ -867,7 +865,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
-  std::size_t first_FFT_dim = 1;
+  std::array<std::size_t, 1> m_fft_dims = {};
 
   // Buffer view types
   InViewType m_in_T;
@@ -999,7 +997,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
   template <std::size_t STEP, typename InType, typename OutType>
   void forward_fft(const InType& in, const OutType& out) const {
     if constexpr (STEP == 0) {
-      if (first_FFT_dim == 3) {
+      if (m_fft_dims.at(STEP) == 3) {
         if (m_map_forward_in == int_map_type{} &&
             m_map_forward_out == int_map_type{}) {
           KokkosFFT::execute(*m_fft_plan0, in, out,
@@ -1051,7 +1049,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
   template <std::size_t STEP, typename InType, typename OutType>
   void backward_fft(const OutType& out, const InType& in) const {
     if constexpr (STEP == 0) {
-      if (first_FFT_dim == 3) {
+      if (m_fft_dims.at(STEP) == 3) {
         if (m_map_backward_in == int_map_type{} &&
             m_map_backward_out == int_map_type{}) {
           KokkosFFT::execute(*m_ifft_plan0, out, in,
@@ -1108,8 +1106,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 
     if (block_type == BlockType::FFT) {
       if (block.m_block_idx == 0) {
-        first_FFT_dim = block.m_axes.size();
-        m_in_T        = InViewType(
+        m_fft_dims.at(0) = block.m_axes.size();
+        m_in_T           = InViewType(
             reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
         m_out_T = OutViewType(
@@ -1204,7 +1202,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
         }
 
         if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          out_view  = first_FFT_dim == 3 ? m_out_T : m_out_T2;
+          out_view  = m_fft_dims.at(0) == 3 ? m_out_T : m_out_T2;
           out_view2 = out;
         }
 
@@ -1267,7 +1265,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
         }
 
         if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          out_view  = first_FFT_dim == 3 ? m_out_T : m_out_T2;
+          out_view  = m_fft_dims.at(0) == 3 ? m_out_T : m_out_T2;
           out_view2 = out;
         }
 

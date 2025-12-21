@@ -490,7 +490,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
 
   // Analyse topology
   std::unique_ptr<PencilBlockAnalysesType> m_block_analyses;
-  std::array<std::size_t, 3> m_fft_dims = {};
+  std::array<std::size_t, 1> m_fft_dims = {};
 
   // Buffer view types
   InViewType m_in_T;
@@ -798,8 +798,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
             block.m_axes.size());
         m_in_out_ptr.push_back(ptr_pair_type{nullptr, m_out_T.data()});
       } else {
-        m_fft_dims.at(1) = block.m_axes.size();
-        auto* last_ptr   = m_in_out_ptr.back().second;
+        auto* last_ptr = m_in_out_ptr.back().second;
 
         m_fft_view = OutViewType(
             last_ptr,
