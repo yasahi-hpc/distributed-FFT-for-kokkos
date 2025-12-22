@@ -20,6 +20,57 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Create pencil communicators (cartesian, row, column)
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam TopologyType Type of topology container
+/// \tparam CommType Type of communicator wrapper
+/// \param[in] exec_space Kokkos execution space
+/// \param[in] topology The topology of the distributed FFT
+/// \param[in] comm MPI communicator
+/// \param[out] cart_comm The cartesian communicator
+/// \param[out] cart_comms The row and column communicators
+/// \param[out] cart_tpl_comms The communicator wrappers for row and column
+template <typename ExecutionSpace, typename TopologyType, typename CommType>
+void create_pencil_communicators(
+    const ExecutionSpace& exec_space, const TopologyType& topology,
+    const MPI_Comm& comm, MPI_Comm& cart_comm,
+    std::vector<MPI_Comm>& cart_comms,
+    std::vector<std::unique_ptr<CommType>>& cart_tpl_comms) {
+  // Create a cartesian communicator
+  std::vector<int> dims;
+  for (auto& dim : topology) {
+    if (dim > 1) {
+      dims.push_back(static_cast<int>(dim));
+    }
+  }
+
+  int periods[2] = {1, 1};  // Periodic in all directions
+  ::MPI_Cart_create(comm, 2, dims.data(), periods, 0, &cart_comm);
+
+  // split into row‐ and col‐ communicators
+  ::MPI_Comm row_comm, col_comm;
+
+  int remain_dims[2];
+
+  // keep Y‐axis for row_comm (all procs with same px)
+  remain_dims[0] = 1;
+  remain_dims[1] = 0;
+
+  ::MPI_Cart_sub(cart_comm, remain_dims, &row_comm);
+
+  // keep X‐axis for col_comm (all procs with same py)
+  remain_dims[0] = 0;
+  remain_dims[1] = 1;
+  ::MPI_Cart_sub(cart_comm, remain_dims, &col_comm);
+
+  cart_comms = {row_comm, col_comm};
+
+  // Ensure vector is empty before adding
+  cart_tpl_comms.clear();
+  cart_tpl_comms.emplace_back(std::make_unique<CommType>(row_comm, exec_space));
+  cart_tpl_comms.emplace_back(std::make_unique<CommType>(col_comm, exec_space));
+}
+
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM, typename InLayoutType, typename OutLayoutType>
 struct PencilInternalPlan;
@@ -118,39 +169,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
-
-    // Create a cartesian communicator
-    std::vector<int> dims;
-    for (auto& dim : m_in_topology) {
-      if (dim > 1) {
-        dims.push_back(static_cast<int>(dim));
-      }
-    }
-
-    int periods[2] = {1, 1};  // Periodic in all directions
-    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 0, &m_cart_comm);
-
-    // split into row‐ and col‐ communicators
-    ::MPI_Comm row_comm, col_comm;
-
-    int remain_dims[2];
-
-    // keep Y‐axis for row_comm (all procs with same px)
-    remain_dims[0] = 1;
-    remain_dims[1] = 0;
-
-    ::MPI_Cart_sub(m_cart_comm, remain_dims, &row_comm);
-
-    // keep X‐axis for col_comm (all procs with same py)
-    remain_dims[0] = 0;
-    remain_dims[1] = 1;
-    ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
-
-    m_cart_comms = {row_comm, col_comm};
-    m_cart_tpl_comms.emplace_back(
-        std::make_unique<CommType>(row_comm, exec_space));
-    m_cart_tpl_comms.emplace_back(
-        std::make_unique<CommType>(col_comm, exec_space));
+    create_pencil_communicators(m_exec_space, m_in_topology, m_comm,
+                                m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
@@ -535,39 +555,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
-
-    // Create a cartesian communicator
-    std::vector<int> dims;
-    for (auto& dim : m_in_topology) {
-      if (dim > 1) {
-        dims.push_back(static_cast<int>(dim));
-      }
-    }
-
-    int periods[2] = {1, 1};  // Periodic in all directions
-    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 0, &m_cart_comm);
-
-    // split into row‐ and col‐ communicators
-    ::MPI_Comm row_comm, col_comm;
-
-    int remain_dims[2];
-
-    // keep Y‐axis for row_comm (all procs with same px)
-    remain_dims[0] = 1;
-    remain_dims[1] = 0;
-
-    ::MPI_Cart_sub(m_cart_comm, remain_dims, &row_comm);
-
-    // keep X‐axis for col_comm (all procs with same py)
-    remain_dims[0] = 0;
-    remain_dims[1] = 1;
-    ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
-
-    m_cart_comms = {row_comm, col_comm};
-    m_cart_tpl_comms.emplace_back(
-        std::make_unique<CommType>(row_comm, exec_space));
-    m_cart_tpl_comms.emplace_back(
-        std::make_unique<CommType>(col_comm, exec_space));
+    create_pencil_communicators(m_exec_space, m_in_topology, m_comm,
+                                m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
@@ -1115,39 +1104,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
     KOKKOSFFT_THROW_IF(
         !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
         "Extents are not valid");
-
-    // Create a cartesian communicator
-    std::vector<int> dims;
-    for (auto& dim : m_in_topology) {
-      if (dim > 1) {
-        dims.push_back(static_cast<int>(dim));
-      }
-    }
-
-    int periods[2] = {1, 1};  // Periodic in all directions
-    ::MPI_Cart_create(m_comm, 2, dims.data(), periods, 0, &m_cart_comm);
-
-    // split into row‐ and col‐ communicators
-    ::MPI_Comm row_comm, col_comm;
-
-    int remain_dims[2];
-
-    // keep Y‐axis for row_comm (all procs with same px)
-    remain_dims[0] = 1;
-    remain_dims[1] = 0;
-
-    ::MPI_Cart_sub(m_cart_comm, remain_dims, &row_comm);
-
-    // keep X‐axis for col_comm (all procs with same py)
-    remain_dims[0] = 0;
-    remain_dims[1] = 1;
-    ::MPI_Cart_sub(m_cart_comm, remain_dims, &col_comm);
-
-    m_cart_comms = {row_comm, col_comm};
-    m_cart_tpl_comms.emplace_back(
-        std::make_unique<CommType>(row_comm, exec_space));
-    m_cart_tpl_comms.emplace_back(
-        std::make_unique<CommType>(col_comm, exec_space));
+    create_pencil_communicators(m_exec_space, m_in_topology, m_comm,
+                                m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
