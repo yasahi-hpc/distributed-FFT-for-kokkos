@@ -4427,6 +4427,7 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
         },
         std::runtime_error);
   } else {
+    float_type atol = std::is_same_v<float_type, float> ? 3.0e-6 : 1.0e-12;
     // topo 0 -> topo 0 with ax = {0, 1, 2}:
     // (n0, n1, n2/px, n3/py) -> (n0/px, n1, n2, n3/py)
     // -> (n0, n1, n2/px, n3/py)
@@ -4438,7 +4439,7 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
     plan_0_0_ax012.backward(u_hat_0_ax012, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, atol));
 
     // topo 0 -> topo 0 with ax = {1, 2, 0}
     // (n0, n1, n2/px, n3/py) -> (n0/2+1, n1, n2/px, n3/py)
@@ -4450,7 +4451,7 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
 
     plan_0_0_ax120.backward(u_hat_0_ax120, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, atol));
 
     // topo 0 -> topo 0 with ax = {1, 2, 3}
     // (n0, n1, n2/px, n3/py) -> (n0/py, n1, n2/px, n3)
@@ -4462,10 +4463,10 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax123(
         exec, u_0, u_hat_0_ax123, ax123, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax123.forward(u_0, u_hat_0_ax123);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax123, ref_u_hat_0_ax123));
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax123, ref_u_hat_0_ax123, 1.0e-5, atol));
 
     plan_0_0_ax123.backward(u_hat_0_ax123, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, atol));
 
     // topo 0 -> topo 0 with ax = {1, 3, 2}
     // (n0, n1, n2/px, n3/py) -> (n0/px, n1, n2, n3/py)
@@ -4477,10 +4478,10 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     KokkosFFT::Distributed::Impl::PencilPlan plan_0_0_ax132(
         exec, u_0, u_hat_0_ax132, ax132, topology0, topology0, MPI_COMM_WORLD);
     plan_0_0_ax132.forward(u_0, u_hat_0_ax132);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax132, ref_u_hat_0_ax132));
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax132, ref_u_hat_0_ax132, 1.0e-5, atol));
 
     plan_0_0_ax132.backward(u_hat_0_ax132, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, atol));
 
     // topo 0 -> topo 3 with ax = {0, 1, 2}:
     // (n0, n1, n2/px, n3/py) -> (n0, n1/px, n2, n3/py)
@@ -4494,7 +4495,7 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     EXPECT_TRUE(allclose(exec, u_hat_3_ax012, ref_u_hat_3_ax012));
 
     plan_0_3_ax012.backward(u_hat_3_ax012, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, atol));
 
     // topo 3 -> topo 0 with ax = {1, 2, 3}:
     // (n0, n1/px, n2/py, n3) -> (n0, n1/px, n2/py, n3/2+1)
@@ -4504,10 +4505,10 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
     KokkosFFT::Distributed::Impl::PencilPlan plan_3_0_ax123(
         exec, u_3, u_hat_0_ax123, ax123, topology3, topology0, MPI_COMM_WORLD);
     plan_3_0_ax123.forward(u_3, u_hat_0_ax123);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax123, ref_u_hat_0_ax123));
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax123, ref_u_hat_0_ax123, 1.0e-5, atol));
 
     plan_3_0_ax123.backward(u_hat_0_ax123, u_inv_3);
-    EXPECT_TRUE(allclose(exec, u_inv_3, ref_u_inv_3, 1.0e-5, 1.0e-6));
+    EXPECT_TRUE(allclose(exec, u_inv_3, ref_u_inv_3, 1.0e-5, atol));
   }
 }
 

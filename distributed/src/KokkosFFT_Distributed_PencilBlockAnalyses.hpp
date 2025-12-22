@@ -910,13 +910,11 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
         } else {
           // T + FFT + T + FFT + T
           BlockInfoType block3;
-          block3.m_in_extents = block2.m_out_extents;
-          block3.m_out_extents =
-              get_next_extents(gout_extents, mid_topo1, block2.m_out_map, comm,
-                               is_layout_right2);
-          block3.m_block_type = BlockType::FFT;
-          block3.m_block_idx  = 1;
-          block3.m_fft_dim    = axes2.size();
+          block3.m_in_extents  = block2.m_out_extents;
+          block3.m_out_extents = block3.m_in_extents;
+          block3.m_block_type  = BlockType::FFT;
+          block3.m_block_idx   = 1;
+          block3.m_fft_dim     = axes2.size();
           m_block_infos.push_back(block3);
           all_max_buffer_sizes.push_back(
               KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
@@ -1011,28 +1009,24 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
               KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
 
           BlockInfoType block3;
-          block3.m_in_map     = block2.m_out_map;
-          block3.m_out_map    = block2.m_out_map;
-          block3.m_in_extents = block2.m_out_extents;
-          block3.m_out_extents =
-              get_next_extents(gout_extents, mid_topo1, block3.m_out_map, comm,
-                               is_layout_right2);
-          block3.m_block_type = BlockType::FFT;
-          block3.m_block_idx  = 1;
-          block3.m_fft_dim    = axes2.size();
+          block3.m_in_map      = block2.m_out_map;
+          block3.m_out_map     = block2.m_out_map;
+          block3.m_in_extents  = block2.m_out_extents;
+          block3.m_out_extents = block3.m_in_extents;
+          block3.m_block_type  = BlockType::FFT;
+          block3.m_block_idx   = 1;
+          block3.m_fft_dim     = axes2.size();
           m_block_infos.push_back(block3);
           all_max_buffer_sizes.push_back(
               KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
         } else {
           // FTFTT
           BlockInfoType block2;
-          block2.m_in_extents = block1.m_out_extents;
-          block2.m_out_extents =
-              get_next_extents(gout_extents, mid_topo0, block1.m_out_map, comm,
-                               is_layout_right1);
-          block2.m_block_type = BlockType::FFT;
-          block2.m_block_idx  = 1;
-          block2.m_fft_dim    = axes1.size();
+          block2.m_in_extents  = block1.m_out_extents;
+          block2.m_out_extents = block2.m_in_extents;
+          block2.m_block_type  = BlockType::FFT;
+          block2.m_block_idx   = 1;
+          block2.m_fft_dim     = axes1.size();
           m_block_infos.push_back(block2);
           all_max_buffer_sizes.push_back(
               KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
@@ -1156,11 +1150,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 2,
       block3.m_in_map      = block2.m_out_map;
       block3.m_out_map     = block2.m_out_map;
       block3.m_in_extents  = block2.m_out_extents;
-      block3.m_out_extents = get_next_extents(
-          gout_extents, mid_topo1, block3.m_out_map, comm, is_layout_right2);
-      block3.m_block_type = BlockType::FFT;
-      block3.m_block_idx  = 1;
-      block3.m_fft_dim    = axes2.size();
+      block3.m_out_extents = block3.m_in_extents;
+      block3.m_block_type  = BlockType::FFT;
+      block3.m_block_idx   = 1;
+      block3.m_fft_dim     = axes2.size();
       m_block_infos.push_back(block3);
       all_max_buffer_sizes.push_back(
           KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
@@ -1534,11 +1527,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         BlockInfoType block2;
         block2.m_in_extents  = block1.m_out_extents;
-        block2.m_out_extents = get_next_extents(
-            gout_extents, mid_topo, block1.m_out_map, comm, is_layout_right1);
-        block2.m_block_type = BlockType::FFT;
-        block2.m_fft_dim    = axes1.size();
-        block2.m_block_idx  = 1;
+        block2.m_out_extents = block2.m_in_extents;
+        block2.m_block_type  = BlockType::FFT;
+        block2.m_fft_dim     = axes1.size();
+        block2.m_block_idx   = 1;
         m_block_infos.push_back(block2);
         all_max_buffer_sizes.push_back(
             KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
@@ -1687,11 +1679,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         BlockInfoType block3;
         block3.m_in_extents  = block2.m_out_extents;
-        block3.m_out_extents = get_next_extents(
-            gout_extents, mid_topo1, block2.m_out_map, comm, is_layout_right2);
-        block3.m_block_type = BlockType::FFT;
-        block3.m_block_idx  = 1;
-        block3.m_fft_dim    = axes2.size();
+        block3.m_out_extents = block3.m_in_extents;
+        block3.m_block_type  = BlockType::FFT;
+        block3.m_block_idx   = 1;
+        block3.m_fft_dim     = axes2.size();
         m_block_infos.push_back(block3);
 
         all_max_buffer_sizes.push_back(
@@ -1803,11 +1794,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         BlockInfoType block2;
         block2.m_in_extents  = block1.m_out_extents;
-        block2.m_out_extents = get_next_extents(
-            gout_extents, mid_topo0, block1.m_out_map, comm, is_layout_right1);
-        block2.m_block_type = BlockType::FFT;
-        block2.m_block_idx  = 1;
-        block2.m_fft_dim    = axes1.size();
+        block2.m_out_extents = block2.m_in_extents;
+        block2.m_block_type  = BlockType::FFT;
+        block2.m_block_idx   = 1;
+        block2.m_fft_dim     = axes1.size();
         m_block_infos.push_back(block2);
         all_max_buffer_sizes.push_back(
             KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
@@ -1841,13 +1831,11 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         if (axes3.size() == 0) {
           // 0. FFT + T + FFT + T + FFT + T
           BlockInfoType block4;
-          block4.m_in_extents = block3.m_out_extents;
-          block4.m_out_extents =
-              get_next_extents(gout_extents, mid_topo1, block3.m_out_map, comm,
-                               is_layout_right3);
-          block4.m_block_type = BlockType::FFT;
-          block4.m_block_idx  = 2;
-          block4.m_fft_dim    = axes2.size();
+          block4.m_in_extents  = block3.m_out_extents;
+          block4.m_out_extents = block4.m_in_extents;
+          block4.m_block_type  = BlockType::FFT;
+          block4.m_block_idx   = 2;
+          block4.m_fft_dim     = axes2.size();
           m_block_infos.push_back(block4);
 
           all_max_buffer_sizes.push_back(
@@ -2002,11 +1990,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         BlockInfoType block3;
         block3.m_in_extents  = block2.m_out_extents;
-        block3.m_out_extents = get_next_extents(
-            gout_extents, mid_topo1, block2.m_out_map, comm, is_layout_right2);
-        block3.m_block_type = BlockType::FFT;
-        block3.m_block_idx  = 1;
-        block3.m_fft_dim    = axes2.size();
+        block3.m_out_extents = block3.m_in_extents;
+        block3.m_block_type  = BlockType::FFT;
+        block3.m_block_idx   = 1;
+        block3.m_fft_dim     = axes2.size();
         m_block_infos.push_back(block3);
 
         all_max_buffer_sizes.push_back(
@@ -2039,13 +2026,11 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
         if (axes3.size() != 0) {
           // 1. T + FFT + T + FFT + T + FFT + T
           BlockInfoType block5;
-          block5.m_in_extents = block4.m_out_extents;
-          block5.m_out_extents =
-              get_next_extents(gout_extents, mid_topo2, block4.m_out_map, comm,
-                               is_layout_right4);
-          block5.m_block_type = BlockType::FFT;
-          block5.m_block_idx  = 2;
-          block5.m_fft_dim    = axes3.size();
+          block5.m_in_extents  = block4.m_out_extents;
+          block5.m_out_extents = block5.m_in_extents;
+          block5.m_block_type  = BlockType::FFT;
+          block5.m_block_idx   = 2;
+          block5.m_fft_dim     = axes3.size();
           m_block_infos.push_back(block5);
 
           all_max_buffer_sizes.push_back(
@@ -2189,11 +2174,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         BlockInfoType block2;
         block2.m_in_extents  = block1.m_out_extents;
-        block2.m_out_extents = get_next_extents(
-            gout_extents, mid_topo0, block1.m_out_map, comm, is_layout_right1);
-        block2.m_block_type = BlockType::FFT;
-        block2.m_block_idx  = 1;
-        block2.m_fft_dim    = axes1.size();
+        block2.m_out_extents = block2.m_in_extents;
+        block2.m_block_type  = BlockType::FFT;
+        block2.m_block_idx   = 1;
+        block2.m_fft_dim     = axes1.size();
         m_block_infos.push_back(block2);
         all_max_buffer_sizes.push_back(
             KokkosFFT::Impl::total_size(block2.m_out_extents) * 2);
@@ -2226,11 +2210,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
         BlockInfoType block4;
         block4.m_in_extents  = block3.m_out_extents;
-        block4.m_out_extents = get_next_extents(
-            gout_extents, mid_topo1, block3.m_out_map, comm, is_layout_right3);
-        block4.m_block_type = BlockType::FFT;
-        block4.m_block_idx  = 2;
-        block4.m_fft_dim    = axes2.size();
+        block4.m_out_extents = block4.m_in_extents;
+        block4.m_block_type  = BlockType::FFT;
+        block4.m_block_idx   = 2;
+        block4.m_fft_dim     = axes2.size();
         m_block_infos.push_back(block4);
 
         all_max_buffer_sizes.push_back(
@@ -2357,11 +2340,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
       BlockInfoType block3;
       block3.m_in_extents  = block2.m_out_extents;
-      block3.m_out_extents = get_next_extents(
-          gout_extents, mid_topo1, block2.m_out_map, comm, is_layout_right2);
-      block3.m_block_type = BlockType::FFT;
-      block3.m_block_idx  = 1;
-      block3.m_fft_dim    = axes2.size();
+      block3.m_out_extents = block3.m_in_extents;
+      block3.m_block_type  = BlockType::FFT;
+      block3.m_block_idx   = 1;
+      block3.m_fft_dim     = axes2.size();
       m_block_infos.push_back(block3);
       all_max_buffer_sizes.push_back(
           KokkosFFT::Impl::total_size(block3.m_out_extents) * 2);
@@ -2391,11 +2373,10 @@ struct PencilBlockAnalysesInternal<ValueType, Layout, iType, DIM, 3,
 
       BlockInfoType block5;
       block5.m_in_extents  = block4.m_out_extents;
-      block5.m_out_extents = get_next_extents(
-          gout_extents, mid_topo2, block4.m_out_map, comm, is_layout_right4);
-      block5.m_block_type = BlockType::FFT;
-      block5.m_block_idx  = 2;
-      block5.m_fft_dim    = axes3.size();
+      block5.m_out_extents = block5.m_in_extents;
+      block5.m_block_type  = BlockType::FFT;
+      block5.m_block_idx   = 2;
+      block5.m_fft_dim     = axes3.size();
       m_block_infos.push_back(block5);
       all_max_buffer_sizes.push_back(
           KokkosFFT::Impl::total_size(block5.m_out_extents) * 2);
