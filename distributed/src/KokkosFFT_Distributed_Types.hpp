@@ -1,6 +1,7 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_TYPES_HPP
 #define KOKKOSFFT_DISTRIBUTED_TYPES_HPP
 
+#include <iostream>
 #include <array>
 #include <cstddef>
 #include <initializer_list>
@@ -102,6 +103,42 @@ struct BlockInfo {
 
   //! The idx of the transpose or FFT block in the plan
   std::size_t m_block_idx = 0;
+
+  void print() const {
+    std::cout << "BlockInfo Attributes:" << std::endl;
+
+    auto print_array = [](const char* name, const auto& arr) {
+      std::cout << "  " << name << ": {";
+      for (std::size_t i = 0; i < arr.size(); ++i) {
+        std::cout << arr[i] << (i < arr.size() - 1 ? ", " : "");
+      }
+      std::cout << "}" << std::endl;
+    };
+
+    print_array("m_in_topology", m_in_topology);
+    print_array("m_out_topology", m_out_topology);
+    print_array("m_in_extents", m_in_extents);
+    print_array("m_out_extents", m_out_extents);
+    print_array("m_buffer_extents", m_buffer_extents);
+    print_array("m_in_map", m_in_map);
+    print_array("m_out_map", m_out_map);
+
+    std::cout << "  m_in_axis: " << m_in_axis << std::endl;
+    std::cout << "  m_out_axis: " << m_out_axis << std::endl;
+    std::cout << "  m_fft_dim: " << m_fft_dim << std::endl;
+    std::cout << "  m_comm_axis: " << m_comm_axis << std::endl;
+
+    std::cout << "  m_block_type: ";
+    if (m_block_type == BlockType::Transpose)
+      std::cout << "Transpose";
+    else if (m_block_type == BlockType::FFT)
+      std::cout << "FFT";
+    else
+      std::cout << "Unknown";
+    std::cout << std::endl;
+
+    std::cout << "  m_block_idx: " << m_block_idx << std::endl;
+  }
 
   bool operator==(const BlockInfo& other) const {
     return m_in_topology == other.m_in_topology &&

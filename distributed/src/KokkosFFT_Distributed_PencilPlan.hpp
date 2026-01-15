@@ -173,8 +173,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
                                 m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
-    auto in_extents  = KokkosFFT::Impl::extract_extents(in);
-    auto out_extents = KokkosFFT::Impl::extract_extents(out);
+    auto in_extents = KokkosFFT::Impl::extract_extents(in);
 
     auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
     auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
@@ -184,8 +183,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, m_comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 4),
@@ -559,8 +558,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
                                 m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
-    auto in_extents  = KokkosFFT::Impl::extract_extents(in);
-    auto out_extents = KokkosFFT::Impl::extract_extents(out);
+    auto in_extents = KokkosFFT::Impl::extract_extents(in);
 
     auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
     auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
@@ -570,8 +568,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, m_comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 6),
@@ -1108,8 +1106,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
                                 m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
-    auto in_extents  = KokkosFFT::Impl::extract_extents(in);
-    auto out_extents = KokkosFFT::Impl::extract_extents(out);
+    auto in_extents = KokkosFFT::Impl::extract_extents(in);
 
     auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
     auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
@@ -1119,8 +1116,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, m_comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 8),
