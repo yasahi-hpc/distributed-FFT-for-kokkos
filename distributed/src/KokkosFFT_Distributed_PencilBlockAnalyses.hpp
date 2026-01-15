@@ -14,10 +14,13 @@ namespace Distributed {
 namespace Impl {
 
 /// \brief Propose a block (or blocks) for the distributed FFT plan for the
-/// current block \tparam BlockInfoType Type of BlockInfo \tparam ValueType
-/// Value type for the FFT \tparam LayoutType Layout type for the Input/Output
-/// Views \tparam FFT_DIM Number of FFT dimensions \tparam TopologyType Topology
-/// type to represent pencil topologies \tparam iType Index type for axes
+/// current block
+/// \tparam BlockInfoType Type of BlockInfo
+/// \tparam ValueType Value type for the FFT
+/// \tparam LayoutType Layout type for the Input/Output Views
+/// \tparam FFT_DIM Number of FFT dimensions
+/// \tparam TopologyType Topology type to represent pencil topologies
+/// \tparam iType Index type for axes
 /// \tparam DIM The dimension of the Input/Output Views
 ///
 /// \param[in] in_extents Input extents
