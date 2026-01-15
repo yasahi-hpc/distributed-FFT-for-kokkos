@@ -184,8 +184,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, m_comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 4),
@@ -570,8 +570,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, m_comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 6),
@@ -1119,8 +1119,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<PencilBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, m_comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, m_comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 8),

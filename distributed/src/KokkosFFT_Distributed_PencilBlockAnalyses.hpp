@@ -24,7 +24,6 @@ namespace Impl {
 /// \tparam DIM The dimension of the Input/Output Views
 ///
 /// \param[in] in_extents Input extents
-/// \param[in] out_extents Output extents
 /// \param[in] gin_extents Global input extents
 /// \param[in] gout_extents Global output extents
 /// \param[in] block_infos Vector of BlockInfo for accumulated proposed blocks
@@ -39,7 +38,6 @@ template <typename BlockInfoType, typename ValueType, typename LayoutType,
           std::size_t FFT_DIM, typename TopologyType, typename iType,
           std::size_t DIM>
 auto propose_block(const std::array<std::size_t, DIM>& in_extents,
-                   const std::array<std::size_t, DIM>& out_extents,
                    const std::array<std::size_t, DIM>& gin_extents,
                    const std::array<std::size_t, DIM>& gout_extents,
                    const std::vector<BlockInfoType>& block_infos,
@@ -249,7 +247,6 @@ struct PencilBlockAnalysesInternal {
 
   /// \brief Constructor for PencilBlockAnalysesInternal
   /// \param[in] in_extents Input extents
-  /// \param[in] out_extents Output extents
   /// \param[in] gin_extents Global input extents
   /// \param[in] gout_extents Global output extents
   /// \param[in] in_topology Input topology
@@ -257,7 +254,6 @@ struct PencilBlockAnalysesInternal {
   /// \param[in] axes Axes of the FFT
   /// \param[in] comm MPI communicator
   PencilBlockAnalysesInternal(const std::array<std::size_t, DIM>& in_extents,
-                              const std::array<std::size_t, DIM>& out_extents,
                               const std::array<std::size_t, DIM>& gin_extents,
                               const std::array<std::size_t, DIM>& gout_extents,
                               const in_topology_type& in_topology,
@@ -275,9 +271,8 @@ struct PencilBlockAnalysesInternal {
     for (std::size_t itopology = 0; itopology < all_topologies.size();
          ++itopology) {
       auto blocks = propose_block<BlockInfoType, ValueType, Layout, FFT_DIM>(
-          in_extents, out_extents, gin_extents, gout_extents, m_block_infos,
-          all_topologies, all_trans_axes, all_layouts, all_axes, map, comm,
-          itopology);
+          in_extents, gin_extents, gout_extents, m_block_infos, all_topologies,
+          all_trans_axes, all_layouts, all_axes, map, comm, itopology);
       for (auto const& block : blocks) {
         auto [b, max_buffer_size] = block;
         m_block_infos.push_back(b);
