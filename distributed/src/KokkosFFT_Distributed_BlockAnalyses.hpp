@@ -13,6 +13,64 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Count the number of blocks of a given type
+/// \tparam BlockInfoType Type of BlockInfo
+/// \param[in] block_infos Vector of BlockInfo for accumulated proposed blocks
+/// \param[in] block_type Type of block to count
+/// \return Number of blocks of the given type included in block_infos
+template <typename BlockInfoType>
+auto count_blocks(const std::vector<BlockInfoType>& block_infos,
+                  BlockType block_type) {
+  return std::count_if(block_infos.cbegin(), block_infos.cend(),
+                       [block_type](BlockInfoType block_info) {
+                         return block_info.m_block_type == block_type;
+                       });
+};
+
+/// \brief Count the total number of FFT dimensions in the given blocks
+/// \tparam BlockInfoType Type of BlockInfo
+/// \param[in] block_infos Vector of BlockInfo for accumulated proposed blocks
+/// \return Total number of FFT dimensions in the given blocks
+template <typename BlockInfoType>
+auto count_fft_dims(const std::vector<BlockInfoType>& block_infos)
+    -> std::size_t {
+  std::size_t total_fft_dims = 0;
+  for (const auto& block_info : block_infos) {
+    if (block_info.m_block_type == BlockType::FFT) {
+      total_fft_dims += block_info.m_fft_dim;
+    }
+  }
+  return total_fft_dims;
+};
+
+/// \brief Propose an FFT block
+/// \tparam BlockInfoType Type of BlockInfo
+/// \tparam DIM Number of dimensions
+/// \param[in] map Mapping of local transpose to perform FFT on contiguous data
+/// \param[in] in_extents Input extents
+/// \param[in] out_extents Output extents
+/// \param[in] fft_dim Number of FFT dimensions
+/// \param[in] block_idx Index of the current block
+/// \return A tuple containing the proposed block and the maximum buffer size
+template <typename BlockInfoType, std::size_t DIM>
+auto propose_fft_block(const std::array<std::size_t, DIM>& map,
+                       const std::array<std::size_t, DIM>& in_extents,
+                       const std::array<std::size_t, DIM>& out_extents,
+                       std::size_t fft_dim, std::size_t block_idx) {
+  BlockInfoType block;
+  block.m_block_type  = BlockType::FFT;
+  block.m_fft_dim     = fft_dim;
+  block.m_in_extents  = in_extents;
+  block.m_out_extents = out_extents;
+  block.m_in_map      = map;
+  block.m_out_map     = block.m_in_map;
+  block.m_block_idx   = block_idx;
+
+  std::size_t max_buffer_size =
+      KokkosFFT::Impl::total_size(block.m_out_extents) * 2;
+  return std::make_tuple(block, max_buffer_size);
+};
+
 /// \brief Propose a block (or blocks) for the Slab distributed FFT plan for the
 /// current block
 /// \tparam BlockInfoType Type of BlockInfo
@@ -43,24 +101,6 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
                    const std::vector<std::vector<iType>>& all_axes,
                    [[maybe_unused]] const std::array<std::size_t, DIM>& map,
                    [[maybe_unused]] MPI_Comm comm, std::size_t block_idx) {
-  auto count_blocks = [](const std::vector<BlockInfoType>& block_infos,
-                         BlockType block_type) {
-    return std::count_if(block_infos.cbegin(), block_infos.cend(),
-                         [block_type](BlockInfoType block_info) {
-                           return block_info.m_block_type == block_type;
-                         });
-  };
-
-  auto count_fft_dims = [](const std::vector<BlockInfoType>& block_infos) {
-    std::size_t total_fft_dims = 0;
-    for (const auto& block_info : block_infos) {
-      if (block_info.m_block_type == BlockType::FFT) {
-        total_fft_dims += block_info.m_fft_dim;
-      }
-    }
-    return total_fft_dims;
-  };
-
   auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
   auto propose_transpose_block =
       [&](const std::array<std::size_t, DIM>& map,
@@ -146,25 +186,6 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
     block_vector.push_back(block_tuple);
     return block_vector;
   } else {
-    auto propose_fft_block =
-        [&](const std::array<std::size_t, DIM>& map,
-            const std::array<std::size_t, DIM>& in_extents,
-            const std::array<std::size_t, DIM>& out_extents,
-            std::size_t fft_dim, std::size_t block_idx) {
-          BlockInfoType block;
-          block.m_block_type  = BlockType::FFT;
-          block.m_fft_dim     = fft_dim;
-          block.m_in_extents  = in_extents;
-          block.m_out_extents = out_extents;
-          block.m_in_map      = map;
-          block.m_out_map     = block.m_in_map;
-          block.m_block_idx   = block_idx;
-
-          std::size_t max_buffer_size =
-              KokkosFFT::Impl::total_size(block.m_out_extents) * 2;
-          return std::make_tuple(block, max_buffer_size);
-        };
-
     bool is_last_fft_block = (count_fft_dims(block_infos) + fft_dim) == FFT_DIM;
     if (block_infos.empty()) {
       auto topology       = all_topologies.at(block_idx);
@@ -212,10 +233,13 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
 }
 
 /// \brief Propose a block (or blocks) for the Pencil distributed FFT plan for
-/// the current block \tparam BlockInfoType Type of BlockInfo \tparam ValueType
-/// Value type for the FFT \tparam LayoutType Layout type for the Input/Output
-/// Views \tparam FFT_DIM Number of FFT dimensions \tparam TopologyType Topology
-/// type to represent pencil topologies \tparam iType Index type for axes
+/// the current block
+/// \tparam BlockInfoType Type of BlockInfo
+/// \tparam ValueType Value type for the FFT
+/// \tparam LayoutType Layout type for the Input/Output Views
+/// \tparam FFT_DIM Number of FFT dimensions
+/// \tparam TopologyType Topology type to represent pencil topologies
+/// \tparam iType Index type for axes
 /// \tparam DIM The dimension of the Input/Output Views
 ///
 /// \param[in] in_extents Input extents
@@ -242,24 +266,6 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
                    const std::vector<std::vector<iType>>& all_axes,
                    [[maybe_unused]] const std::array<std::size_t, DIM>& map,
                    [[maybe_unused]] MPI_Comm comm, std::size_t block_idx) {
-  auto count_blocks = [](const std::vector<BlockInfoType>& block_infos,
-                         BlockType block_type) {
-    return std::count_if(block_infos.cbegin(), block_infos.cend(),
-                         [block_type](BlockInfoType block_info) {
-                           return block_info.m_block_type == block_type;
-                         });
-  };
-
-  auto count_fft_dims = [](const std::vector<BlockInfoType>& block_infos) {
-    std::size_t total_fft_dims = 0;
-    for (const auto& block_info : block_infos) {
-      if (block_info.m_block_type == BlockType::FFT) {
-        total_fft_dims += block_info.m_fft_dim;
-      }
-    }
-    return total_fft_dims;
-  };
-
   auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
   auto propose_transpose_block =
       [&](const std::array<std::size_t, DIM>& map,
@@ -352,25 +358,6 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
     block_vector.push_back(block_tuple);
     return block_vector;
   } else {
-    auto propose_fft_block =
-        [&](const std::array<std::size_t, DIM>& map,
-            const std::array<std::size_t, DIM>& in_extents,
-            const std::array<std::size_t, DIM>& out_extents,
-            std::size_t fft_dim, std::size_t block_idx) {
-          BlockInfoType block;
-          block.m_block_type  = BlockType::FFT;
-          block.m_fft_dim     = fft_dim;
-          block.m_in_extents  = in_extents;
-          block.m_out_extents = out_extents;
-          block.m_in_map      = map;
-          block.m_out_map     = block.m_in_map;
-          block.m_block_idx   = block_idx;
-
-          std::size_t max_buffer_size =
-              KokkosFFT::Impl::total_size(block.m_out_extents) * 2;
-          return std::make_tuple(block, max_buffer_size);
-        };
-
     [[maybe_unused]] bool is_layout_right = all_layouts.at(block_idx);
 
     bool is_last_fft_block = (count_fft_dims(block_infos) + fft_dim) == FFT_DIM;
@@ -460,11 +447,10 @@ struct SlabBlockAnalysesInternal {
     auto all_axes = decompose_axes(all_topologies, axes);
 
     std::vector<std::size_t> all_max_buffer_sizes;
-    for (std::size_t itopology = 0; itopology < all_topologies.size();
-         ++itopology) {
+    for (std::size_t itopo = 0; itopo < all_topologies.size(); ++itopo) {
       auto blocks = propose_block<BlockInfoType, ValueType, Layout, FFT_DIM>(
           in_extents, gin_extents, gout_extents, m_block_infos, all_topologies,
-          all_axes, map, comm, itopology);
+          all_axes, map, comm, itopo);
       for (auto const& block : blocks) {
         auto [b, max_buffer_size] = block;
         m_block_infos.push_back(b);
@@ -519,11 +505,10 @@ struct PencilBlockAnalysesInternal {
     auto all_axes = decompose_axes(all_topologies, axes);
 
     std::vector<std::size_t> all_max_buffer_sizes;
-    for (std::size_t itopology = 0; itopology < all_topologies.size();
-         ++itopology) {
+    for (std::size_t itopo = 0; itopo < all_topologies.size(); ++itopo) {
       auto blocks = propose_block<BlockInfoType, ValueType, Layout, FFT_DIM>(
           in_extents, gin_extents, gout_extents, m_block_infos, all_topologies,
-          all_trans_axes, all_layouts, all_axes, map, comm, itopology);
+          all_trans_axes, all_layouts, all_axes, map, comm, itopo);
       for (auto const& block : blocks) {
         auto [b, max_buffer_size] = block;
         m_block_infos.push_back(b);
