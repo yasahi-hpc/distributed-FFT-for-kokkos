@@ -462,7 +462,7 @@ struct SlabBlockAnalysesInternal {
     std::vector<std::size_t> all_max_buffer_sizes;
     for (std::size_t itopology = 0; itopology < all_topologies.size();
          ++itopology) {
-      auto blocks = propose_block<BlockInfoType, ValueType, Layout, 1>(
+      auto blocks = propose_block<BlockInfoType, ValueType, Layout, FFT_DIM>(
           in_extents, gin_extents, gout_extents, m_block_infos, all_topologies,
           all_axes, map, comm, itopology);
       for (auto const& block : blocks) {
