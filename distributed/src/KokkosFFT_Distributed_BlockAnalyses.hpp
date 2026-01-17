@@ -71,6 +71,70 @@ auto propose_fft_block(const std::array<std::size_t, DIM>& map,
   return std::make_tuple(block, max_buffer_size);
 };
 
+/// \brief Propose a transpose block
+/// \tparam BlockInfoType Type of BlockInfo
+/// \tparam LayoutType Layout type for the Input/Output Views
+/// \tparam DIM Number of dimensions
+/// \param[in] map Mapping of local transpose to perform FFT on contiguous data
+/// \param[in] in_topology Input topology
+/// \param[in] out_topology Output topology
+/// \param[in] in_extents Input extents
+/// \param[in] global_extents Global input extents
+/// \param[in] axes Axes of the transformation
+/// \param[in] comm MPI communicator
+/// \param[in] is_layout_right Whether the layout is right
+/// \param[in] is_last Whether this is the last block
+/// \param[in] in_axis Input axis of the transpose
+/// \param[in] out_axis Output axis of the transpose
+/// \param[in] comm_axis Axis of communication
+/// \param[in] block_idx Index of the current block
+/// \param[in] size_factor Size factor of the block
+/// \return A tuple containing the proposed block and the maximum buffer size
+template <typename BlockInfoType, typename LayoutType, typename iType,
+          std::size_t DIM>
+auto propose_transpose_block(const std::array<std::size_t, DIM>& map,
+                             const std::array<std::size_t, DIM>& in_topology,
+                             const std::array<std::size_t, DIM>& out_topology,
+                             const std::array<std::size_t, DIM>& in_extents,
+                             const std::array<std::size_t, DIM>& global_extents,
+                             std::vector<iType>& axes, MPI_Comm comm,
+                             bool is_layout_right, bool is_last,
+                             std::size_t in_axis, std::size_t out_axis,
+                             std::size_t comm_axis, std::size_t block_idx,
+                             std::size_t size_factor) {
+  BlockInfoType block;
+  block.m_block_type   = BlockType::Transpose;
+  block.m_in_map       = map;
+  block.m_in_axis      = in_axis;
+  block.m_out_axis     = out_axis;
+  block.m_comm_axis    = comm_axis;
+  block.m_in_topology  = in_topology;
+  block.m_out_topology = out_topology;
+  block.m_in_extents   = in_extents;
+  block.m_block_idx    = block_idx;
+
+  if (is_last) {
+    block.m_out_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
+  } else {
+    block.m_out_map = axes.empty()
+                          ? get_dst_map<LayoutType>(block.m_in_map, out_axis)
+                          : get_dst_map<LayoutType>(block.m_in_map, axes);
+  }
+
+  block.m_out_extents = get_next_extents(
+      global_extents, out_topology, block.m_out_map, comm, is_layout_right);
+  block.m_buffer_extents =
+      get_buffer_extents<LayoutType>(global_extents, in_topology, out_topology);
+
+  std::vector<std::size_t> all_max_buffer_sizes = {
+      KokkosFFT::Impl::total_size(block.m_in_extents),
+      KokkosFFT::Impl::total_size(block.m_buffer_extents),
+      KokkosFFT::Impl::total_size(block.m_out_extents)};
+  std::size_t max_buffer_size = *std::max_element(all_max_buffer_sizes.begin(),
+                                                  all_max_buffer_sizes.end());
+  return std::make_tuple(block, max_buffer_size * size_factor);
+};
+
 /// \brief Propose a block (or blocks) for the Slab distributed FFT plan for the
 /// current block
 /// \tparam BlockInfoType Type of BlockInfo
@@ -101,51 +165,6 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
                    const std::vector<std::vector<iType>>& all_axes,
                    [[maybe_unused]] const std::array<std::size_t, DIM>& map,
                    [[maybe_unused]] MPI_Comm comm, std::size_t block_idx) {
-  auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-  auto propose_transpose_block =
-      [&](const std::array<std::size_t, DIM>& map,
-          const std::array<std::size_t, DIM>& in_topology,
-          const std::array<std::size_t, DIM>& out_topology,
-          const std::array<std::size_t, DIM>& in_extents,
-          const std::array<std::size_t, DIM>& global_extents,
-          std::vector<iType>& axes, bool is_last, std::size_t block_idx,
-          std::size_t size_factor) {
-        BlockInfoType block;
-        block.m_block_type = BlockType::Transpose;
-        block.m_in_map     = map;
-
-        auto [in_axis, out_axis] = get_slab(in_topology, out_topology);
-        block.m_in_axis          = in_axis;
-        block.m_out_axis         = out_axis;
-        if (is_last) {
-          block.m_out_map = src_map;
-        } else {
-          block.m_out_map =
-              axes.empty() ? get_dst_map<LayoutType>(block.m_in_map, out_axis)
-                           : get_dst_map<LayoutType>(block.m_in_map, axes);
-        }
-
-        block.m_in_topology  = in_topology;
-        block.m_out_topology = out_topology;
-
-        block.m_in_extents     = in_extents;
-        block.m_out_extents    = get_next_extents(global_extents, out_topology,
-                                                  block.m_out_map, comm);
-        block.m_buffer_extents = get_buffer_extents<LayoutType>(
-            global_extents, in_topology, out_topology);
-
-        block.m_block_idx                             = block_idx;
-        std::vector<std::size_t> all_max_buffer_sizes = {
-            KokkosFFT::Impl::total_size(block.m_in_extents),
-            KokkosFFT::Impl::total_size(block.m_buffer_extents),
-            KokkosFFT::Impl::total_size(block.m_out_extents)};
-        std::size_t max_buffer_size =
-            *std::max_element(all_max_buffer_sizes.begin(),
-                              all_max_buffer_sizes.end()) *
-            size_factor;
-        return std::make_tuple(block, max_buffer_size);
-      };
-
   auto compute_transpose_block =
       [&](const std::vector<BlockInfoType>& block_infos,
           std::size_t size_factor) {
@@ -153,22 +172,26 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
         auto nb_trans_blocks  = count_blocks(block_infos, BlockType::Transpose);
         auto current_topology = all_topologies.at(nb_trans_blocks);
         auto next_topology    = all_topologies.at(nb_trans_blocks + 1);
+        auto [in_axis, out_axis] = get_slab(current_topology, next_topology);
 
         std::vector<iType> next_axes =
             is_last ? std::vector<iType>{} : all_axes.at(block_idx + 1);
         if (block_infos.empty()) {
+          auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
           // If the transpose is the first block, the fft block must follow it.
-          return propose_transpose_block(src_map, current_topology,
-                                         next_topology, in_extents, gin_extents,
-                                         next_axes, false, 0, size_factor);
+          return propose_transpose_block<BlockInfoType, LayoutType>(
+              src_map, current_topology, next_topology, in_extents, gin_extents,
+              next_axes, comm, true, false, in_axis, out_axis, 0, 0,
+              size_factor);
         } else {
           auto in_map     = block_infos.back().m_out_map;
           auto in_extents = block_infos.back().m_out_extents;
 
           // There must be FFT block before this, so the data must be in complex
-          return propose_transpose_block(
+          return propose_transpose_block<BlockInfoType, LayoutType>(
               in_map, current_topology, next_topology, in_extents, gout_extents,
-              next_axes, is_last, nb_trans_blocks, 2);
+              next_axes, comm, true, is_last, in_axis, out_axis, 0,
+              nb_trans_blocks, 2);
         }
       };
 
@@ -266,55 +289,6 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
                    const std::vector<std::vector<iType>>& all_axes,
                    [[maybe_unused]] const std::array<std::size_t, DIM>& map,
                    [[maybe_unused]] MPI_Comm comm, std::size_t block_idx) {
-  auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-  auto propose_transpose_block =
-      [&](const std::array<std::size_t, DIM>& map,
-          const std::array<std::size_t, DIM>& in_topology,
-          const std::array<std::size_t, DIM>& out_topology,
-          const std::array<std::size_t, DIM>& in_extents,
-          const std::array<std::size_t, DIM>& global_extents,
-          std::vector<iType>& axes, bool is_layout_right, bool is_last,
-          std::size_t comm_axis, std::size_t block_idx,
-          std::size_t size_factor) {
-        BlockInfoType block;
-        block.m_block_type = BlockType::Transpose;
-        block.m_in_map     = map;
-
-        auto [in_axis, out_axis] = get_pencil(in_topology, out_topology);
-        block.m_in_axis          = in_axis;
-        block.m_out_axis         = out_axis;
-        if (is_last) {
-          block.m_out_map = src_map;
-        } else {
-          block.m_out_map =
-              axes.empty() ? get_dst_map<LayoutType>(block.m_in_map, out_axis)
-                           : get_dst_map<LayoutType>(block.m_in_map, axes);
-        }
-
-        block.m_comm_axis = comm_axis;
-
-        block.m_in_topology  = in_topology;
-        block.m_out_topology = out_topology;
-
-        block.m_in_extents = in_extents;
-        block.m_out_extents =
-            get_next_extents(global_extents, out_topology, block.m_out_map,
-                             comm, is_layout_right);
-        block.m_buffer_extents = get_buffer_extents<LayoutType>(
-            global_extents, in_topology, out_topology);
-
-        block.m_block_idx                             = block_idx;
-        std::vector<std::size_t> all_max_buffer_sizes = {
-            KokkosFFT::Impl::total_size(block.m_in_extents),
-            KokkosFFT::Impl::total_size(block.m_buffer_extents),
-            KokkosFFT::Impl::total_size(block.m_out_extents)};
-        std::size_t max_buffer_size =
-            *std::max_element(all_max_buffer_sizes.begin(),
-                              all_max_buffer_sizes.end()) *
-            size_factor;
-        return std::make_tuple(block, max_buffer_size);
-      };
-
   auto compute_transpose_block =
       [&](const std::vector<BlockInfoType>& block_infos,
           std::size_t size_factor) {
@@ -322,25 +296,28 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
         auto nb_trans_blocks  = count_blocks(block_infos, BlockType::Transpose);
         auto current_topology = all_topologies.at(nb_trans_blocks);
         auto next_topology    = all_topologies.at(nb_trans_blocks + 1);
+        auto [in_axis, out_axis] = get_pencil(current_topology, next_topology);
 
         std::vector<iType> next_axes =
             is_last ? std::vector<iType>{} : all_axes.at(block_idx + 1);
         auto comm_axis       = all_trans_axes.at(nb_trans_blocks);
         bool is_layout_right = all_layouts.at(nb_trans_blocks + 1);
         if (block_infos.empty()) {
+          auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
           // If the transpose is the first block, the fft block must follow it.
-          return propose_transpose_block(
+          return propose_transpose_block<BlockInfoType, LayoutType>(
               src_map, current_topology, next_topology, in_extents, gin_extents,
-              next_axes, is_layout_right, false, comm_axis, 0, size_factor);
+              next_axes, comm, is_layout_right, false, in_axis, out_axis,
+              comm_axis, 0, size_factor);
         } else {
           auto in_map     = block_infos.back().m_out_map;
           auto in_extents = block_infos.back().m_out_extents;
 
           // There must be FFT block before this, so the data must be in complex
-          return propose_transpose_block(
+          return propose_transpose_block<BlockInfoType, LayoutType>(
               in_map, current_topology, next_topology, in_extents, gout_extents,
-              next_axes, is_layout_right, is_last, comm_axis, nb_trans_blocks,
-              2);
+              next_axes, comm, is_layout_right, is_last, in_axis, out_axis,
+              comm_axis, nb_trans_blocks, 2);
         }
       };
 
