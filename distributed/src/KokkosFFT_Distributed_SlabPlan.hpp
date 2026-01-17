@@ -13,7 +13,7 @@
 #include "KokkosFFT_Distributed_Helper.hpp"
 #include "KokkosFFT_Distributed_Extents.hpp"
 #include "KokkosFFT_Distributed_Topologies.hpp"
-#include "KokkosFFT_Distributed_SlabBlockAnalyses.hpp"
+#include "KokkosFFT_Distributed_BlockAnalyses.hpp"
 #include "KokkosFFT_Distributed_InternalPlan.hpp"
 
 namespace KokkosFFT {
@@ -119,8 +119,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 3),
@@ -443,8 +443,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, comm);
 
     KOKKOSFFT_THROW_IF(m_block_analyses->m_block_infos.size() > 5,
                        "Maximum five blocks are expected");
@@ -919,8 +919,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
     m_block_analyses = std::make_unique<SlabBlockAnalysesType>(
-        in_extents, out_extents, gin_extents, gout_extents, in_topology,
-        out_topology, non_negative_axes, comm);
+        in_extents, gin_extents, gout_extents, in_topology, out_topology,
+        non_negative_axes, comm);
 
     KOKKOSFFT_THROW_IF(!(m_block_analyses->m_block_infos.size() >= 1 &&
                          m_block_analyses->m_block_infos.size() <= 5),
