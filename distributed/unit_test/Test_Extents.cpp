@@ -50,10 +50,10 @@ void test_buffer_extents() {
   }
 
   buffer_extents_type buffer_01 =
-      KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           extents, topology0, topology1);
   buffer_extents_type buffer_12 =
-      KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           extents, topology1, topology2);
 
   EXPECT_TRUE(buffer_01 == ref_buffer_01);
@@ -63,7 +63,7 @@ void test_buffer_extents() {
   EXPECT_THROW(
       {
         [[maybe_unused]] buffer_extents_type buffer_02 =
-            KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+            KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
                 extents, topology0, topology2);
       },
       std::runtime_error);

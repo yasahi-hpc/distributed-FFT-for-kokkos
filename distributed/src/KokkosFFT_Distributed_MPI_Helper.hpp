@@ -98,7 +98,7 @@ auto get_global_shape(const ViewType &v,
                           comm);
 }
 
-/// \brief Get the local extents for the next block given the current rank
+/// \brief Compute the local extents for the next block given the current rank
 /// and layout (compile time version)
 // Data are stored as
 // rank0: extents
@@ -114,10 +114,10 @@ auto get_global_shape(const ViewType &v,
 /// \param[in] rank Current rank
 /// \return The local extents for the next block
 template <std::size_t DIM = 1, typename LayoutType = Kokkos::LayoutRight>
-auto get_next_extents(const std::array<std::size_t, DIM> &extents,
-                      const Topology<std::size_t, DIM, LayoutType> &topology,
-                      const std::array<std::size_t, DIM> &map,
-                      std::size_t rank) {
+auto compute_next_extents(
+    const std::array<std::size_t, DIM> &extents,
+    const Topology<std::size_t, DIM, LayoutType> &topology,
+    const std::array<std::size_t, DIM> &map, std::size_t rank) {
   std::array<std::size_t, DIM> local_extents, next_extents;
   std::copy(extents.begin(), extents.end(), local_extents.begin());
 
@@ -143,7 +143,7 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
   return next_extents;
 }
 
-/// \brief Get the local extents for the next block given the current rank
+/// \brief Compute the local extents for the next block given the current rank
 /// and layout (run time version)
 // Data are stored as
 // rank0: extents
@@ -156,18 +156,19 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
 /// \param[in] map Map of the current block
 /// \param[in] rank Current rank
 /// \param[in] is_layout_right Layout type for the Input Topology (default is
-/// true) \return The local extents for the next block
+/// true)
+/// \return The local extents for the next block
 template <std::size_t DIM = 1>
-auto get_next_extents(const std::array<std::size_t, DIM> &extents,
-                      const std::array<std::size_t, DIM> &topology,
-                      const std::array<std::size_t, DIM> &map, std::size_t rank,
-                      bool is_layout_right = true) {
+auto compute_next_extents(const std::array<std::size_t, DIM> &extents,
+                          const std::array<std::size_t, DIM> &topology,
+                          const std::array<std::size_t, DIM> &map,
+                          std::size_t rank, bool is_layout_right = true) {
   if (is_layout_right) {
-    return get_next_extents(
+    return compute_next_extents(
         extents, Topology<std::size_t, DIM, Kokkos::LayoutRight>(topology), map,
         rank);
   } else {
-    return get_next_extents(
+    return compute_next_extents(
         extents, Topology<std::size_t, DIM, Kokkos::LayoutLeft>(topology), map,
         rank);
   }

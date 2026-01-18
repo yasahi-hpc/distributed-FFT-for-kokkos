@@ -56,9 +56,9 @@ auto compute_padded_extents(const std::array<std::size_t, DIM> &extents,
 /// \return A buffer extents of the view needed for the pencil
 /// transformation.
 template <typename LayoutType, typename iType, std::size_t DIM>
-auto get_buffer_extents(const std::array<iType, DIM> &extents,
-                        const std::array<iType, DIM> &in_topology,
-                        const std::array<iType, DIM> &out_topology) {
+auto compute_buffer_extents(const std::array<iType, DIM> &extents,
+                            const std::array<iType, DIM> &in_topology,
+                            const std::array<iType, DIM> &out_topology) {
   std::array<iType, DIM + 1> buffer_extents;
   auto merged_topology = merge_topology(in_topology, out_topology);
   auto p0 = diff_topology(merged_topology, in_topology);  // return 1 or p0
@@ -104,12 +104,12 @@ auto get_buffer_extents(const std::array<iType, DIM> &extents,
 template <typename LayoutType, typename iType, std::size_t DIM = 1,
           typename InLayoutType  = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-auto get_buffer_extents(
+auto compute_buffer_extents(
     const std::array<iType, DIM> &extents,
     const Topology<iType, DIM, InLayoutType> &in_topology,
     const Topology<iType, DIM, OutLayoutType> &out_topology) {
-  return get_buffer_extents<LayoutType>(extents, in_topology.array(),
-                                        out_topology.array());
+  return compute_buffer_extents<LayoutType>(extents, in_topology.array(),
+                                            out_topology.array());
 }
 
 /**
