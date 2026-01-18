@@ -132,40 +132,38 @@ void test_propose_transpose_block(std::size_t rank,
 
   // Check out_map
   if (is_last) {
-    auto expected_out_map =
-        KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-    EXPECT_EQ(block.m_out_map, expected_out_map);
+    auto ref_out_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
+    EXPECT_EQ(block.m_out_map, ref_out_map);
   } else {
-    auto expected_out_map =
+    auto ref_out_map =
         axes.empty()
             ? KokkosFFT::Distributed::Impl::get_dst_map<LayoutType>(map,
                                                                     out_axis)
             : KokkosFFT::Distributed::Impl::get_dst_map<LayoutType>(map, axes);
-    EXPECT_EQ(block.m_out_map, expected_out_map);
+    EXPECT_EQ(block.m_out_map, ref_out_map);
   }
 
   // Compute expected out_extents
-  auto expected_out_extents =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_extents, out_topology, block.m_out_map, rank, is_layout_right);
-  EXPECT_EQ(block.m_out_extents, expected_out_extents);
+  auto ref_out_extents = KokkosFFT::Distributed::Impl::compute_next_extents(
+      global_extents, out_topology, block.m_out_map, rank, is_layout_right);
+  EXPECT_EQ(block.m_out_extents, ref_out_extents);
 
   // Compute expected buffer_extents
-  auto expected_buffer_extents =
+  auto ref_buffer_extents =
       KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           global_extents, in_topology, out_topology);
-  EXPECT_EQ(block.m_buffer_extents, expected_buffer_extents);
+  EXPECT_EQ(block.m_buffer_extents, ref_buffer_extents);
 
   // Compute expected max_buffer_size
   std::vector<std::size_t> all_max_buffer_sizes = {
       KokkosFFT::Impl::total_size(block.m_in_extents),
       KokkosFFT::Impl::total_size(block.m_buffer_extents),
       KokkosFFT::Impl::total_size(block.m_out_extents)};
-  std::size_t expected_max_buffer_size =
+  std::size_t ref_max_buffer_size =
       *std::max_element(all_max_buffer_sizes.begin(),
                         all_max_buffer_sizes.end()) *
       size_factor;
-  EXPECT_EQ(max_buffer_size, expected_max_buffer_size);
+  EXPECT_EQ(max_buffer_size, ref_max_buffer_size);
 }
 
 }  // namespace

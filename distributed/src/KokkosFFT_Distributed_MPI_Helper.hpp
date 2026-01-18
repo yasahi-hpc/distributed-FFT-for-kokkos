@@ -156,7 +156,8 @@ auto compute_next_extents(
 /// \param[in] map Map of the current block
 /// \param[in] rank Current rank
 /// \param[in] is_layout_right Layout type for the Input Topology (default is
-/// true) \return The local extents for the next block
+/// true)
+/// \return The local extents for the next block
 template <std::size_t DIM = 1>
 auto compute_next_extents(const std::array<std::size_t, DIM> &extents,
                           const std::array<std::size_t, DIM> &topology,
