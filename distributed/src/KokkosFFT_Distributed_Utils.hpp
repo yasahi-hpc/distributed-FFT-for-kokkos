@@ -255,45 +255,6 @@ auto diff_topology(const ContainerType& in_topology,
   return std::max(in_topology.at(diff_idx), out_topology.at(diff_idx));
 }
 
-/// \brief Get the axis to transpose to convert one topology to another
-/// \tparam iType The index type
-/// \tparam DIM The dimension
-///
-/// \param[in] in_topology The input topology
-/// \param[in] out_topology The output topology
-/// \return The axis to transpose
-template <typename iType, std::size_t DIM = 1>
-auto get_trans_axis(const std::array<iType, DIM>& in_topology,
-                    const std::array<iType, DIM>& out_topology,
-                    iType first_non_one) {
-  auto in_non_ones  = extract_non_one_values(in_topology);
-  auto out_non_ones = extract_non_one_values(out_topology);
-  KOKKOSFFT_THROW_IF(
-      in_non_ones.size() != 2 || out_non_ones.size() != 2,
-      "Input and output topologies must have exactly two non-one "
-      "elements.");
-  KOKKOSFFT_THROW_IF(has_identical_non_ones(in_non_ones) ||
-                         has_identical_non_ones(out_non_ones),
-                     "Input and output topologies must not have identical "
-                     "non-one elements.");
-
-  std::vector<iType> diff_indices =
-      extract_different_indices(in_topology, out_topology);
-  KOKKOSFFT_THROW_IF(
-      diff_indices.size() != 2,
-      "Input and output topologies must differ exactly two positions");
-
-  iType exchange_non_one = 0;
-  for (auto diff_idx : diff_indices) {
-    if (in_topology.at(diff_idx) > 1) {
-      exchange_non_one = in_topology.at(diff_idx);
-      break;
-    }
-  }
-  iType trans_axis = exchange_non_one == first_non_one ? 0 : 1;
-  return trans_axis;
-}
-
 }  // namespace Impl
 }  // namespace Distributed
 }  // namespace KokkosFFT
