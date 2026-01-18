@@ -212,7 +212,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
     bool is_last_fft_block = (count_fft_dims(block_infos) + fft_dim) == FFT_DIM;
     if (block_infos.empty()) {
       auto topology       = all_topologies.at(block_idx);
-      auto fft_in_extents = get_mapped_extents(in_extents, map);
+      auto fft_in_extents = compute_mapped_extents(in_extents, map);
       auto fft_out_extents =
           compute_next_extents(gout_extents, topology, map, rank);
       auto fft_block_tuple = propose_fft_block<BlockInfoType>(
@@ -340,7 +340,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
     bool is_last_fft_block = (count_fft_dims(block_infos) + fft_dim) == FFT_DIM;
     if (block_infos.empty()) {
       auto topology        = all_topologies.at(block_idx);
-      auto fft_in_extents  = get_mapped_extents(in_extents, map);
+      auto fft_in_extents  = compute_mapped_extents(in_extents, map);
       auto fft_out_extents = compute_next_extents(gout_extents, topology, map,
                                                   rank, is_layout_right);
       auto fft_block_tuple = propose_fft_block<BlockInfoType>(

@@ -50,8 +50,8 @@ static void benchmark_pack(benchmark::State& state) {
                              : map_type({2, 1, 0});
   }
 
-  auto src_extents =
-      KokkosFFT::Distributed::Impl::get_mapped_extents(local_extents, src_map);
+  auto src_extents = KokkosFFT::Distributed::Impl::compute_mapped_extents(
+      local_extents, src_map);
   auto dst_extents =
       KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           global_extents, src_topology, dst_topology);

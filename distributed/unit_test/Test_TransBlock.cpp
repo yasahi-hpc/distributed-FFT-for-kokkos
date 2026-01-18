@@ -182,165 +182,185 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
   // Data in Topology 0 (X-pencil)
   View3DType u_0_012(
       "u_0_012", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t0)),
-      u_0_021("u_0_021", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t0, map021))),
-      u_0_102("u_0_102", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t0, map102))),
-      u_0_120("u_0_120", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t0, map120))),
-      u_0_201("u_0_201", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t0, map201))),
-      u_0_210("u_0_210", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t0, map210))),
+      u_0_021("u_0_021",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t0, map021))),
+      u_0_102("u_0_102",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t0, map102))),
+      u_0_120("u_0_120",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t0, map120))),
+      u_0_201("u_0_201",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t0, map201))),
+      u_0_210("u_0_210",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t0, map210))),
       ref_u_0_012("ref_u_0_012",
                   KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t0)),
       ref_u_0_021("ref_u_0_021",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t0, map021))),
       ref_u_0_102("ref_u_0_102",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t0, map102))),
       ref_u_0_120("ref_u_0_120",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t0, map120))),
       ref_u_0_201("ref_u_0_201",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t0, map201))),
       ref_u_0_210("ref_u_0_210",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t0, map210)));
 
   // Data in Topology 1 (Y-pencil)
   View3DType u_1_012(
       "u_1_012", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t1)),
-      u_1_021("u_1_021", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t1, map021))),
-      u_1_102("u_1_102", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t1, map102))),
-      u_1_120("u_1_120", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t1, map120))),
-      u_1_201("u_1_201", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t1, map201))),
-      u_1_210("u_1_210", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t1, map210))),
+      u_1_021("u_1_021",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t1, map021))),
+      u_1_102("u_1_102",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t1, map102))),
+      u_1_120("u_1_120",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t1, map120))),
+      u_1_201("u_1_201",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t1, map201))),
+      u_1_210("u_1_210",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t1, map210))),
       ref_u_1_012("ref_u_1_012",
                   KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t1)),
       ref_u_1_021("ref_u_1_021",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t1, map021))),
       ref_u_1_102("ref_u_1_102",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t1, map102))),
       ref_u_1_120("ref_u_1_120",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t1, map120))),
       ref_u_1_201("ref_u_1_201",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t1, map201))),
       ref_u_1_210("ref_u_1_210",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t1, map210)));
 
   // Data in Topology 2 (Z-pencil)
   View3DType u_2_012(
       "u_2_012", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t2)),
-      u_2_021("u_2_021", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t2, map021))),
-      u_2_102("u_2_102", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t2, map102))),
-      u_2_120("u_2_120", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t2, map120))),
-      u_2_201("u_2_201", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t2, map201))),
-      u_2_210("u_2_210", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t2, map210))),
+      u_2_021("u_2_021",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t2, map021))),
+      u_2_102("u_2_102",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t2, map102))),
+      u_2_120("u_2_120",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t2, map120))),
+      u_2_201("u_2_201",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t2, map201))),
+      u_2_210("u_2_210",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t2, map210))),
       ref_u_2_012("ref_u_2_012",
                   KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t2)),
       ref_u_2_021("ref_u_2_021",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t2, map021))),
       ref_u_2_102("ref_u_2_102",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t2, map102))),
       ref_u_2_120("ref_u_2_120",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t2, map120))),
       ref_u_2_201("ref_u_2_201",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t2, map201))),
       ref_u_2_210("ref_u_2_210",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t2, map210)));
 
   // Data in Topology 3 (Z-pencil)
   View3DType u_3_012(
       "u_3_012", KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t3)),
-      u_3_021("u_3_021", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t3, map021))),
-      u_3_102("u_3_102", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t3, map102))),
-      u_3_120("u_3_120", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t3, map120))),
-      u_3_201("u_3_201", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t3, map201))),
-      u_3_210("u_3_210", KokkosFFT::Impl::create_layout<LayoutType>(
-                             KokkosFFT::Distributed::Impl::get_mapped_extents(
-                                 local_extents_t3, map210))),
+      u_3_021("u_3_021",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t3, map021))),
+      u_3_102("u_3_102",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t3, map102))),
+      u_3_120("u_3_120",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t3, map120))),
+      u_3_201("u_3_201",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t3, map201))),
+      u_3_210("u_3_210",
+              KokkosFFT::Impl::create_layout<LayoutType>(
+                  KokkosFFT::Distributed::Impl::compute_mapped_extents(
+                      local_extents_t3, map210))),
       ref_u_3_012("ref_u_3_012",
                   KokkosFFT::Impl::create_layout<LayoutType>(local_extents_t3)),
       ref_u_3_021("ref_u_3_021",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t3, map021))),
       ref_u_3_102("ref_u_3_102",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t3, map102))),
       ref_u_3_120("ref_u_3_120",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t3, map120))),
       ref_u_3_201("ref_u_3_201",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t3, map201))),
       ref_u_3_210("ref_u_3_210",
                   KokkosFFT::Impl::create_layout<LayoutType>(
-                      KokkosFFT::Distributed::Impl::get_mapped_extents(
+                      KokkosFFT::Distributed::Impl::compute_mapped_extents(
                           local_extents_t3, map210)));
 
   // Prepare buffer data
