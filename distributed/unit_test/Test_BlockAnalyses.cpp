@@ -15,7 +15,7 @@ struct TestProposeBlock : public ::testing::Test {
   std::vector<std::size_t> m_empty_axes = {};
 
   virtual void SetUp() {
-    int rank, nprocs;
+    int rank;
     ::MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     m_rank = rank;
   }
