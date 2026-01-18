@@ -81,7 +81,7 @@ auto propose_fft_block(const std::array<std::size_t, DIM>& map,
 /// \param[in] in_extents Input extents
 /// \param[in] global_extents Global input extents
 /// \param[in] axes Axes of the transformation
-/// \param[in] comm MPI communicator
+/// \param[in] rank MPI rank
 /// \param[in] is_layout_right Whether the layout is right
 /// \param[in] is_last Whether this is the last block
 /// \param[in] in_axis Input axis of the transpose
@@ -97,7 +97,7 @@ auto propose_transpose_block(const std::array<std::size_t, DIM>& map,
                              const std::array<std::size_t, DIM>& out_topology,
                              const std::array<std::size_t, DIM>& in_extents,
                              const std::array<std::size_t, DIM>& global_extents,
-                             std::vector<iType>& axes, MPI_Comm comm,
+                             std::vector<iType>& axes, std::size_t rank,
                              bool is_layout_right, bool is_last,
                              std::size_t in_axis, std::size_t out_axis,
                              std::size_t comm_axis, std::size_t block_idx,
@@ -122,7 +122,7 @@ auto propose_transpose_block(const std::array<std::size_t, DIM>& map,
   }
 
   block.m_out_extents = get_next_extents(
-      global_extents, out_topology, block.m_out_map, comm, is_layout_right);
+      global_extents, out_topology, block.m_out_map, rank, is_layout_right);
   block.m_buffer_extents =
       get_buffer_extents<LayoutType>(global_extents, in_topology, out_topology);
 
@@ -152,7 +152,7 @@ auto propose_transpose_block(const std::array<std::size_t, DIM>& map,
 /// \param[in] all_topologies Vector of all pencil topologies
 /// \param[in] all_axes Vector of all axes for FFTs
 /// \param[in] map Mapping of local transpose to prepare first FFT
-/// \param[in] comm MPI communicator
+/// \param[in] rank MPI rank
 /// \param[in] block_idx Index of the current block
 template <typename BlockInfoType, typename ValueType, typename LayoutType,
           std::size_t FFT_DIM, typename TopologyType, typename iType,
@@ -164,7 +164,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
                    const std::vector<TopologyType>& all_topologies,
                    const std::vector<std::vector<iType>>& all_axes,
                    [[maybe_unused]] const std::array<std::size_t, DIM>& map,
-                   [[maybe_unused]] MPI_Comm comm, std::size_t block_idx) {
+                   [[maybe_unused]] std::size_t rank, std::size_t block_idx) {
   auto compute_transpose_block =
       [&](const std::vector<BlockInfoType>& block_infos,
           std::size_t size_factor) {
@@ -181,7 +181,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
           // If the transpose is the first block, the fft block must follow it.
           return propose_transpose_block<BlockInfoType, LayoutType>(
               src_map, current_topology, next_topology, in_extents, gin_extents,
-              next_axes, comm, true, false, in_axis, out_axis, 0, 0,
+              next_axes, rank, true, false, in_axis, out_axis, 0, 0,
               size_factor);
         } else {
           auto in_map     = block_infos.back().m_out_map;
@@ -190,7 +190,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
           // There must be FFT block before this, so the data must be in complex
           return propose_transpose_block<BlockInfoType, LayoutType>(
               in_map, current_topology, next_topology, in_extents, gout_extents,
-              next_axes, comm, true, is_last, in_axis, out_axis, 0,
+              next_axes, rank, true, is_last, in_axis, out_axis, 0,
               nb_trans_blocks, 2);
         }
       };
@@ -214,7 +214,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
       auto topology       = all_topologies.at(block_idx);
       auto fft_in_extents = get_mapped_extents(in_extents, map);
       auto fft_out_extents =
-          get_next_extents(gout_extents, topology, map, comm);
+          get_next_extents(gout_extents, topology, map, rank);
       auto fft_block_tuple = propose_fft_block<BlockInfoType>(
           map, fft_in_extents, fft_out_extents, fft_dim, 0);
       block_vector.push_back(fft_block_tuple);
@@ -234,7 +234,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
         // First FFT block
         auto topology = block_infos.back().m_out_topology;
         auto fft_out_extents =
-            get_next_extents(gout_extents, topology, in_map, comm);
+            get_next_extents(gout_extents, topology, in_map, rank);
         auto fft_block_tuple = propose_fft_block<BlockInfoType>(
             in_map, fft_in_extents, fft_out_extents, fft_dim, 0);
         block_vector.push_back(fft_block_tuple);
@@ -274,7 +274,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
 /// \param[in] all_layouts Vector of all layouts
 /// \param[in] all_axes Vector of all axes for FFTs
 /// \param[in] map Mapping of local transpose to prepare first FFT
-/// \param[in] comm MPI communicator
+/// \param[in] rank MPI rank
 /// \param[in] block_idx Index of the current block
 template <typename BlockInfoType, typename ValueType, typename LayoutType,
           std::size_t FFT_DIM, typename TopologyType, typename iType,
@@ -288,7 +288,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
                    const std::vector<std::size_t>& all_layouts,
                    const std::vector<std::vector<iType>>& all_axes,
                    [[maybe_unused]] const std::array<std::size_t, DIM>& map,
-                   [[maybe_unused]] MPI_Comm comm, std::size_t block_idx) {
+                   [[maybe_unused]] std::size_t rank, std::size_t block_idx) {
   auto compute_transpose_block =
       [&](const std::vector<BlockInfoType>& block_infos,
           std::size_t size_factor) {
@@ -307,7 +307,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
           // If the transpose is the first block, the fft block must follow it.
           return propose_transpose_block<BlockInfoType, LayoutType>(
               src_map, current_topology, next_topology, in_extents, gin_extents,
-              next_axes, comm, is_layout_right, false, in_axis, out_axis,
+              next_axes, rank, is_layout_right, false, in_axis, out_axis,
               comm_axis, 0, size_factor);
         } else {
           auto in_map     = block_infos.back().m_out_map;
@@ -316,7 +316,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
           // There must be FFT block before this, so the data must be in complex
           return propose_transpose_block<BlockInfoType, LayoutType>(
               in_map, current_topology, next_topology, in_extents, gout_extents,
-              next_axes, comm, is_layout_right, is_last, in_axis, out_axis,
+              next_axes, rank, is_layout_right, is_last, in_axis, out_axis,
               comm_axis, nb_trans_blocks, 2);
         }
       };
@@ -342,7 +342,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
       auto topology       = all_topologies.at(block_idx);
       auto fft_in_extents = get_mapped_extents(in_extents, map);
       auto fft_out_extents =
-          get_next_extents(gout_extents, topology, map, comm, is_layout_right);
+          get_next_extents(gout_extents, topology, map, rank, is_layout_right);
       auto fft_block_tuple = propose_fft_block<BlockInfoType>(
           map, fft_in_extents, fft_out_extents, fft_dim, 0);
       block_vector.push_back(fft_block_tuple);
@@ -362,7 +362,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
         // First FFT block
         auto topology        = block_infos.back().m_out_topology;
         auto fft_out_extents = get_next_extents(gout_extents, topology, in_map,
-                                                comm, is_layout_right);
+                                                rank, is_layout_right);
         auto fft_block_tuple = propose_fft_block<BlockInfoType>(
             in_map, fft_in_extents, fft_out_extents, fft_dim, 0);
         block_vector.push_back(fft_block_tuple);
@@ -407,7 +407,7 @@ struct SlabBlockAnalysesInternal {
   /// \param[in] in_topology Input topology
   /// \param[in] out_topology Output topology
   /// \param[in] axes Axes of the FFT
-  /// \param[in] comm MPI communicator
+  /// \param[in] rank MPI rank
   SlabBlockAnalysesInternal(const extents_type& in_extents,
                             const extents_type& gin_extents,
                             const extents_type& gout_extents,
@@ -422,12 +422,14 @@ struct SlabBlockAnalysesInternal {
         get_all_slab_topologies(in_topology, out_topology, axes);
 
     auto all_axes = decompose_axes(all_topologies, axes);
+    int rank;
+    MPI_Comm_rank(comm, &rank);
 
     std::vector<std::size_t> all_max_buffer_sizes;
     for (std::size_t itopo = 0; itopo < all_topologies.size(); ++itopo) {
       auto blocks = propose_block<BlockInfoType, ValueType, Layout, FFT_DIM>(
           in_extents, gin_extents, gout_extents, m_block_infos, all_topologies,
-          all_axes, map, comm, itopo);
+          all_axes, map, rank, itopo);
       for (auto const& block : blocks) {
         auto [b, max_buffer_size] = block;
         m_block_infos.push_back(b);
@@ -481,11 +483,14 @@ struct PencilBlockAnalysesInternal {
         get_all_pencil_topologies(in_topology, out_topology, axes);
     auto all_axes = decompose_axes(all_topologies, axes);
 
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
     std::vector<std::size_t> all_max_buffer_sizes;
     for (std::size_t itopo = 0; itopo < all_topologies.size(); ++itopo) {
       auto blocks = propose_block<BlockInfoType, ValueType, Layout, FFT_DIM>(
           in_extents, gin_extents, gout_extents, m_block_infos, all_topologies,
-          all_trans_axes, all_layouts, all_axes, map, comm, itopo);
+          all_trans_axes, all_layouts, all_axes, map, rank, itopo);
       for (auto const& block : blocks) {
         auto [b, max_buffer_size] = block;
         m_block_infos.push_back(b);
