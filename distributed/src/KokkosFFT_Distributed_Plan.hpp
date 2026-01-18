@@ -20,6 +20,27 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Factory function to create a distributed FFT plan based on the given
+/// topologies.
+/// \tparam ExecutionSpace Kokkos execution space
+/// \tparam InViewType Input Kokkos view type
+/// \tparam OutViewType Output Kokkos view type
+/// \tparam DIM Rank of FFT (default: 1)
+/// \tparam InLayoutType Layout of input topology (default: LayoutRight)
+/// \tparam OutLayoutType Layout of output topology (default: LayoutRight)
+/// \param[in] exec_space Kokkos execution space
+/// \param[in] in Input Kokkos view
+/// \param[in] out Output Kokkos view
+/// \param[in] axes FFT axes
+/// \param[in] in_topology Input topology
+/// \param[in] out_topology Output topology
+/// \param[in] comm MPI communicator
+/// \param[in] norm Normalization type (default: backward)
+/// \return A unique pointer to the created distributed FFT plan
+/// \throws std::runtime_error if the input or output topology sizes do not
+/// match \throws std::runtime_error if the topology is unsupported or invalid
+/// \throws std::runtime_error if Pencil plan is requested for Views with rank
+/// less than 3
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -33,6 +54,17 @@ internal_plan_factory(
         out_topology,
     const MPI_Comm& comm,
     KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+
+  auto in_total_size  = KokkosFFT::Impl::total_size(in_topology);
+  auto out_total_size = KokkosFFT::Impl::total_size(out_topology);
+
+  KOKKOSFFT_THROW_IF(in_total_size != out_total_size,
+                     "in_topology and out_topology must have the same size.");
+  KOKKOSFFT_THROW_IF(static_cast<int>(in_total_size) != nprocs,
+                     "topology size must be identical to mpi size.");
+
 #if defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
   if constexpr ((InViewType::rank() == 2 && DIM == 2) ||
                 (InViewType::rank() == 3 && DIM == 3)) {

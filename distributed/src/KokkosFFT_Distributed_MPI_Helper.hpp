@@ -98,30 +98,30 @@ auto get_global_shape(const ViewType &v,
                           comm);
 }
 
+/// \brief Get the local extents for the next block given the current rank
+/// and layout (compile time version)
 // Data are stored as
 // rank0: extents
 // rank1: extents
 // ...
 // rankn:
+/// \tparam DIM Number of dimensions (default is 1)
+/// \tparam LayoutType Layout type for the Input Topology (default is
+/// Kokkos::LayoutRight)
+/// \param[in] extents Extents of the current block
+/// \param[in] topology Topology of the current block
+/// \param[in] map Map of the current block
+/// \param[in] rank Current rank
+/// \return The local extents for the next block
 template <std::size_t DIM = 1, typename LayoutType = Kokkos::LayoutRight>
 auto get_next_extents(const std::array<std::size_t, DIM> &extents,
                       const Topology<std::size_t, DIM, LayoutType> &topology,
-                      const std::array<std::size_t, DIM> &map, MPI_Comm comm) {
-  // Check that topology includes two or less non-one elements
+                      const std::array<std::size_t, DIM> &map,
+                      std::size_t rank) {
   std::array<std::size_t, DIM> local_extents, next_extents;
   std::copy(extents.begin(), extents.end(), local_extents.begin());
-  auto total_size = KokkosFFT::Impl::total_size(topology);
 
-  int rank, nprocs;
-  ::MPI_Comm_rank(comm, &rank);
-  ::MPI_Comm_size(comm, &nprocs);
-
-  KOKKOSFFT_THROW_IF(static_cast<int>(total_size) != nprocs,
-                     "topology size must be identical to mpi size.");
-
-  std::array<std::size_t, DIM> coords =
-      rank_to_coord(topology, static_cast<std::size_t>(rank));
-
+  auto coords = rank_to_coord(topology, rank);
   for (std::size_t i = 0; i < extents.size(); i++) {
     if (topology.at(i) != 1) {
       std::size_t n = extents.at(i);
@@ -143,19 +143,33 @@ auto get_next_extents(const std::array<std::size_t, DIM> &extents,
   return next_extents;
 }
 
+/// \brief Get the local extents for the next block given the current rank
+/// and layout (run time version)
+// Data are stored as
+// rank0: extents
+// rank1: extents
+// ...
+// rankn:
+/// \tparam DIM Number of dimensions (default is 1)
+/// \param[in] extents Extents of the current block
+/// \param[in] topology Topology of the current block
+/// \param[in] map Map of the current block
+/// \param[in] rank Current rank
+/// \param[in] is_layout_right Layout type for the Input Topology (default is
+/// true) \return The local extents for the next block
 template <std::size_t DIM = 1>
 auto get_next_extents(const std::array<std::size_t, DIM> &extents,
                       const std::array<std::size_t, DIM> &topology,
-                      const std::array<std::size_t, DIM> &map, MPI_Comm comm,
+                      const std::array<std::size_t, DIM> &map, std::size_t rank,
                       bool is_layout_right = true) {
   if (is_layout_right) {
     return get_next_extents(
         extents, Topology<std::size_t, DIM, Kokkos::LayoutRight>(topology), map,
-        comm);
+        rank);
   } else {
     return get_next_extents(
         extents, Topology<std::size_t, DIM, Kokkos::LayoutLeft>(topology), map,
-        comm);
+        rank);
   }
 }
 
