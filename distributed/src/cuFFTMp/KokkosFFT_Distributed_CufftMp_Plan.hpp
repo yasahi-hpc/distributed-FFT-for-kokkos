@@ -6,7 +6,6 @@
 #include "KokkosFFT_Distributed_MPI_Helper.hpp"
 #include "KokkosFFT_Distributed_Topologies.hpp"
 #include "KokkosFFT_Distributed_Extents.hpp"
-#include "KokkosFFT_Distributed_Utils.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -155,7 +154,7 @@ void create_plan(const ExecutionSpace& exec_space,
        out_first_dim      = out_topology.at(last_axis);
   bool is_first_dim_ready = in_first_dim == 1 && out_first_dim == 1;
   if (is_first_dim_ready) {
-    auto in_mapped_topology = get_mapped_extents(in_topology, map);
+    auto in_mapped_topology = compute_mapped_extents(in_topology, map);
     bool is_xslab           = in_mapped_topology.at(0) > 1;
 
     plan = std::make_unique<PlanType>(nx, ny, comm, is_xslab);
@@ -183,13 +182,14 @@ void create_plan(const ExecutionSpace& exec_space,
                    out_ends.begin(), std::plus<std::size_t>());
 
     // Mapping based of axes
-    auto mapped_in_extents        = get_mapped_extents(in_extents, map);
-    auto mapped_in_padded_extents = get_mapped_extents(in_padded_extents, map);
-    auto mapped_out_extents       = get_mapped_extents(out_extents, map);
-    auto mapped_in_starts         = get_mapped_extents(in_starts, map);
-    auto mapped_out_starts        = get_mapped_extents(out_starts, map);
-    auto mapped_in_ends           = get_mapped_extents(in_ends, map);
-    auto mapped_out_ends          = get_mapped_extents(out_ends, map);
+    auto mapped_in_extents = compute_mapped_extents(in_extents, map);
+    auto mapped_in_padded_extents =
+        compute_mapped_extents(in_padded_extents, map);
+    auto mapped_out_extents = compute_mapped_extents(out_extents, map);
+    auto mapped_in_starts   = compute_mapped_extents(in_starts, map);
+    auto mapped_out_starts  = compute_mapped_extents(out_starts, map);
+    auto mapped_in_ends     = compute_mapped_extents(in_ends, map);
+    auto mapped_out_ends    = compute_mapped_extents(out_ends, map);
 
     auto in_strides = KokkosFFT::Impl::reversed(
         KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));
@@ -272,7 +272,7 @@ void create_plan(const ExecutionSpace& exec_space,
   bool is_slab            = are_slab_topologies(in_topology, out_topology);
 
   if (is_slab && is_first_dim_ready) {
-    auto in_mapped_topology = get_mapped_extents(in_topology, map);
+    auto in_mapped_topology = compute_mapped_extents(in_topology, map);
     bool is_xslab           = in_mapped_topology.at(0) > 1;
 
     plan = std::make_unique<PlanType>(nx, ny, nz, comm, is_xslab);
@@ -300,13 +300,14 @@ void create_plan(const ExecutionSpace& exec_space,
                    out_ends.begin(), std::plus<std::size_t>());
 
     // Mapping based of axes
-    auto mapped_in_extents        = get_mapped_extents(in_extents, map);
-    auto mapped_in_padded_extents = get_mapped_extents(in_padded_extents, map);
-    auto mapped_out_extents       = get_mapped_extents(out_extents, map);
-    auto mapped_in_starts         = get_mapped_extents(in_starts, map);
-    auto mapped_out_starts        = get_mapped_extents(out_starts, map);
-    auto mapped_in_ends           = get_mapped_extents(in_ends, map);
-    auto mapped_out_ends          = get_mapped_extents(out_ends, map);
+    auto mapped_in_extents = compute_mapped_extents(in_extents, map);
+    auto mapped_in_padded_extents =
+        compute_mapped_extents(in_padded_extents, map);
+    auto mapped_out_extents = compute_mapped_extents(out_extents, map);
+    auto mapped_in_starts   = compute_mapped_extents(in_starts, map);
+    auto mapped_out_starts  = compute_mapped_extents(out_starts, map);
+    auto mapped_in_ends     = compute_mapped_extents(in_ends, map);
+    auto mapped_out_ends    = compute_mapped_extents(out_ends, map);
 
     auto in_strides = KokkosFFT::Impl::reversed(
         KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));

@@ -54,8 +54,8 @@ static void benchmark_unpack(benchmark::State& state) {
   auto src_extents =
       KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           global_extents, src_topology, dst_topology);
-  auto dst_extents =
-      KokkosFFT::Distributed::Impl::get_mapped_extents(local_extents, dst_map);
+  auto dst_extents = KokkosFFT::Distributed::Impl::compute_mapped_extents(
+      local_extents, dst_map);
 
   SrcViewType src("src",
                   KokkosFFT::Impl::create_layout<LayoutType>(src_extents));

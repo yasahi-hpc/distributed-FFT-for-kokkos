@@ -6,7 +6,6 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_PackUnpack.hpp"
 #include "KokkosFFT_Distributed_All2All.hpp"
-#include "KokkosFFT_Distributed_Helper.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {

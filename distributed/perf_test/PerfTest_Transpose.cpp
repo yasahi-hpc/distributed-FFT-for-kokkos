@@ -45,7 +45,7 @@ static void benchmark_transpose(benchmark::State& state) {
   }
 
   auto dst_extents =
-      KokkosFFT::Distributed::Impl::get_mapped_extents(src_extents, map);
+      KokkosFFT::Distributed::Impl::compute_mapped_extents(src_extents, map);
 
   ViewType src("src", KokkosFFT::Impl::create_layout<LayoutType>(src_extents));
   ViewType dst("dst", KokkosFFT::Impl::create_layout<LayoutType>(dst_extents));

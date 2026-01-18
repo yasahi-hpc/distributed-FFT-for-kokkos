@@ -112,6 +112,78 @@ auto compute_buffer_extents(
                                             out_topology.array());
 }
 
+/// \brief Calculate the permuted extents based on the map
+///
+/// Example
+/// View extents: (n0, n1, n2, n3)
+/// map: (0, 2, 3, 1)
+/// Next extents: (n0, n2, n3, n1)
+///
+/// \tparam ContainerType The container type
+/// \tparam iType The integer type used for extents
+/// \tparam DIM The number of dimensions of the extents.
+///
+/// \param[in] extents Extents of the View.
+/// \param[in] map A map representing how the data is permuted
+/// \return A extents of the permuted view
+/// \throws std::runtime_error if the size of map is not equal to DIM
+template <typename ContainerType, typename iType, std::size_t DIM>
+auto compute_mapped_extents(const std::array<iType, DIM> &extents,
+                            const ContainerType &map) {
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(map.at(0))>>;
+  static_assert(std::is_integral_v<value_type>,
+                "compute_mapped_extents: Map container value type must be an "
+                "integral type");
+  KOKKOSFFT_THROW_IF(
+      map.size() != DIM,
+      "compute_mapped_extents: extents size must be equal to map size.");
+  std::array<iType, DIM> mapped_extents;
+  std::transform(
+      map.begin(), map.end(), mapped_extents.begin(),
+      [&](std::size_t mapped_idx) { return extents.at(mapped_idx); });
+
+  return mapped_extents;
+}
+
+/// \brief Compute the larger extents. Larger one corresponds to
+/// the extents to FFT library. This is a helper for vendor library
+/// which supports 2D or 3D non-batched FFTs.
+///
+/// Example
+/// in extents: (8, 7, 8)
+/// out extents: (8, 7, 5)
+///
+/// \tparam iType The integer type used for extents
+/// \tparam DIM The number of dimensions of the extents.
+/// \tparam FFT_DIM The number of dimensions of the FFT.
+///
+/// \param[in] in_extents Extents of the global input View.
+/// \param[in] out_extents Extents of the global output View.
+/// \return A extents of the permuted view
+template <typename iType, std::size_t DIM, std::size_t FFT_DIM>
+auto compute_fft_extents(const std::array<iType, DIM> &in_extents,
+                         const std::array<iType, DIM> &out_extents,
+                         const std::array<iType, FFT_DIM> &axes) {
+  static_assert(std::is_integral_v<iType>,
+                "compute_fft_extents: iType must be an integral type");
+  static_assert(
+      FFT_DIM >= 1 && FFT_DIM <= KokkosFFT::MAX_FFT_DIM,
+      "compute_fft_extents: the Rank of FFT axes must be between 1 and 3");
+  static_assert(
+      DIM >= FFT_DIM,
+      "compute_fft_extents: View rank must be larger than or equal to "
+      "the Rank of FFT axes");
+
+  std::array<iType, FFT_DIM> fft_extents;
+  std::transform(axes.begin(), axes.end(), fft_extents.begin(),
+                 [&](iType axis) {
+                   return std::max(in_extents.at(axis), out_extents.at(axis));
+                 });
+
+  return fft_extents;
+}
+
 /**
  * @brief Check if input and output views have valid extents for the given axes,
  * FFT topologies, and MPI communicator.
@@ -175,8 +247,8 @@ bool are_valid_extents(
   auto gin_extents  = compute_global_extents(in, in_topology, comm);
   auto gout_extents = compute_global_extents(out, out_topology, comm);
 
-  auto in_extents  = get_mapped_extents(gin_extents, map);
-  auto out_extents = get_mapped_extents(gout_extents, map);
+  auto in_extents  = compute_mapped_extents(gin_extents, map);
+  auto out_extents = compute_mapped_extents(gout_extents, map);
 
   auto mismatched_extents = [&in, &out, &in_extents,
                              &out_extents]() -> std::string {
