@@ -184,8 +184,8 @@ TYPED_TEST_SUITE(TestProposeBlock, layout_types);
 
 TYPED_TEST(TestProposeBlock, propose_transpose_block_last) {
   using layout_type = typename TestFixture::layout_type;
-  test_propose_transpose_block<layout_type1>(this->m_rank, this->m_axes,
-                                             this->m_is_layout_right, true);
+  test_propose_transpose_block<layout_type>(this->m_rank, this->m_axes,
+                                            this->m_is_layout_right, true);
 }
 
 TYPED_TEST(TestProposeBlock, propose_transpose_block_not_last) {
