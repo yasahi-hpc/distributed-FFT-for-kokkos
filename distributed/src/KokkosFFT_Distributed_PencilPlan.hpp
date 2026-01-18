@@ -175,8 +175,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
     // First get global shape to define buffer and next shape
     auto in_extents = KokkosFFT::Impl::extract_extents(in);
 
-    auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
-    auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
+    auto gin_extents  = compute_global_extents(in, m_in_topology, m_comm);
+    auto gout_extents = compute_global_extents(out, m_out_topology, m_comm);
 
     auto non_negative_axes =
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(
@@ -560,8 +560,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
     // First get global shape to define buffer and next shape
     auto in_extents = KokkosFFT::Impl::extract_extents(in);
 
-    auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
-    auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
+    auto gin_extents  = compute_global_extents(in, m_in_topology, m_comm);
+    auto gout_extents = compute_global_extents(out, m_out_topology, m_comm);
 
     auto non_negative_axes =
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(
@@ -1108,8 +1108,8 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
     // First get global shape to define buffer and next shape
     auto in_extents = KokkosFFT::Impl::extract_extents(in);
 
-    auto gin_extents  = get_global_shape(in, m_in_topology, m_comm);
-    auto gout_extents = get_global_shape(out, m_out_topology, m_comm);
+    auto gin_extents  = compute_global_extents(in, m_in_topology, m_comm);
+    auto gout_extents = compute_global_extents(out, m_out_topology, m_comm);
 
     auto non_negative_axes =
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(

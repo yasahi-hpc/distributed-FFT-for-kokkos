@@ -172,8 +172,8 @@ bool are_valid_extents(
   auto [map, map_inv] = KokkosFFT::Impl::get_map_axes(in, axes);
 
   // Get global shape to define buffer and next shape
-  auto gin_extents  = get_global_shape(in, in_topology, comm);
-  auto gout_extents = get_global_shape(out, out_topology, comm);
+  auto gin_extents  = compute_global_extents(in, in_topology, comm);
+  auto gout_extents = compute_global_extents(out, out_topology, comm);
 
   auto in_extents  = get_mapped_extents(gin_extents, map);
   auto out_extents = get_mapped_extents(gout_extents, map);

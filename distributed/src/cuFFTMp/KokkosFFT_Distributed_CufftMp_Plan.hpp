@@ -143,8 +143,8 @@ void create_plan(const ExecutionSpace& exec_space,
 
   Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_cuFFTMp]");
 
-  auto gin_extents       = get_global_shape(in, in_topology, comm);
-  auto gout_extents      = get_global_shape(out, out_topology, comm);
+  auto gin_extents       = compute_global_extents(in, in_topology, comm);
+  auto gout_extents      = compute_global_extents(out, out_topology, comm);
   auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
       KokkosFFT::Impl::convert_negative_axes(axes, 2));
   auto fft_extents =
@@ -255,8 +255,8 @@ void create_plan(const ExecutionSpace& exec_space,
 
   Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_cuFFTMp]");
 
-  auto gin_extents       = get_global_shape(in, in_topology, comm);
-  auto gout_extents      = get_global_shape(out, out_topology, comm);
+  auto gin_extents       = compute_global_extents(in, in_topology, comm);
+  auto gout_extents      = compute_global_extents(out, out_topology, comm);
   auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
       KokkosFFT::Impl::convert_negative_axes(axes, 3));
   auto fft_extents =

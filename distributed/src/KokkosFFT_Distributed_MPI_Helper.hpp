@@ -14,7 +14,7 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief
+/// \brief Compute the global extents of the distributed View
 /// LayoutRight
 /// E.g. Topology (1, 2, 4)
 ///      rank0: (0, 0)
@@ -36,8 +36,15 @@ namespace Impl {
 ///      rank6: (0, 3)
 ///      rank7: (1, 3)
 ///
+/// \tparam ViewType The Kokkos View type
+/// \tparam LayoutType The layout type of the Topology (default is
+/// Kokkos::LayoutRight)
+/// \param[in] v The Kokkos View
+/// \param[in] topology The topology representing the distribution of the data
+/// \param[in] comm The MPI communicator
+/// \return The global extents of the distributed View
 template <typename ViewType, typename LayoutType = Kokkos::LayoutRight>
-auto get_global_shape(
+auto compute_global_extents(
     const ViewType &v,
     const Topology<std::size_t, ViewType::rank(), LayoutType> &topology,
     MPI_Comm comm) {
@@ -90,12 +97,18 @@ auto get_global_shape(
   return global_extents;
 }
 
+/// \brief Compute the global extents of the distributed View
+/// \tparam ViewType The Kokkos View type
+/// \param[in] v The Kokkos View
+/// \param[in] topology The topology representing the distribution of the data
+/// \param[in] comm The MPI communicator
+/// \return The global extents of the distributed View
 template <typename ViewType>
-auto get_global_shape(const ViewType &v,
-                      const std::array<std::size_t, ViewType::rank()> &topology,
-                      MPI_Comm comm) {
-  return get_global_shape(v, Topology<std::size_t, ViewType::rank()>(topology),
-                          comm);
+auto compute_global_extents(
+    const ViewType &v,
+    const std::array<std::size_t, ViewType::rank()> &topology, MPI_Comm comm) {
+  return compute_global_extents(
+      v, Topology<std::size_t, ViewType::rank()>(topology), comm);
 }
 
 /// \brief Compute the local extents for the next block given the current rank
@@ -174,8 +187,13 @@ auto compute_next_extents(const std::array<std::size_t, DIM> &extents,
   }
 }
 
+/// \brief Compute the maximum value in the given container across all ranks
+/// \tparam ContainerType Type of the container
+/// \param[in] values Container holding the values to be compared
+/// \param[in] comm MPI communicator
+/// \return The maximum value across all ranks
 template <typename ContainerType>
-auto get_max(const ContainerType &values, MPI_Comm comm) {
+auto compute_global_max(const ContainerType &values, MPI_Comm comm) {
   using value_type = KokkosFFT::Impl::base_container_value_type<ContainerType>;
   MPI_Datatype mpi_data_type = mpi_datatype_v<value_type>;
   value_type max_value       = 0;
@@ -186,6 +204,12 @@ auto get_max(const ContainerType &values, MPI_Comm comm) {
 }
 }  // namespace Impl
 
+/// \brief Convert rank to coordinate based on the given topology
+/// \tparam DIM Number of dimensions (default is 1)
+/// \tparam LayoutType Layout type for the Topology (default is
+/// Kokkos::LayoutRight) \param[in] topology Topology of the distributed data
+/// \param[in] rank MPI rank
+/// \return The coordinate corresponding to the given rank
 template <std::size_t DIM = 1, typename LayoutType = Kokkos::LayoutRight>
 auto rank_to_coord(const Topology<std::size_t, DIM, LayoutType> &topology,
                    const std::size_t rank) {
@@ -208,12 +232,24 @@ auto rank_to_coord(const Topology<std::size_t, DIM, LayoutType> &topology,
   return coord;
 }
 
+/// \brief Convert rank to coordinate based on the given topology
+/// \tparam DIM Number of dimensions (default is 1)
+/// \param[in] topology Topology of the distributed data
+/// \param[in] rank MPI rank
+/// \return The coordinate corresponding to the given rank
 template <std::size_t DIM = 1>
 auto rank_to_coord(const std::array<std::size_t, DIM> &topology,
                    const std::size_t rank) {
   return rank_to_coord(Topology<std::size_t, DIM>(topology), rank);
 }
 
+/// \brief Compute the local extents and starts of the distributed View
+/// \tparam DIM Number of dimensions (default is 1)
+/// \tparam LayoutType Layout type for the Topology (default is
+/// Kokkos::LayoutRight) \param[in] extents Extents of the global View
+/// \param[in] topology Topology of the data distribution
+/// \param[in] comm MPI communicator
+/// \return A tuple of local extents and starts of the distributed View
 template <std::size_t DIM = 1, typename LayoutType = Kokkos::LayoutRight>
 auto compute_local_extents(
     const std::array<std::size_t, DIM> &extents,
@@ -277,6 +313,12 @@ auto compute_local_extents(
   return std::make_tuple(local_extents, local_starts);
 }
 
+/// \brief Compute the local extents and starts of the distributed View
+/// \tparam DIM Number of dimensions (default is 1)
+/// \param[in] extents Extents of the global View
+/// \param[in] topology Topology of the data distribution
+/// \param[in] comm MPI communicator
+/// \return A tuple of local extents and starts of the distributed View
 template <std::size_t DIM = 1>
 auto compute_local_extents(const std::array<std::size_t, DIM> &extents,
                            const std::array<std::size_t, DIM> &topology,

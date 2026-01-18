@@ -80,8 +80,8 @@ void create_plan(const ExecutionSpace& exec_space,
       "and the same rank. ExecutionSpace must be accessible to the data in "
       "InViewType and OutViewType.");
   if constexpr (InViewType::rank() == DIM) {
-    auto gin_extents  = get_global_shape(in, in_topology, comm);
-    auto gout_extents = get_global_shape(out, out_topology, comm);
+    auto gin_extents  = compute_global_extents(in, in_topology, comm);
+    auto gout_extents = compute_global_extents(out, out_topology, comm);
 
     auto non_negative_axes =
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(
