@@ -66,8 +66,9 @@ void test_trans_block_view2D(std::size_t nprocs, int order = 0) {
       u_y_T_ref("u_y_T_ref", local_extents_t1.at(1), local_extents_t1.at(0));
 
   // Prepare buffer data
-  auto buffer_01 = KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
-      global_extents, topology0, topology1);
+  auto buffer_01 =
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
+          global_extents, topology0, topology1);
   View3DType send_buffer("send_buffer",
                          KokkosFFT::Impl::create_layout<LayoutType>(buffer_01));
   View3DType recv_buffer("recv_buffer",
@@ -343,12 +344,15 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
                           local_extents_t3, map210)));
 
   // Prepare buffer data
-  auto buffer_01 = KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
-      global_extents, topology0, topology1);
-  auto buffer_03 = KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
-      global_extents, topology0, topology3);
-  auto buffer_12 = KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
-      global_extents, topology1, topology2);
+  auto buffer_01 =
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
+          global_extents, topology0, topology1);
+  auto buffer_03 =
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
+          global_extents, topology0, topology3);
+  auto buffer_12 =
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
+          global_extents, topology1, topology2);
   View4DType send_buffer01(
       "send_buffer01", KokkosFFT::Impl::create_layout<LayoutType>(buffer_01));
   View4DType recv_buffer01(

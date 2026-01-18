@@ -137,7 +137,7 @@ void test_pack_view2D(std::size_t rank, std::size_t nprocs, int order = 0) {
 
   // Buffers
   auto buffer_extents =
-      KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           global_extents, topology0, topology1);
   DstView3DType send_t0(
       "send_t0", KokkosFFT::Impl::create_layout<LayoutType>(buffer_extents)),
@@ -311,13 +311,13 @@ void test_pack_view3D(std::size_t rank, std::size_t nprocs, int order = 0) {
 
   // Buffers
   auto buffer_extents_t01 =
-           KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+           KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
                global_extents, topology0, topology1),
        buffer_extents_t02 =
-           KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+           KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
                global_extents, topology0, topology2),
        buffer_extents_t12 =
-           KokkosFFT::Distributed::Impl::get_buffer_extents<LayoutType>(
+           KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
                global_extents, topology1, topology2);
   DstView4DType send_t01("send_t01", KokkosFFT::Impl::create_layout<LayoutType>(
                                          buffer_extents_t01)),

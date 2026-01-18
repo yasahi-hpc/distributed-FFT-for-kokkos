@@ -38,7 +38,8 @@ namespace Impl {
 /// \param[in] norm Normalization type (default: backward)
 /// \return A unique pointer to the created distributed FFT plan
 /// \throws std::runtime_error if the input or output topology sizes do not
-/// match \throws std::runtime_error if the topology is unsupported or invalid
+/// match
+/// \throws std::runtime_error if the topology is unsupported or invalid
 /// \throws std::runtime_error if Pencil plan is requested for Views with rank
 /// less than 3
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
