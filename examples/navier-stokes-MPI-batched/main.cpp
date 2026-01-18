@@ -120,10 +120,11 @@ struct Grid {
     m_z = Math::linspace(exec, 0.0, lz * M_PI, nz, /*endpoint=*/false);
 
     // Wavenumbers
-    auto [out_extents, out_starts] = KokkosFFT::Distributed::get_local_extents(
-        extents_type(
-            {DIM, std::size_t(nx), std::size_t(ny), std::size_t(nz / 2 + 1)}),
-        m_out_topology, MPI_COMM_WORLD);
+    auto [out_extents, out_starts] =
+        KokkosFFT::Distributed::compute_local_extents(
+            extents_type({DIM, std::size_t(nx), std::size_t(ny),
+                          std::size_t(nz / 2 + 1)}),
+            m_out_topology, MPI_COMM_WORLD);
     auto [ndim, nkx, nky, nkz] = out_extents;
     m_kx                       = View1D<double>("kx", nkx);
     m_ky                       = View1D<double>("ky", nky);

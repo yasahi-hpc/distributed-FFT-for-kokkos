@@ -48,11 +48,11 @@ void test_trans_block_view2D(std::size_t nprocs, int order = 0) {
   extents_type global_extents{n0, n1};
 
   auto [local_extents_t0, local_starts_t0] =
-      KokkosFFT::Distributed::get_local_extents(global_extents, topology0,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_extents, topology0,
+                                                    MPI_COMM_WORLD);
   auto [local_extents_t1, local_starts_t1] =
-      KokkosFFT::Distributed::get_local_extents(global_extents, topology1,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_extents, topology1,
+                                                    MPI_COMM_WORLD);
 
   View2DType gu("gu", n0, n1);
 
@@ -165,17 +165,17 @@ void test_trans_block_view3D(std::size_t npx, std::size_t npy) {
   extents_type global_extents{n0, n1, n2};
 
   auto [local_extents_t0, local_starts_t0] =
-      KokkosFFT::Distributed::get_local_extents(global_extents, topology0,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_extents, topology0,
+                                                    MPI_COMM_WORLD);
   auto [local_extents_t1, local_starts_t1] =
-      KokkosFFT::Distributed::get_local_extents(global_extents, topology1,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_extents, topology1,
+                                                    MPI_COMM_WORLD);
   auto [local_extents_t2, local_starts_t2] =
-      KokkosFFT::Distributed::get_local_extents(global_extents, topology2,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_extents, topology2,
+                                                    MPI_COMM_WORLD);
   auto [local_extents_t3, local_starts_t3] =
-      KokkosFFT::Distributed::get_local_extents(global_extents, topology3,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_extents, topology3,
+                                                    MPI_COMM_WORLD);
 
   View3DType gu("gu", n0, n1, n2);
 

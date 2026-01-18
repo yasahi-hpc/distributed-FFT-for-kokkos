@@ -121,9 +121,9 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     }
 
     auto [in_extents, in_starts] =
-        get_local_extents(gin_padded_extents, in_topology, comm);
+        compute_local_extents(gin_padded_extents, in_topology, comm);
     auto [out_extents, out_starts] =
-        get_local_extents(gout_extents, out_topology, comm);
+        compute_local_extents(gout_extents, out_topology, comm);
 
     m_in_mapped_extents  = get_mapped_extents(in_extents, m_in_map);
     m_out_mapped_extents = get_mapped_extents(out_extents, m_in_map);
