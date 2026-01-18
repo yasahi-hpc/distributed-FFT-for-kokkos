@@ -47,23 +47,23 @@ void test_plan1D_view2D(std::size_t nprocs) {
       global_out_extents_ax1{n0, n1 / 2 + 1};
 
   auto [in_extents_t0, in_starts_t0] =
-      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology0,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_in_extents,
+                                                    topology0, MPI_COMM_WORLD);
   auto [in_extents_t1, in_starts_t1] =
-      KokkosFFT::Distributed::get_local_extents(global_in_extents, topology1,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_in_extents,
+                                                    topology1, MPI_COMM_WORLD);
   auto [out_extents_t0_ax0, out_starts_t0_ax0] =
-      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
-                                                topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_out_extents_ax0,
+                                                    topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax0, out_starts_t1_ax0] =
-      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax0,
-                                                topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_out_extents_ax0,
+                                                    topology1, MPI_COMM_WORLD);
   auto [out_extents_t0_ax1, out_starts_t0_ax1] =
-      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
-                                                topology0, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_out_extents_ax1,
+                                                    topology0, MPI_COMM_WORLD);
   auto [out_extents_t1_ax1, out_starts_t1_ax1] =
-      KokkosFFT::Distributed::get_local_extents(global_out_extents_ax1,
-                                                topology1, MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_out_extents_ax1,
+                                                    topology1, MPI_COMM_WORLD);
 
   // Make reference with a basic-API
   RealView2DType gu("gu", n0, n1), gu_inv("gu_inv", n0, n1);

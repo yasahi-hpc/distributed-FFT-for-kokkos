@@ -215,9 +215,9 @@ auto rank_to_coord(const std::array<std::size_t, DIM> &topology,
 }
 
 template <std::size_t DIM = 1, typename LayoutType = Kokkos::LayoutRight>
-auto get_local_extents(const std::array<std::size_t, DIM> &extents,
-                       const Topology<std::size_t, DIM, LayoutType> &topology,
-                       MPI_Comm comm) {
+auto compute_local_extents(
+    const std::array<std::size_t, DIM> &extents,
+    const Topology<std::size_t, DIM, LayoutType> &topology, MPI_Comm comm) {
   // Check that topology includes two or less non-one elements
   std::array<std::size_t, DIM> local_extents = {};
   std::array<std::size_t, DIM> local_starts  = {};
@@ -278,10 +278,11 @@ auto get_local_extents(const std::array<std::size_t, DIM> &extents,
 }
 
 template <std::size_t DIM = 1>
-auto get_local_extents(const std::array<std::size_t, DIM> &extents,
-                       const std::array<std::size_t, DIM> &topology,
-                       MPI_Comm comm) {
-  return get_local_extents(extents, Topology<std::size_t, DIM>(topology), comm);
+auto compute_local_extents(const std::array<std::size_t, DIM> &extents,
+                           const std::array<std::size_t, DIM> &topology,
+                           MPI_Comm comm) {
+  return compute_local_extents(extents, Topology<std::size_t, DIM>(topology),
+                               comm);
 }
 
 // Data are stored as

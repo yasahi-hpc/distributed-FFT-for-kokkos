@@ -262,8 +262,8 @@ void test_get_local_shape2D(std::size_t rank, std::size_t nprocs) {
 }
 
 template <typename T, typename LayoutType>
-void test_get_local_extents3D(std::size_t rank, std::size_t npx,
-                              std::size_t npy) {
+void test_compute_local_extents3D(std::size_t rank, std::size_t npx,
+                                  std::size_t npy) {
   using extents_type    = std::array<std::size_t, 3>;
   using topology_r_type = KokkosFFT::Distributed::Topology<std::size_t, 3>;
 
@@ -307,14 +307,14 @@ void test_get_local_extents3D(std::size_t rank, std::size_t npx,
       ref_local_starts_t2{rx * n0_t2_p, ry * n1_t2_p, 0};
 
   auto [local_shape_t0, local_starts_t0] =
-      KokkosFFT::Distributed::get_local_extents(global_shape, topology0,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_shape, topology0,
+                                                    MPI_COMM_WORLD);
   auto [local_shape_t1, local_starts_t1] =
-      KokkosFFT::Distributed::get_local_extents(global_shape, topology1,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_shape, topology1,
+                                                    MPI_COMM_WORLD);
   auto [local_shape_t2, local_starts_t2] =
-      KokkosFFT::Distributed::get_local_extents(global_shape, topology2,
-                                                MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents(global_shape, topology2,
+                                                    MPI_COMM_WORLD);
 
   EXPECT_EQ(local_shape_t0, ref_local_shape_t0);
   EXPECT_EQ(local_shape_t1, ref_local_shape_t1);
@@ -583,8 +583,8 @@ TYPED_TEST(TestMPIHelper, GetLocalShape3D) {
                     "for this test";
   }
 
-  test_get_local_extents3D<float_type, layout_type>(this->m_rank, this->m_npx,
-                                                    this->m_npx);
+  test_compute_local_extents3D<float_type, layout_type>(
+      this->m_rank, this->m_npx, this->m_npx);
 }
 
 TYPED_TEST(TestMPIHelper, GetNextExtents2D) {

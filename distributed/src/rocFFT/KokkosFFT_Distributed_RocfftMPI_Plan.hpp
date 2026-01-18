@@ -90,9 +90,9 @@ void create_plan(const ExecutionSpace& exec_space,
     auto fft_extents =
         compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
     auto [in_extents, in_starts] =
-        get_local_extents(gin_extents, in_topology, comm);
+        compute_local_extents(gin_extents, in_topology, comm);
     auto [out_extents, out_starts] =
-        get_local_extents(gout_extents, out_topology, comm);
+        compute_local_extents(gout_extents, out_topology, comm);
     std::array<std::size_t, DIM> in_ends = {}, out_ends = {};
     std::transform(in_starts.begin(), in_starts.end(), in_extents.begin(),
                    in_ends.begin(), std::plus<std::size_t>());

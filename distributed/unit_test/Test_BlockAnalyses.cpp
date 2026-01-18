@@ -4,13 +4,19 @@
 #include "KokkosFFT_Distributed_BlockAnalyses.hpp"
 
 namespace {
-using layout_types = ::testing::Types<Kokkos::LayoutLeft, Kokkos::LayoutRight>;
+using layout_types =
+    ::testing::Types<std::pair<Kokkos::LayoutLeft, Kokkos::LayoutLeft>,
+                     std::pair<Kokkos::LayoutLeft, Kokkos::LayoutRight>,
+                     std::pair<Kokkos::LayoutRight, Kokkos::LayoutLeft>,
+                     std::pair<Kokkos::LayoutRight, Kokkos::LayoutRight>>;
 
 template <typename T>
 struct TestProposeBlock : public ::testing::Test {
-  using layout_type = T;
+  using layout_type  = typename T::first_type;
+  using layout_type2 = typename T::second_type;
 
-  std::size_t m_rank                    = 0;
+  std::size_t m_rank     = 0;
+  bool m_is_layout_right = std::is_same_v<layout_type2, Kokkos::LayoutRight>;
   std::vector<std::size_t> m_axes       = {2};
   std::vector<std::size_t> m_empty_axes = {};
 
@@ -176,51 +182,26 @@ TEST(TestBlockAnalysesHelpers, propose_fft_block) { test_propose_fft_block(); }
 
 TYPED_TEST_SUITE(TestProposeBlock, layout_types);
 
-TYPED_TEST(TestProposeBlock, propose_transpose_block_right_last) {
+TYPED_TEST(TestProposeBlock, propose_transpose_block_last) {
   using layout_type = typename TestFixture::layout_type;
-  test_propose_transpose_block<layout_type>(this->m_rank, this->m_axes, true,
-                                            true);
+  test_propose_transpose_block<layout_type1>(this->m_rank, this->m_axes,
+                                             this->m_is_layout_right, true);
 }
 
-TYPED_TEST(TestProposeBlock, propose_transpose_block_right_not_last) {
+TYPED_TEST(TestProposeBlock, propose_transpose_block_not_last) {
   using layout_type = typename TestFixture::layout_type;
-  test_propose_transpose_block<layout_type>(this->m_rank, this->m_axes, true,
-                                            false);
+  test_propose_transpose_block<layout_type>(this->m_rank, this->m_axes,
+                                            this->m_is_layout_right, false);
 }
 
-TYPED_TEST(TestProposeBlock, propose_transpose_block_left_last) {
-  using layout_type = typename TestFixture::layout_type;
-  test_propose_transpose_block<layout_type>(this->m_rank, this->m_axes, false,
-                                            true);
-}
-
-TYPED_TEST(TestProposeBlock, propose_transpose_block_left_not_last) {
-  using layout_type = typename TestFixture::layout_type;
-  test_propose_transpose_block<layout_type>(this->m_rank, this->m_axes, false,
-                                            false);
-}
-
-TYPED_TEST(TestProposeBlock, propose_transpose_empty_axes_block_right_last) {
+TYPED_TEST(TestProposeBlock, propose_transpose_block_empty_axes_last) {
   using layout_type = typename TestFixture::layout_type;
   test_propose_transpose_block<layout_type>(this->m_rank, this->m_empty_axes,
-                                            true, true);
+                                            this->m_is_layout_right, true);
 }
 
-TYPED_TEST(TestProposeBlock,
-           propose_transpose_empty_axes_block_right_not_last) {
+TYPED_TEST(TestProposeBlock, propose_transpose_block_empty_axes_not_last) {
   using layout_type = typename TestFixture::layout_type;
   test_propose_transpose_block<layout_type>(this->m_rank, this->m_empty_axes,
-                                            true, false);
-}
-
-TYPED_TEST(TestProposeBlock, propose_transpose_empty_axes_block_left_last) {
-  using layout_type = typename TestFixture::layout_type;
-  test_propose_transpose_block<layout_type>(this->m_rank, this->m_empty_axes,
-                                            false, true);
-}
-
-TYPED_TEST(TestProposeBlock, propose_transpose_empty_axes_block_left_not_last) {
-  using layout_type = typename TestFixture::layout_type;
-  test_propose_transpose_block<layout_type>(this->m_rank, this->m_empty_axes,
-                                            false, false);
+                                            this->m_is_layout_right, false);
 }
