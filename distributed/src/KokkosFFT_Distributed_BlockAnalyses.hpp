@@ -436,7 +436,7 @@ struct SlabBlockAnalysesInternal {
         all_max_buffer_sizes.push_back(max_buffer_size);
       }
     }
-    m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
+    m_max_buffer_size = compute_global_max(all_max_buffer_sizes, comm);
   }
 };
 
@@ -497,7 +497,7 @@ struct PencilBlockAnalysesInternal {
         all_max_buffer_sizes.push_back(max_buffer_size);
       }
     }
-    m_max_buffer_size = get_max(all_max_buffer_sizes, comm);
+    m_max_buffer_size = compute_global_max(all_max_buffer_sizes, comm);
   }
 };
 

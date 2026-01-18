@@ -34,7 +34,7 @@ struct TestMPIHelper : public ::testing::Test {
 };
 
 template <typename T, typename LayoutType>
-void test_get_global_shape2D(std::size_t rank, std::size_t nprocs) {
+void test_compute_global_extents2D(std::size_t rank, std::size_t nprocs) {
   using topology_type = std::array<std::size_t, 2>;
   using ViewType      = Kokkos::View<T**, LayoutType, execution_space>;
 
@@ -56,9 +56,9 @@ void test_get_global_shape2D(std::size_t rank, std::size_t nprocs) {
   ViewType v0("v0", n0_t0, n1_t0);
   ViewType v1("v1", n0_t1, n1_t1);
 
-  auto global_shape_t0 = KokkosFFT::Distributed::Impl::get_global_shape(
+  auto global_shape_t0 = KokkosFFT::Distributed::Impl::compute_global_extents(
       v0, topology0, MPI_COMM_WORLD);
-  auto global_shape_t1 = KokkosFFT::Distributed::Impl::get_global_shape(
+  auto global_shape_t1 = KokkosFFT::Distributed::Impl::compute_global_extents(
       v1, topology1, MPI_COMM_WORLD);
 
   topology_type ref_global_shape{gn0, gn1};
@@ -68,8 +68,8 @@ void test_get_global_shape2D(std::size_t rank, std::size_t nprocs) {
 }
 
 template <typename T, typename LayoutType>
-void test_get_global_shape3D(std::size_t rank, std::size_t npx,
-                             std::size_t npy) {
+void test_compute_global_extents3D(std::size_t rank, std::size_t npx,
+                                   std::size_t npy) {
   using extents_type = std::array<std::size_t, 3>;
   using topology_r_type =
       KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
@@ -105,11 +105,11 @@ void test_get_global_shape3D(std::size_t rank, std::size_t npx,
   ViewType v1("v1", n0_t1, n1_t1, n2_t1);
   ViewType v2("v2", n0_t2, n1_t2, n2_t2);
 
-  auto global_shape_t0 = KokkosFFT::Distributed::Impl::get_global_shape(
+  auto global_shape_t0 = KokkosFFT::Distributed::Impl::compute_global_extents(
       v0, topology0, MPI_COMM_WORLD);
-  auto global_shape_t1 = KokkosFFT::Distributed::Impl::get_global_shape(
+  auto global_shape_t1 = KokkosFFT::Distributed::Impl::compute_global_extents(
       v1, topology1, MPI_COMM_WORLD);
-  auto global_shape_t2 = KokkosFFT::Distributed::Impl::get_global_shape(
+  auto global_shape_t2 = KokkosFFT::Distributed::Impl::compute_global_extents(
       v2, topology2, MPI_COMM_WORLD);
 
   extents_type ref_global_shape{gn0, gn1, gn2};
@@ -548,8 +548,8 @@ TYPED_TEST(TestMPIHelper, GetGlobalShape2D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_get_global_shape2D<float_type, layout_type>(this->m_rank,
-                                                   this->m_nprocs);
+  test_compute_global_extents2D<float_type, layout_type>(this->m_rank,
+                                                         this->m_nprocs);
 }
 
 TYPED_TEST(TestMPIHelper, GetGlobalShape3D) {
@@ -561,8 +561,8 @@ TYPED_TEST(TestMPIHelper, GetGlobalShape3D) {
                     "for this test";
   }
 
-  test_get_global_shape3D<float_type, layout_type>(this->m_rank, this->m_npx,
-                                                   this->m_npx);
+  test_compute_global_extents3D<float_type, layout_type>(
+      this->m_rank, this->m_npx, this->m_npx);
 }
 
 TEST(TestRankToCoord, 1Dto4D) { test_rank_to_coord(); }

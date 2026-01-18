@@ -112,8 +112,8 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
         KokkosFFT::Impl::convert_base_int_type<std::size_t>(
             KokkosFFT::Impl::convert_negative_axes(axes, DIM));
 
-    auto gin_extents        = get_global_shape(in, in_topology, comm);
-    auto gout_extents       = get_global_shape(out, out_topology, comm);
+    auto gin_extents        = compute_global_extents(in, in_topology, comm);
+    auto gout_extents       = compute_global_extents(out, out_topology, comm);
     auto gin_padded_extents = gin_extents;
     if (KokkosFFT::Impl::is_real_v<in_value_type>) {
       gin_padded_extents =
