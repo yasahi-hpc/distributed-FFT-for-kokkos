@@ -166,15 +166,11 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 1,
         m_in_topology(in_topology),
         m_out_topology(out_topology),
         m_comm(comm) {
-    KOKKOSFFT_THROW_IF(
-        !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
-        "Extents are not valid");
     create_pencil_communicators(m_exec_space, m_in_topology, m_comm,
                                 m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
-    auto in_extents = KokkosFFT::Impl::extract_extents(in);
-
+    auto in_extents   = KokkosFFT::Impl::extract_extents(in);
     auto gin_extents  = compute_global_extents(in, m_in_topology, m_comm);
     auto gout_extents = compute_global_extents(out, m_out_topology, m_comm);
 
@@ -551,15 +547,11 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
         m_in_topology(in_topology),
         m_out_topology(out_topology),
         m_comm(comm) {
-    KOKKOSFFT_THROW_IF(
-        !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
-        "Extents are not valid");
     create_pencil_communicators(m_exec_space, m_in_topology, m_comm,
                                 m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
-    auto in_extents = KokkosFFT::Impl::extract_extents(in);
-
+    auto in_extents   = KokkosFFT::Impl::extract_extents(in);
     auto gin_extents  = compute_global_extents(in, m_in_topology, m_comm);
     auto gout_extents = compute_global_extents(out, m_out_topology, m_comm);
 
@@ -1099,15 +1091,11 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
         m_in_topology(in_topology),
         m_out_topology(out_topology),
         m_comm(comm) {
-    KOKKOSFFT_THROW_IF(
-        !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
-        "Extents are not valid");
     create_pencil_communicators(m_exec_space, m_in_topology, m_comm,
                                 m_cart_comm, m_cart_comms, m_cart_tpl_comms);
 
     // First get global shape to define buffer and next shape
-    auto in_extents = KokkosFFT::Impl::extract_extents(in);
-
+    auto in_extents   = KokkosFFT::Impl::extract_extents(in);
     auto gin_extents  = compute_global_extents(in, m_in_topology, m_comm);
     auto gout_extents = compute_global_extents(out, m_out_topology, m_comm);
 

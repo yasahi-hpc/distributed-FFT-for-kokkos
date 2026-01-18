@@ -7,6 +7,7 @@
 #include <sstream>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include "KokkosFFT_Distributed_MPI_Helper.hpp"
 #include "KokkosFFT_Distributed_InternalPlan.hpp"
 #include "KokkosFFT_Distributed_SharedPlan.hpp"
 #include "KokkosFFT_Distributed_SlabPlan.hpp"
@@ -65,6 +66,10 @@ internal_plan_factory(
                      "in_topology and out_topology must have the same size.");
   KOKKOSFFT_THROW_IF(static_cast<int>(in_total_size) != nprocs,
                      "topology size must be identical to mpi size.");
+
+  KOKKOSFFT_THROW_IF(
+      !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
+      "Extents are not valid");
 
 #if defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
   if constexpr ((InViewType::rank() == 2 && DIM == 2) ||
