@@ -103,10 +103,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
         m_in_topology(in_topology),
         m_out_topology(out_topology),
         m_comm(comm, exec_space) {
-    KOKKOSFFT_THROW_IF(
-        !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
-        "Extents are not valid");
-
     // First get global shape to define buffer and next shape
     auto in_extents   = KokkosFFT::Impl::extract_extents(in);
     auto gin_extents  = compute_global_extents(in, m_in_topology, comm);
@@ -425,10 +421,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
         m_in_topology(in_topology),
         m_out_topology(out_topology),
         m_comm(comm, exec_space) {
-    KOKKOSFFT_THROW_IF(
-        !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
-        "Extents are not valid");
-
     // First get global shape to define buffer and next shape
     auto in_extents   = KokkosFFT::Impl::extract_extents(in);
     auto gin_extents  = compute_global_extents(in, m_in_topology, comm);
@@ -899,10 +891,6 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
         m_in_topology(in_topology),
         m_out_topology(out_topology),
         m_comm(comm, exec_space) {
-    KOKKOSFFT_THROW_IF(
-        !are_valid_extents(in, out, axes, in_topology, out_topology, comm),
-        "Extents are not valid");
-
     // First get global shape to define buffer and next shape
     auto in_extents   = KokkosFFT::Impl::extract_extents(in);
     auto gin_extents  = compute_global_extents(in, m_in_topology, comm);
