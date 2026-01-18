@@ -8,7 +8,6 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Types.hpp"
 #include "KokkosFFT_Distributed_Types.hpp"
-#include "KokkosFFT_Distributed_Utils.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -207,7 +206,8 @@ auto compute_global_max(const ContainerType &values, MPI_Comm comm) {
 /// \brief Convert rank to coordinate based on the given topology
 /// \tparam DIM Number of dimensions (default is 1)
 /// \tparam LayoutType Layout type for the Topology (default is
-/// Kokkos::LayoutRight) \param[in] topology Topology of the distributed data
+/// Kokkos::LayoutRight)
+/// \param[in] topology Topology of the distributed data
 /// \param[in] rank MPI rank
 /// \return The coordinate corresponding to the given rank
 template <std::size_t DIM = 1, typename LayoutType = Kokkos::LayoutRight>

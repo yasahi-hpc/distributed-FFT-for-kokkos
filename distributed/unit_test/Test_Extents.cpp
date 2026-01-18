@@ -142,10 +142,10 @@ void test_compute_fft_extents(iType nprocs) {
 TYPED_TEST_SUITE(TestExtents, test_types);
 
 TYPED_TEST(TestExtents, BufferExtents) {
-  using int_type    = typename TestFixture::int_type;
+  using value_type  = typename TestFixture::value_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_buffer_extents<int_type, layout_type>();
+  test_buffer_extents<value_type, layout_type>();
 }
 
 TYPED_TEST(TestExtents, mapped_extents_of_vector) {

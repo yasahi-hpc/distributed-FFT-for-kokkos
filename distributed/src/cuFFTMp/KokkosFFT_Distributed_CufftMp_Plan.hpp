@@ -6,7 +6,6 @@
 #include "KokkosFFT_Distributed_MPI_Helper.hpp"
 #include "KokkosFFT_Distributed_Topologies.hpp"
 #include "KokkosFFT_Distributed_Extents.hpp"
-#include "KokkosFFT_Distributed_Utils.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
