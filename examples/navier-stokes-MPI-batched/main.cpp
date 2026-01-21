@@ -94,13 +94,6 @@ struct Grid {
   Grid(int rank, int px, int py, int nx, int ny, int nz, double lx, double ly,
        double lz)
       : m_rank(rank), m_px(px), m_py(py) {
-    // Check that parallelization is valid
-    if (nx % px != 0 || ny % py != 0 || nz % py != 0) {
-      throw std::runtime_error(
-          "Grid size must be divisible by the number of processes in each "
-          "direction.");
-    }
-
     std::array<std::size_t, 2> topology{std::size_t(px), std::size_t(py)};
     auto coord = KokkosFFT::Distributed::rank_to_coord(topology, rank);
     m_rx = coord.at(0), m_ry = coord.at(1);
