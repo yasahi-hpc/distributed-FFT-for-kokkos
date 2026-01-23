@@ -739,7 +739,7 @@ void test_are_topologies(std::size_t nprocs) {
   }
 }
 
-void test_get_slab_2D(std::size_t nprocs) {
+void test_slab_in_out_axes_2D(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 2>;
   topology_type topology0 = {1, nprocs};
   topology_type topology1 = {nprocs, 1};
@@ -751,21 +751,23 @@ void test_get_slab_2D(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis01 =
-              KokkosFFT::Distributed::Impl::get_slab(topology0, topology1);
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
+                                                             topology1);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis10 =
-              KokkosFFT::Distributed::Impl::get_slab(topology1, topology0);
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1,
+                                                             topology0);
         },
         std::runtime_error);
   } else {
     // Slab tests
     auto [in_axis01, out_axis01] =
-        KokkosFFT::Distributed::Impl::get_slab(topology0, topology1);
+        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0, topology1);
     auto [in_axis10, out_axis10] =
-        KokkosFFT::Distributed::Impl::get_slab(topology1, topology0);
+        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1, topology0);
 
     EXPECT_EQ(in_axis01, 0);
     EXPECT_EQ(out_axis01, 1);
@@ -777,18 +779,20 @@ void test_get_slab_2D(std::size_t nprocs) {
   EXPECT_THROW(
       {
         [[maybe_unused]] auto inout_axis02 =
-            KokkosFFT::Distributed::Impl::get_slab(topology0, topology2);
+            KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
+                                                           topology2);
       },
       std::runtime_error);
   EXPECT_THROW(
       {
         [[maybe_unused]] auto inout_axis03 =
-            KokkosFFT::Distributed::Impl::get_slab(topology0, topology3);
+            KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
+                                                           topology3);
       },
       std::runtime_error);
 }
 
-void test_get_slab_3D(std::size_t nprocs) {
+void test_slab_in_out_axes_3D(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 3>;
   topology_type topology0 = {1, 1, nprocs};
   topology_type topology1 = {1, nprocs, 1};
@@ -801,53 +805,59 @@ void test_get_slab_3D(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis01 =
-              KokkosFFT::Distributed::Impl::get_slab(topology0, topology1);
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
+                                                             topology1);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis02 =
-              KokkosFFT::Distributed::Impl::get_slab(topology0, topology2);
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
+                                                             topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis10 =
-              KokkosFFT::Distributed::Impl::get_slab(topology1, topology0);
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1,
+                                                             topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis12 =
-              KokkosFFT::Distributed::Impl::get_slab(topology1, topology2);
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1,
+                                                             topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis20 =
-              KokkosFFT::Distributed::Impl::get_slab(topology2, topology0);
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology2,
+                                                             topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis21 =
-              KokkosFFT::Distributed::Impl::get_slab(topology2, topology1);
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology2,
+                                                             topology1);
         },
         std::runtime_error);
   } else {
     // Slab tests
     auto [in_axis01, out_axis01] =
-        KokkosFFT::Distributed::Impl::get_slab(topology0, topology1);
+        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0, topology1);
     auto [in_axis02, out_axis02] =
-        KokkosFFT::Distributed::Impl::get_slab(topology0, topology2);
+        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0, topology2);
     auto [in_axis10, out_axis10] =
-        KokkosFFT::Distributed::Impl::get_slab(topology1, topology0);
+        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1, topology0);
     auto [in_axis12, out_axis12] =
-        KokkosFFT::Distributed::Impl::get_slab(topology1, topology2);
+        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1, topology2);
     auto [in_axis20, out_axis20] =
-        KokkosFFT::Distributed::Impl::get_slab(topology2, topology0);
+        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology2, topology0);
     auto [in_axis21, out_axis21] =
-        KokkosFFT::Distributed::Impl::get_slab(topology2, topology1);
+        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology2, topology1);
 
     EXPECT_EQ(in_axis01, 1);
     EXPECT_EQ(out_axis01, 2);
@@ -867,13 +877,15 @@ void test_get_slab_3D(std::size_t nprocs) {
   EXPECT_THROW(
       {
         [[maybe_unused]] auto inout_axis03 =
-            KokkosFFT::Distributed::Impl::get_slab(topology0, topology3);
+            KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
+                                                           topology3);
       },
       std::runtime_error);
   EXPECT_THROW(
       {
         [[maybe_unused]] auto inout_axis04 =
-            KokkosFFT::Distributed::Impl::get_slab(topology0, topology4);
+            KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
+                                                           topology4);
       },
       std::runtime_error);
 }
@@ -2907,7 +2919,7 @@ void test_get_all_slab_topologies3D_4DView(std::size_t nprocs) {
   }
 }
 
-void test_get_pencil_3D(std::size_t nprocs) {
+void test_pencil_in_out_axes_3D(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 3>;
   topology_type topology0 = {1, 1, nprocs};
   topology_type topology1 = {1, nprocs, 1};
@@ -2920,53 +2932,59 @@ void test_get_pencil_3D(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis01 =
-              KokkosFFT::Distributed::Impl::get_pencil(topology0, topology1);
+              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology0,
+                                                               topology1);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis02 =
-              KokkosFFT::Distributed::Impl::get_pencil(topology0, topology2);
+              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology0,
+                                                               topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis10 =
-              KokkosFFT::Distributed::Impl::get_pencil(topology1, topology0);
+              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology1,
+                                                               topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis12 =
-              KokkosFFT::Distributed::Impl::get_pencil(topology1, topology2);
+              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology1,
+                                                               topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis20 =
-              KokkosFFT::Distributed::Impl::get_pencil(topology2, topology0);
+              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology2,
+                                                               topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto inout_axis21 =
-              KokkosFFT::Distributed::Impl::get_pencil(topology2, topology1);
+              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology2,
+                                                               topology1);
         },
         std::runtime_error);
   } else {
     // Slab tests
     auto [in_axis01, out_axis01] =
-        KokkosFFT::Distributed::Impl::get_pencil(topology0, topology1);
+        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology0, topology1);
     auto [in_axis02, out_axis02] =
-        KokkosFFT::Distributed::Impl::get_pencil(topology0, topology2);
+        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology0, topology2);
     auto [in_axis10, out_axis10] =
-        KokkosFFT::Distributed::Impl::get_pencil(topology1, topology0);
+        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology1, topology0);
     auto [in_axis12, out_axis12] =
-        KokkosFFT::Distributed::Impl::get_pencil(topology1, topology2);
+        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology1, topology2);
     auto [in_axis20, out_axis20] =
-        KokkosFFT::Distributed::Impl::get_pencil(topology2, topology0);
+        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology2, topology0);
     auto [in_axis21, out_axis21] =
-        KokkosFFT::Distributed::Impl::get_pencil(topology2, topology1);
+        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology2, topology1);
 
     EXPECT_EQ(in_axis01, 1);
     EXPECT_EQ(out_axis01, 2);
@@ -2983,9 +3001,9 @@ void test_get_pencil_3D(std::size_t nprocs) {
 
     // Pencil tests
     auto [in_axis34, out_axis34] =
-        KokkosFFT::Distributed::Impl::get_pencil(topology3, topology4);
+        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology3, topology4);
     auto [in_axis43, out_axis43] =
-        KokkosFFT::Distributed::Impl::get_pencil(topology4, topology3);
+        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology4, topology3);
     EXPECT_EQ(in_axis34, 1);
     EXPECT_EQ(out_axis34, 2);
     EXPECT_EQ(in_axis43, 2);
@@ -2996,19 +3014,22 @@ void test_get_pencil_3D(std::size_t nprocs) {
   EXPECT_THROW(
       {
         [[maybe_unused]] auto inout_axis30 =
-            KokkosFFT::Distributed::Impl::get_pencil(topology3, topology0);
+            KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology3,
+                                                             topology0);
       },
       std::runtime_error);
   EXPECT_THROW(
       {
         [[maybe_unused]] auto inout_axis31 =
-            KokkosFFT::Distributed::Impl::get_pencil(topology3, topology1);
+            KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology3,
+                                                             topology1);
       },
       std::runtime_error);
   EXPECT_THROW(
       {
         [[maybe_unused]] auto inout_axis32 =
-            KokkosFFT::Distributed::Impl::get_pencil(topology3, topology2);
+            KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology3,
+                                                             topology2);
       },
       std::runtime_error);
 }
@@ -6556,12 +6577,12 @@ INSTANTIATE_TEST_SUITE_P(TopologyTests, TopologyParamTests,
 
 TEST_P(SlabParamTests, GetSlab2D) {
   int n0 = GetParam();
-  test_get_slab_2D(n0);
+  test_slab_in_out_axes_2D(n0);
 }
 
 TEST_P(SlabParamTests, GetSlab3D) {
   int n0 = GetParam();
-  test_get_slab_3D(n0);
+  test_slab_in_out_axes_3D(n0);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_3DView) {
@@ -6594,7 +6615,7 @@ INSTANTIATE_TEST_SUITE_P(SlabTests, SlabParamTests,
 
 TEST_P(PencilParamTests, GetPencil3D) {
   int n0 = GetParam();
-  test_get_pencil_3D(n0);
+  test_pencil_in_out_axes_3D(n0);
 }
 
 TEST_P(PencilParamTests, GetMidArray3D) {
