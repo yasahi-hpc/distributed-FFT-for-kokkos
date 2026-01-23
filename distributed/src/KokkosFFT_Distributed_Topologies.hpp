@@ -170,8 +170,7 @@ auto pencil_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
     }
   }
 
-  std::tuple<std::size_t, std::size_t> pencil_array = {in_axis, out_axis};
-  return pencil_array;
+  return std::make_tuple(in_axis, out_axis);
 }
 
 template <std::size_t DIM, typename LayoutType = Kokkos::LayoutRight>
@@ -210,8 +209,7 @@ auto slab_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
     }
   }
 
-  std::tuple<std::size_t, std::size_t> slab_array = {in_axis, out_axis};
-  return slab_array;
+  return std::make_tuple(in_axis, out_axis);
 }
 
 template <typename iType, std::size_t DIM = 1>
