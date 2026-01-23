@@ -143,9 +143,10 @@ void test_propose_transpose_block(std::size_t rank,
   } else {
     auto ref_out_map =
         axes.empty()
-            ? KokkosFFT::Distributed::Impl::get_dst_map<LayoutType>(map,
-                                                                    out_axis)
-            : KokkosFFT::Distributed::Impl::get_dst_map<LayoutType>(map, axes);
+            ? KokkosFFT::Distributed::Impl::permute_map_by_axes<LayoutType>(
+                  map, out_axis)
+            : KokkosFFT::Distributed::Impl::permute_map_by_axes<LayoutType>(
+                  map, axes);
     EXPECT_EQ(block.m_out_map, ref_out_map);
   }
 

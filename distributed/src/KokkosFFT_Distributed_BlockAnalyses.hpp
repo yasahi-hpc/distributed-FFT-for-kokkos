@@ -116,9 +116,9 @@ auto propose_transpose_block(const std::array<std::size_t, DIM>& map,
   if (is_last) {
     block.m_out_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
   } else {
-    block.m_out_map = axes.empty()
-                          ? get_dst_map<LayoutType>(block.m_in_map, out_axis)
-                          : get_dst_map<LayoutType>(block.m_in_map, axes);
+    block.m_out_map =
+        axes.empty() ? permute_map_by_axes<LayoutType>(block.m_in_map, out_axis)
+                     : permute_map_by_axes<LayoutType>(block.m_in_map, axes);
   }
 
   block.m_out_extents = compute_next_extents(

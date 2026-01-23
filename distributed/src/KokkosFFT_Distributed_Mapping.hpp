@@ -36,12 +36,12 @@ namespace Impl {
 /// \param[in] axis    The axis to be merged/split
 template <typename LayoutType, typename ContainerType, typename iType,
           std::size_t DIM>
-auto get_dst_map(const std::array<iType, DIM>& src_map,
-                 const ContainerType& axes) {
+auto permute_map_by_axes(const std::array<iType, DIM>& src_map,
+                         const ContainerType& axes) {
   using value_type =
       std::remove_cv_t<std::remove_reference_t<decltype(*axes.begin())>>;
   static_assert(std::is_same_v<value_type, iType>,
-                "get_dst_map: Container value type must match iType");
+                "permute_map_by_axes: Container value type must match iType");
 
   std::vector<iType> map;
   map.reserve(DIM);
@@ -102,8 +102,8 @@ auto get_dst_map(const std::array<iType, DIM>& src_map,
 /// \param[in] src_map The axis map of the input view
 /// \param[in] axis    The axis to be merged/split
 template <typename LayoutType, typename iType, std::size_t DIM>
-auto get_dst_map(const std::array<iType, DIM>& src_map, iType axis) {
-  return get_dst_map<LayoutType>(src_map, std::vector<iType>{axis});
+auto permute_map_by_axes(const std::array<iType, DIM>& src_map, iType axis) {
+  return permute_map_by_axes<LayoutType>(src_map, std::vector<iType>{axis});
 }
 
 }  // namespace Impl
