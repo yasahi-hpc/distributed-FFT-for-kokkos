@@ -23,10 +23,10 @@ namespace Impl {
 /// \param[in] topology Topology container
 /// \return TopologyType enum value representing the topology type
 template <typename ContainerType>
-inline auto get_topology_type(const ContainerType& topology) {
+inline auto to_topology_type(const ContainerType& topology) {
   static_assert(
       (is_allowed_topology_v<ContainerType>),
-      "get_topology_type: topologies must be either in std::array or Topology");
+      "to_topology_type: topologies must be either in std::array or Topology");
   TopologyType topology_type = TopologyType::Invalid;
 
   auto size = KokkosFFT::Impl::total_size(topology);
@@ -59,7 +59,7 @@ inline bool are_shared_topologies(const Topologies&... topologies) {
                 "are_shared_topologies: topologies must be either in "
                 "std::array or Topology");
   auto is_shared_topology = [](const auto& topology) {
-    return get_topology_type(topology) == TopologyType::Shared;
+    return to_topology_type(topology) == TopologyType::Shared;
   };
   return (is_shared_topology(topologies) && ...);
 }
@@ -74,7 +74,7 @@ inline bool are_slab_topologies(const Topologies&... topologies) {
                 "are_slab_topologies: topologies must be either in std::array "
                 "or Topology");
   auto is_slab_topology = [](const auto& topology) {
-    return get_topology_type(topology) == TopologyType::Slab;
+    return to_topology_type(topology) == TopologyType::Slab;
   };
   return (is_slab_topology(topologies) && ...);
 }
@@ -89,7 +89,7 @@ inline bool are_pencil_topologies(const Topologies&... topologies) {
                 "are_pencil_topologies: topologies must be either in "
                 "std::array or Topology");
   auto is_pencil_topology = [](const auto& topology) {
-    return get_topology_type(topology) == TopologyType::Pencil;
+    return to_topology_type(topology) == TopologyType::Pencil;
   };
   return (is_pencil_topology(topologies) && ...);
 }
@@ -104,7 +104,7 @@ inline bool are_brick_topologies(const Topologies&... topologies) {
                 "are_brick_topologies: topologies must be either in "
                 "std::array or Topology");
   auto is_brick_topology = [](const auto& topology) {
-    return get_topology_type(topology) == TopologyType::Brick;
+    return to_topology_type(topology) == TopologyType::Brick;
   };
   return (is_brick_topology(topologies) && ...);
 }
@@ -122,7 +122,7 @@ inline auto get_common_topology_type(const Topologies&... topologies) {
 
   // Quick return if empty topology is found
   auto is_empty = [](const auto& topology) {
-    return get_topology_type(topology) == TopologyType::Empty;
+    return to_topology_type(topology) == TopologyType::Empty;
   };
   if ((is_empty(topologies) || ...)) {
     return TopologyType::Empty;
