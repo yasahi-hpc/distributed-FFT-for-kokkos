@@ -149,8 +149,8 @@ inline auto get_common_topology_type(const Topologies&... topologies) {
 // (P, 1, 1) -> (1, P, 1): 1-pencil to 0-pencil
 
 template <std::size_t DIM>
-auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
-                const std::array<std::size_t, DIM>& out_topology) {
+auto pencil_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
+                        const std::array<std::size_t, DIM>& out_topology) {
   // Extract topology that is common between in_topology and out_topology
   // std::array<std::size_t, DIM> common_topology = {};
   auto in_size  = KokkosFFT::Impl::total_size(in_topology);
@@ -170,14 +170,14 @@ auto get_pencil(const std::array<std::size_t, DIM>& in_topology,
     }
   }
 
-  std::tuple<std::size_t, std::size_t> pencil_array = {in_axis, out_axis};
-  return pencil_array;
+  return std::make_tuple(in_axis, out_axis);
 }
 
 template <std::size_t DIM, typename LayoutType = Kokkos::LayoutRight>
-auto get_pencil(const Topology<std::size_t, DIM, LayoutType>& in_topology,
-                const Topology<std::size_t, DIM, LayoutType>& out_topology) {
-  return get_pencil(in_topology.array(), out_topology.array());
+auto pencil_in_out_axes(
+    const Topology<std::size_t, DIM, LayoutType>& in_topology,
+    const Topology<std::size_t, DIM, LayoutType>& out_topology) {
+  return pencil_in_out_axes(in_topology.array(), out_topology.array());
 }
 
 // Example
@@ -187,8 +187,8 @@ auto get_pencil(const Topology<std::size_t, DIM, LayoutType>& in_topology,
 // (P, 1, 1) -> (1, P, 1): yz-slab to xz-slab
 
 template <std::size_t DIM>
-auto get_slab(const std::array<std::size_t, DIM>& in_topology,
-              const std::array<std::size_t, DIM>& out_topology) {
+auto slab_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
+                      const std::array<std::size_t, DIM>& out_topology) {
   auto in_size  = KokkosFFT::Impl::total_size(in_topology);
   auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
@@ -209,8 +209,7 @@ auto get_slab(const std::array<std::size_t, DIM>& in_topology,
     }
   }
 
-  std::tuple<std::size_t, std::size_t> slab_array = {in_axis, out_axis};
-  return slab_array;
+  return std::make_tuple(in_axis, out_axis);
 }
 
 template <typename iType, std::size_t DIM = 1>

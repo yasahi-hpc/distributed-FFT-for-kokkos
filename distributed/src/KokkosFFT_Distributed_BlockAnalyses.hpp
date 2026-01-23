@@ -172,7 +172,8 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
         auto nb_trans_blocks  = count_blocks(block_infos, BlockType::Transpose);
         auto current_topology = all_topologies.at(nb_trans_blocks);
         auto next_topology    = all_topologies.at(nb_trans_blocks + 1);
-        auto [in_axis, out_axis] = get_slab(current_topology, next_topology);
+        auto [in_axis, out_axis] =
+            slab_in_out_axes(current_topology, next_topology);
 
         std::vector<iType> next_axes =
             is_last ? std::vector<iType>{} : all_axes.at(block_idx + 1);
@@ -296,7 +297,8 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
         auto nb_trans_blocks  = count_blocks(block_infos, BlockType::Transpose);
         auto current_topology = all_topologies.at(nb_trans_blocks);
         auto next_topology    = all_topologies.at(nb_trans_blocks + 1);
-        auto [in_axis, out_axis] = get_pencil(current_topology, next_topology);
+        auto [in_axis, out_axis] =
+            pencil_in_out_axes(current_topology, next_topology);
 
         std::vector<iType> next_axes =
             is_last ? std::vector<iType>{} : all_axes.at(block_idx + 1);
