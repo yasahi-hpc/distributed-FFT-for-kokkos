@@ -152,7 +152,6 @@ template <std::size_t DIM>
 auto pencil_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
                         const std::array<std::size_t, DIM>& out_topology) {
   // Extract topology that is common between in_topology and out_topology
-  // std::array<std::size_t, DIM> common_topology = {};
   auto in_size  = KokkosFFT::Impl::total_size(in_topology);
   auto out_size = KokkosFFT::Impl::total_size(out_topology);
   KOKKOSFFT_THROW_IF(in_size == 1 || out_size == 1,
