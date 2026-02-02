@@ -386,6 +386,7 @@ void test_get_common_topology_type(std::size_t nprocs) {
 
 template <bool is_std_array>
 void test_is_topology(std::size_t nprocs) {
+  using KokkosFFT::Distributed::Impl::TopologyType;
   using topology1D_type = std::conditional_t<
       is_std_array, std::array<std::size_t, 1>,
       KokkosFFT::Distributed::Topology<std::size_t, 1, Kokkos::LayoutRight>>;
@@ -416,7 +417,7 @@ void test_is_topology(std::size_t nprocs) {
   if (nprocs == 1) {
     // 1D topology is shared
     EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
-        TopologyType::Share, topology1));
+        TopologyType::Shared, topology1));
     EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
         TopologyType::Shared, topology1));
     EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
@@ -581,6 +582,7 @@ void test_is_topology(std::size_t nprocs) {
 
 template <bool is_std_array>
 void test_are_topologies(std::size_t nprocs) {
+  using KokkosFFT::Distributed::Impl::TopologyType;
   using topology1D_type = std::conditional_t<
       is_std_array, std::array<std::size_t, 1>,
       KokkosFFT::Distributed::Topology<std::size_t, 1, Kokkos::LayoutRight>>;
