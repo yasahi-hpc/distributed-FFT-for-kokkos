@@ -1668,7 +1668,8 @@ class PencilPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     KOKKOSFFT_THROW_IF(in_size != out_size,
                        "Input and output topologies must have the same size.");
 
-    bool is_pencil = are_pencil_topologies(in_topology, out_topology);
+    bool is_pencil = are_specified_topologies(TopologyType::Pencil, in_topology,
+                                              out_topology);
     KOKKOSFFT_THROW_IF(
         !is_pencil, "Input and output topologies must be pencil topologies.");
   }

@@ -36,8 +36,10 @@ bool is_tpl_available(
 
   if (in_topology == out_topology) return false;
 
-  bool is_slab   = are_slab_topologies(in_topology, out_topology);
-  bool is_pencil = are_pencil_topologies(in_topology, out_topology);
+  bool is_slab =
+      are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
+  bool is_pencil =
+      are_specified_topologies(TopologyType::Pencil, in_topology, out_topology);
 
   if constexpr (InViewType::rank() == 2 && DIM == 2) {
     if (is_slab) return true;

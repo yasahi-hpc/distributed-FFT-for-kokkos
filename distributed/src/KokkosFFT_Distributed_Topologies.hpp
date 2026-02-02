@@ -27,15 +27,12 @@ inline auto to_topology_type(const ContainerType& topology) {
   static_assert(
       (is_allowed_topology_v<ContainerType>),
       "to_topology_type: topologies must be either in std::array or Topology");
-  TopologyType topology_type = TopologyType::Invalid;
 
   auto size = KokkosFFT::Impl::total_size(topology);
-  if (size == 0) {
-    topology_type = TopologyType::Empty;
-    return topology_type;
-  }
+  if (size == 0) return TopologyType::Empty;
 
-  auto non_one_count = count_non_ones(topology);
+  TopologyType topology_type = TopologyType::Invalid;
+  auto non_one_count         = count_non_ones(topology);
   if (non_one_count == 0) {
     topology_type = TopologyType::Shared;
   } else if (non_one_count == 1) {
@@ -49,64 +46,21 @@ inline auto to_topology_type(const ContainerType& topology) {
   return topology_type;
 }
 
-/// \brief Check if all given topologies are of Shared type
+/// \brief Check if all given topologies are of specified type
 /// \tparam Topologies Variadic template parameter for topology container types
+/// \param[in] topology_type a topology type of interest
 /// \param[in] topologies Topology containers
 /// \return true if all topologies are Shared type, false otherwise
 template <class... Topologies>
-inline bool are_shared_topologies(const Topologies&... topologies) {
+inline bool are_specified_topologies(const TopologyType topology_type,
+                                     const Topologies&... topologies) {
   static_assert((are_allowed_topologies_v<Topologies...>),
-                "are_shared_topologies: topologies must be either in "
+                "are_specified_topologies: topologies must be either in "
                 "std::array or Topology");
-  auto is_shared_topology = [](const auto& topology) {
-    return to_topology_type(topology) == TopologyType::Shared;
+  auto is_specified_topology = [topology_type](const auto& topology) {
+    return to_topology_type(topology) == topology_type;
   };
-  return (is_shared_topology(topologies) && ...);
-}
-
-/// \brief Check if all given topologies are of Slab type
-/// \tparam Topologies Variadic template parameter for topology container types
-/// \param[in] topologies Topology containers
-/// \return true if all topologies are Slab type, false otherwise
-template <class... Topologies>
-inline bool are_slab_topologies(const Topologies&... topologies) {
-  static_assert((are_allowed_topologies_v<Topologies...>),
-                "are_slab_topologies: topologies must be either in std::array "
-                "or Topology");
-  auto is_slab_topology = [](const auto& topology) {
-    return to_topology_type(topology) == TopologyType::Slab;
-  };
-  return (is_slab_topology(topologies) && ...);
-}
-
-/// \brief Check if all given topologies are of Pencil type
-/// \tparam Topologies Variadic template parameter for topology container types
-/// \param[in] topologies Topology containers
-/// \return true if all topologies are Pencil type, false otherwise
-template <class... Topologies>
-inline bool are_pencil_topologies(const Topologies&... topologies) {
-  static_assert((are_allowed_topologies_v<Topologies...>),
-                "are_pencil_topologies: topologies must be either in "
-                "std::array or Topology");
-  auto is_pencil_topology = [](const auto& topology) {
-    return to_topology_type(topology) == TopologyType::Pencil;
-  };
-  return (is_pencil_topology(topologies) && ...);
-}
-
-/// \brief Check if all given topologies are of Brick type
-/// \tparam Topologies Variadic template parameter for topology container types
-/// \param[in] topologies Topology containers
-/// \return true if all topologies are Brick type, false otherwise
-template <class... Topologies>
-inline bool are_brick_topologies(const Topologies&... topologies) {
-  static_assert((are_allowed_topologies_v<Topologies...>),
-                "are_brick_topologies: topologies must be either in "
-                "std::array or Topology");
-  auto is_brick_topology = [](const auto& topology) {
-    return to_topology_type(topology) == TopologyType::Brick;
-  };
-  return (is_brick_topology(topologies) && ...);
+  return (is_specified_topology(topologies) && ...);
 }
 
 /// \brief Get the topology type from the given topology containers
@@ -128,18 +82,16 @@ inline auto get_common_topology_type(const Topologies&... topologies) {
     return TopologyType::Empty;
   }
 
-  TopologyType topology_type = TopologyType::Invalid;
-  if (are_shared_topologies(topologies...)) {
-    topology_type = TopologyType::Shared;
-  } else if (are_slab_topologies(topologies...)) {
-    topology_type = TopologyType::Slab;
-  } else if (are_pencil_topologies(topologies...)) {
-    topology_type = TopologyType::Pencil;
-  } else if (are_brick_topologies(topologies...)) {
-    topology_type = TopologyType::Brick;
+  const std::array<TopologyType, 4> all_topology_types = {
+      TopologyType::Shared, TopologyType::Slab, TopologyType::Pencil,
+      TopologyType::Brick};
+  for (TopologyType t : all_topology_types) {
+    if (are_specified_topologies(t, topologies...)) {
+      return t;
+    }
   }
 
-  return topology_type;
+  return TopologyType::Invalid;
 }
 
 // Can we also check that this is a slab?
@@ -194,7 +146,8 @@ auto slab_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
   KOKKOSFFT_THROW_IF(in_size != out_size,
                      "Input and output topologies must have the same size.");
 
-  bool is_slab = are_slab_topologies(in_topology, out_topology);
+  bool is_slab =
+      are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
   KOKKOSFFT_THROW_IF(!is_slab,
                      "Input and output topologies must be slab topologies.");
 
@@ -378,7 +331,8 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
   static_assert(std::is_unsigned_v<iType>,
                 "get_all_slab_topologies: axes must be unsigned");
 
-  bool is_slab = are_slab_topologies(in_topology, out_topology);
+  bool is_slab =
+      are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
   KOKKOSFFT_THROW_IF(!is_slab,
                      "Input and output topologies must be slab topologies.");
 
@@ -597,7 +551,8 @@ auto get_all_pencil_topologies(
   using axes_type       = std::vector<std::size_t>;
   using layouts_type    = std::vector<std::size_t>;
 
-  bool is_pencil = are_pencil_topologies(in_topology, out_topology);
+  bool is_pencil =
+      are_specified_topologies(TopologyType::Pencil, in_topology, out_topology);
   KOKKOSFFT_THROW_IF(!is_pencil,
                      "Input and output topologies must be pencil topologies.");
 
