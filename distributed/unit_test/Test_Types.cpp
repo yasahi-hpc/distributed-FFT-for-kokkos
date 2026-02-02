@@ -5,19 +5,29 @@
 #include <type_traits>
 #include "KokkosFFT_Distributed_Types.hpp"
 
+namespace {
+// Type definitions for parameterized tests
+using TopologyTypes =
+    ::testing::Types<KokkosFFT::Distributed::Topology<int, 3>,
+                     KokkosFFT::Distributed::Topology<double, 4>,
+                     KokkosFFT::Distributed::Topology<float, 5>,
+                     KokkosFFT::Distributed::Topology<std::size_t, 2> >;
+
+using DataTypes = ::testing::Types<int, double, float, std::size_t>;
+
 // Test fixture for Topology class
 template <typename TopologyType>
-struct TopologyTest : public ::testing::Test {
+struct TestTopology : public ::testing::Test {
   using value_type                  = typename TopologyType::value_type;
   static constexpr std::size_t size = TopologyType{}.size();
 
-  std::array<value_type, size> test_data;
+  std::array<value_type, size> m_test_data;
 
  protected:
   virtual void SetUp() override {
     // Initialize test data
     for (std::size_t i = 0; i < size; ++i) {
-      test_data[i] = static_cast<value_type>(i + 1);
+      m_test_data[i] = static_cast<value_type>(i + 1);
     }
   }
 };
@@ -38,17 +48,10 @@ struct CompileTestTopologyTypes : public ::testing::Test {
   }
 };
 
-// Type definitions for parameterized tests
-using TopologyTypes =
-    ::testing::Types<KokkosFFT::Distributed::Topology<int, 3>,
-                     KokkosFFT::Distributed::Topology<double, 4>,
-                     KokkosFFT::Distributed::Topology<float, 5>,
-                     KokkosFFT::Distributed::Topology<std::size_t, 2> >;
-
-using DataTypes = ::testing::Types<int, double, float, std::size_t>;
+}  // namespace
 
 TYPED_TEST_SUITE(CompileTestTopologyTypes, DataTypes);
-TYPED_TEST_SUITE(TopologyTest, TopologyTypes);
+TYPED_TEST_SUITE(TestTopology, TopologyTypes);
 
 TYPED_TEST(CompileTestTopologyTypes, is_topology) {
   using vector_type         = typename TestFixture::vector_type;
@@ -117,41 +120,66 @@ TYPED_TEST(CompileTestTopologyTypes, are_allowed_topologies) {
 }
 
 // Test type definitions and aliases
-TEST(TopologyTypeTest, TypeDefinitions) {
-  using TestTopology = KokkosFFT::Distributed::Topology<int, 3>;
+TYPED_TEST(CompileTestTopologyTypes, internal_types) {
+  using value_type          = typename TestFixture::value_type;
+  using topology_left_type  = typename TestFixture::topology_left_type;
+  using topology_right_type = typename TestFixture::topology_right_type;
 
-  testing::StaticAssertTypeEq<typename TestTopology::value_type, int>();
-  testing::StaticAssertTypeEq<typename TestTopology::size_type, std::size_t>();
-  testing::StaticAssertTypeEq<typename TestTopology::difference_type,
+  // Topology Left
+  testing::StaticAssertTypeEq<typename topology_left_type::value_type,
+                              value_type>();
+  testing::StaticAssertTypeEq<typename topology_left_type::size_type,
+                              std::size_t>();
+  testing::StaticAssertTypeEq<typename topology_left_type::difference_type,
                               std::ptrdiff_t>();
-  testing::StaticAssertTypeEq<typename TestTopology::reference, int&>();
-  testing::StaticAssertTypeEq<typename TestTopology::const_reference,
-                              const int&>();
-  testing::StaticAssertTypeEq<typename TestTopology::pointer, int*>();
-  testing::StaticAssertTypeEq<typename TestTopology::const_pointer,
-                              const int*>();
-  testing::StaticAssertTypeEq<typename TestTopology::layout_type,
+  testing::StaticAssertTypeEq<typename topology_left_type::reference,
+                              value_type&>();
+  testing::StaticAssertTypeEq<typename topology_left_type::const_reference,
+                              const value_type&>();
+  testing::StaticAssertTypeEq<typename topology_left_type::pointer,
+                              value_type*>();
+  testing::StaticAssertTypeEq<typename topology_left_type::const_pointer,
+                              const value_type*>();
+  testing::StaticAssertTypeEq<typename topology_left_type::layout_type,
+                              Kokkos::LayoutLeft>();
+
+  // Topology Right
+  testing::StaticAssertTypeEq<typename topology_right_type::value_type,
+                              value_type>();
+  testing::StaticAssertTypeEq<typename topology_right_type::size_type,
+                              std::size_t>();
+  testing::StaticAssertTypeEq<typename topology_right_type::difference_type,
+                              std::ptrdiff_t>();
+  testing::StaticAssertTypeEq<typename topology_right_type::reference,
+                              value_type&>();
+  testing::StaticAssertTypeEq<typename topology_right_type::const_reference,
+                              const value_type&>();
+  testing::StaticAssertTypeEq<typename topology_right_type::pointer,
+                              value_type*>();
+  testing::StaticAssertTypeEq<typename topology_right_type::const_pointer,
+                              const value_type*>();
+  testing::StaticAssertTypeEq<typename topology_right_type::layout_type,
                               Kokkos::LayoutRight>();
 }
 
 // Test default constructor
-TYPED_TEST(TopologyTest, DefaultConstructor) {
+TYPED_TEST(TestTopology, default_constructor) {
   TypeParam topology;
-  EXPECT_EQ(topology.size(), this->test_data.size());
-  EXPECT_EQ(topology.empty(), this->test_data.empty());
+  EXPECT_EQ(topology.size(), this->m_test_data.size());
+  EXPECT_EQ(topology.empty(), this->m_test_data.empty());
 }
 
 // Test constructor from std::array
-TYPED_TEST(TopologyTest, ArrayConstructor) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, array_constructor) {
+  TypeParam topology(this->m_test_data);
 
   for (std::size_t i = 0; i < topology.size(); ++i) {
-    EXPECT_EQ(topology[i], this->test_data[i]);
+    EXPECT_EQ(topology[i], this->m_test_data[i]);
   }
 }
 
 // Test constructor from initializer list
-TEST(TopologyConstructorTest, InitializerListConstructor) {
+TEST(TestTopologyConstructor, initializer_list_constructor) {
   KokkosFFT::Distributed::Topology<int, 3> topology{1, 2, 3};
 
   EXPECT_EQ(topology[0], 1);
@@ -160,7 +188,7 @@ TEST(TopologyConstructorTest, InitializerListConstructor) {
 }
 
 // Test initializer list constructor with wrong size
-TEST(TopologyConstructorTest, InitializerListWrongSize) {
+TEST(TestTopologyConstructor, initializer_list_wrong_size) {
   EXPECT_THROW(({
                  KokkosFFT::Distributed::Topology<int, 3> topology{
                      1, 2, 3, 4};  // Too many elements
@@ -175,8 +203,8 @@ TEST(TopologyConstructorTest, InitializerListWrongSize) {
 }
 
 // Test copy constructor
-TYPED_TEST(TopologyTest, CopyConstructor) {
-  TypeParam original(this->test_data);
+TYPED_TEST(TestTopology, copy_constructor) {
+  TypeParam original(this->m_test_data);
   TypeParam copy(original);
 
   EXPECT_EQ(original, copy);
@@ -186,8 +214,8 @@ TYPED_TEST(TopologyTest, CopyConstructor) {
 }
 
 // Test move constructor
-TYPED_TEST(TopologyTest, MoveConstructor) {
-  TypeParam original(this->test_data);
+TYPED_TEST(TestTopology, move_constructor) {
+  TypeParam original(this->m_test_data);
   TypeParam expected = original;
   TypeParam moved(std::move(original));
 
@@ -195,8 +223,8 @@ TYPED_TEST(TopologyTest, MoveConstructor) {
 }
 
 // Test copy assignment
-TYPED_TEST(TopologyTest, CopyAssignment) {
-  TypeParam original(this->test_data);
+TYPED_TEST(TestTopology, copy_assignment) {
+  TypeParam original(this->m_test_data);
   TypeParam assigned;
 
   assigned = original;
@@ -204,8 +232,8 @@ TYPED_TEST(TopologyTest, CopyAssignment) {
 }
 
 // Test move assignment
-TYPED_TEST(TopologyTest, MoveAssignment) {
-  TypeParam original(this->test_data);
+TYPED_TEST(TestTopology, move_assignment) {
+  TypeParam original(this->m_test_data);
   TypeParam expected = original;
   TypeParam assigned;
 
@@ -214,67 +242,67 @@ TYPED_TEST(TopologyTest, MoveAssignment) {
 }
 
 // Test element access with bounds checking
-TYPED_TEST(TopologyTest, ElementAccessAt) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, element_access_at) {
+  TypeParam topology(this->m_test_data);
 
   for (std::size_t i = 0; i < topology.size(); ++i) {
-    EXPECT_EQ(topology.at(i), this->test_data[i]);
+    EXPECT_EQ(topology.at(i), this->m_test_data[i]);
   }
 
   // Test const version
   const TypeParam& const_topology = topology;
   for (std::size_t i = 0; i < const_topology.size(); ++i) {
-    EXPECT_EQ(const_topology.at(i), this->test_data[i]);
+    EXPECT_EQ(const_topology.at(i), this->m_test_data[i]);
   }
 }
 
 // Test bounds checking in at() method
-TYPED_TEST(TopologyTest, ElementAccessAtBoundsCheck) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, element_access_at_bounds_check) {
+  TypeParam topology(this->m_test_data);
 
   EXPECT_THROW(topology.at(topology.size()), std::out_of_range);
   EXPECT_THROW(topology.at(topology.size() + 1), std::out_of_range);
 }
 
 // Test element access without bounds checking
-TYPED_TEST(TopologyTest, ElementAccessBrackets) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, element_access_brackets) {
+  TypeParam topology(this->m_test_data);
 
   for (std::size_t i = 0; i < topology.size(); ++i) {
-    EXPECT_EQ(topology[i], this->test_data[i]);
+    EXPECT_EQ(topology[i], this->m_test_data[i]);
   }
 
   // Test const version
   const TypeParam& const_topology = topology;
   for (std::size_t i = 0; i < const_topology.size(); ++i) {
-    EXPECT_EQ(const_topology[i], this->test_data[i]);
+    EXPECT_EQ(const_topology[i], this->m_test_data[i]);
   }
 }
 
 // Test front() and back() methods
-TYPED_TEST(TopologyTest, FrontAndBack) {
+TYPED_TEST(TestTopology, front_and_back) {
   if (TypeParam{}.size() == 0) return;  // Skip for empty arrays
 
-  TypeParam topology(this->test_data);
+  TypeParam topology(this->m_test_data);
 
-  EXPECT_EQ(topology.front(), this->test_data.front());
-  EXPECT_EQ(topology.back(), this->test_data.back());
+  EXPECT_EQ(topology.front(), this->m_test_data.front());
+  EXPECT_EQ(topology.back(), this->m_test_data.back());
 
   // Test const versions
   const TypeParam& const_topology = topology;
-  EXPECT_EQ(const_topology.front(), this->test_data.front());
-  EXPECT_EQ(const_topology.back(), this->test_data.back());
+  EXPECT_EQ(const_topology.front(), this->m_test_data.front());
+  EXPECT_EQ(const_topology.back(), this->m_test_data.back());
 }
 
 // Test data() method
-TYPED_TEST(TopologyTest, DataAccess) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, data_access) {
+  TypeParam topology(this->m_test_data);
 
   auto* data_ptr = topology.data();
   EXPECT_NE(data_ptr, nullptr);
 
   for (std::size_t i = 0; i < topology.size(); ++i) {
-    EXPECT_EQ(data_ptr[i], this->test_data[i]);
+    EXPECT_EQ(data_ptr[i], this->m_test_data[i]);
   }
 
   // Test const version
@@ -283,18 +311,18 @@ TYPED_TEST(TopologyTest, DataAccess) {
   EXPECT_NE(const_data_ptr, nullptr);
 
   for (std::size_t i = 0; i < const_topology.size(); ++i) {
-    EXPECT_EQ(const_data_ptr[i], this->test_data[i]);
+    EXPECT_EQ(const_data_ptr[i], this->m_test_data[i]);
   }
 }
 
 // Test iterators
-TYPED_TEST(TopologyTest, Iterators) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, iterators) {
+  TypeParam topology(this->m_test_data);
 
   // Test begin/end
   auto it = topology.begin();
   for (std::size_t i = 0; i < topology.size(); ++i, ++it) {
-    EXPECT_EQ(*it, this->test_data[i]);
+    EXPECT_EQ(*it, this->m_test_data[i]);
   }
   EXPECT_EQ(it, topology.end());
 
@@ -302,26 +330,26 @@ TYPED_TEST(TopologyTest, Iterators) {
   const TypeParam& const_topology = topology;
   auto const_it                   = const_topology.begin();
   for (std::size_t i = 0; i < const_topology.size(); ++i, ++const_it) {
-    EXPECT_EQ(*const_it, this->test_data[i]);
+    EXPECT_EQ(*const_it, this->m_test_data[i]);
   }
   EXPECT_EQ(const_it, const_topology.end());
 
   // Test cbegin/cend
   auto cit = topology.cbegin();
   for (std::size_t i = 0; i < topology.size(); ++i, ++cit) {
-    EXPECT_EQ(*cit, this->test_data[i]);
+    EXPECT_EQ(*cit, this->m_test_data[i]);
   }
   EXPECT_EQ(cit, topology.cend());
 }
 
 // Test reverse iterators
-TYPED_TEST(TopologyTest, ReverseIterators) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, reverse_iterators) {
+  TypeParam topology(this->m_test_data);
 
   // Test rbegin/rend
   auto rit = topology.rbegin();
   for (std::size_t i = topology.size(); i > 0; --i, ++rit) {
-    EXPECT_EQ(*rit, this->test_data[i - 1]);
+    EXPECT_EQ(*rit, this->m_test_data[i - 1]);
   }
   EXPECT_EQ(rit, topology.rend());
 
@@ -329,20 +357,20 @@ TYPED_TEST(TopologyTest, ReverseIterators) {
   const TypeParam& const_topology = topology;
   auto const_rit                  = const_topology.rbegin();
   for (std::size_t i = const_topology.size(); i > 0; --i, ++const_rit) {
-    EXPECT_EQ(*const_rit, this->test_data[i - 1]);
+    EXPECT_EQ(*const_rit, this->m_test_data[i - 1]);
   }
   EXPECT_EQ(const_rit, const_topology.rend());
 
   // Test crbegin/crend
   auto crit = topology.crbegin();
   for (std::size_t i = topology.size(); i > 0; --i, ++crit) {
-    EXPECT_EQ(*crit, this->test_data[i - 1]);
+    EXPECT_EQ(*crit, this->m_test_data[i - 1]);
   }
   EXPECT_EQ(crit, topology.crend());
 }
 
 // Test capacity methods
-TYPED_TEST(TopologyTest, Capacity) {
+TYPED_TEST(TestTopology, capacity) {
   TypeParam topology;
 
   EXPECT_EQ(topology.size(), TypeParam{}.size());
@@ -351,7 +379,7 @@ TYPED_TEST(TopologyTest, Capacity) {
 }
 
 // Test fill method
-TYPED_TEST(TopologyTest, Fill) {
+TYPED_TEST(TestTopology, fill) {
   TypeParam topology;
   using ValueType      = typename TypeParam::value_type;
   ValueType fill_value = static_cast<ValueType>(42);
@@ -364,8 +392,8 @@ TYPED_TEST(TopologyTest, Fill) {
 }
 
 // Test swap method
-TYPED_TEST(TopologyTest, Swap) {
-  TypeParam topology1(this->test_data);
+TYPED_TEST(TestTopology, swap) {
+  TypeParam topology1(this->m_test_data);
   TypeParam topology2;
 
   using ValueType      = typename TypeParam::value_type;
@@ -382,9 +410,9 @@ TYPED_TEST(TopologyTest, Swap) {
 }
 
 // Test comparison operators
-TYPED_TEST(TopologyTest, ComparisonOperators) {
-  TypeParam topology1(this->test_data);
-  TypeParam topology2(this->test_data);
+TYPED_TEST(TestTopology, comparison_operators) {
+  TypeParam topology1(this->m_test_data);
+  TypeParam topology2(this->m_test_data);
   TypeParam topology3;
 
   using ValueType      = typename TypeParam::value_type;
@@ -414,14 +442,14 @@ TYPED_TEST(TopologyTest, ComparisonOperators) {
 }
 
 // Test array() method
-TYPED_TEST(TopologyTest, ArrayAccess) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, array_access) {
+  TypeParam topology(this->m_test_data);
 
   const auto& const_array = topology.array();
-  EXPECT_EQ(const_array, this->test_data);
+  EXPECT_EQ(const_array, this->m_test_data);
 
   auto& array = topology.array();
-  EXPECT_EQ(array, this->test_data);
+  EXPECT_EQ(array, this->m_test_data);
 
   // Modify through array reference
   if (array.size() > 0) {
@@ -433,7 +461,7 @@ TYPED_TEST(TopologyTest, ArrayAccess) {
 }
 
 // Test non-member swap function
-TEST(TopologyNonMemberTest, SwapFunction) {
+TEST(TestTopologyNonMember, swap_function) {
   KokkosFFT::Distributed::Topology<int, 3> topology1{1, 2, 3};
   KokkosFFT::Distributed::Topology<int, 3> topology2{4, 5, 6};
 
@@ -447,7 +475,7 @@ TEST(TopologyNonMemberTest, SwapFunction) {
 }
 
 // Test non-member get functions
-TEST(TopologyNonMemberTest, GetFunction) {
+TEST(TestTopologyNonMember, get_functions) {
   KokkosFFT::Distributed::Topology<int, 3> topology{10, 20, 30};
 
   // Non-const get
@@ -478,7 +506,7 @@ TEST(TopologyNonMemberTest, GetFunction) {
 }
 
 // Test get function with modification
-TEST(TopologyNonMemberTest, GetFunctionModification) {
+TEST(TestTopologyNonMember, get_function_modification) {
   KokkosFFT::Distributed::Topology<int, 3> topology{10, 20, 30};
 
   KokkosFFT::Distributed::get<0>(topology) = 100;
@@ -487,7 +515,7 @@ TEST(TopologyNonMemberTest, GetFunctionModification) {
 }
 
 // Test with different layout types
-TEST(TopologyLayoutTest, DifferentLayouts) {
+TEST(TestTopologyLayout, different_layouts) {
   using TopologyRight =
       KokkosFFT::Distributed::Topology<int, 3, Kokkos::LayoutRight>;
   using TopologyLeft =
@@ -509,7 +537,7 @@ TEST(TopologyLayoutTest, DifferentLayouts) {
 }
 
 // Test empty topology (size 0)
-TEST(TopologySpecialTest, EmptyTopology) {
+TEST(TestTopologySpecial, empty_topology) {
   KokkosFFT::Distributed::Topology<int, 0> empty_topology;
 
   EXPECT_EQ(empty_topology.size(), 0);
@@ -523,7 +551,7 @@ TEST(TopologySpecialTest, EmptyTopology) {
 }
 
 // Test large topology
-TEST(TopologySpecialTest, LargeTopology) {
+TEST(TestTopologySpecial, large_topology) {
   constexpr std::size_t large_size = 1000;
   KokkosFFT::Distributed::Topology<std::size_t, large_size> large_topology;
 
@@ -543,7 +571,7 @@ TEST(TopologySpecialTest, LargeTopology) {
 
 // Test constexpr functionality (C++20 or above)
 // Before C++20, std::initializer_list could not be used in constexpr contexts
-// TEST(TopologyConstexprTest, ConstexprOperations) {
+// TEST(TestTopologyConstexpr, constexpr_operations) {
 //  constexpr KokkosFFT::Distributed::Topology<int, 3> topology{1, 2, 3};
 //
 //  static_assert(topology.size() == 3);
@@ -561,35 +589,36 @@ TEST(TopologySpecialTest, LargeTopology) {
 //}
 
 // Test range-based for loop
-TYPED_TEST(TopologyTest, RangeBasedForLoop) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, range_based_for_loop) {
+  TypeParam topology(this->m_test_data);
 
   std::size_t index = 0;
   for (const auto& element : topology) {
-    EXPECT_EQ(element, this->test_data[index]);
+    EXPECT_EQ(element, this->m_test_data[index]);
     ++index;
   }
   EXPECT_EQ(index, topology.size());
 }
 
 // Test STL algorithm compatibility
-TYPED_TEST(TopologyTest, STLAlgorithmCompatibility) {
-  TypeParam topology(this->test_data);
+TYPED_TEST(TestTopology, stl_algorithm_compatibility) {
+  TypeParam topology(this->m_test_data);
 
   // Test std::find
-  auto it = std::find(topology.begin(), topology.end(), this->test_data[0]);
+  auto it = std::find(topology.begin(), topology.end(), this->m_test_data[0]);
   EXPECT_NE(it, topology.end());
-  EXPECT_EQ(*it, this->test_data[0]);
+  EXPECT_EQ(*it, this->m_test_data[0]);
 
   // Test std::count
-  auto count = std::count(topology.begin(), topology.end(), this->test_data[0]);
+  auto count =
+      std::count(topology.begin(), topology.end(), this->m_test_data[0]);
   EXPECT_EQ(count, 1);
 
   // Test std::reduce
   std::size_t sum          = std::reduce(topology.begin(), topology.end(),
                                          std::size_t{0}, std::plus<std::size_t>{});
   std::size_t expected_sum = 0;
-  for (const auto& val : this->test_data) {
+  for (const auto& val : this->m_test_data) {
     expected_sum += static_cast<std::size_t>(val);
   }
   EXPECT_EQ(sum, expected_sum);
