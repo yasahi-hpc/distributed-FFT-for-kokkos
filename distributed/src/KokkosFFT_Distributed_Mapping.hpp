@@ -46,7 +46,7 @@ auto permute_map_by_axes(const std::array<iType, DIM>& src_map,
   std::vector<iType> map;
   map.reserve(DIM);
   if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
-    for (const auto src_idx : src_map) {
+    for (auto src_idx : src_map) {
       if (!KokkosFFT::Impl::is_found(axes, src_idx)) {
         map.push_back(src_idx);
       }
@@ -62,7 +62,7 @@ auto permute_map_by_axes(const std::array<iType, DIM>& src_map,
     }
 
     // Then stack remaining axes
-    for (const auto src_idx : src_map) {
+    for (auto src_idx : src_map) {
       if (!KokkosFFT::Impl::is_found(axes_reversed, src_idx)) {
         map.push_back(src_idx);
       }
