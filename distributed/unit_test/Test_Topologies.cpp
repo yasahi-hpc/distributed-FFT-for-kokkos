@@ -415,160 +415,167 @@ void test_is_topology(std::size_t nprocs) {
 
   if (nprocs == 1) {
     // 1D topology is shared
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_shared_topologies(topology1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Share, topology1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology1));
 
     // Invalid 1D topology
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology1D_type{0}));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology1D_type{0}));
 
     // 2D topology is slab
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology2_1));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology2_2));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology2_1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology2_2));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology2_1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology2_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2_1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology2_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_2));
 
     // Invalid 2D topology
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology2D_type{0, nprocs}));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology2D_type{nprocs, 0}));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology2D_type{0, nprocs}));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology2D_type{nprocs, 0}));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2D_type{0, nprocs}));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2D_type{nprocs, 0}));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2D_type{0, nprocs}));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2D_type{nprocs, 0}));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology2D_type{0, nprocs}));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology2D_type{nprocs, 0}));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2D_type{0, nprocs}));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2D_type{nprocs, 0}));
 
     // 3D case
     // Pencil topologies
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology3_1));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology3_2));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology3_3));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology3_4));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology3_5));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_3));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_4));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_5));
 
     // 4D case
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_1));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_2));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_3));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_4));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_5));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_6));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_7));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_8));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_3));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_4));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_5));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_6));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_7));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_8));
   } else {
     // 1D topology
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology1));
 
     // 2D topology
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology2_1));
-    EXPECT_TRUE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology2_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_2));
 
     // 3D topology
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology3_1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology3_2));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology3_3));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology3_4));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology3_5));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology3_1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology3_2));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology3_3));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology3_4));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology3_5));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology3_1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology3_2));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology3_3));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology3_4));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology3_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_5));
 
     // 4D topology
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_2));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_3));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_4));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_5));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_6));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_7));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_shared_topologies(topology4_8));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_2));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_3));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_4));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_5));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_6));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_7));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_8));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_1));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_2));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_3));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_4));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_5));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_6));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_7));
-    EXPECT_FALSE(
-        KokkosFFT::Distributed::Impl::are_pencil_topologies(topology4_8));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_6));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_7));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_8));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_6));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_7));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_8));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_6));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_7));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_8));
   }
 }
 
@@ -603,139 +610,139 @@ void test_are_topologies(std::size_t nprocs) {
 
   if (nprocs == 1) {
     // 1D topology is shared
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_shared_topologies(topology1,
-                                                                    topology1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology1,
-                                                                   topology1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology1, topology1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology1, topology1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology1, topology1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology1, topology1));
 
     // Invalid 1D topology
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology1D_type{0}, topology1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology1D_type{0}, topology1));
 
     // 2D topology is slab
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology2_1,
-                                                                  topology2_1));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology2_2,
-                                                                  topology2_2));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology2_1,
-                                                                  topology2_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology2_1, topology2_1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology2_2, topology2_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2_1, topology2_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2_2, topology2_1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2_1, topology2_1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2_2, topology2_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2_1, topology2_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology2_1, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology2_2, topology2_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_1, topology2_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_2, topology2_1));
 
     // Invalid 2D topology
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology2D_type{0, nprocs}, topology2_1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology2D_type{nprocs, 0}, topology2_1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology2D_type{0, nprocs}, topology2_1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology2D_type{nprocs, 0}, topology2_1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2D_type{0, nprocs}, topology2_1));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2D_type{nprocs, 0}, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2D_type{0, nprocs}, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology2D_type{nprocs, 0}, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology2D_type{0, nprocs}, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology2D_type{nprocs, 0}, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2D_type{0, nprocs}, topology2_1));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2D_type{nprocs, 0}, topology2_1));
 
     // 3D case
     // Pencil topologies
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology3_1, topology3_2));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology3_2, topology3_3));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology3_3, topology3_1));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology3_4,
-                                                                  topology3_4));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology3_5, topology3_5));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_1, topology3_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_2, topology3_3));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_3, topology3_1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_4, topology3_4));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_5, topology3_5));
 
     // 4D case
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_1, topology4_2));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_2, topology4_3));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_3, topology4_4));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_4, topology4_5));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_5, topology4_6));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology4_7,
-                                                                  topology4_7));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology4_8, topology4_8));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_1, topology4_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_2, topology4_3));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_3, topology4_4));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_4, topology4_5));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_5, topology4_6));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_7, topology4_7));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_8, topology4_8));
   } else {
     // 1D topology
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_slab_topologies(topology1,
-                                                                  topology1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology1, topology1));
 
     // 2D topology
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2_1, topology2_1));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2_2, topology2_2));
-    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology2_1, topology2_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_1, topology2_1));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_2, topology2_2));
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology2_1, topology2_2));
 
     // 3D topology
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology3_1, topology3_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology3_2, topology3_3));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology3_3, topology3_4));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology3_4, topology3_5));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology3_1, topology3_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology3_2, topology3_3));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology3_3, topology3_4));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology3_4, topology3_5));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology3_1, topology3_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology3_2, topology3_3));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology3_3, topology3_4));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology3_4, topology3_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_1, topology3_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_2, topology3_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_3, topology3_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology3_4, topology3_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_1, topology3_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_2, topology3_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_3, topology3_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology3_4, topology3_5));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_1, topology3_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_2, topology3_3));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_3, topology3_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology3_4, topology3_5));
 
     // 4D topology
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology4_1, topology4_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology4_3, topology4_4));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology4_5, topology4_6));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_shared_topologies(
-        topology4_7, topology4_8));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology4_1, topology4_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology4_3, topology4_4));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology4_5, topology4_6));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_slab_topologies(
-        topology4_7, topology4_8));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_1, topology4_2));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_3, topology4_4));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_5, topology4_6));
-    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_pencil_topologies(
-        topology4_7, topology4_8));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_1, topology4_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_3, topology4_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_5, topology4_6));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Shared, topology4_7, topology4_8));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_1, topology4_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_3, topology4_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_5, topology4_6));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Slab, topology4_7, topology4_8));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_1, topology4_2));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_3, topology4_4));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_5, topology4_6));
+    EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
+        TopologyType::Pencil, topology4_7, topology4_8));
   }
 }
 

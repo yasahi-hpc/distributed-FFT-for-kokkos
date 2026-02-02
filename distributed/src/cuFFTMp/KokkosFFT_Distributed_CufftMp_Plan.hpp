@@ -49,8 +49,10 @@ bool is_tpl_available(
 
   if (in_topology == out_topology) return false;
 
-  bool is_slab   = are_slab_topologies(in_topology, out_topology);
-  bool is_pencil = are_pencil_topologies(in_topology, out_topology);
+  bool is_slab =
+      are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
+  bool is_pencil =
+      are_specified_topologies(TopologyType::Pencil, in_topology, out_topology);
 
   if constexpr (InViewType::rank() == 2 && DIM == 2) {
     if (is_slab) return true;
@@ -269,7 +271,8 @@ void create_plan(const ExecutionSpace& exec_space,
   auto in_first_dim       = in_topology.at(last_axis),
        out_first_dim      = out_topology.at(last_axis);
   bool is_first_dim_ready = in_first_dim == 1 && out_first_dim == 1;
-  bool is_slab            = are_slab_topologies(in_topology, out_topology);
+  bool is_slab =
+      are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
 
   if (is_slab && is_first_dim_ready) {
     auto in_mapped_topology = compute_mapped_extents(in_topology, map);
