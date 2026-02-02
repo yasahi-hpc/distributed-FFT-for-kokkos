@@ -89,16 +89,13 @@ struct BlockInfo {
   //! The axis along which the output View is merged
   std::size_t m_out_axis = 0;
 
-  //! The axes along which the FFT is performed
-  // axes_type m_axes;
-
   //! The FFT dimension
   std::size_t m_fft_dim = 0;
 
   //! The axis along which the MPI all2all is performed
   std::size_t m_comm_axis = 0;
 
-  //! The type of the block (Transpose, FFT, FFT2, TransposeAndFFT)
+  //! The type of the block (Transpose or FFT)
   BlockType m_block_type;
 
   //! The idx of the transpose or FFT block in the plan
