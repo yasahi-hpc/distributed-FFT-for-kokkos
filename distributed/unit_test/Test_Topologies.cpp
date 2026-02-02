@@ -419,9 +419,9 @@ void test_is_topology(std::size_t nprocs) {
     EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
         TopologyType::Shared, topology1));
     EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
-        TopologyType::Shared, topology1));
+        TopologyType::Slab, topology1));
     EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
-        TopologyType::Shared, topology1));
+        TopologyType::Pencil, topology1));
 
     // Invalid 1D topology
     EXPECT_FALSE(KokkosFFT::Distributed::Impl::are_specified_topologies(
