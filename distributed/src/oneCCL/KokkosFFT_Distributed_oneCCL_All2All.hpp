@@ -38,15 +38,20 @@ void all2all(const ViewType& send, const ViewType& recv,
                       ? recv.extent_int(ViewType::rank() - 1)
                       : recv.extent_int(0);
 
-  const auto& comms = scoped_comm.comms();
-  auto stream       = scoped_comm.stream();
-  int size          = scoped_comm.size();
-  KOKKOSFFT_THROW_IF(
-      (size_send != size) || (size_recv != size),
-      "Extent of dimension to be transposed of send (" +
-          std::to_string(size_send) + ") or recv (" +
-          std::to_string(size_recv) +
-          ") buffer does not match MPI size: " + std::to_string(size));
+  const auto& comms      = scoped_comm.comms();
+  auto stream            = scoped_comm.stream();
+  int size               = scoped_comm.size();
+  auto size_mismatch_msg = [size, size_send, size_recv]() -> std::string {
+    std::string message;
+    message = "Extent of dimension to be transposed of send (" +
+              std::to_string(size_send) + ") or recv (" +
+              std::to_string(size_recv) +
+              ") buffer does not match MPI size: " + std::to_string(size);
+    return message;
+  };
+
+  KOKKOSFFT_THROW_IF((size_send != size) || (size_recv != size),
+                     size_mismatch_msg());
 
   // Compute the outermost dimension size
   // As oneCCL does not directly support complex data type,
