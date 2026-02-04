@@ -12,7 +12,7 @@ elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
         Test_Extents.cpp
         Test_MPI_Types.cpp
         Test_MPI_Helper.cpp
-        Test_Common_Utils.cpp
+        Test_ContainerAnalyses.cpp
         Test_Topologies.cpp
         Test_TransBlock.cpp
         Test_SharedPlan.cpp
@@ -34,7 +34,7 @@ else()
         Test_Extents.cpp
         Test_MPI_Types.cpp
         Test_MPI_Helper.cpp
-        Test_Common_Utils.cpp
+        Test_ContainerAnalyses.cpp
         Test_Topologies.cpp
         Test_TransBlock.cpp
         Test_SharedPlan.cpp

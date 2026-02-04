@@ -3,7 +3,7 @@
 #include <vector>
 #include <array>
 #include <Kokkos_Core.hpp>
-#include "KokkosFFT_Distributed_Utils.hpp"
+#include "KokkosFFT_Distributed_ContainerAnalyses.hpp"
 #include "Test_Utils.hpp"
 
 namespace {
