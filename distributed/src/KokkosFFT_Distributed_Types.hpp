@@ -59,7 +59,6 @@ template <std::size_t DIM>
 struct BlockInfo {
   using map_type            = std::array<std::size_t, DIM>;
   using extents_type        = std::array<std::size_t, DIM>;
-  using axes_type           = std::vector<std::size_t>;
   using buffer_extents_type = std::array<std::size_t, DIM + 1>;
 
   //! The input topology
@@ -101,40 +100,38 @@ struct BlockInfo {
   //! The idx of the transpose or FFT block in the plan
   std::size_t m_block_idx = 0;
 
-  void print() const {
-    std::cout << "BlockInfo Attributes:" << std::endl;
+  std::ostream& print(std::ostream& os) const {
+    os << "BlockInfo Attributes:\n";
 
-    auto print_array = [](const char* name, const auto& arr) {
-      std::cout << "  " << name << ": {";
+    auto print_array = [](std::ostream& os, const char* name, const auto& arr) {
+      os << "  " << name << ": {";
       for (std::size_t i = 0; i < arr.size(); ++i) {
-        std::cout << arr[i] << (i < arr.size() - 1 ? ", " : "");
+        os << arr[i] << (i < arr.size() - 1 ? ", " : "");
       }
-      std::cout << "}" << std::endl;
+      os << "} \n";
     };
 
-    print_array("m_in_topology", m_in_topology);
-    print_array("m_out_topology", m_out_topology);
-    print_array("m_in_extents", m_in_extents);
-    print_array("m_out_extents", m_out_extents);
-    print_array("m_buffer_extents", m_buffer_extents);
-    print_array("m_in_map", m_in_map);
-    print_array("m_out_map", m_out_map);
+    print_array(os, "m_in_topology", m_in_topology);
+    print_array(os, "m_out_topology", m_out_topology);
+    print_array(os, "m_in_extents", m_in_extents);
+    print_array(os, "m_out_extents", m_out_extents);
+    print_array(os, "m_buffer_extents", m_buffer_extents);
+    print_array(os, "m_in_map", m_in_map);
+    print_array(os, "m_out_map", m_out_map);
 
-    std::cout << "  m_in_axis: " << m_in_axis << std::endl;
-    std::cout << "  m_out_axis: " << m_out_axis << std::endl;
-    std::cout << "  m_fft_dim: " << m_fft_dim << std::endl;
-    std::cout << "  m_comm_axis: " << m_comm_axis << std::endl;
+    os << "  m_in_axis: " << m_in_axis << "\n";
+    os << "  m_out_axis: " << m_out_axis << "\n";
+    os << "  m_fft_dim: " << m_fft_dim << "\n";
+    os << "  m_comm_axis: " << m_comm_axis << "\n";
 
-    std::cout << "  m_block_type: ";
-    if (m_block_type == BlockType::Transpose)
-      std::cout << "Transpose";
-    else if (m_block_type == BlockType::FFT)
-      std::cout << "FFT";
-    else
-      std::cout << "Unknown";
-    std::cout << std::endl;
-
-    std::cout << "  m_block_idx: " << m_block_idx << std::endl;
+    os << "  m_block_type: ";
+    switch (m_block_type) {
+      case BlockType::Transpose: os << "Transpose"; break;
+      case BlockType::FFT: os << "FFT"; break;
+      default: os << "Unknown"; break;
+    }
+    os << "\n m_block_idx: " << m_block_idx << "\n";
+    return os;
   }
 
   bool operator==(const BlockInfo& other) const {
@@ -152,6 +149,11 @@ struct BlockInfo {
 
   bool operator!=(const BlockInfo& other) const { return !(*this == other); }
 };
+
+template <std::size_t DIM>
+std::ostream& operator<<(std::ostream& os, const BlockInfo<DIM>& block_info) {
+  return block_info.print(os);
+}
 
 }  // namespace Impl
 
@@ -200,7 +202,7 @@ class Topology {
   /// \brief Constructor from initializer list
   /// \param[in] init The initializer list containing exactly N elements
   /// \throws std::length_error if initializer list size != N
-  constexpr Topology(std::initializer_list<T> init) {
+  constexpr Topology(std::initializer_list<T> init) : m_data{} {
     if (init.size() != N) {
       throw std::length_error("Initializer list size must match array size");
     }

@@ -5,7 +5,7 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Types.hpp"
-#include "KokkosFFT_Distributed_Utils.hpp"
+#include "KokkosFFT_Distributed_ContainerAnalyses.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
