@@ -30,14 +30,16 @@ namespace Impl {
 /// [TO DO] Add a test case with src_map is not
 /// in ascending order
 /// \tparam LayoutType The layout type of the view
+/// \tparam ContainerType The container type for axes
+/// \tparam iType      The index type of the map
 /// \tparam DIM        The dimensionality of the map
 ///
 /// \param[in] src_map The axis map of the input view
-/// \param[in] axis    The axis to be merged/split
+/// \param[in] axes    Axes over which FFT is performed
 template <typename LayoutType, typename ContainerType, typename iType,
           std::size_t DIM>
-auto permute_map_by_axes(const std::array<iType, DIM>& src_map,
-                         const ContainerType& axes) {
+std::array<iType, DIM> permute_map_by_axes(
+    const std::array<iType, DIM>& src_map, const ContainerType& axes) {
   using value_type =
       std::remove_cv_t<std::remove_reference_t<decltype(*axes.begin())>>;
   static_assert(std::is_same_v<value_type, iType>,
@@ -45,7 +47,7 @@ auto permute_map_by_axes(const std::array<iType, DIM>& src_map,
 
   std::vector<iType> map;
   map.reserve(DIM);
-  if (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
+  if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
     for (auto src_idx : src_map) {
       if (!KokkosFFT::Impl::is_found(axes, src_idx)) {
         map.push_back(src_idx);
@@ -69,8 +71,8 @@ auto permute_map_by_axes(const std::array<iType, DIM>& src_map,
     }
   }
 
-  using full_axis_type   = std::array<iType, DIM>;
-  full_axis_type dst_map = {};
+  using full_axis_type = std::array<iType, DIM>;
+  full_axis_type dst_map{};
   std::copy_n(map.begin(), DIM, dst_map.begin());
 
   return dst_map;
@@ -97,10 +99,11 @@ auto permute_map_by_axes(const std::array<iType, DIM>& src_map,
 ///      axis == 2 -> (0, 1, 2)
 ///
 /// \tparam LayoutType The layout type of the view
+/// \tparam iType      The index type of the map
 /// \tparam DIM        The dimensionality of the map
 ///
 /// \param[in] src_map The axis map of the input view
-/// \param[in] axis    The axis to be merged/split
+/// \param[in] axis    The axis over which FFT is performed
 template <typename LayoutType, typename iType, std::size_t DIM>
 auto permute_map_by_axes(const std::array<iType, DIM>& src_map, iType axis) {
   return permute_map_by_axes<LayoutType>(src_map, std::vector<iType>{axis});
