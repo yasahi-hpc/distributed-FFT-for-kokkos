@@ -422,7 +422,7 @@ class NavierStokes {
 
   double m_coef;
   double m_time = 0.0;
-  int m_diag_it = 0, m_diag_steps = 50;
+  int m_diag_it = 0, m_diag_steps = 100;
   int m_num_bins = 50;
 
  public:
@@ -757,6 +757,47 @@ class NavierStokes {
         });
   }
 
+  // \breif Compute the vorticity in Fourier space
+  // \tparam ComplexViewType The type of the Fourier representation
+  // \tparam RealViewType The type of the space representation
+  // \param[in] uk The Fourier representation of the velocity field u
+  // \param[in] vk The Fourier representation of the velocity field v
+  // \param[in] wk The Fourier representation of the velocity field w
+  // \param[out] vor_x The x component of the vorticity field.
+  // \param[out] vor_y The y component of the vorticity field.
+  // \param[out] vor_z The z component of the vorticity field.
+  template <typename ComplexViewType, typename RealViewType>
+  void compute_vorticity(const ComplexViewType& uk, const ComplexViewType& vk,
+                         const ComplexViewType& wk, const RealViewType& vor_x,
+                         const RealViewType& vor_y, const RealViewType& vor_z) {
+    // Allocate temporary buffers
+    ComplexViewType vor_x_hat("vor_x_hat", uk.layout()),
+        vor_y_hat("vor_y_hat", uk.layout()),
+        vor_z_hat("vor_z_hat", uk.layout());
+    auto kx  = m_grid.m_kx;
+    auto ky  = m_grid.m_ky;
+    auto kzh = m_grid.m_kzh;
+    const Kokkos::complex<double> z(0.0, 1.0);  // Imaginary unit
+    const int n0 = uk.extent(0), n1 = uk.extent(1), n2 = uk.extent(2);
+    range3D_type policy({0, 0, 0}, {n0, n1, n2});
+    Kokkos::parallel_for(
+        "compute_vorticity", policy, KOKKOS_LAMBDA(int i0, int i1, int i2) {
+          vor_x_hat(i0, i1, i2) =
+              z * (ky(i1) * wk(i0, i1, i2) - kzh(i2) * vk(i0, i1, i2));
+          vor_y_hat(i0, i1, i2) =
+              z * (kzh(i2) * uk(i0, i1, i2) - kx(i0) * wk(i0, i1, i2));
+          vor_z_hat(i0, i1, i2) =
+              z * (kx(i0) * vk(i0, i1, i2) - ky(i1) * uk(i0, i1, i2));
+        });
+
+    KokkosFFT::Distributed::execute(*m_plan, vor_x_hat, vor_x,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, vor_y_hat, vor_y,
+                                    KokkosFFT::Direction::backward);
+    KokkosFFT::Distributed::execute(*m_plan, vor_z_hat, vor_z,
+                                    KokkosFFT::Direction::backward);
+  }
+
   // \brief Performs diagnostics at a given simulation time.
   // \param[in] iter The current iteration number.
   void diag(const int iter) {
@@ -787,6 +828,15 @@ class NavierStokes {
     to_binary_file("u", m_variables.m_u, iter);
     to_binary_file("v", m_variables.m_v, iter);
     to_binary_file("w", m_variables.m_w, iter);
+
+    // m_dukdt, m_dvkdt, and m_dwkdt stores uk, vk and wk
+    // m_u, m_v, and m_w stores x, y, and z components of vorticity
+    compute_vorticity(m_variables.m_uk, m_variables.m_vk, m_variables.m_wk,
+                      m_variables.m_u, m_variables.m_v, m_variables.m_w);
+
+    to_binary_file("vor_x", m_variables.m_u, iter);
+    to_binary_file("vor_y", m_variables.m_v, iter);
+    to_binary_file("vor_z", m_variables.m_w, iter);
   }
 
   // \brief Saves the kinetic energy
