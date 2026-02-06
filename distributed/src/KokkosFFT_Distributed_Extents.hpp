@@ -43,7 +43,9 @@ auto compute_padded_extents(const std::array<std::size_t, DIM> &extents,
 /// Buffer View (p0, n0/p0, n1/p0, n2/p1, n3)
 ///
 /// \tparam LayoutType The layout type of the view (e.g., Kokkos::LayoutRight).
-/// \tparam ContainerType The type of the container (e.g., std::array,
+/// \tparam InContainerType The type of the input container (e.g., std::array,
+/// std::vector)
+/// \tparam OutContainerType The type of the output container (e.g., std::array,
 /// std::vector)
 /// \tparam iType The integer type used for extents and topology.
 /// \tparam DIM The number of dimensions of the extents.
@@ -55,11 +57,11 @@ auto compute_padded_extents(const std::array<std::size_t, DIM> &extents,
 /// the output data.
 /// \return A buffer extents of the view needed for the pencil
 /// transformation.
-template <typename LayoutType, typename ContainerType, typename iType,
-          std::size_t DIM>
+template <typename LayoutType, typename InContainerType,
+          typename OutContainerType, typename iType, std::size_t DIM>
 auto compute_buffer_extents(const std::array<iType, DIM> &extents,
-                            const ContainerType &in_topology,
-                            const ContainerType &out_topology) {
+                            const InContainerType &in_topology,
+                            const OutContainerType &out_topology) {
   using value_type =
       std::remove_cv_t<std::remove_reference_t<decltype(in_topology[0])>>;
   static_assert(
