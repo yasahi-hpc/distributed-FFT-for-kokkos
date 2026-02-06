@@ -150,30 +150,16 @@ void create_plan(const ExecutionSpace& exec_space,
       KokkosFFT::Impl::convert_negative_axes(axes, 2));
   auto fft_extents =
       compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
-  const auto [nx, ny]     = fft_extents;
-  auto last_axis          = axes.back();
-  auto in_first_dim       = in_topology.at(last_axis),
-       out_first_dim      = out_topology.at(last_axis);
-  bool is_first_dim_ready = in_first_dim == 1 && out_first_dim == 1;
-  if (is_first_dim_ready) {
-    auto in_mapped_topology = compute_mapped_extents(in_topology, map);
-    bool is_xslab           = in_mapped_topology.at(0) > 1;
+  const auto [nx, ny] = fft_extents;
 
-    plan = std::make_unique<PlanType>(nx, ny, comm, is_xslab);
-    plan->commit(exec_space);
-  } else {
+  if (KokkosFFT::Impl::is_real_v<in_value_type>) {
     // Using general API
-    auto gin_padded_extents = gin_extents;
-    if (KokkosFFT::Impl::is_real_v<in_value_type>) {
-      gin_padded_extents =
-          compute_padded_extents(gout_extents, non_negative_axes);
-    }
-
+    auto gin_padded_extents =
+        compute_padded_extents(gout_extents, non_negative_axes);
     auto [in_extents, in_starts] =
         compute_local_extents(gin_extents, in_topology, comm);
     auto [out_extents, out_starts] =
         compute_local_extents(gout_extents, out_topology, comm);
-
     auto [in_padded_extents, in_padded_starts] =
         compute_local_extents(gin_padded_extents, in_topology, comm);
 
@@ -212,6 +198,12 @@ void create_plan(const ExecutionSpace& exec_space,
     plan = std::make_unique<PlanType>(fft_int_extents, lower_input, upper_input,
                                       lower_output, upper_output, strides_input,
                                       strides_output, comm);
+    plan->commit(exec_space);
+
+  } else {
+    auto in_mapped_topology = compute_mapped_extents(in_topology, map);
+    bool is_xslab           = in_mapped_topology.at(0) > 1;
+    plan = std::make_unique<PlanType>(nx, ny, comm, is_xslab);
     plan->commit(exec_space);
   }
 }
@@ -292,7 +284,6 @@ void create_plan(const ExecutionSpace& exec_space,
         compute_local_extents(gin_extents, in_topology, comm);
     auto [out_extents, out_starts] =
         compute_local_extents(gout_extents, out_topology, comm);
-
     auto [in_padded_extents, in_padded_starts] =
         compute_local_extents(gin_padded_extents, in_topology, comm);
 
