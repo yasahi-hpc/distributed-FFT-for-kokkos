@@ -400,7 +400,7 @@ class NavierStokes {
 
   double m_coef;
   double m_time = 0.0;
-  int m_diag_it = 0, m_diag_steps = 50;
+  int m_diag_it = 0, m_diag_steps = 100;
   int m_num_bins = 50;
 
  public:
@@ -655,6 +655,35 @@ class NavierStokes {
         });
   }
 
+  // \breif Compute the vorticity in Fourier space
+  // \tparam ComplexViewType The type of the Fourier representation
+  // \tparam RealViewType The type of the space representation
+  // \param[in] uk The Fourier representation of the velocity fields u, v, w
+  // \param[out] vor The vorticity field
+  template <typename ComplexViewType, typename RealViewType>
+  void compute_vorticity(const ComplexViewType& uk, const RealViewType& vor) {
+    // Allocate temporary buffers
+    ComplexViewType vor_hat("vor_hat", uk.layout());
+    auto kx  = m_grid.m_kx;
+    auto ky  = m_grid.m_ky;
+    auto kzh = m_grid.m_kzh;
+    const Kokkos::complex<double> z(0.0, 1.0);  // Imaginary unit
+    const int n0 = uk.extent(1), n1 = uk.extent(2), n2 = uk.extent(3);
+    range3D_type policy({0, 0, 0}, {n0, n1, n2});
+    Kokkos::parallel_for(
+        "compute_vorticity", policy, KOKKOS_LAMBDA(int i0, int i1, int i2) {
+          vor_hat(0, i0, i1, i2) =
+              z * (ky(i1) * uk(2, i0, i1, i2) - kzh(i2) * uk(1, i0, i1, i2));
+          vor_hat(1, i0, i1, i2) =
+              z * (kzh(i2) * uk(0, i0, i1, i2) - kx(i0) * uk(2, i0, i1, i2));
+          vor_hat(2, i0, i1, i2) =
+              z * (kx(i0) * uk(1, i0, i1, i2) - ky(i1) * uk(0, i0, i1, i2));
+        });
+
+    KokkosFFT::Distributed::execute(*m_plan, vor_hat, vor,
+                                    KokkosFFT::Direction::backward);
+  }
+
   // \brief Performs diagnostics at a given simulation time.
   // \param[in] iter The current iteration number.
   void diag(const int iter) {
@@ -684,6 +713,14 @@ class NavierStokes {
     to_binary_file("u", u, iter);
     to_binary_file("v", v, iter);
     to_binary_file("w", w, iter);
+
+    // m_uk stores uk, vk and wk
+    // m_u stores x, y, and z components of vorticity
+    compute_vorticity(m_variables.m_uk, m_variables.m_u);
+
+    to_binary_file("vor_x", u, iter);
+    to_binary_file("vor_y", v, iter);
+    to_binary_file("vor_z", w, iter);
   }
 
   // \brief Saves the kinetic energy
