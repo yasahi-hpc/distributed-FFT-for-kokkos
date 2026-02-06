@@ -62,12 +62,15 @@ template <typename LayoutType, typename InContainerType,
 auto compute_buffer_extents(const std::array<iType, DIM> &extents,
                             const InContainerType &in_topology,
                             const OutContainerType &out_topology) {
-  using value_type =
+  using in_value_type =
       std::remove_cv_t<std::remove_reference_t<decltype(in_topology[0])>>;
-  static_assert(
-      std::is_integral_v<value_type> && std::is_same_v<value_type, iType>,
-      "compute_buffer_extents: Container value type must be an "
-      "integral type and same as iType");
+  using out_value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(out_topology[0])>>;
+  static_assert(std::is_integral_v<in_value_type> &&
+                    std::is_same_v<in_value_type, out_value_type> &&
+                    std::is_same_v<in_value_type, iType>,
+                "compute_buffer_extents: Container value types must be an "
+                "integral type and same as iType");
   KOKKOSFFT_THROW_IF(
       !(in_topology.size() == out_topology.size() && in_topology.size() == DIM),
       "extents, in_topology and out_topology must have the same size.");
