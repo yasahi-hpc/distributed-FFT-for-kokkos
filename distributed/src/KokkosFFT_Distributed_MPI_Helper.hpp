@@ -153,31 +153,6 @@ auto compute_next_extents(
     next_extents.at(i)     = local_extents.at(mapped_idx);
   }
 
-  auto invalid_input = [&next_extents, &extents, &topology,
-                        &rank]() -> std::string {
-    std::string message;
-    message += "next_extents(";
-    message += std::to_string(next_extents.at(0));
-    for (std::size_t r = 1; r < next_extents.size(); r++) {
-      message += ",";
-      message += std::to_string(next_extents.at(r));
-    }
-    message += "), extents(";
-    message += std::to_string(extents.at(0));
-    for (std::size_t r = 1; r < extents.size(); r++) {
-      message += ",";
-      message += std::to_string(extents.at(r));
-    }
-    message += "), topology(";
-    message += std::to_string(topology.at(0));
-    for (std::size_t r = 1; r < topology.size(); r++) {
-      message += ",";
-      message += std::to_string(topology.at(r));
-    }
-    message += "), rank(" + std::to_string(rank) + ")";
-    return message;
-  };
-
   return next_extents;
 }
 
