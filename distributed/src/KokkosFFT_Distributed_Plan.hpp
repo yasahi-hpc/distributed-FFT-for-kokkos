@@ -192,6 +192,10 @@ class Plan {
   void backward_impl(const OutViewType& out, const InViewType& in) const {
     m_internal_plan->backward(out, in);
   }
+
+  /// \brief Get the name of the plan implementation
+  /// \return Name of the plan implementation
+  std::string name() const { return m_internal_plan->name(); }
 };
 
 /// \brief Distributed FFT execute function

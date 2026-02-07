@@ -248,7 +248,7 @@ struct ScopedCufftMpPlan {
 
   /// \brief Get the label for profiling
   /// \return Label string
-  std::string label() const { return std::string("cufftMpPlan"); }
+  std::string name() const { return std::string("cufftMpPlan"); }
 };
 
 template <typename ExecutionSpace, typename T1, typename T2>

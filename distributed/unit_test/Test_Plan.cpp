@@ -188,6 +188,11 @@ void test_plan1D_view2D(std::size_t nprocs) {
   execute(plan_0_0_ax1, u_hat_0_ax1, u_inv_0, KokkosFFT::Direction::backward);
   EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
 
+#if !defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
+  std::string ref_name = nprocs == 1 ? "SharedPlan" : "SlabPlan";
+  EXPECT_EQ(plan_0_0_ax1.name(), ref_name);
+#endif
+
   // topo 0 -> topo 1 with ax = {0}:
   // (n0, n1/p) -> (n0/2+1, n1/p) -> ((n0 / 2 + 1) / p, n1)
   // FFT ax = {0} + Transpose
@@ -199,6 +204,10 @@ void test_plan1D_view2D(std::size_t nprocs) {
 
   execute(plan_0_1_ax0, u_hat_1_ax0, u_inv_0, KokkosFFT::Direction::backward);
   EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
+
+#if !defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
+  EXPECT_EQ(plan_0_1_ax0.name(), ref_name);
+#endif
 
   // topology0 (n0, n1/p), ax=1 -> topology1 (n0/p, n1/2+1)
   // topo0 -> topo1 with ax = {1}: (n0, n1/p) -> (n0/p, n1) -> (n0/p, n1/2+1)
@@ -212,6 +221,10 @@ void test_plan1D_view2D(std::size_t nprocs) {
   execute(plan_0_1_ax1, u_hat_1_ax1, u_inv_0, KokkosFFT::Direction::backward);
   EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0));
 
+#if !defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
+  EXPECT_EQ(plan_0_1_ax1.name(), ref_name);
+#endif
+
   // topo1 -> topo0 with ax = {0}: (n0/p, n1) -> (n0/2+1, n1/p)
   // Transpose + FFT ax = {0}
   KokkosFFT::Distributed::Plan plan_1_0_ax0(exec, u_1, u_hat_0_ax0,
@@ -222,6 +235,10 @@ void test_plan1D_view2D(std::size_t nprocs) {
 
   execute(plan_1_0_ax0, u_hat_0_ax0, u_inv_1, KokkosFFT::Direction::backward);
   EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1));
+
+#if !defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
+  EXPECT_EQ(plan_1_0_ax0.name(), ref_name);
+#endif
 
   // topo1 -> topo0 with ax = {1}: (n0/p, n1) -> (n0, n1/p)
   // FFT ax = {1} -> Transpose
@@ -234,6 +251,10 @@ void test_plan1D_view2D(std::size_t nprocs) {
   execute(plan_1_0_ax1, u_hat_0_ax1, u_inv_1, KokkosFFT::Direction::backward);
   EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1));
 
+#if !defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
+  EXPECT_EQ(plan_1_0_ax1.name(), ref_name);
+#endif
+
   // topo1 -> topo1 with ax = {0}: (n0/p, n1) -> (n0, n1/p) -> (n0/2+1, n1/p)
   // Transpose + FFT ax = {0} + Transpose
   KokkosFFT::Distributed::Plan plan_1_1_ax0(exec, u_1, u_hat_1_ax0,
@@ -244,6 +265,10 @@ void test_plan1D_view2D(std::size_t nprocs) {
 
   execute(plan_1_1_ax0, u_hat_1_ax0, u_inv_1, KokkosFFT::Direction::backward);
   EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1));
+
+#if !defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
+  EXPECT_EQ(plan_1_1_ax0.name(), ref_name);
+#endif
 }
 
 }  // namespace

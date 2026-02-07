@@ -1691,7 +1691,7 @@ class PencilPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
         get_fft_extents());
   }
 
-  std::string label() const override { return std::string("PencilPlan"); }
+  std::string name() const override { return std::string("PencilPlan"); }
 };
 
 }  // namespace Impl

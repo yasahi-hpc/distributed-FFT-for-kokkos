@@ -12,6 +12,13 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief Internal plan class for distributed FFTs
+/// \tparam ExecutionSpace Kokkos execution space
+/// \tparam InViewType Input Kokkos view type
+/// \tparam OutViewType Output Kokkos view type
+/// \tparam DIM Rank of FFT (default: 1)
+/// \tparam InLayoutType Layout of input topology (default: LayoutRight)
+/// \tparam OutLayoutType Layout of output topology (default: LayoutRight)
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
@@ -36,6 +43,14 @@ class InternalPlan {
   fft_extents_type m_fft_extents;
 
  public:
+  /// \brief InternalPlan constructor
+  /// \param[in] exec_space Kokkos execution space
+  /// \param[in] in Input Kokkos view
+  /// \param[in] out Output Kokkos view
+  /// \param[in] axes FFT axes
+  /// \param[in] in_topology Input topology in std::array
+  /// \param[in] out_topology Output topology in std::array
+  /// \param[in] comm MPI communicator
   explicit InternalPlan(const ExecutionSpace& exec_space, const InViewType& in,
                         const OutViewType& out, const axes_type& axes,
                         const extents_type& in_topology,
@@ -44,6 +59,14 @@ class InternalPlan {
       : InternalPlan(exec_space, in, out, axes, in_topology, out_topology, comm,
                      norm) {}
 
+  /// \brief InternalPlan constructor
+  /// \param[in] exec_space Kokkos execution space
+  /// \param[in] in Input Kokkos view
+  /// \param[in] out Output Kokkos view
+  /// \param[in] axes FFT axes
+  /// \param[in] in_topology Input topology
+  /// \param[in] out_topology Output topology
+  /// \param[in] comm MPI communicator
   explicit InternalPlan(const ExecutionSpace& /*exec_space*/,
                         const InViewType& in, const OutViewType& out,
                         const axes_type& axes,
@@ -75,7 +98,9 @@ class InternalPlan {
   /// \param[in] Input view
   virtual void backward(const OutViewType& out, const InViewType& in) const = 0;
 
-  virtual std::string label() const = 0;
+  /// \brief Get the name of the plan implementation
+  /// \return Name of the plan implementation
+  virtual std::string name() const = 0;
 
  protected:
   KokkosFFT::Normalization get_norm() const { return m_norm; }
