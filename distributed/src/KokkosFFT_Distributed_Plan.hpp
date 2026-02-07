@@ -231,7 +231,9 @@ void execute(const PlanType& plan, const InViewType& in, const OutViewType& out,
             true, "Backward FFT operation requires complex input type.");
       }
       break;
-    default: KOKKOSFFT_THROW_IF(true, "Invalid FFT direction specified.");
+    default:
+      KOKKOSFFT_THROW_IF(true, "Invalid FFT direction specified.");
+      break;
   }
 }
 
