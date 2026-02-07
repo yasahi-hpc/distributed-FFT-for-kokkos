@@ -94,52 +94,26 @@ inline auto get_common_topology_type(const Topologies&... topologies) {
   return TopologyType::Invalid;
 }
 
-// Can we also check that this is a slab?
-// Example
-// (1, Px, Py, 1) -> (Px, 1, Py, 1): 0-pencil to 1-pencil
-// (1, 1, P) -> (1, P, 1): 1-pencil to 2-pencil
-// (P, 1, 1) -> (1, P, 1): 1-pencil to 0-pencil
-
-template <std::size_t DIM>
-auto pencil_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
-                        const std::array<std::size_t, DIM>& out_topology) {
-  // Extract topology that is common between in_topology and out_topology
-  auto in_size  = KokkosFFT::Impl::total_size(in_topology);
-  auto out_size = KokkosFFT::Impl::total_size(out_topology);
-  KOKKOSFFT_THROW_IF(in_size == 1 || out_size == 1,
-                     "Input and output topologies must have at least one "
-                     "non-trivial dimension.");
-
-  KOKKOSFFT_THROW_IF(in_size != out_size,
-                     "Input and output topologies must have the same size.");
-
-  std::size_t in_axis = 0, out_axis = 0;
-  for (std::size_t i = 0; i < DIM; ++i) {
-    if (in_topology[i] != out_topology[i]) {
-      if (in_topology[i] == 1) in_axis = i;
-      if (out_topology[i] == 1) out_axis = i;
-    }
-  }
-
-  return std::make_tuple(in_axis, out_axis);
-}
-
-template <std::size_t DIM, typename LayoutType = Kokkos::LayoutRight>
-auto pencil_in_out_axes(
-    const Topology<std::size_t, DIM, LayoutType>& in_topology,
-    const Topology<std::size_t, DIM, LayoutType>& out_topology) {
-  return pencil_in_out_axes(in_topology.array(), out_topology.array());
-}
-
-// Example
-// (1, P) -> (P, 1): x-slab to y-slab
-// (P, 1) -> (1, p): y-slab to x-slab
-// (1, 1, P) -> (1, P, 1): xy-slab to xz-slab
-// (P, 1, 1) -> (1, P, 1): yz-slab to xz-slab
-
-template <std::size_t DIM>
-auto slab_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
-                      const std::array<std::size_t, DIM>& out_topology) {
+/// \brief Get the axes of the input and output slab topologies that are
+/// different
+/// Example
+/// (1, P) -> (P, 1): y-slab to x-slab
+/// (P, 1) -> (1, p): x-slab to y-slab
+/// (1, 1, P) -> (1, P, 1): z-slab to y-slab
+/// (P, 1, 1) -> (1, P, 1): x-slab to y-slab
+///
+/// \tparam iType The type of the index in the topology.
+/// \tparam DIM The number of dimensions of the topology.
+/// \param[in] in_topology The input topology.
+/// \param[in] out_topology The output topology.
+/// \return A tuple of two size_t representing the axes that are different
+/// \throws std::runtime_error if the input and output topologies do not have
+/// the same size
+/// \throws std::runtime_error if the input and output topologies are not slab
+/// topologies
+template <typename iType, std::size_t DIM>
+auto slab_in_out_axes(const std::array<iType, DIM>& in_topology,
+                      const std::array<iType, DIM>& out_topology) {
   auto in_size  = KokkosFFT::Impl::total_size(in_topology);
   auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
@@ -153,10 +127,10 @@ auto slab_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
 
   std::size_t in_axis = 0, out_axis = 0;
   for (std::size_t i = 0; i < DIM; ++i) {
-    if (in_topology[i] > 1 && out_topology[i] == 1) {
+    if (in_topology.at(i) > 1 && out_topology.at(i) == 1) {
       out_axis = i;
     }
-    if (in_topology[i] == 1 && out_topology[i] > 1) {
+    if (in_topology.at(i) == 1 && out_topology.at(i) > 1) {
       in_axis = i;
     }
   }
@@ -164,6 +138,61 @@ auto slab_in_out_axes(const std::array<std::size_t, DIM>& in_topology,
   return std::make_tuple(in_axis, out_axis);
 }
 
+/// \brief Get the axes of the input and output topologies that are different
+///
+/// Example
+/// (1, Px, Py, 1) -> (Px, 1, Py, 1): 0-pencil to 1-pencil
+/// (1, 1, P) -> (1, P, 1): 1-pencil to 2-pencil
+/// (P, 1, 1) -> (1, P, 1): 1-pencil to 0-pencil
+///
+/// \tparam iType The type of the index in the topology.
+/// \tparam DIM The number of dimensions of the topology.
+///
+/// \param[in] in_topology The input topology.
+/// \param[in] out_topology The output topology.
+/// \return A tuple of two size_t representing the axes that are different
+/// \throws std::runtime_error if the input and output topologies do not have
+/// at least one non-trivial dimension
+/// \throws std::runtime_error if the input and output topologies do not have
+/// the same size
+template <typename iType, std::size_t DIM>
+auto pencil_in_out_axes(const std::array<iType, DIM>& in_topology,
+                        const std::array<iType, DIM>& out_topology) {
+  // Extract topology that is common between in_topology and out_topology
+  auto in_size  = KokkosFFT::Impl::total_size(in_topology);
+  auto out_size = KokkosFFT::Impl::total_size(out_topology);
+
+  KOKKOSFFT_THROW_IF(in_size == 1 || out_size == 1,
+                     "Input and output topologies must have at least one "
+                     "non-trivial dimension.");
+
+  KOKKOSFFT_THROW_IF(in_size != out_size,
+                     "Input and output topologies must have the same size.");
+
+  std::size_t in_axis = 0, out_axis = 0;
+  for (std::size_t i = 0; i < DIM; ++i) {
+    if (in_topology.at(i) != out_topology.at(i)) {
+      if (in_topology.at(i) == 1) in_axis = i;
+      if (out_topology.at(i) == 1) out_axis = i;
+    }
+  }
+
+  return std::make_tuple(in_axis, out_axis);
+}
+
+/// \brief Get an intermediate topology by swapping two non-one elements
+///        between input and output topologies. Used to propose intermediate
+///        topology for slab/pencil decompositions if direct conversion is not
+///        possible.
+///
+/// \tparam iType The index type used for the topology.
+/// \tparam DIM The dimensionality of the topology.
+///
+/// \param[in] in The input topology.
+/// \param[in] out The output topology.
+/// \return An intermediate topology obtained by swapping two non-one elements.
+/// \throws std::runtime_error if the input and output topologies do not differ
+/// exactly three positions
 template <typename iType, std::size_t DIM = 1>
 std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
                                      const std::array<iType, DIM>& out) {
@@ -179,7 +208,7 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
       "Input and output topologies must differ exactly three positions.");
 
   // Only copy the exchangeable indices from original arrays in and out
-  std::array<iType, DIM> in_trimmed = {}, out_trimmed = {};
+  std::array<iType, DIM> in_trimmed{}, out_trimmed{};
   for (auto diff_idx : diff_indices) {
     in_trimmed.at(diff_idx)  = in.at(diff_idx);
     out_trimmed.at(diff_idx) = out.at(diff_idx);
@@ -218,7 +247,7 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
   return out;
 }
 
-/// \brief Decompose the FFT axes of the slab geometry into vectors
+/// \brief Decompose the FFT axes into vectors
 ///        The first vector includes the axes for FFT without transpose
 ///        The second vector includes the axes for FFT after transpose
 ///        The third vector includes the axes for remaining FFT
@@ -227,6 +256,11 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
 /// \tparam DIM The dimensionality of the topology.
 /// \tparam FFT_DIM The dimensionality of the FFT axes.
 ///
+/// \param[in] topologies The vector of topologies.
+/// \param[in] axes The axes along which the FFT is performed.
+/// \return A vector of vectors of axes.
+/// \throws std::runtime_error if the total size of decomposed axes does not
+/// match the original axes size
 template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
 std::vector<std::vector<iType>> decompose_axes(
     const std::vector<std::array<std::size_t, DIM>>& topologies,
@@ -238,7 +272,7 @@ std::vector<std::vector<iType>> decompose_axes(
   std::vector<std::size_t> axes_reversed =
       KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(non_negative_axes));
 
-  std::vector<std::vector<iType>> all_axes = {};
+  std::vector<std::vector<iType>> all_axes{};
   for (auto topology : topologies) {
     std::vector<iType> ready_axes;
     for (auto axis : axes_reversed) {
@@ -272,13 +306,23 @@ std::vector<std::vector<iType>> decompose_axes(
 }
 
 /// \brief Compute the axis to transpose to convert one topology to another
+/// Example
+/// (1, Px, Py, 1) -> (Px, 1, Py, 1). Transpose axis is Px (0)
+/// (1, Px, Py, 1) -> (1, Px, 1, Py). Transpose axis is Py (1)
+///
 /// \tparam iType The index type
 /// \tparam DIM The dimension
 ///
 /// \param[in] in_topology The input topology
 /// \param[in] out_topology The output topology
-/// \return The axis to transpose
-template <typename iType, std::size_t DIM = 1>
+/// \return The axis to transpose (0 or 1)
+/// \throws std::runtime_error if the input and output topologies do not have
+/// exactly two non-one elements
+/// \throws std::runtime_error if the input and output topologies have identical
+/// non-one elements
+/// \throws std::runtime_error if the input and output topologies differ exactly
+/// two positions
+template <typename iType, std::size_t DIM>
 auto compute_trans_axis(const std::array<iType, DIM>& in_topology,
                         const std::array<iType, DIM>& out_topology,
                         iType first_non_one) {
@@ -293,8 +337,7 @@ auto compute_trans_axis(const std::array<iType, DIM>& in_topology,
                      "Input and output topologies must not have identical "
                      "non-one elements.");
 
-  std::vector<iType> diff_indices =
-      extract_different_indices(in_topology, out_topology);
+  auto diff_indices = extract_different_indices(in_topology, out_topology);
   KOKKOSFFT_THROW_IF(
       diff_indices.size() != 2,
       "Input and output topologies must differ exactly two positions");
