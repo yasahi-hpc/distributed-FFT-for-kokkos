@@ -157,7 +157,7 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
                  m_in_map, m_out_map, KokkosFFT::Direction::backward);
   }
 
-  std::string label() const override { return m_plan->label(); }
+  std::string name() const override { return m_plan->name(); }
 
  private:
   template <typename PlanType, typename InView, typename OutView>

@@ -199,7 +199,7 @@ struct ScopedRocfftMPIBidirectionalPlan {
     m_plan_backward.commit(exec_space);
   }
 
-  std::string label() const { return std::string("rocFFTMPIPlan"); }
+  std::string name() const { return std::string("rocFFTMPIPlan"); }
 };
 
 template <typename ExecutionSpace, typename T1, typename T2>
