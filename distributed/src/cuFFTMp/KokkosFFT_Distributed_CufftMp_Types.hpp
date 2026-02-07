@@ -246,8 +246,8 @@ struct ScopedCufftMpPlan {
     KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftSetStream failed");
   }
 
-  /// \brief Get the label for profiling
-  /// \return Label string
+  /// \brief Get the name of the plan implementation
+  /// \return Name of the plan implementation
   std::string name() const { return std::string("cufftMpPlan"); }
 };
 

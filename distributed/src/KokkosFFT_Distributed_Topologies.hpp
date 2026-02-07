@@ -31,19 +31,13 @@ inline auto to_topology_type(const ContainerType& topology) {
   auto size = KokkosFFT::Impl::total_size(topology);
   if (size == 0) return TopologyType::Empty;
 
-  TopologyType topology_type = TopologyType::Invalid;
-  auto non_one_count         = count_non_ones(topology);
-  if (non_one_count == 0) {
-    topology_type = TopologyType::Shared;
-  } else if (non_one_count == 1) {
-    topology_type = TopologyType::Slab;
-  } else if (non_one_count == 2) {
-    topology_type = TopologyType::Pencil;
-  } else if (non_one_count == 3) {
-    topology_type = TopologyType::Brick;
+  switch (count_non_ones(topology)) {
+    case 0: return TopologyType::Shared;
+    case 1: return TopologyType::Slab;
+    case 2: return TopologyType::Pencil;
+    case 3: return TopologyType::Brick;
+    default: return TopologyType::Invalid;
   }
-
-  return topology_type;
 }
 
 /// \brief Check if all given topologies are of specified type
