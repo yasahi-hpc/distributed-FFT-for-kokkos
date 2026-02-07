@@ -404,27 +404,6 @@ void test_compute_next_extents2D(std::size_t rank, std::size_t nprocs) {
   EXPECT_EQ(next_shape_t0_map1, ref_next_shape_t0_map1);
   EXPECT_EQ(next_shape_t1_map0, ref_next_shape_t1_map0);
   EXPECT_EQ(next_shape_t1_map1, ref_next_shape_t1_map1);
-
-  // Failure tests: nprocs is larger than global extent in the distributed
-  // dimension
-  if (nprocs > 1) {
-    extents_type small_global_shape{1, nprocs + 1};
-
-    EXPECT_NO_THROW({
-      [[maybe_unused]] auto next_shape_no_throw =
-          KokkosFFT::Distributed::Impl::compute_next_extents(
-              small_global_shape, topology0, map0, rank);
-    }) << "Expected no throw when nprocs <= global extent in distributed "
-          "dimension";
-
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto next_shape_throw =
-              KokkosFFT::Distributed::Impl::compute_next_extents(
-                  small_global_shape, topology1, map0, rank);
-        },
-        std::runtime_error);
-  }
 }
 
 template <typename T, typename LayoutType>
