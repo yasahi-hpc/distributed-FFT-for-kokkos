@@ -83,31 +83,32 @@ internal_plan_factory(
   }
 #endif
   auto topology_type = get_common_topology_type(in_topology, out_topology);
-  if (topology_type == TopologyType::Shared) {
-    return std::make_unique<
-        SharedPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
-        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
-  } else if (topology_type == TopologyType::Slab) {
-    return std::make_unique<
-        SlabPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
-        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
-  } else if (topology_type == TopologyType::Pencil) {
-    if constexpr (InViewType::rank() >= 3) {
+  switch (topology_type) {
+    case TopologyType::Shared:
       return std::make_unique<
-          PencilPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>>(exec_space, in, out, axes, in_topology,
-                                     out_topology, comm, norm);
-    } else {
-      throw std::runtime_error(
-          "Pencil plan supports 3D or higher dimensional Views");
-    }
-  } else if (topology_type == TopologyType::Empty) {
-    throw std::runtime_error("Empty topology is not supported for FFT plan.");
-  } else if (topology_type == TopologyType::Brick) {
-    throw std::runtime_error("Brick topology is not supported for FFT plan.");
-  } else {
-    // Default case for unsupported topologies
-    throw std::runtime_error("Unsupported topology for FFT plan.");
+          SharedPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
+          exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+    case TopologyType::Slab:
+      return std::make_unique<
+          SlabPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
+          exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+    case TopologyType::Pencil:
+      if constexpr (InViewType::rank() >= 3) {
+        return std::make_unique<
+            PencilPlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                       InLayoutType, OutLayoutType>>(
+            exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+      } else {
+        throw std::runtime_error(
+            "Pencil plan supports 3D or higher dimensional Views");
+      }
+    case TopologyType::Empty:
+      throw std::runtime_error("Empty topology is not supported for FFT plan.");
+    case TopologyType::Brick:
+      throw std::runtime_error("Brick topology is not supported for FFT plan.");
+    default:
+      // Default case for unsupported topologies
+      throw std::runtime_error("Unsupported topology for FFT plan.");
   }
 }
 
@@ -211,24 +212,26 @@ class Plan {
 template <typename PlanType, typename InViewType, typename OutViewType>
 void execute(const PlanType& plan, const InViewType& in, const OutViewType& out,
              KokkosFFT::Direction direction) {
-  using in_value_type  = typename InViewType::non_const_value_type;
-  using out_value_type = typename OutViewType::non_const_value_type;
-  if (direction == KokkosFFT::Direction::forward) {
-    if constexpr (KokkosFFT::Impl::is_complex_v<out_value_type>) {
-      plan.forward_impl(in, out);
-    } else {
-      KOKKOSFFT_THROW_IF(true,
-                         "Forward FFT operation requires complex output type.");
-    }
-  } else if (direction == KokkosFFT::Direction::backward) {
-    if constexpr (KokkosFFT::Impl::is_complex_v<in_value_type>) {
-      plan.backward_impl(in, out);
-    } else {
-      KOKKOSFFT_THROW_IF(true,
-                         "Backward FFT operation requires complex input type.");
-    }
-  } else {
-    KOKKOSFFT_THROW_IF(true, "Invalid FFT direction specified.");
+  switch (direction) {
+    case KokkosFFT::Direction::forward:
+      using out_value_type = typename OutViewType::non_const_value_type;
+      if constexpr (KokkosFFT::Impl::is_complex_v<out_value_type>) {
+        plan.forward_impl(in, out);
+      } else {
+        KOKKOSFFT_THROW_IF(
+            true, "Forward FFT operation requires complex output type.");
+      }
+      break;
+    case KokkosFFT::Direction::backward:
+      using in_value_type = typename InViewType::non_const_value_type;
+      if constexpr (KokkosFFT::Impl::is_complex_v<in_value_type>) {
+        plan.backward_impl(in, out);
+      } else {
+        KOKKOSFFT_THROW_IF(
+            true, "Backward FFT operation requires complex input type.");
+      }
+      break;
+    default: KOKKOSFFT_THROW_IF(true, "Invalid FFT direction specified.");
   }
 }
 

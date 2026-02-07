@@ -199,6 +199,8 @@ struct ScopedRocfftMPIBidirectionalPlan {
     m_plan_backward.commit(exec_space);
   }
 
+  /// \brief Get the name of the plan implementation
+  /// \return Name of the plan implementation
   std::string name() const { return std::string("rocFFTMPIPlan"); }
 };
 

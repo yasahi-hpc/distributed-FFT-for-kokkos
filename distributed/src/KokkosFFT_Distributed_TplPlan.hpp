@@ -157,6 +157,8 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
                  m_in_map, m_out_map, KokkosFFT::Direction::backward);
   }
 
+  /// \brief Get the name of the plan implementation
+  /// \return Name of the plan implementation
   std::string name() const override { return m_plan->name(); }
 
  private:

@@ -1358,6 +1358,8 @@ class SlabPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
         get_fft_extents());
   }
 
+  /// \brief Get the name of the plan implementation
+  /// \return Name of the plan implementation
   std::string name() const override { return std::string("SlabPlan"); }
 };
 
