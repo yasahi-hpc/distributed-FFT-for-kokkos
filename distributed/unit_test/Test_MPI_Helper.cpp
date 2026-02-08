@@ -8,16 +8,12 @@
 
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;
-using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
-                                    std::pair<float, Kokkos::LayoutRight>,
-                                    std::pair<double, Kokkos::LayoutLeft>,
-                                    std::pair<double, Kokkos::LayoutRight>>;
+using test_types = ::testing::Types<Kokkos::LayoutLeft, Kokkos::LayoutRight>;
 
 // Basically the same fixtures, used for labeling tests
 template <typename T>
 struct TestMPIHelper : public ::testing::Test {
-  using float_type  = typename T::first_type;
-  using layout_type = typename T::second_type;
+  using layout_type = T;
 
   std::size_t m_rank   = 0;
   std::size_t m_nprocs = 1;
@@ -33,11 +29,14 @@ struct TestMPIHelper : public ::testing::Test {
   }
 };
 
-template <typename T, typename LayoutType>
+template <typename LayoutType>
 void test_compute_global_extents2D(std::size_t rank, std::size_t nprocs) {
-  using topology_type = std::array<std::size_t, 2>;
-  using ViewType      = Kokkos::View<T**, LayoutType, execution_space>;
+  using extents_type = std::array<std::size_t, 2>;
+  using topology_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 2, LayoutType>;
+  using ViewType = Kokkos::View<double**, execution_space>;
 
+  extents_type array0{1, nprocs}, array1{nprocs, 1};
   topology_type topology0{1, nprocs}, topology1{nprocs, 1};
 
   const std::size_t gn0 = 19, gn1 = 32;
@@ -56,31 +55,46 @@ void test_compute_global_extents2D(std::size_t rank, std::size_t nprocs) {
   ViewType v0("v0", n0_t0, n1_t0);
   ViewType v1("v1", n0_t1, n1_t1);
 
-  auto global_shape_t0 = KokkosFFT::Distributed::Impl::compute_global_extents(
-      v0, topology0, MPI_COMM_WORLD);
-  auto global_shape_t1 = KokkosFFT::Distributed::Impl::compute_global_extents(
-      v1, topology1, MPI_COMM_WORLD);
+  extents_type ref_global_shape{gn0, gn1};
 
-  topology_type ref_global_shape{gn0, gn1};
+  // With array
+  {
+    auto global_shape_t0 = KokkosFFT::Distributed::Impl::compute_global_extents(
+        v0, array0, MPI_COMM_WORLD);
+    auto global_shape_t1 = KokkosFFT::Distributed::Impl::compute_global_extents(
+        v1, array1, MPI_COMM_WORLD);
+    EXPECT_EQ(global_shape_t0, ref_global_shape);
+    EXPECT_EQ(global_shape_t1, ref_global_shape);
+  }
 
-  EXPECT_EQ(global_shape_t0, ref_global_shape);
-  EXPECT_EQ(global_shape_t1, ref_global_shape);
+  // With topology
+  {
+    auto global_shape_t0 = KokkosFFT::Distributed::Impl::compute_global_extents(
+        v0, topology0, MPI_COMM_WORLD);
+    auto global_shape_t1 = KokkosFFT::Distributed::Impl::compute_global_extents(
+        v1, topology1, MPI_COMM_WORLD);
+    EXPECT_EQ(global_shape_t0, ref_global_shape);
+    EXPECT_EQ(global_shape_t1, ref_global_shape);
+  }
 }
 
-template <typename T, typename LayoutType>
+template <typename LayoutType>
 void test_compute_global_extents3D(std::size_t rank, std::size_t npx,
                                    std::size_t npy) {
   using extents_type = std::array<std::size_t, 3>;
-  using topology_r_type =
-      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
-  using topology_l_type =
-      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutLeft>;
-  using ViewType = Kokkos::View<T***, LayoutType, execution_space>;
+  using topology_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, LayoutType>;
+  using ViewType = Kokkos::View<double***, execution_space>;
 
-  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy};
-  topology_l_type topology2{npy, npx, 1};
+  extents_type array0{1, npx, npy}, array1{npx, 1, npy};
+  topology_type topology0{1, npx, npy}, topology1{npx, 1, npy};
 
   std::size_t rx = rank / npy, ry = rank % npy;
+  std::size_t rx_topo = rx, ry_topo = ry;
+  if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+    rx_topo = rank % npx;
+    ry_topo = rank / npx;
+  }
 
   auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
     std::size_t quotient  = n / t;
@@ -89,51 +103,72 @@ void test_compute_global_extents3D(std::size_t rank, std::size_t npx,
   };
 
   const std::size_t gn0 = 19, gn1 = 32, gn2 = 25;
-  const std::size_t n0_t0 = gn0;
-  const std::size_t n1_t0 = distribute_extents(gn1, rx, npx);
-  const std::size_t n2_t0 = distribute_extents(gn2, ry, npy);
-
-  const std::size_t n0_t1 = distribute_extents(gn0, rx, npx);
-  const std::size_t n1_t1 = gn1;
-  const std::size_t n2_t1 = distribute_extents(gn2, ry, npy);
-
-  const std::size_t n0_t2 = distribute_extents(gn0, ry, npy);
-  const std::size_t n1_t2 = distribute_extents(gn1, rx, npx);
-  const std::size_t n2_t2 = gn2;
-
-  ViewType v0("v0", n0_t0, n1_t0, n2_t0);
-  ViewType v1("v1", n0_t1, n1_t1, n2_t1);
-  ViewType v2("v2", n0_t2, n1_t2, n2_t2);
-
-  auto global_shape_t0 = KokkosFFT::Distributed::Impl::compute_global_extents(
-      v0, topology0, MPI_COMM_WORLD);
-  auto global_shape_t1 = KokkosFFT::Distributed::Impl::compute_global_extents(
-      v1, topology1, MPI_COMM_WORLD);
-  auto global_shape_t2 = KokkosFFT::Distributed::Impl::compute_global_extents(
-      v2, topology2, MPI_COMM_WORLD);
-
   extents_type ref_global_shape{gn0, gn1, gn2};
 
-  EXPECT_EQ(global_shape_t0, ref_global_shape);
-  EXPECT_EQ(global_shape_t1, ref_global_shape);
-  EXPECT_EQ(global_shape_t2, ref_global_shape);
+  // With array
+  {
+    const std::size_t n0_t0 = gn0;
+    const std::size_t n1_t0 = distribute_extents(gn1, rx, npx);
+    const std::size_t n2_t0 = distribute_extents(gn2, ry, npy);
+
+    const std::size_t n0_t1 = distribute_extents(gn0, rx, npx);
+    const std::size_t n1_t1 = gn1;
+    const std::size_t n2_t1 = distribute_extents(gn2, ry, npy);
+
+    ViewType v0("v0", n0_t0, n1_t0, n2_t0);
+    ViewType v1("v1", n0_t1, n1_t1, n2_t1);
+
+    auto global_shape_t0 = KokkosFFT::Distributed::Impl::compute_global_extents(
+        v0, array0, MPI_COMM_WORLD);
+    auto global_shape_t1 = KokkosFFT::Distributed::Impl::compute_global_extents(
+        v1, array1, MPI_COMM_WORLD);
+
+    EXPECT_EQ(global_shape_t0, ref_global_shape);
+    EXPECT_EQ(global_shape_t1, ref_global_shape);
+  }
+
+  // With topology
+  {
+    const std::size_t n0_t0 = gn0;
+    const std::size_t n1_t0 = distribute_extents(gn1, rx_topo, npx);
+    const std::size_t n2_t0 = distribute_extents(gn2, ry_topo, npy);
+
+    const std::size_t n0_t1 = distribute_extents(gn0, rx_topo, npx);
+    const std::size_t n1_t1 = gn1;
+    const std::size_t n2_t1 = distribute_extents(gn2, ry_topo, npy);
+
+    ViewType v0("v0", n0_t0, n1_t0, n2_t0);
+    ViewType v1("v1", n0_t1, n1_t1, n2_t1);
+    auto global_shape_t0 = KokkosFFT::Distributed::Impl::compute_global_extents(
+        v0, topology0, MPI_COMM_WORLD);
+    auto global_shape_t1 = KokkosFFT::Distributed::Impl::compute_global_extents(
+        v1, topology1, MPI_COMM_WORLD);
+
+    EXPECT_EQ(global_shape_t0, ref_global_shape);
+    EXPECT_EQ(global_shape_t1, ref_global_shape);
+  }
 }
 
+template <typename LayoutType>
 void test_rank_to_coord() {
-  using topology_r_1D_type = KokkosFFT::Distributed::Topology<std::size_t, 1>;
-  using topology_r_2D_type = KokkosFFT::Distributed::Topology<std::size_t, 2>;
-  using topology_r_3D_type = KokkosFFT::Distributed::Topology<std::size_t, 3>;
-  using topology_r_4D_type = KokkosFFT::Distributed::Topology<std::size_t, 4>;
-
   using extents_1D_type = std::array<std::size_t, 1>;
   using extents_2D_type = std::array<std::size_t, 2>;
   using extents_3D_type = std::array<std::size_t, 3>;
   using extents_4D_type = std::array<std::size_t, 4>;
 
-  topology_r_1D_type topology1{2};
-  topology_r_2D_type topology2{1, 2}, topology2_2{4, 2};
-  topology_r_3D_type topology3{1, 2, 1}, topology3_2{4, 2, 1};
-  topology_r_4D_type topology4{1, 4, 1, 1}, topology4_2{1, 1, 4, 2};
+  using topology_1D_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 1, LayoutType>;
+  using topology_2D_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 2, LayoutType>;
+  using topology_3D_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, LayoutType>;
+  using topology_4D_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 4, LayoutType>;
+
+  topology_1D_type topology1{2};
+  topology_2D_type topology2{1, 2}, topology2_2{4, 2};
+  topology_3D_type topology3{1, 2, 1}, topology3_2{4, 2, 1};
+  topology_4D_type topology4{1, 4, 1, 1}, topology4_2{1, 1, 4, 2};
 
   extents_1D_type ref_coord1_rank0{0}, ref_coord1_rank1{1};
   extents_2D_type ref_coord2_rank0{0, 0}, ref_coord2_rank1{0, 1};
@@ -153,6 +188,23 @@ void test_rank_to_coord() {
       ref_coord4_2_rank3{0, 0, 1, 1}, ref_coord4_2_rank4{0, 0, 2, 0},
       ref_coord4_2_rank5{0, 0, 2, 1}, ref_coord4_2_rank6{0, 0, 3, 0},
       ref_coord4_2_rank7{0, 0, 3, 1};
+
+  if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+    ref_coord2_2_rank0 = {0, 0}, ref_coord2_2_rank1 = {1, 0};
+    ref_coord2_2_rank2 = {2, 0}, ref_coord2_2_rank3 = {3, 0};
+    ref_coord2_2_rank4 = {0, 1}, ref_coord2_2_rank5 = {1, 1};
+    ref_coord2_2_rank6 = {2, 1}, ref_coord2_2_rank7 = {3, 1};
+
+    ref_coord3_2_rank0 = {0, 0, 0}, ref_coord3_2_rank1 = {1, 0, 0};
+    ref_coord3_2_rank2 = {2, 0, 0}, ref_coord3_2_rank3 = {3, 0, 0};
+    ref_coord3_2_rank4 = {0, 1, 0}, ref_coord3_2_rank5 = {1, 1, 0};
+    ref_coord3_2_rank6 = {2, 1, 0}, ref_coord3_2_rank7 = {3, 1, 0};
+
+    ref_coord4_2_rank0 = {0, 0, 0, 0}, ref_coord4_2_rank1 = {0, 0, 1, 0};
+    ref_coord4_2_rank2 = {0, 0, 2, 0}, ref_coord4_2_rank3 = {0, 0, 3, 0};
+    ref_coord4_2_rank4 = {0, 0, 0, 1}, ref_coord4_2_rank5 = {0, 0, 1, 1};
+    ref_coord4_2_rank6 = {0, 0, 2, 1}, ref_coord4_2_rank7 = {0, 0, 3, 1};
+  }
 
   auto coord1_rank0   = KokkosFFT::Distributed::rank_to_coord(topology1, 0);
   auto coord1_rank1   = KokkosFFT::Distributed::rank_to_coord(topology1, 1);
@@ -253,7 +305,7 @@ void test_rank_to_coord() {
       std::runtime_error);
 }
 
-template <typename T, typename LayoutType>
+template <typename LayoutType>
 void test_compute_local_extent2D(std::size_t rank, std::size_t nprocs) {
   using extents_type  = std::array<std::size_t, 2>;
   using topology_type = std::array<std::size_t, 2>;
@@ -296,7 +348,7 @@ void test_compute_local_extent2D(std::size_t rank, std::size_t nprocs) {
   EXPECT_EQ(local_starts_t1, ref_local_starts_t1);
 }
 
-template <typename T, typename LayoutType>
+template <typename LayoutType>
 void test_compute_local_extents3D(std::size_t rank, std::size_t npx,
                                   std::size_t npy) {
   using extents_type    = std::array<std::size_t, 3>;
@@ -363,7 +415,7 @@ void test_compute_local_extents3D(std::size_t rank, std::size_t npx,
   EXPECT_EQ(local_starts_t2, ref_local_starts_t2);
 }
 
-template <typename T, typename LayoutType>
+template <typename LayoutType>
 void test_compute_next_extents2D(std::size_t rank, std::size_t nprocs) {
   using extents_type    = std::array<std::size_t, 2>;
   using topology_r_type = KokkosFFT::Distributed::Topology<std::size_t, 2>;
@@ -406,7 +458,7 @@ void test_compute_next_extents2D(std::size_t rank, std::size_t nprocs) {
   EXPECT_EQ(next_shape_t1_map1, ref_next_shape_t1_map1);
 }
 
-template <typename T, typename LayoutType>
+template <typename LayoutType>
 void test_compute_next_extents3D(std::size_t rank, std::size_t npx,
                                  std::size_t npy) {
   using extents_type = std::array<std::size_t, 3>;
@@ -582,16 +634,12 @@ void test_compute_next_extents3D(std::size_t rank, std::size_t npx,
 
 TYPED_TEST_SUITE(TestMPIHelper, test_types);
 
-TYPED_TEST(TestMPIHelper, GetGlobalShape2D) {
-  using float_type  = typename TestFixture::float_type;
+TYPED_TEST(TestMPIHelper, compute_global_extents2D) {
   using layout_type = typename TestFixture::layout_type;
-
-  test_compute_global_extents2D<float_type, layout_type>(this->m_rank,
-                                                         this->m_nprocs);
+  test_compute_global_extents2D<layout_type>(this->m_rank, this->m_nprocs);
 }
 
-TYPED_TEST(TestMPIHelper, GetGlobalShape3D) {
-  using float_type  = typename TestFixture::float_type;
+TYPED_TEST(TestMPIHelper, compute_global_extents3D) {
   using layout_type = typename TestFixture::layout_type;
 
   if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
@@ -599,50 +647,49 @@ TYPED_TEST(TestMPIHelper, GetGlobalShape3D) {
                     "for this test";
   }
 
-  test_compute_global_extents3D<float_type, layout_type>(
-      this->m_rank, this->m_npx, this->m_npx);
+  test_compute_global_extents3D<layout_type>(this->m_rank, this->m_npx,
+                                             this->m_npx);
 }
 
-TEST(TestRankToCoord, 1Dto4D) { test_rank_to_coord(); }
-
-TYPED_TEST(TestMPIHelper, GetLocalExtents2D) {
-  using float_type  = typename TestFixture::float_type;
+TYPED_TEST(TestMPIHelper, rank_to_coord) {
   using layout_type = typename TestFixture::layout_type;
-
-  test_compute_local_extent2D<float_type, layout_type>(this->m_rank,
-                                                       this->m_nprocs);
+  test_rank_to_coord<layout_type>();
 }
 
-TYPED_TEST(TestMPIHelper, GetLocalExtents3D) {
-  using float_type  = typename TestFixture::float_type;
+TYPED_TEST(TestMPIHelper, compute_local_extents2D) {
   using layout_type = typename TestFixture::layout_type;
+  test_compute_local_extent2D<layout_type>(this->m_rank, this->m_nprocs);
+}
 
+TYPED_TEST(TestMPIHelper, compute_local_extents3D) {
+  using layout_type = typename TestFixture::layout_type;
   if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
     GTEST_SKIP() << "The number of MPI processes should be a perfect square "
                     "for this test";
   }
 
-  test_compute_local_extents3D<float_type, layout_type>(
-      this->m_rank, this->m_npx, this->m_npx);
+  test_compute_local_extents3D<layout_type>(this->m_rank, this->m_npx,
+                                            this->m_npx);
 }
 
-TYPED_TEST(TestMPIHelper, GetNextExtents2D) {
-  using float_type  = typename TestFixture::float_type;
+TYPED_TEST(TestMPIHelper, compute_next_extents2D) {
   using layout_type = typename TestFixture::layout_type;
 
-  test_compute_next_extents2D<float_type, layout_type>(this->m_rank,
-                                                       this->m_nprocs);
-}
-
-TYPED_TEST(TestMPIHelper, GetNextExtents3D) {
-  using float_type  = typename TestFixture::float_type;
-  using layout_type = typename TestFixture::layout_type;
-
-  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
-    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
-                    "for this test";
+  for (std::size_t nprocs = 1; nprocs <= 6; ++nprocs) {
+    for (std::size_t rank = 0; rank < nprocs; ++rank) {
+      test_compute_next_extents2D<layout_type>(rank, nprocs);
+    }
   }
+}
 
-  test_compute_next_extents3D<float_type, layout_type>(
-      this->m_rank, this->m_npx, this->m_npx);
+TYPED_TEST(TestMPIHelper, compute_next_extents3D) {
+  using layout_type = typename TestFixture::layout_type;
+
+  for (std::size_t npx = 1; npx <= 3; ++npx) {
+    for (std::size_t npy = 1; npy <= 3; ++npy) {
+      for (std::size_t rank = 0; rank < npx * npy; ++rank) {
+        test_compute_next_extents3D<layout_type>(rank, npx, npy);
+      }
+    }
+  }
 }
