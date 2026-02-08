@@ -225,40 +225,75 @@ void test_rank_to_coord() {
   EXPECT_EQ(coord4_2_rank5, ref_coord4_2_rank5);
   EXPECT_EQ(coord4_2_rank6, ref_coord4_2_rank6);
   EXPECT_EQ(coord4_2_rank7, ref_coord4_2_rank7);
+
+  // Failure tests: rank out of range
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto coord =
+            KokkosFFT::Distributed::rank_to_coord(topology1, 2);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto coord =
+            KokkosFFT::Distributed::rank_to_coord(topology2, 2);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto coord =
+            KokkosFFT::Distributed::rank_to_coord(topology3, 2);
+      },
+      std::runtime_error);
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto coord =
+            KokkosFFT::Distributed::rank_to_coord(topology4, 4);
+      },
+      std::runtime_error);
 }
 
 template <typename T, typename LayoutType>
-void test_get_local_shape2D(std::size_t rank, std::size_t nprocs) {
-  using topology_type = std::array<std::size_t, 2>;
+void test_compute_local_extent2D(std::size_t rank, std::size_t nprocs) {
   using extents_type  = std::array<std::size_t, 2>;
+  using topology_type = std::array<std::size_t, 2>;
 
   topology_type topology0{1, nprocs};
   topology_type topology1{nprocs, 1};
 
-  auto distribute_extents = [&](std::size_t n, std::size_t t) {
+  auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
     std::size_t quotient  = n / t;
     std::size_t remainder = n % t;
-    return rank < remainder ? (quotient + 1) : quotient;
+    return r < remainder ? (quotient + 1) : quotient;
   };
 
   const std::size_t gn0 = 19, gn1 = 32;
   const std::size_t n0_t0 = gn0;
-  const std::size_t n1_t0 = distribute_extents(gn1, nprocs);
-
-  const std::size_t n0_t1 = distribute_extents(gn0, nprocs);
+  const std::size_t n1_t0 = distribute_extents(gn1, rank, nprocs);
+  const std::size_t n0_t1 = distribute_extents(gn0, rank, nprocs);
   const std::size_t n1_t1 = gn1;
 
   extents_type global_shape{gn0, gn1};
   extents_type ref_local_shape_t0{n0_t0, n1_t0},
       ref_local_shape_t1{n0_t1, n1_t1};
+  extents_type ref_local_starts_t0{}, ref_local_starts_t1{};
+  for (std::size_t r = 0; r < rank; r++) {
+    ref_local_starts_t0.at(1) += distribute_extents(gn1, r, nprocs);
+    ref_local_starts_t1.at(0) += distribute_extents(gn0, r, nprocs);
+  }
 
-  auto local_shape_t0 = KokkosFFT::Distributed::get_local_shape(
-      global_shape, topology0, MPI_COMM_WORLD);
-  auto local_shape_t1 = KokkosFFT::Distributed::get_local_shape(
-      global_shape, topology1, MPI_COMM_WORLD);
+  auto [local_shape_t0, local_starts_t0] =
+      KokkosFFT::Distributed::compute_local_extents(global_shape, topology0,
+                                                    MPI_COMM_WORLD);
+  auto [local_shape_t1, local_starts_t1] =
+      KokkosFFT::Distributed::compute_local_extents(global_shape, topology1,
+                                                    MPI_COMM_WORLD);
 
   EXPECT_EQ(local_shape_t0, ref_local_shape_t0);
   EXPECT_EQ(local_shape_t1, ref_local_shape_t1);
+
+  EXPECT_EQ(local_starts_t0, ref_local_starts_t0);
+  EXPECT_EQ(local_starts_t1, ref_local_starts_t1);
 }
 
 template <typename T, typename LayoutType>
@@ -291,20 +326,23 @@ void test_compute_local_extents3D(std::size_t rank, std::size_t npx,
   const std::size_t n1_t2 = distribute_extents(gn1, ry, npy);
   const std::size_t n2_t2 = gn2;
 
-  const std::size_t n1_t0_p = (gn1 - 1) / npx + 1;
-  const std::size_t n2_t0_p = (gn2 - 1) / npy + 1;
-  const std::size_t n0_t1_p = (gn0 - 1) / npx + 1;
-  const std::size_t n2_t1_p = (gn2 - 1) / npy + 1;
-  const std::size_t n0_t2_p = (gn0 - 1) / npx + 1;
-  const std::size_t n1_t2_p = (gn1 - 1) / npy + 1;
-
   extents_type global_shape{gn0, gn1, gn2};
   extents_type ref_local_shape_t0{n0_t0, n1_t0, n2_t0},
       ref_local_shape_t1{n0_t1, n1_t1, n2_t1},
       ref_local_shape_t2{n0_t2, n1_t2, n2_t2};
-  extents_type ref_local_starts_t0{0, rx * n1_t0_p, ry * n2_t0_p},
-      ref_local_starts_t1{rx * n0_t1_p, 0, ry * n2_t1_p},
-      ref_local_starts_t2{rx * n0_t2_p, ry * n1_t2_p, 0};
+  extents_type ref_local_starts_t0{}, ref_local_starts_t1{},
+      ref_local_starts_t2{};
+  for (std::size_t r = 0; r < rx; r++) {
+    ref_local_starts_t0.at(1) += distribute_extents(gn1, r, npx);
+    ref_local_starts_t1.at(0) += distribute_extents(gn0, r, npx);
+    ref_local_starts_t2.at(0) += distribute_extents(gn0, r, npx);
+  }
+
+  for (std::size_t r = 0; r < ry; r++) {
+    ref_local_starts_t0.at(2) += distribute_extents(gn2, r, npy);
+    ref_local_starts_t1.at(2) += distribute_extents(gn2, r, npy);
+    ref_local_starts_t2.at(1) += distribute_extents(gn1, r, npy);
+  }
 
   auto [local_shape_t0, local_starts_t0] =
       KokkosFFT::Distributed::compute_local_extents(global_shape, topology0,
@@ -567,14 +605,15 @@ TYPED_TEST(TestMPIHelper, GetGlobalShape3D) {
 
 TEST(TestRankToCoord, 1Dto4D) { test_rank_to_coord(); }
 
-TYPED_TEST(TestMPIHelper, GetLocalShape2D) {
+TYPED_TEST(TestMPIHelper, GetLocalExtents2D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
-  test_get_local_shape2D<float_type, layout_type>(this->m_rank, this->m_nprocs);
+  test_compute_local_extent2D<float_type, layout_type>(this->m_rank,
+                                                       this->m_nprocs);
 }
 
-TYPED_TEST(TestMPIHelper, GetLocalShape3D) {
+TYPED_TEST(TestMPIHelper, GetLocalExtents3D) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
 
