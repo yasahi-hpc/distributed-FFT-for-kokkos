@@ -107,11 +107,11 @@ struct Grid {
     m_z = Math::linspace(exec, 0.0, lz * M_PI, nz, /*endpoint=*/false);
 
     // Wavenumbers
+    extents_type gout_extents{std::size_t(nx), std::size_t(ny),
+                              std::size_t(nz / 2 + 1)};
     auto [out_extents, out_starts] =
         KokkosFFT::Distributed::compute_local_extents(
-            extents_type(
-                {std::size_t(nx), std::size_t(ny), std::size_t(nz / 2 + 1)}),
-            m_out_topology, MPI_COMM_WORLD);
+            gout_extents, m_out_topology, MPI_COMM_WORLD);
     auto [nkx, nky, nkz] = out_extents;
     m_kx                 = View1D<double>("kx", nkx);
     m_ky                 = View1D<double>("ky", nky);
@@ -284,13 +284,17 @@ struct Variables {
     std::size_t nx = h_x.extent(0), ny = h_y.extent(0), nz = h_z.extent(0);
 
     // Compute the extents in z-pencils
-    auto [nin0, nin1, nin2] = KokkosFFT::Distributed::get_local_shape(
-        extents_type({nx, ny, nz}), grid.m_in_topology, MPI_COMM_WORLD);
-
+    extents_type gin_extents{nx, ny, nz}, gout_extents{nx, ny, nz / 2 + 1};
+    auto [in_extents, in_starts] =
+        KokkosFFT::Distributed::compute_local_extents(
+            gin_extents, grid.m_in_topology, MPI_COMM_WORLD);
     // Compute the extents in x-pencils
-    auto [nout0, nout1, nout2] = KokkosFFT::Distributed::get_local_shape(
-        extents_type({nx, ny, nz / 2 + 1}), grid.m_out_topology,
-        MPI_COMM_WORLD);
+    [[maybe_unused]] auto [out_extents, out_starts] =
+        KokkosFFT::Distributed::compute_local_extents(
+            gout_extents, grid.m_out_topology, MPI_COMM_WORLD);
+
+    auto [nin0, nin1, nin2]    = in_extents;
+    auto [nout0, nout1, nout2] = out_extents;
 
     // Create views in z-pencil format
     m_u    = View3D<double>("u", nin0, nin1, nin2);
@@ -331,8 +335,8 @@ struct Variables {
     for (std::size_t iz = 0; iz < nin2; iz++) {
       for (std::size_t iy = 0; iy < nin1; iy++) {
         for (std::size_t ix = 0; ix < nin0; ix++) {
-          std::size_t gix = ix + grid.m_rx * nin0;  // Global index in x
-          std::size_t giy = iy + grid.m_ry * nin1;  // Global index in y
+          std::size_t gix = ix + in_starts.at(0);  // Global index in x
+          std::size_t giy = iy + in_starts.at(1);  // Global index in y
 
           double x = h_x(gix), y = h_y(giy), z = h_z(iz);
           h_u(ix, iy, iz) =

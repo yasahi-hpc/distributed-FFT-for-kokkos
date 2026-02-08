@@ -505,52 +505,6 @@ auto compute_local_extents(const std::array<std::size_t, DIM> &extents,
                                comm);
 }
 
-// Data are stored as
-// rank0: extents
-// rank1: extents
-// ...
-// rankn:
-template <std::size_t DIM>
-auto get_local_shape(const std::array<std::size_t, DIM> &extents,
-                     const std::array<std::size_t, DIM> &topology,
-                     MPI_Comm comm, bool equal_extents = false) {
-  // Check that topology includes two or less non-one elements
-  std::array<std::size_t, DIM> local_extents;
-  std::copy(extents.begin(), extents.end(), local_extents.begin());
-  auto total_size = KokkosFFT::Impl::total_size(topology);
-
-  int rank, nprocs;
-  ::MPI_Comm_rank(comm, &rank);
-  ::MPI_Comm_size(comm, &nprocs);
-
-  KOKKOSFFT_THROW_IF(static_cast<int>(total_size) != nprocs,
-                     "topology size must be identical to mpi size.");
-
-  std::array<std::size_t, DIM> coords =
-      rank_to_coord(topology, static_cast<std::size_t>(rank));
-
-  for (std::size_t i = 0; i < extents.size(); i++) {
-    if (topology.at(i) != 1) {
-      std::size_t n = extents.at(i);
-      std::size_t t = topology.at(i);
-
-      if (equal_extents) {
-        // Distribute data with sufficient extent size
-        local_extents.at(i) = (n - 1) / t + 1;
-      } else {
-        std::size_t quotient  = n / t;
-        std::size_t remainder = n % t;
-
-        // Distribute the remainder acrocss the first few elements
-        local_extents.at(i) =
-            (coords.at(i) < remainder) ? quotient + 1 : quotient;
-      }
-    }
-  }
-
-  return local_extents;
-}
-
 }  // namespace Distributed
 }  // namespace KokkosFFT
 
