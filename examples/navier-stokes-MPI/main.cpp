@@ -120,19 +120,22 @@ struct Grid {
     m_inv_ksq            = View3D<double>("inv_ksq", nkx, nky, nkz);
     m_alias_mask         = View3D<double>("alias_mask", nkx, nky, nkz);
 
-    host_execution_space host_exec;
-
     // [0, dkx, 2*dkx, ..., nkx * dkx, -nkx * dkx, ..., -dkx]
     double dkx = lx / static_cast<double>(2 * nx);
-    auto h_kx  = KokkosFFT::fftfreq(host_exec, nx, dkx);
+    auto gkx   = KokkosFFT::fftfreq(exec, nx, dkx);
 
     // [0, dky, 2*dky, ..., nky * dky, -nky * dkyx, ..., -dky]
     double dky = ly / static_cast<double>(2 * ny);
-    auto h_gky = KokkosFFT::fftfreq(host_exec, ny, dky);
+    auto gky   = KokkosFFT::fftfreq(exec, ny, dky);
 
     // [0, dkz, 2*dkz, ..., nkz * dkz]
-    double dkz  = lz / static_cast<double>(2 * nz);
-    auto h_gkzh = KokkosFFT::rfftfreq(host_exec, nz, dkz);
+    double dkz = lz / static_cast<double>(2 * nz);
+    auto gkzh  = KokkosFFT::rfftfreq(exec, nz, dkz);
+
+    auto h_gkx = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gkx);
+    auto h_gky = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gky);
+    auto h_gkzh =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, gkzh);
 
     // kx**2 + ky**2 + kz**2
     auto h_ksq     = Kokkos::create_mirror_view(m_ksq);
@@ -140,10 +143,11 @@ struct Grid {
     for (int ikz = 0; ikz < h_ksq.extent_int(2); ikz++) {
       for (int iky = 0; iky < h_ksq.extent_int(1); iky++) {
         for (int ikx = 0; ikx < h_ksq.extent_int(0); ikx++) {
+          int gikx             = ikx + out_starts.at(0);  // Global index in x
           int giky             = iky + out_starts.at(1);  // Global index in y
           int gikz             = ikz + out_starts.at(2);  // Global index in z
-          h_ksq(ikx, iky, ikz) = h_kx(ikx) * h_kx(ikx) +
-                                 +h_gky(giky) * h_gky(giky) +
+          h_ksq(ikx, iky, ikz) = h_gkx(gikx) * h_gkx(gikx) +
+                                 h_gky(giky) * h_gky(giky) +
                                  h_gkzh(gikz) * h_gkzh(gikz);
           h_inv_ksq(ikx, iky, ikz) = (ikx == 0 && giky == 0 && gikz == 0)
                                          ? 0.0
@@ -161,6 +165,7 @@ struct Grid {
 
     // Indices for FFT frequencies: 0, 1, ..., N/2-1, -N/2, ..., -1
     // We want to zero out frequencies |k_i| > cutoff
+    host_execution_space host_exec;
     auto h_kx_ind = KokkosFFT::fftfreq(host_exec, nx, 1.0);
     auto h_ky_ind = KokkosFFT::fftfreq(host_exec, ny, 1.0);
     auto h_kz_ind = KokkosFFT::rfftfreq(host_exec, nz, 1.0);
@@ -169,9 +174,10 @@ struct Grid {
     for (int ikz = 0; ikz < h_alias_mask.extent_int(2); ikz++) {
       for (int iky = 0; iky < h_alias_mask.extent_int(1); iky++) {
         for (int ikx = 0; ikx < h_alias_mask.extent_int(0); ikx++) {
+          int gikx    = ikx + out_starts.at(0);  // Global index in x
           int giky    = iky + out_starts.at(1);  // Global index in y
           int gikz    = ikz + out_starts.at(2);  // Global index in z
-          bool cutoff = (Kokkos::abs(h_kx_ind(ikx) * nx) > cutoff_x) ||
+          bool cutoff = (Kokkos::abs(h_kx_ind(gikx) * nx) > cutoff_x) ||
                         (Kokkos::abs(h_ky_ind(giky) * ny) > cutoff_y) ||
                         (Kokkos::abs(h_kz_ind(gikz) * nz) > cutoff_z);
           h_alias_mask(ikx, iky, ikz) = static_cast<double>(!cutoff);
@@ -179,20 +185,20 @@ struct Grid {
       }
     }
 
-    auto h_ky  = Kokkos::create_mirror_view(m_ky);
-    auto h_kzh = Kokkos::create_mirror_view(m_kzh);
-    for (int iky = 0; iky < m_ky.extent_int(0); iky++) {
-      int giky  = iky + out_starts.at(1);  // Global index in y
-      h_ky(iky) = h_gky(giky);
-    }
-    for (int ikz = 0; ikz < m_kzh.extent_int(0); ikz++) {
-      int gikz   = ikz + out_starts.at(2);  // Global index in z
-      h_kzh(ikz) = h_gkzh(gikz);
-    }
+    auto sub_gkx = Kokkos::subview(
+        gkx, Kokkos::make_pair(out_starts.at(0),
+                               out_starts.at(0) + m_kx.extent_int(0)));
+    auto sub_gky = Kokkos::subview(
+        gky, Kokkos::make_pair(out_starts.at(1),
+                               out_starts.at(1) + m_ky.extent_int(0)));
+    auto sub_gkzh = Kokkos::subview(
+        gkzh, Kokkos::make_pair(out_starts.at(2),
+                                out_starts.at(2) + m_kzh.extent_int(0)));
 
-    Kokkos::deep_copy(m_kx, h_kx);
-    Kokkos::deep_copy(m_ky, h_ky);
-    Kokkos::deep_copy(m_kzh, h_kzh);
+    Kokkos::deep_copy(m_kx, sub_gkx);
+    Kokkos::deep_copy(m_ky, sub_gky);
+    Kokkos::deep_copy(m_kzh, sub_gkzh);
+
     Kokkos::deep_copy(m_ksq, h_ksq);
     Kokkos::deep_copy(m_inv_ksq, h_inv_ksq);
     Kokkos::deep_copy(m_alias_mask, h_alias_mask);
@@ -337,8 +343,9 @@ struct Variables {
         for (std::size_t ix = 0; ix < nin0; ix++) {
           std::size_t gix = ix + in_starts.at(0);  // Global index in x
           std::size_t giy = iy + in_starts.at(1);  // Global index in y
+          std::size_t giz = iz + in_starts.at(2);  // Global index in z
 
-          double x = h_x(gix), y = h_y(giy), z = h_z(iz);
+          double x = h_x(gix), y = h_y(giy), z = h_z(giz);
           h_u(ix, iy, iz) =
               v0 * Kokkos::sin(x) * Kokkos::cos(y) * Kokkos::cos(z);
           h_v(ix, iy, iz) =
