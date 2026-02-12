@@ -60,10 +60,8 @@ inline void exec_plan(
     auto const cufft_direction = direction == KokkosFFT::Direction::forward
                                      ? CUFFT_FORWARD
                                      : CUFFT_INVERSE;
-    cufftResult cufft_rt = cufftXtExecDescriptor(scoped_plan.plan(direction),
-                                                 desc, desc, cufft_direction);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS,
-                       "cufftXtExecDescriptor failed");
+    KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtExecDescriptor(
+        scoped_plan.plan(direction), desc, desc, cufft_direction));
   }
   KokkosFFT::Impl::transpose(exec_space, out_desc, out, out_map, true);
 }
