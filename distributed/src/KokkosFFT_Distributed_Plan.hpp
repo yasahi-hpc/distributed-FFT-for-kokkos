@@ -7,7 +7,7 @@
 #include <sstream>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_MPI_Extents.hpp"
 #include "KokkosFFT_Distributed_InternalPlan.hpp"
 #include "KokkosFFT_Distributed_SharedPlan.hpp"
 #include "KokkosFFT_Distributed_SlabPlan.hpp"

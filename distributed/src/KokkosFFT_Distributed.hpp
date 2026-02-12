@@ -2,6 +2,6 @@
 #define KOKKOSFFT_DISTRIBUTED_HPP
 
 #include "KokkosFFT_Distributed_Plan.hpp"
-#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_MPI_Extents.hpp"
 
 #endif

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
-#include "KokkosFFT_Distributed_MPI_Helper.hpp"
+#include "KokkosFFT_Distributed_MPI_Extents.hpp"
 #include "Test_Utils.hpp"
 
 namespace {
@@ -12,7 +12,7 @@ using test_types = ::testing::Types<Kokkos::LayoutLeft, Kokkos::LayoutRight>;
 
 // Basically the same fixtures, used for labeling tests
 template <typename T>
-struct TestMPIHelper : public ::testing::Test {
+struct TestMPIExtents : public ::testing::Test {
   using layout_type = T;
 
   std::size_t m_rank   = 0;
@@ -303,6 +303,24 @@ void test_rank_to_coord() {
             KokkosFFT::Distributed::rank_to_coord(topology4, 4);
       },
       std::runtime_error);
+}
+
+template <typename ContainerType>
+void test_compute_global_max(std::size_t rank, std::size_t nprocs) {
+  ContainerType local_values{rank + 1, rank + 2, rank + 3};
+  const std::size_t global_max =
+      KokkosFFT::Distributed::Impl::compute_global_max(local_values,
+                                                       MPI_COMM_WORLD);
+  EXPECT_EQ(global_max, nprocs + 2);
+}
+
+template <typename ContainerType>
+void test_compute_global_min(std::size_t rank) {
+  ContainerType local_values{rank + 1, rank + 2, rank + 3};
+  const std::size_t global_min =
+      KokkosFFT::Distributed::Impl::compute_global_min(local_values,
+                                                       MPI_COMM_WORLD);
+  EXPECT_EQ(global_min, 1);
 }
 
 template <typename LayoutType>
@@ -632,14 +650,14 @@ void test_compute_next_extents3D(std::size_t rank, std::size_t npx,
 
 }  // namespace
 
-TYPED_TEST_SUITE(TestMPIHelper, test_types);
+TYPED_TEST_SUITE(TestMPIExtents, test_types);
 
-TYPED_TEST(TestMPIHelper, compute_global_extents2D) {
+TYPED_TEST(TestMPIExtents, compute_global_extents2D) {
   using layout_type = typename TestFixture::layout_type;
   test_compute_global_extents2D<layout_type>(this->m_rank, this->m_nprocs);
 }
 
-TYPED_TEST(TestMPIHelper, compute_global_extents3D) {
+TYPED_TEST(TestMPIExtents, compute_global_extents3D) {
   using layout_type = typename TestFixture::layout_type;
 
   if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
@@ -651,17 +669,37 @@ TYPED_TEST(TestMPIHelper, compute_global_extents3D) {
                                              this->m_npx);
 }
 
-TYPED_TEST(TestMPIHelper, rank_to_coord) {
+TYPED_TEST(TestMPIExtents, rank_to_coord) {
   using layout_type = typename TestFixture::layout_type;
   test_rank_to_coord<layout_type>();
 }
 
-TYPED_TEST(TestMPIHelper, compute_local_extents2D) {
+TYPED_TEST(TestMPIExtents, compute_global_max_vector) {
+  using container_type = std::vector<std::size_t>;
+  test_compute_global_max<container_type>(this->m_rank, this->m_nprocs);
+}
+
+TYPED_TEST(TestMPIExtents, compute_global_max_array) {
+  using container_type = std::array<std::size_t, 3>;
+  test_compute_global_max<container_type>(this->m_rank, this->m_nprocs);
+}
+
+TYPED_TEST(TestMPIExtents, compute_global_min_vector) {
+  using container_type = std::vector<std::size_t>;
+  test_compute_global_min<container_type>(this->m_rank);
+}
+
+TYPED_TEST(TestMPIExtents, compute_global_min_array) {
+  using container_type = std::array<std::size_t, 3>;
+  test_compute_global_min<container_type>(this->m_rank);
+}
+
+TYPED_TEST(TestMPIExtents, compute_local_extents2D) {
   using layout_type = typename TestFixture::layout_type;
   test_compute_local_extent2D<layout_type>(this->m_rank, this->m_nprocs);
 }
 
-TYPED_TEST(TestMPIHelper, compute_local_extents3D) {
+TYPED_TEST(TestMPIExtents, compute_local_extents3D) {
   using layout_type = typename TestFixture::layout_type;
   if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
     GTEST_SKIP() << "The number of MPI processes should be a perfect square "
@@ -672,7 +710,7 @@ TYPED_TEST(TestMPIHelper, compute_local_extents3D) {
                                             this->m_npx);
 }
 
-TYPED_TEST(TestMPIHelper, compute_next_extents2D) {
+TYPED_TEST(TestMPIExtents, compute_next_extents2D) {
   using layout_type = typename TestFixture::layout_type;
 
   for (std::size_t nprocs = 1; nprocs <= 6; ++nprocs) {
@@ -682,7 +720,7 @@ TYPED_TEST(TestMPIHelper, compute_next_extents2D) {
   }
 }
 
-TYPED_TEST(TestMPIHelper, compute_next_extents3D) {
+TYPED_TEST(TestMPIExtents, compute_next_extents3D) {
   using layout_type = typename TestFixture::layout_type;
 
   for (std::size_t npx = 1; npx <= 3; ++npx) {

@@ -204,6 +204,22 @@ auto compute_global_max(const ContainerType &values, MPI_Comm comm) {
   return max_value;
 }
 
+/// \brief Compute the minimum value in the given container across all ranks
+/// \tparam ContainerType Type of the container
+/// \param[in] values Container holding the values to be compared
+/// \param[in] comm MPI communicator
+/// \return The minimum value across all ranks
+template <typename ContainerType>
+auto compute_global_min(const ContainerType &values, MPI_Comm comm) {
+  using value_type = KokkosFFT::Impl::base_container_value_type<ContainerType>;
+  MPI_Datatype mpi_data_type = mpi_datatype_v<value_type>;
+  value_type min_value       = 0;
+  value_type lmin_value      = *std::min_element(values.begin(), values.end());
+
+  MPI_Allreduce(&lmin_value, &min_value, 1, mpi_data_type, MPI_MIN, comm);
+  return min_value;
+}
+
 /**
  * @brief Check if input and output views have valid extents for the given axes,
  * FFT topologies, and MPI communicator.
