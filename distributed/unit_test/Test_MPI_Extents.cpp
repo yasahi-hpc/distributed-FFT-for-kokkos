@@ -315,7 +315,7 @@ void test_compute_global_max(std::size_t rank, std::size_t nprocs) {
 }
 
 template <typename ContainerType>
-void test_compute_global_min(std::size_t rank, std::size_t nprocs) {
+void test_compute_global_min(std::size_t rank) {
   ContainerType local_values{rank + 1, rank + 2, rank + 3};
   const std::size_t global_min =
       KokkosFFT::Distributed::Impl::compute_global_min(local_values,
@@ -686,12 +686,12 @@ TYPED_TEST(TestMPIExtents, compute_global_max_array) {
 
 TYPED_TEST(TestMPIExtents, compute_global_min_vector) {
   using container_type = std::vector<std::size_t>;
-  test_compute_global_min<container_type>(this->m_rank, this->m_nprocs);
+  test_compute_global_min<container_type>(this->m_rank);
 }
 
 TYPED_TEST(TestMPIExtents, compute_global_min_array) {
   using container_type = std::array<std::size_t, 3>;
-  test_compute_global_min<container_type>(this->m_rank, this->m_nprocs);
+  test_compute_global_min<container_type>(this->m_rank);
 }
 
 TYPED_TEST(TestMPIExtents, compute_local_extents2D) {
