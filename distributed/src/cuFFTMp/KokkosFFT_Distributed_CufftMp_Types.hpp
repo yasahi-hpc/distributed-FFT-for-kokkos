@@ -33,37 +33,31 @@ struct ScopedCufftMpPlan {
   /// \param[in] comm MPI communicator
   /// \param[in] is_xslab Whether the topology is x-slab
   ScopedCufftMpPlan(int nx, int ny, MPI_Comm comm, bool is_xslab) {
-    cufftResult cufft_rt = cufftCreate(&m_plan_f);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftCreate failed");
+    KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f));
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      cufft_rt = cufftCreate(&m_plan_b);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftCreate failed");
-      cufft_rt = cufftMpAttachComm(m_plan_f, CUFFT_COMM_MPI, &comm);
-      cufft_rt = cufftMpAttachComm(m_plan_b, CUFFT_COMM_MPI, &comm);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMpAttachComm failed");
-
-      std::size_t workspace;
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b));
+      std::size_t workspace = 0;
       auto r2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
       auto c2r_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
-      cufft_rt = cufftMakePlan2d(m_plan_f, nx, ny, r2c_type, &workspace);
-      cufft_rt = cufftMakePlan2d(m_plan_b, nx, ny, c2r_type, &workspace);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan2d failed");
+
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(
+          m_plan_f, nx, ny, r2c_type, &comm, CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(
+          m_plan_b, nx, ny, c2r_type, &comm, CUFFT_COMM_MPI, &workspace));
     } else {
-      cufft_rt = cufftMpAttachComm(m_plan_f, CUFFT_COMM_MPI, &comm);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMpAttachComm failed");
-      std::size_t workspace;
+      std::size_t workspace = 0;
       auto c2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
-      cufft_rt = cufftMakePlan2d(m_plan_f, nx, ny, c2c_type, &workspace);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan2d failed");
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(
+          m_plan_f, nx, ny, c2c_type, &comm, CUFFT_COMM_MPI, &workspace));
     }
 
     cufftXtSubFormat subformat_forward =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE : CUFFT_XT_FORMAT_INPLACE_SHUFFLED;
-    cufft_rt = cufftXtMalloc(m_plan_f, &m_desc, subformat_forward);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftXtMalloc failed");
+    KOKKOSFFT_CHECK_CUFFT_CALL(
+        cufftXtMalloc(m_plan_f, &m_desc, subformat_forward));
   }
 
   /// \brief Constructor for 3D FFT plans
@@ -73,37 +67,30 @@ struct ScopedCufftMpPlan {
   /// \param[in] comm MPI communicator
   /// \param[in] is_xslab Whether the topology is x-slab
   ScopedCufftMpPlan(int nx, int ny, int nz, MPI_Comm comm, bool is_xslab) {
-    cufftResult cufft_rt = cufftCreate(&m_plan_f);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftCreate failed");
+    KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f));
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      cufft_rt = cufftCreate(&m_plan_b);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftCreate failed");
-      cufft_rt = cufftMpAttachComm(m_plan_f, CUFFT_COMM_MPI, &comm);
-      cufft_rt = cufftMpAttachComm(m_plan_b, CUFFT_COMM_MPI, &comm);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMpAttachComm failed");
-
-      std::size_t workspace;
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b));
+      std::size_t workspace = 0;
       auto r2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
       auto c2r_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
-      cufft_rt = cufftMakePlan3d(m_plan_f, nx, ny, nz, r2c_type, &workspace);
-      cufft_rt = cufftMakePlan3d(m_plan_b, nx, ny, nz, c2r_type, &workspace);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan3d failed");
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(
+          m_plan_f, nx, ny, nz, r2c_type, &comm, CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(
+          m_plan_b, nx, ny, nz, c2r_type, &comm, CUFFT_COMM_MPI, &workspace));
     } else {
-      cufft_rt = cufftMpAttachComm(m_plan_f, CUFFT_COMM_MPI, &comm);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMpAttachComm failed");
-      std::size_t workspace;
+      std::size_t workspace = 0;
       auto c2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
-      cufft_rt = cufftMakePlan3d(m_plan_f, nx, ny, nz, c2c_type, &workspace);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan3d failed");
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(
+          m_plan_f, nx, ny, nz, c2c_type, &comm, CUFFT_COMM_MPI, &workspace));
     }
 
     cufftXtSubFormat subformat_forward =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE : CUFFT_XT_FORMAT_INPLACE_SHUFFLED;
-    cufft_rt = cufftXtMalloc(m_plan_f, &m_desc, subformat_forward);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftXtMalloc failed");
+    KOKKOSFFT_CHECK_CUFFT_CALL(
+        cufftXtMalloc(m_plan_f, &m_desc, subformat_forward));
   }
 
   /// \brief General constructor for FFT plans
@@ -115,7 +102,7 @@ struct ScopedCufftMpPlan {
   /// \param[in] strides_input Strides of input data
   /// \param[in] strides_output Strides of output data
   /// \param[in] comm MPI communicator
-  ScopedCufftMpPlan(const std::vector<int> &fft_extents,
+  ScopedCufftMpPlan(std::vector<int> &fft_extents,
                     const std::vector<long long int> &lower_input,
                     const std::vector<long long int> &upper_input,
                     const std::vector<long long int> &lower_output,
@@ -123,78 +110,39 @@ struct ScopedCufftMpPlan {
                     const std::vector<long long int> &strides_input,
                     const std::vector<long long int> &strides_output,
                     MPI_Comm comm) {
-    int rank             = fft_extents.size();
-    cufftResult cufft_rt = cufftCreate(&m_plan_f);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftCreate failed");
+    KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f));
+    int rank = fft_extents.size();
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      cufft_rt = cufftCreate(&m_plan_b);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftCreate failed");
-      cufft_rt = cufftMpAttachComm(m_plan_f, CUFFT_COMM_MPI, &comm);
-      cufft_rt = cufftMpAttachComm(m_plan_b, CUFFT_COMM_MPI, &comm);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMpAttachComm failed");
-
-      cufft_rt = cufftXtSetDistribution(
-          m_plan_f, rank, lower_input.data(), upper_input.data(),
-          lower_output.data(), upper_output.data(), strides_input.data(),
-          strides_output.data());
-      cufft_rt = cufftXtSetDistribution(
-          m_plan_b, rank, lower_input.data(), upper_input.data(),
-          lower_output.data(), upper_output.data(), strides_input.data(),
-          strides_output.data());
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS,
-                         "cufftXtSetDistribution failed");
-
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b));
       auto r2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
       auto c2r_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
-      std::size_t workspace;
-      if (rank == 2) {
-        cufft_rt = cufftMakePlan2d(m_plan_f, fft_extents[0], fft_extents[1],
-                                   r2c_type, &workspace);
-        cufft_rt = cufftMakePlan2d(m_plan_b, fft_extents[0], fft_extents[1],
-                                   c2r_type, &workspace);
-        KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan2d failed");
-      } else if (rank == 3) {
-        cufft_rt = cufftMakePlan3d(m_plan_f, fft_extents[0], fft_extents[1],
-                                   fft_extents[2], r2c_type, &workspace);
-        cufft_rt = cufftMakePlan3d(m_plan_b, fft_extents[0], fft_extents[1],
-                                   fft_extents[2], c2r_type, &workspace);
-        KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan3d failed");
-      } else {
-        KOKKOSFFT_THROW_IF(true, "Unsupported rank for cufftMpPlan");
-      }
+      std::size_t workspace = 0;
+
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlanDecomposition(
+          m_plan_f, rank, fft_extents.data(), lower_input.data(),
+          upper_input.data(), strides_input.data(), lower_output.data(),
+          upper_output.data(), strides_output.data(), r2c_type, &comm,
+          CUFFT_COMM_MPI, &workspace));
+
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlanDecomposition(
+          m_plan_b, rank, fft_extents.data(), lower_input.data(),
+          upper_input.data(), strides_input.data(), lower_output.data(),
+          upper_output.data(), strides_output.data(), c2r_type, &comm,
+          CUFFT_COMM_MPI, &workspace));
     } else {
-      cufft_rt = cufftMpAttachComm(m_plan_f, CUFFT_COMM_MPI, &comm);
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMpAttachComm failed");
-
-      cufft_rt = cufftXtSetDistribution(
-          m_plan_f, rank, lower_input.data(), upper_input.data(),
-          lower_output.data(), upper_output.data(), strides_input.data(),
-          strides_output.data());
-      KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS,
-                         "cufftXtSetDistribution failed");
-
       auto c2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
-      std::size_t workspace;
-
-      if (rank == 2) {
-        cufft_rt = cufftMakePlan2d(m_plan_f, fft_extents[0], fft_extents[1],
-                                   c2c_type, &workspace);
-        KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan2d failed");
-      } else if (rank == 3) {
-        cufft_rt = cufftMakePlan3d(m_plan_f, fft_extents[0], fft_extents[1],
-                                   fft_extents[2], c2c_type, &workspace);
-        KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftMakePlan3d failed");
-      } else {
-        KOKKOSFFT_THROW_IF(true, "Unsupported rank for cufftMpPlan");
-      }
+      std::size_t workspace = 0;
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlanDecomposition(
+          m_plan_f, rank, fft_extents.data(), lower_input.data(),
+          upper_input.data(), strides_input.data(), lower_output.data(),
+          upper_output.data(), strides_output.data(), c2c_type, &comm,
+          CUFFT_COMM_MPI, &workspace));
     }
-
-    cufft_rt =
-        cufftXtMalloc(m_plan_f, &m_desc, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT);
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftXtMalloc failed");
+    KOKKOSFFT_CHECK_CUFFT_CALL(
+        cufftXtMalloc(m_plan_f, &m_desc, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT));
   }
 
   ScopedCufftMpPlan()                                     = delete;
@@ -209,11 +157,9 @@ struct ScopedCufftMpPlan {
     cufftResult cufft_rt = cufftXtFree(m_desc);
     if (cufft_rt != CUFFT_SUCCESS) Kokkos::abort("cufftXtFree failed");
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      cufft_rt = cufftDestroy(m_plan_f);
       cufft_rt = cufftDestroy(m_plan_b);
-    } else {
-      cufft_rt = cufftDestroy(m_plan_f);
     }
+    cufft_rt = cufftDestroy(m_plan_f);
     if (cufft_rt != CUFFT_SUCCESS) Kokkos::abort("cufftDestroy failed");
   }
 
@@ -236,14 +182,12 @@ struct ScopedCufftMpPlan {
   /// \brief Commit the plan to a specific execution space
   /// \param[in] exec_space Kokkos execution space
   void commit(const Kokkos::Cuda &exec_space) const {
-    cufftResult cufft_rt;
+    KOKKOSFFT_CHECK_CUFFT_CALL(
+        cufftSetStream(m_plan_f, exec_space.cuda_stream()));
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      cufft_rt = cufftSetStream(m_plan_f, exec_space.cuda_stream());
-      cufft_rt = cufftSetStream(m_plan_b, exec_space.cuda_stream());
-    } else {
-      cufft_rt = cufftSetStream(m_plan_f, exec_space.cuda_stream());
+      KOKKOSFFT_CHECK_CUFFT_CALL(
+          cufftSetStream(m_plan_b, exec_space.cuda_stream()));
     }
-    KOKKOSFFT_THROW_IF(cufft_rt != CUFFT_SUCCESS, "cufftSetStream failed");
   }
 
   /// \brief Get the name of the plan implementation
