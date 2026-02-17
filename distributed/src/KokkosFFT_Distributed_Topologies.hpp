@@ -188,8 +188,8 @@ auto pencil_in_out_axes(const std::array<iType, DIM>& in_topology,
 /// \throws std::runtime_error if the input and output topologies do not differ
 /// exactly three positions
 template <typename iType, std::size_t DIM>
-std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
-                                     const std::array<iType, DIM>& out) {
+std::array<iType, DIM> propose_mid_array(const std::array<iType, DIM>& in,
+                                         const std::array<iType, DIM>& out) {
   auto diff_indices         = extract_different_indices(in, out);
   auto diff_value_set       = extract_different_value_set(in, out);
   auto diff_non_one_indices = extract_non_one_indices(in, out);
@@ -719,7 +719,8 @@ auto get_all_pencil_topologies(
 
   auto try_add_mid_topology = [&]() {
     try {
-      auto mid_topology = get_mid_array(topologies.back(), out_topology_tmp);
+      auto mid_topology =
+          propose_mid_array(topologies.back(), out_topology_tmp);
       add_topology(mid_topology);
     } catch (std::runtime_error& e) {
     }

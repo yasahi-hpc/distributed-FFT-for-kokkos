@@ -3056,37 +3056,43 @@ void test_get_mid_array_pencil_3D(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid01 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology1);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
+                                                              topology1);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid02 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology2);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
+                                                              topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid10 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology0);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
+                                                              topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid12 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology2);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
+                                                              topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid20 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology0);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
+                                                              topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid21 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology1);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
+                                                              topology1);
         },
         std::runtime_error);
   } else {
@@ -3094,32 +3100,36 @@ void test_get_mid_array_pencil_3D(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid01 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology1);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
+                                                              topology1);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid10 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology0);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
+                                                              topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid12 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology2);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
+                                                              topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid21 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology1);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
+                                                              topology1);
         },
         std::runtime_error);
 
     auto mid02 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology2);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology0, topology2);
     auto mid20 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology0);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology2, topology0);
 
     topology_type ref_mid02 = {1, nprocs, 8};
     topology_type ref_mid20 = {1, nprocs, 8};
@@ -3128,9 +3138,9 @@ void test_get_mid_array_pencil_3D(std::size_t nprocs) {
     EXPECT_EQ(mid20, ref_mid20);
 
     auto mid34 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology3, topology4);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology3, topology4);
     auto mid43 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology4, topology3);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology4, topology3);
 
     topology_type ref_mid34 = {2, 1, nprocs};
     topology_type ref_mid43 = {2, 1, nprocs};
@@ -3154,37 +3164,43 @@ void test_get_mid_array_pencil_4D(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid01 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology1);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
+                                                              topology1);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid02 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology2);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
+                                                              topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid10 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology0);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
+                                                              topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid12 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology2);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
+                                                              topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid20 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology0);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
+                                                              topology0);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid21 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology1);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
+                                                              topology1);
         },
         std::runtime_error);
   } else {
@@ -3192,70 +3208,79 @@ void test_get_mid_array_pencil_4D(std::size_t nprocs) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid01 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology1);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
+                                                              topology1);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid02 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology2);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
+                                                              topology2);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid05 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology5);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
+                                                              topology5);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid13 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology3);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
+                                                              topology3);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid14 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology4);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
+                                                              topology4);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid23 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology3);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
+                                                              topology3);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid24 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology4);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
+                                                              topology4);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid35 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology3, topology5);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology3,
+                                                              topology5);
         },
         std::runtime_error);
     EXPECT_THROW(
         {
           [[maybe_unused]] auto mid45 =
-              KokkosFFT::Distributed::Impl::get_mid_array(topology4, topology5);
+              KokkosFFT::Distributed::Impl::propose_mid_array(topology4,
+                                                              topology5);
         },
         std::runtime_error);
 
     auto mid03 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology3);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology0, topology3);
     auto mid04 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology0, topology4);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology0, topology4);
     auto mid12 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology2);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology1, topology2);
     auto mid15 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology1, topology5);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology1, topology5);
     auto mid25 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology2, topology5);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology2, topology5);
     auto mid34 =
-        KokkosFFT::Distributed::Impl::get_mid_array(topology3, topology4);
+        KokkosFFT::Distributed::Impl::propose_mid_array(topology3, topology4);
     EXPECT_EQ(mid03, topology1);
     EXPECT_EQ(mid04, topology2);
     EXPECT_EQ(mid12, topology0);
