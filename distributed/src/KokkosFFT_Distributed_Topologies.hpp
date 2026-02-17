@@ -187,7 +187,7 @@ auto pencil_in_out_axes(const std::array<iType, DIM>& in_topology,
 /// \return An intermediate topology obtained by swapping two non-one elements.
 /// \throws std::runtime_error if the input and output topologies do not differ
 /// exactly three positions
-template <typename iType, std::size_t DIM = 1>
+template <typename iType, std::size_t DIM>
 std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
                                      const std::array<iType, DIM>& out) {
   auto diff_indices         = extract_different_indices(in, out);
@@ -255,7 +255,7 @@ std::array<iType, DIM> get_mid_array(const std::array<iType, DIM>& in,
 /// \return A vector of vectors of axes.
 /// \throws std::runtime_error if the total size of decomposed axes does not
 /// match the original axes size
-template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
+template <typename iType, std::size_t DIM, std::size_t FFT_DIM>
 std::vector<std::vector<iType>> decompose_axes(
     const std::vector<std::array<std::size_t, DIM>>& topologies,
     const std::array<iType, FFT_DIM>& axes) {
@@ -286,15 +286,46 @@ std::vector<std::vector<iType>> decompose_axes(
     }
   }
 
+  auto error_msg = [&axes, &all_axes,
+                    &topologies](std::string_view details) -> std::string {
+    std::string msg(details);
+    msg += " Input axes: ";
+    for (auto axis : axes) {
+      msg += std::to_string(axis) + " ";
+    }
+    msg += "\n";
+    msg += "Decomposed axes: \n";
+    for (std::size_t i = 0; i < all_axes.size(); ++i) {
+      auto topology = topologies.at(i);
+      msg += "at topology (";
+      msg += std::to_string(topology.at(0));
+      for (std::size_t j = 1; j < topology.size(); ++j) {
+        msg += ", " + std::to_string(topology.at(j));
+      }
+      msg += "): Ready axes: ";
+      if (all_axes.at(i).empty()) {
+        msg += "None";
+      } else {
+        auto axis = all_axes.at(i);
+        msg += "(";
+        msg += std::to_string(axis.at(0));
+        for (std::size_t j = 1; j < axis.size(); ++j) {
+          msg += ", " + std::to_string(axis.at(j));
+        }
+        msg += ")";
+      }
+      msg += "\n";
+    }
+    return msg;
+  };
+
   std::size_t total_axes = 0;
   for (auto ready_axes : all_axes) {
     total_axes += ready_axes.size();
   }
 
-  KOKKOSFFT_THROW_IF(
-      total_axes != axes.size(),
-      "Axes are not decomposed correctly:" + std::to_string(total_axes) +
-          " != " + std::to_string(axes.size()));
+  KOKKOSFFT_THROW_IF(total_axes != axes.size(),
+                     error_msg("Axes are not decomposed correctly:"));
 
   return all_axes;
 }
@@ -343,22 +374,30 @@ auto compute_trans_axis(const std::array<iType, DIM>& in_topology,
       break;
     }
   }
-  iType trans_axis = exchange_non_one == first_non_one ? 0 : 1;
+  iType trans_axis = !(exchange_non_one == first_non_one);
   return trans_axis;
 }
 
-// \brief Get all slab topologies for a given input and output topology
+/// \brief Get all slab topologies for a given input and output topology
+///
+/// Example: 3D case
+/// In topology: (1, 1, P)
+/// Out topology: (1, 1, P)
+/// axes: {0, 1, 2}
+/// Output: {(1, 1, P), (P, 1, 1), (1, 1, P)}
+/// Operation:
+/// Transpose -> FFT2 ax = {1, 2} -> Transpose -> FFT1 ax = {0}
 ///
 /// \tparam iType The index type used for the topology.
 /// \tparam DIM The dimensionality of the topology.
 /// \tparam FFT_DIM The dimensionality of the FFT axes.
 ///
-/// \param in_topology The input topology.
-/// \param out_topology The output topology.
-/// \param axes The axes along which the FFT is performed.
+/// \param[in] in_topology The input topology.
+/// \param[in] out_topology The output topology.
+/// \param[in] axes The axes along which the FFT is performed.
 /// \return A vector of all possible slab topologies that can be formed
 /// from the input and output topologies, considering the FFT axes.
-template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1>
+template <typename iType, std::size_t DIM, std::size_t FFT_DIM>
 std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
     const std::array<std::size_t, DIM>& in_topology,
     const std::array<std::size_t, DIM>& out_topology,
@@ -558,20 +597,29 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
   }
 }
 
-// \brief Get all pencil topologies for a given input and output topology
+/// \brief Get all pencil topologies for a given input and output topology
+///
+/// Example: 3D case
+/// In topology: (1, Px, Py)
+/// Out topology: (Px, Py, 1)
+/// axes: {0, 1, 2}
+/// Output: {(1, Px, Py), (Py, Px, 1), (Py, 1, Px), (Py, Px, 1), (1, Px, Py),}
+/// Operation:
+/// Transpose to Topology2 -> FFT ax = {2} -> Transpose to Topology4 -> FFT1 ax
+/// = {1} Transpose to Topology2 -> Transpose to Topology0 -> FFT1 ax = {0}
+/// Topology0: {1, Px, Py}, Topology2: {Py, Px, 1}, Topology4: {Py, 1, Px}
 ///
 /// \tparam iType The index type used for the topology.
 /// \tparam DIM The dimensionality of the topology.
 /// \tparam FFT_DIM The dimensionality of the FFT axes.
 ///
-/// \param in_topology The input topology.
-/// \param out_topology The output topology.
-/// \param axes The axes along which the FFT is performed.
-/// \param is_same_order If true, the in/out topologies are considered in the
-/// same order.
-/// \return A vector of all possible slab topologies that can be formed from the
-/// input and output topologies, considering the FFT axes.
-template <typename iType, std::size_t DIM = 1, std::size_t FFT_DIM = 1,
+/// \param[in] in_topology The input topology.
+/// \param[in] out_topology The output topology.
+/// \param[in] axes The axes along which the FFT is performed.
+/// \param[in] is_same_order If true, the in/out topologies are considered in
+/// the same order. \return A vector of all possible slab topologies that can be
+/// formed from the input and output topologies, considering the FFT axes.
+template <typename iType, std::size_t DIM, std::size_t FFT_DIM,
           typename InLayoutType  = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 auto get_all_pencil_topologies(
