@@ -126,25 +126,66 @@ class TransBlock {
     using view_value_type   = typename ViewType::non_const_value_type;
     using buffer_value_type = typename BufferType::non_const_value_type;
 
-    static_assert(std::is_same_v<buffer_value_type, view_value_type>);
+    static_assert(std::is_same_v<buffer_value_type, view_value_type>,
+                  "Input and output views must have same value type");
 
     auto buffer_size = send.size();
     auto in_size     = in.size();
     auto out_size    = out.size();
+
+    auto error_msg = [](std::string_view details, std::string_view view_name,
+                        const ViewType& view, std::string_view buffer_name,
+                        const BufferType& buffer) -> std::string {
+      std::string message(details);
+      message += ": \n";
+      message += std::string(view_name);
+      message +=
+          view.label().empty() ? "" : " (" + std::string(view.label()) + ")";
+      message += " with extents(";
+      message += std::to_string(view.extent(0));
+      for (std::size_t r = 1; r < view.rank(); r++) {
+        message += ",";
+        message += std::to_string(view.extent(r));
+      }
+      message += "), ";
+      message += " and " + std::string(buffer_name);
+      message += buffer.label().empty()
+                     ? ""
+                     : " (" + std::string(buffer.label()) + ")";
+      message += " with extents(";
+      message += std::to_string(buffer.extent(0));
+      for (std::size_t r = 1; r < buffer.rank(); r++) {
+        message += ",";
+        message += std::to_string(buffer.extent(r));
+      }
+      message += ")";
+
+      return message;
+    };
+
+    // Check input and output view sizes are smaller than buffer sizes
     KOKKOSFFT_THROW_IF(
-        in_size > buffer_size || out_size > buffer_size,
-        "Input and output views must be smaller than the send and receive "
-        "buffers.");
+        in_size > buffer_size,
+        error_msg("Input view size must be smaller than the send buffer size",
+                  "input", in, "send_buffer", send));
+
+    KOKKOSFFT_THROW_IF(
+        out_size > buffer_size,
+        error_msg(
+            "Output view size must be smaller than the receive buffer size",
+            "output", out, "recv_buffer", recv));
 
     // Check in and send_buffer are not aliasing
-    KOKKOSFFT_THROW_IF(KokkosFFT::Impl::are_aliasing(in.data(), send.data()),
-                       "input: " + in.label() + " and send_buffer: " +
-                           send.label() + " must not be aliasing");
+    KOKKOSFFT_THROW_IF(
+        KokkosFFT::Impl::are_aliasing(in.data(), send.data()),
+        error_msg("Input view must not be aliasing with send buffer", "input",
+                  in, "send_buffer", send));
 
     // Check out and recv_buffer are not aliasing
-    KOKKOSFFT_THROW_IF(KokkosFFT::Impl::are_aliasing(out.data(), recv.data()),
-                       "output: " + out.label() + " and recv_buffer: " +
-                           recv.label() + " must not be aliasing");
+    KOKKOSFFT_THROW_IF(
+        KokkosFFT::Impl::are_aliasing(out.data(), recv.data()),
+        error_msg("Output view must not be aliasing with receive buffer",
+                  "output", out, "recv_buffer", recv));
   }
 };
 
