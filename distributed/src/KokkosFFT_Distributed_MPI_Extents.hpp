@@ -514,7 +514,7 @@ auto rank_to_coord(const std::array<std::size_t, DIM> &topology,
 /// \param[in] comm MPI communicator
 /// \return A tuple of local extents and starts of the distributed View
 template <std::size_t DIM, typename LayoutType = Kokkos::LayoutRight>
-auto compute_local_extents(
+auto compute_local_extents_and_starts(
     const std::array<std::size_t, DIM> &extents,
     const Topology<std::size_t, DIM, LayoutType> &topology, MPI_Comm comm) {
   // Check that topology includes two or less non-one elements
@@ -583,11 +583,11 @@ auto compute_local_extents(
 /// \param[in] comm MPI communicator
 /// \return A tuple of local extents and starts of the distributed View
 template <std::size_t DIM>
-auto compute_local_extents(const std::array<std::size_t, DIM> &extents,
-                           const std::array<std::size_t, DIM> &topology,
-                           MPI_Comm comm) {
-  return compute_local_extents(extents, Topology<std::size_t, DIM>(topology),
-                               comm);
+auto compute_local_extents_and_starts(
+    const std::array<std::size_t, DIM> &extents,
+    const std::array<std::size_t, DIM> &topology, MPI_Comm comm) {
+  return compute_local_extents_and_starts(
+      extents, Topology<std::size_t, DIM>(topology), comm);
 }
 
 }  // namespace Distributed

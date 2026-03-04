@@ -475,7 +475,8 @@ void test_compute_local_starts3D(std::size_t rank, std::size_t npx,
 }
 
 template <typename LayoutType>
-void test_compute_local_extents2D(std::size_t rank, std::size_t nprocs) {
+void test_compute_local_extents_and_starts2D(std::size_t rank,
+                                             std::size_t nprocs) {
   using extents_type  = std::array<std::size_t, 2>;
   using topology_type = std::array<std::size_t, 2>;
 
@@ -504,11 +505,11 @@ void test_compute_local_extents2D(std::size_t rank, std::size_t nprocs) {
   }
 
   auto [local_shape_t0, local_starts_t0] =
-      KokkosFFT::Distributed::compute_local_extents(global_shape, topology0,
-                                                    MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_shape, topology0, MPI_COMM_WORLD);
   auto [local_shape_t1, local_starts_t1] =
-      KokkosFFT::Distributed::compute_local_extents(global_shape, topology1,
-                                                    MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_shape, topology1, MPI_COMM_WORLD);
 
   EXPECT_EQ(local_shape_t0, ref_local_shape_t0);
   EXPECT_EQ(local_shape_t1, ref_local_shape_t1);
@@ -518,8 +519,8 @@ void test_compute_local_extents2D(std::size_t rank, std::size_t nprocs) {
 }
 
 template <typename LayoutType>
-void test_compute_local_extents3D(std::size_t rank, std::size_t npx,
-                                  std::size_t npy) {
+void test_compute_local_extents_and_starts3D(std::size_t rank, std::size_t npx,
+                                             std::size_t npy) {
   using extents_type    = std::array<std::size_t, 3>;
   using topology_r_type = KokkosFFT::Distributed::Topology<std::size_t, 3>;
 
@@ -566,14 +567,14 @@ void test_compute_local_extents3D(std::size_t rank, std::size_t npx,
   }
 
   auto [local_shape_t0, local_starts_t0] =
-      KokkosFFT::Distributed::compute_local_extents(global_shape, topology0,
-                                                    MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_shape, topology0, MPI_COMM_WORLD);
   auto [local_shape_t1, local_starts_t1] =
-      KokkosFFT::Distributed::compute_local_extents(global_shape, topology1,
-                                                    MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_shape, topology1, MPI_COMM_WORLD);
   auto [local_shape_t2, local_starts_t2] =
-      KokkosFFT::Distributed::compute_local_extents(global_shape, topology2,
-                                                    MPI_COMM_WORLD);
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_shape, topology2, MPI_COMM_WORLD);
 
   EXPECT_EQ(local_shape_t0, ref_local_shape_t0);
   EXPECT_EQ(local_shape_t1, ref_local_shape_t1);
@@ -860,20 +861,21 @@ TYPED_TEST(TestMPIExtents, compute_local_starts3D) {
                                            this->m_npx);
 }
 
-TYPED_TEST(TestMPIExtents, compute_local_extents2D) {
+TYPED_TEST(TestMPIExtents, compute_local_extents_and_starts2D) {
   using layout_type = typename TestFixture::layout_type;
-  test_compute_local_extents2D<layout_type>(this->m_rank, this->m_nprocs);
+  test_compute_local_extents_and_starts2D<layout_type>(this->m_rank,
+                                                       this->m_nprocs);
 }
 
-TYPED_TEST(TestMPIExtents, compute_local_extents3D) {
+TYPED_TEST(TestMPIExtents, compute_local_extents_and_starts3D) {
   using layout_type = typename TestFixture::layout_type;
   if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
     GTEST_SKIP() << "The number of MPI processes should be a perfect square "
                     "for this test";
   }
 
-  test_compute_local_extents3D<layout_type>(this->m_rank, this->m_npx,
-                                            this->m_npx);
+  test_compute_local_extents_and_starts3D<layout_type>(
+      this->m_rank, this->m_npx, this->m_npx);
 }
 
 TYPED_TEST(TestMPIExtents, compute_next_extents2D) {
