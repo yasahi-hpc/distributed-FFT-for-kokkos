@@ -116,7 +116,7 @@ struct Grid {
     extents_type gout_extents{DIM, std::size_t(nx), std::size_t(ny),
                               std::size_t(nz / 2 + 1)};
     auto [out_extents, out_starts] =
-        KokkosFFT::Distributed::compute_local_extents(
+        KokkosFFT::Distributed::compute_local_extents_and_starts(
             gout_extents, m_out_topology, MPI_COMM_WORLD);
     auto [ndim, nkx, nky, nkz] = out_extents;
     m_kx                       = View1D<double>("kx", nkx);
@@ -297,12 +297,12 @@ struct Variables {
     extents_type gin_extents{DIM, nx, ny, nz},
         gout_extents{DIM, nx, ny, nz / 2 + 1};
     auto [in_extents, in_starts] =
-        KokkosFFT::Distributed::compute_local_extents(
+        KokkosFFT::Distributed::compute_local_extents_and_starts(
             gin_extents, grid.m_in_topology, MPI_COMM_WORLD);
 
     // Compute the extents in x-pencils
     [[maybe_unused]] auto [out_extents, out_starts] =
-        KokkosFFT::Distributed::compute_local_extents(
+        KokkosFFT::Distributed::compute_local_extents_and_starts(
             gout_extents, grid.m_out_topology, MPI_COMM_WORLD);
 
     auto [nin0, nin1, nin2, nin3]     = in_extents;

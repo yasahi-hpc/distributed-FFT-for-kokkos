@@ -157,11 +157,11 @@ void create_plan(const ExecutionSpace& exec_space,
     auto gin_padded_extents =
         compute_padded_extents(gout_extents, non_negative_axes);
     auto [in_extents, in_starts] =
-        compute_local_extents(gin_extents, in_topology, comm);
+        compute_local_extents_and_starts(gin_extents, in_topology, comm);
     auto [out_extents, out_starts] =
-        compute_local_extents(gout_extents, out_topology, comm);
+        compute_local_extents_and_starts(gout_extents, out_topology, comm);
     auto [in_padded_extents, in_padded_starts] =
-        compute_local_extents(gin_padded_extents, in_topology, comm);
+        compute_local_extents_and_starts(gin_padded_extents, in_topology, comm);
 
     std::array<std::size_t, 2> in_ends, out_ends;
     std::transform(in_starts.begin(), in_starts.end(), in_extents.begin(),
@@ -281,11 +281,11 @@ void create_plan(const ExecutionSpace& exec_space,
     }
 
     auto [in_extents, in_starts] =
-        compute_local_extents(gin_extents, in_topology, comm);
+        compute_local_extents_and_starts(gin_extents, in_topology, comm);
     auto [out_extents, out_starts] =
-        compute_local_extents(gout_extents, out_topology, comm);
+        compute_local_extents_and_starts(gout_extents, out_topology, comm);
     auto [in_padded_extents, in_padded_starts] =
-        compute_local_extents(gin_padded_extents, in_topology, comm);
+        compute_local_extents_and_starts(gin_padded_extents, in_topology, comm);
 
     std::array<std::size_t, 3> in_ends, out_ends;
     std::transform(in_starts.begin(), in_starts.end(), in_extents.begin(),
