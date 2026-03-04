@@ -324,7 +324,158 @@ void test_compute_global_min(std::size_t rank) {
 }
 
 template <typename LayoutType>
-void test_compute_local_extent2D(std::size_t rank, std::size_t nprocs) {
+void test_compute_local_starts2D(std::size_t rank, std::size_t nprocs) {
+  using extents_type  = std::array<std::size_t, 2>;
+  using topology_type = std::array<std::size_t, 2>;
+
+  topology_type topology0{1, nprocs};
+  topology_type topology1{nprocs, 1};
+
+  auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
+    std::size_t quotient  = n / t;
+    std::size_t remainder = n % t;
+    return r < remainder ? (quotient + 1) : quotient;
+  };
+
+  const std::size_t gn0 = 19, gn1 = 32;
+  const std::size_t n0_t0 = gn0;
+  const std::size_t n1_t0 = distribute_extents(gn1, rank, nprocs);
+  const std::size_t n0_t1 = distribute_extents(gn0, rank, nprocs);
+  const std::size_t n1_t1 = gn1;
+
+  // Equally distributed pattern
+  extents_type extents_t0{n0_t0, n1_t0}, extents_t1{n0_t1, n1_t1};
+  extents_type ref_local_starts_t0{}, ref_local_starts_t1{};
+  for (std::size_t r = 0; r < rank; r++) {
+    ref_local_starts_t0.at(1) += distribute_extents(gn1, r, nprocs);
+    ref_local_starts_t1.at(0) += distribute_extents(gn0, r, nprocs);
+  }
+
+  // Random distributed pattern
+  // Extents at each rank (7, 10), (7, 11), (7, 12), ... for topology0
+  // Extents at each rank (5, 12), (8, 12), (11, 12), ... for topology1
+  extents_type extents_random_t0{7, 10 + rank},
+      extents_random_t1{5 + 3 * rank, 12};
+  extents_type ref_local_starts_random_t0{}, ref_local_starts_random_t1{};
+  for (std::size_t r = 0; r < rank; r++) {
+    ref_local_starts_random_t0.at(1) += (10 + r);
+    ref_local_starts_random_t1.at(0) += (5 + 3 * r);
+  }
+
+  // Test with equally distributed pattern
+  auto local_starts_t0 = KokkosFFT::Distributed::Impl::compute_local_starts(
+      extents_t0, topology0, MPI_COMM_WORLD);
+  auto local_starts_t1 = KokkosFFT::Distributed::Impl::compute_local_starts(
+      extents_t1, topology1, MPI_COMM_WORLD);
+
+  EXPECT_EQ(local_starts_t0, ref_local_starts_t0);
+  EXPECT_EQ(local_starts_t1, ref_local_starts_t1);
+
+  // Test with random distributed pattern
+  auto local_starts_random_t0 =
+      KokkosFFT::Distributed::Impl::compute_local_starts(
+          extents_random_t0, topology0, MPI_COMM_WORLD);
+  auto local_starts_random_t1 =
+      KokkosFFT::Distributed::Impl::compute_local_starts(
+          extents_random_t1, topology1, MPI_COMM_WORLD);
+
+  EXPECT_EQ(local_starts_random_t0, ref_local_starts_random_t0);
+  EXPECT_EQ(local_starts_random_t1, ref_local_starts_random_t1);
+}
+
+template <typename LayoutType>
+void test_compute_local_starts3D(std::size_t rank, std::size_t npx,
+                                 std::size_t npy) {
+  using extents_type    = std::array<std::size_t, 3>;
+  using topology_r_type = KokkosFFT::Distributed::Topology<std::size_t, 3>;
+
+  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy},
+      topology2{npx, npy, 1};
+
+  std::size_t rx = rank / npy, ry = rank % npy;
+
+  auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
+    std::size_t quotient  = n / t;
+    std::size_t remainder = n % t;
+    return r < remainder ? (quotient + 1) : quotient;
+  };
+
+  const std::size_t gn0 = 8, gn1 = 7, gn2 = 5;
+  const std::size_t n0_t0 = gn0;
+  const std::size_t n1_t0 = distribute_extents(gn1, rx, npx);
+  const std::size_t n2_t0 = distribute_extents(gn2, ry, npy);
+
+  const std::size_t n0_t1 = distribute_extents(gn0, rx, npx);
+  const std::size_t n1_t1 = gn1;
+  const std::size_t n2_t1 = distribute_extents(gn2, ry, npy);
+
+  const std::size_t n0_t2 = distribute_extents(gn0, rx, npx);
+  const std::size_t n1_t2 = distribute_extents(gn1, ry, npy);
+  const std::size_t n2_t2 = gn2;
+
+  // Equally distributed pattern
+  extents_type extents_t0{n0_t0, n1_t0, n2_t0}, extents_t1{n0_t1, n1_t1, n2_t1},
+      extents_t2{n0_t2, n1_t2, n2_t2};
+  extents_type ref_local_starts_t0{}, ref_local_starts_t1{},
+      ref_local_starts_t2{};
+  for (std::size_t r = 0; r < rx; r++) {
+    ref_local_starts_t0.at(1) += distribute_extents(gn1, r, npx);
+    ref_local_starts_t1.at(0) += distribute_extents(gn0, r, npx);
+    ref_local_starts_t2.at(0) += distribute_extents(gn0, r, npx);
+  }
+
+  for (std::size_t r = 0; r < ry; r++) {
+    ref_local_starts_t0.at(2) += distribute_extents(gn2, r, npy);
+    ref_local_starts_t1.at(2) += distribute_extents(gn2, r, npy);
+    ref_local_starts_t2.at(1) += distribute_extents(gn1, r, npy);
+  }
+
+  // Random distributed pattern
+  extents_type extents_random_t0{4, 3 + rx, 2 + ry},
+      extents_random_t1{4 + rx, 4, 2 + ry},
+      extents_random_t2{4 + rx, 3 + ry, 2};
+  extents_type ref_local_starts_random_t0{}, ref_local_starts_random_t1{},
+      ref_local_starts_random_t2{};
+  for (std::size_t r = 0; r < rx; r++) {
+    ref_local_starts_random_t0.at(1) += (3 + r);
+    ref_local_starts_random_t1.at(0) += (4 + r);
+    ref_local_starts_random_t2.at(0) += (4 + r);
+  }
+  for (std::size_t r = 0; r < ry; r++) {
+    ref_local_starts_random_t0.at(2) += (2 + r);
+    ref_local_starts_random_t1.at(2) += (2 + r);
+    ref_local_starts_random_t2.at(1) += (3 + r);
+  }
+
+  // Test with equally distributed pattern
+  auto local_starts_t0 = KokkosFFT::Distributed::Impl::compute_local_starts(
+      extents_t0, topology0, MPI_COMM_WORLD);
+  auto local_starts_t1 = KokkosFFT::Distributed::Impl::compute_local_starts(
+      extents_t1, topology1, MPI_COMM_WORLD);
+  auto local_starts_t2 = KokkosFFT::Distributed::Impl::compute_local_starts(
+      extents_t2, topology2, MPI_COMM_WORLD);
+
+  EXPECT_EQ(local_starts_t0, ref_local_starts_t0);
+  EXPECT_EQ(local_starts_t1, ref_local_starts_t1);
+  EXPECT_EQ(local_starts_t2, ref_local_starts_t2);
+
+  // Test with random distributed pattern
+  auto local_starts_random_t0 =
+      KokkosFFT::Distributed::Impl::compute_local_starts(
+          extents_random_t0, topology0, MPI_COMM_WORLD);
+  auto local_starts_random_t1 =
+      KokkosFFT::Distributed::Impl::compute_local_starts(
+          extents_random_t1, topology1, MPI_COMM_WORLD);
+  auto local_starts_random_t2 =
+      KokkosFFT::Distributed::Impl::compute_local_starts(
+          extents_random_t2, topology2, MPI_COMM_WORLD);
+  EXPECT_EQ(local_starts_random_t0, ref_local_starts_random_t0);
+  EXPECT_EQ(local_starts_random_t1, ref_local_starts_random_t1);
+  EXPECT_EQ(local_starts_random_t2, ref_local_starts_random_t2);
+}
+
+template <typename LayoutType>
+void test_compute_local_extents2D(std::size_t rank, std::size_t nprocs) {
   using extents_type  = std::array<std::size_t, 2>;
   using topology_type = std::array<std::size_t, 2>;
 
@@ -694,9 +845,24 @@ TYPED_TEST(TestMPIExtents, compute_global_min_array) {
   test_compute_global_min<container_type>(this->m_rank);
 }
 
+TYPED_TEST(TestMPIExtents, compute_local_starts2D) {
+  using layout_type = typename TestFixture::layout_type;
+  test_compute_local_starts2D<layout_type>(this->m_rank, this->m_nprocs);
+}
+
+TYPED_TEST(TestMPIExtents, compute_local_starts3D) {
+  using layout_type = typename TestFixture::layout_type;
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+  test_compute_local_starts3D<layout_type>(this->m_rank, this->m_npx,
+                                           this->m_npx);
+}
+
 TYPED_TEST(TestMPIExtents, compute_local_extents2D) {
   using layout_type = typename TestFixture::layout_type;
-  test_compute_local_extent2D<layout_type>(this->m_rank, this->m_nprocs);
+  test_compute_local_extents2D<layout_type>(this->m_rank, this->m_nprocs);
 }
 
 TYPED_TEST(TestMPIExtents, compute_local_extents3D) {

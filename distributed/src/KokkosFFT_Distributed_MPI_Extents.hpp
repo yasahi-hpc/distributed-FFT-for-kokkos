@@ -390,6 +390,75 @@ bool are_valid_extents(
       in, out, axes, Topology<SizeType, InViewType::rank()>(in_topology),
       Topology<SizeType, OutViewType::rank()>(out_topology), comm);
 }
+
+/// \brief Compute the local extents from the extents of the distributed View
+/// and the topology of the data distribution
+/// \tparam DIM Number of dimensions
+/// \tparam LayoutType Layout type for the Topology (default is
+/// Kokkos::LayoutRight)
+/// \param[in] extents Extents of the distributed View
+/// \param[in] topology Topology of the data distribution
+/// \param[in] comm MPI communicator
+/// \return A tuple of local starts of the distributed View
+template <std::size_t DIM, typename LayoutType = Kokkos::LayoutRight>
+auto compute_local_starts(
+    const std::array<std::size_t, DIM> &extents,
+    const Topology<std::size_t, DIM, LayoutType> &topology, MPI_Comm comm) {
+  int rank, nprocs;
+  ::MPI_Comm_rank(comm, &rank);
+  ::MPI_Comm_size(comm, &nprocs);
+
+  auto total_size = KokkosFFT::Impl::total_size(topology);
+  KOKKOSFFT_THROW_IF(total_size != static_cast<std::size_t>(nprocs),
+                     "topology size must be identical to mpi size.");
+
+  std::array<std::size_t, DIM> coords =
+      rank_to_coord(topology, static_cast<std::size_t>(rank));
+
+  std::vector<std::size_t> gathered_extents(DIM * total_size);
+  MPI_Datatype mpi_data_type = Impl::mpi_datatype_v<std::size_t>;
+
+  // Data are stored as
+  // rank0: extents
+  // rank1: extents
+  // ...
+  // rankn:
+  MPI_Allgather(extents.data(), extents.size(), mpi_data_type,
+                gathered_extents.data(), extents.size(), mpi_data_type, comm);
+
+  std::array<std::size_t, DIM> local_starts{};
+  std::size_t stride = total_size;
+  for (std::size_t i = 0; i < topology.size(); i++) {
+    if (topology.at(i) != 1) {
+      // Maybe better to check that the shape is something like
+      // n, n, n, n_remain
+      std::size_t sum = 0;
+      stride /= topology.at(i);
+      for (std::size_t j = 0; j < coords.at(i); j++) {
+        sum += gathered_extents.at(i + extents.size() * stride * j);
+      }
+      local_starts.at(i) = sum;
+    }
+  }
+  return local_starts;
+}
+
+/// \brief Compute the local extents from the extents of the distributed View
+/// and the topology of the data distribution
+/// \tparam DIM Number of dimensions
+/// \tparam LayoutType Layout type for the Topology (default is
+/// Kokkos::LayoutRight)
+/// \param[in] extents Extents of the distributed View
+/// \param[in] topology Topology of the data distribution
+/// \param[in] comm MPI communicator
+/// \return A tuple of local starts of the distributed View
+template <std::size_t DIM>
+auto compute_local_starts(const std::array<std::size_t, DIM> &extents,
+                          const std::array<std::size_t, DIM> &topology,
+                          MPI_Comm comm) {
+  return compute_local_starts(extents, Topology<std::size_t, DIM>(topology),
+                              comm);
+}
 }  // namespace Impl
 
 /// \brief Convert rank to coordinate based on the given topology
