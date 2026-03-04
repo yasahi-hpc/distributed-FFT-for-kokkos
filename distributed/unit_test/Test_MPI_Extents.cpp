@@ -325,8 +325,9 @@ void test_compute_global_min(std::size_t rank) {
 
 template <typename LayoutType>
 void test_compute_local_starts2D(std::size_t rank, std::size_t nprocs) {
-  using extents_type  = std::array<std::size_t, 2>;
-  using topology_type = std::array<std::size_t, 2>;
+  using extents_type = std::array<std::size_t, 2>;
+  using topology_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 2, LayoutType>;
 
   topology_type topology0{1, nprocs};
   topology_type topology1{nprocs, 1};
@@ -386,13 +387,17 @@ void test_compute_local_starts2D(std::size_t rank, std::size_t nprocs) {
 template <typename LayoutType>
 void test_compute_local_starts3D(std::size_t rank, std::size_t npx,
                                  std::size_t npy) {
-  using extents_type    = std::array<std::size_t, 3>;
-  using topology_r_type = KokkosFFT::Distributed::Topology<std::size_t, 3>;
-
-  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy},
+  using extents_type = std::array<std::size_t, 3>;
+  using topology_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, LayoutType>;
+  topology_type topology0{1, npx, npy}, topology1{npx, 1, npy},
       topology2{npx, npy, 1};
 
   std::size_t rx = rank / npy, ry = rank % npy;
+  if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+    rx = rank % npx;
+    ry = rank / npx;
+  }
 
   auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
     std::size_t quotient  = n / t;
@@ -477,8 +482,9 @@ void test_compute_local_starts3D(std::size_t rank, std::size_t npx,
 template <typename LayoutType>
 void test_compute_local_extents_and_starts2D(std::size_t rank,
                                              std::size_t nprocs) {
-  using extents_type  = std::array<std::size_t, 2>;
-  using topology_type = std::array<std::size_t, 2>;
+  using extents_type = std::array<std::size_t, 2>;
+  using topology_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 2, LayoutType>;
 
   topology_type topology0{1, nprocs};
   topology_type topology1{nprocs, 1};
@@ -495,24 +501,24 @@ void test_compute_local_extents_and_starts2D(std::size_t rank,
   const std::size_t n0_t1 = distribute_extents(gn0, rank, nprocs);
   const std::size_t n1_t1 = gn1;
 
-  extents_type global_shape{gn0, gn1};
-  extents_type ref_local_shape_t0{n0_t0, n1_t0},
-      ref_local_shape_t1{n0_t1, n1_t1};
+  extents_type global_extents{gn0, gn1};
+  extents_type ref_local_extents_t0{n0_t0, n1_t0},
+      ref_local_extents_t1{n0_t1, n1_t1};
   extents_type ref_local_starts_t0{}, ref_local_starts_t1{};
   for (std::size_t r = 0; r < rank; r++) {
     ref_local_starts_t0.at(1) += distribute_extents(gn1, r, nprocs);
     ref_local_starts_t1.at(0) += distribute_extents(gn0, r, nprocs);
   }
 
-  auto [local_shape_t0, local_starts_t0] =
+  auto [local_extents_t0, local_starts_t0] =
       KokkosFFT::Distributed::compute_local_extents_and_starts(
-          global_shape, topology0, MPI_COMM_WORLD);
-  auto [local_shape_t1, local_starts_t1] =
+          global_extents, topology0, MPI_COMM_WORLD);
+  auto [local_extents_t1, local_starts_t1] =
       KokkosFFT::Distributed::compute_local_extents_and_starts(
-          global_shape, topology1, MPI_COMM_WORLD);
+          global_extents, topology1, MPI_COMM_WORLD);
 
-  EXPECT_EQ(local_shape_t0, ref_local_shape_t0);
-  EXPECT_EQ(local_shape_t1, ref_local_shape_t1);
+  EXPECT_EQ(local_extents_t0, ref_local_extents_t0);
+  EXPECT_EQ(local_extents_t1, ref_local_extents_t1);
 
   EXPECT_EQ(local_starts_t0, ref_local_starts_t0);
   EXPECT_EQ(local_starts_t1, ref_local_starts_t1);
@@ -521,13 +527,18 @@ void test_compute_local_extents_and_starts2D(std::size_t rank,
 template <typename LayoutType>
 void test_compute_local_extents_and_starts3D(std::size_t rank, std::size_t npx,
                                              std::size_t npy) {
-  using extents_type    = std::array<std::size_t, 3>;
-  using topology_r_type = KokkosFFT::Distributed::Topology<std::size_t, 3>;
+  using extents_type = std::array<std::size_t, 3>;
+  using topology_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, LayoutType>;
 
-  topology_r_type topology0{1, npx, npy}, topology1{npx, 1, npy},
+  topology_type topology0{1, npx, npy}, topology1{npx, 1, npy},
       topology2{npx, npy, 1};
 
   std::size_t rx = rank / npy, ry = rank % npy;
+  if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
+    rx = rank % npx;
+    ry = rank / npx;
+  }
 
   auto distribute_extents = [&](std::size_t n, std::size_t r, std::size_t t) {
     std::size_t quotient  = n / t;
@@ -548,10 +559,10 @@ void test_compute_local_extents_and_starts3D(std::size_t rank, std::size_t npx,
   const std::size_t n1_t2 = distribute_extents(gn1, ry, npy);
   const std::size_t n2_t2 = gn2;
 
-  extents_type global_shape{gn0, gn1, gn2};
-  extents_type ref_local_shape_t0{n0_t0, n1_t0, n2_t0},
-      ref_local_shape_t1{n0_t1, n1_t1, n2_t1},
-      ref_local_shape_t2{n0_t2, n1_t2, n2_t2};
+  extents_type global_extents{gn0, gn1, gn2};
+  extents_type ref_local_extents_t0{n0_t0, n1_t0, n2_t0},
+      ref_local_extents_t1{n0_t1, n1_t1, n2_t1},
+      ref_local_extents_t2{n0_t2, n1_t2, n2_t2};
   extents_type ref_local_starts_t0{}, ref_local_starts_t1{},
       ref_local_starts_t2{};
   for (std::size_t r = 0; r < rx; r++) {
@@ -566,19 +577,19 @@ void test_compute_local_extents_and_starts3D(std::size_t rank, std::size_t npx,
     ref_local_starts_t2.at(1) += distribute_extents(gn1, r, npy);
   }
 
-  auto [local_shape_t0, local_starts_t0] =
+  auto [local_extents_t0, local_starts_t0] =
       KokkosFFT::Distributed::compute_local_extents_and_starts(
-          global_shape, topology0, MPI_COMM_WORLD);
-  auto [local_shape_t1, local_starts_t1] =
+          global_extents, topology0, MPI_COMM_WORLD);
+  auto [local_extents_t1, local_starts_t1] =
       KokkosFFT::Distributed::compute_local_extents_and_starts(
-          global_shape, topology1, MPI_COMM_WORLD);
-  auto [local_shape_t2, local_starts_t2] =
+          global_extents, topology1, MPI_COMM_WORLD);
+  auto [local_extents_t2, local_starts_t2] =
       KokkosFFT::Distributed::compute_local_extents_and_starts(
-          global_shape, topology2, MPI_COMM_WORLD);
+          global_extents, topology2, MPI_COMM_WORLD);
 
-  EXPECT_EQ(local_shape_t0, ref_local_shape_t0);
-  EXPECT_EQ(local_shape_t1, ref_local_shape_t1);
-  EXPECT_EQ(local_shape_t2, ref_local_shape_t2);
+  EXPECT_EQ(local_extents_t0, ref_local_extents_t0);
+  EXPECT_EQ(local_extents_t1, ref_local_extents_t1);
+  EXPECT_EQ(local_extents_t2, ref_local_extents_t2);
 
   EXPECT_EQ(local_starts_t0, ref_local_starts_t0);
   EXPECT_EQ(local_starts_t1, ref_local_starts_t1);
@@ -586,7 +597,7 @@ void test_compute_local_extents_and_starts3D(std::size_t rank, std::size_t npx,
 }
 
 template <typename LayoutType>
-void test_compute_next_extents2D(std::size_t rank, std::size_t nprocs) {
+void test_compute_local_extents2D(std::size_t rank, std::size_t nprocs) {
   using extents_type    = std::array<std::size_t, 2>;
   using topology_r_type = KokkosFFT::Distributed::Topology<std::size_t, 2>;
   using map_type        = std::array<std::size_t, 2>;
@@ -607,30 +618,34 @@ void test_compute_next_extents2D(std::size_t rank, std::size_t nprocs) {
   const std::size_t n0_t1 = distribute_extents(gn0, nprocs);
   const std::size_t n1_t1 = gn1;
 
-  extents_type global_shape{gn0, gn1};
-  extents_type ref_next_shape_t0_map0{n0_t0, n1_t0},
-      ref_next_shape_t0_map1{n1_t0, n0_t0},
-      ref_next_shape_t1_map0{n0_t1, n1_t1},
-      ref_next_shape_t1_map1{n1_t1, n0_t1};
+  extents_type global_extents{gn0, gn1};
+  extents_type ref_local_extents_t0_map0{n0_t0, n1_t0},
+      ref_local_extents_t0_map1{n1_t0, n0_t0},
+      ref_local_extents_t1_map0{n0_t1, n1_t1},
+      ref_local_extents_t1_map1{n1_t1, n0_t1};
 
-  auto next_shape_t0_map0 = KokkosFFT::Distributed::Impl::compute_next_extents(
-      global_shape, topology0, map0, rank);
-  auto next_shape_t0_map1 = KokkosFFT::Distributed::Impl::compute_next_extents(
-      global_shape, topology0, map1, rank);
-  auto next_shape_t1_map0 = KokkosFFT::Distributed::Impl::compute_next_extents(
-      global_shape, topology1, map0, rank);
-  auto next_shape_t1_map1 = KokkosFFT::Distributed::Impl::compute_next_extents(
-      global_shape, topology1, map1, rank);
+  auto local_extents_t0_map0 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology0, map0, rank);
+  auto local_extents_t0_map1 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology0, map1, rank);
+  auto local_extents_t1_map0 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology1, map0, rank);
+  auto local_extents_t1_map1 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology1, map1, rank);
 
-  EXPECT_EQ(next_shape_t0_map0, ref_next_shape_t0_map0);
-  EXPECT_EQ(next_shape_t0_map1, ref_next_shape_t0_map1);
-  EXPECT_EQ(next_shape_t1_map0, ref_next_shape_t1_map0);
-  EXPECT_EQ(next_shape_t1_map1, ref_next_shape_t1_map1);
+  EXPECT_EQ(local_extents_t0_map0, ref_local_extents_t0_map0);
+  EXPECT_EQ(local_extents_t0_map1, ref_local_extents_t0_map1);
+  EXPECT_EQ(local_extents_t1_map0, ref_local_extents_t1_map0);
+  EXPECT_EQ(local_extents_t1_map1, ref_local_extents_t1_map1);
 }
 
 template <typename LayoutType>
-void test_compute_next_extents3D(std::size_t rank, std::size_t npx,
-                                 std::size_t npy) {
+void test_compute_local_extents3D(std::size_t rank, std::size_t npx,
+                                  std::size_t npy) {
   using extents_type = std::array<std::size_t, 3>;
   using topology_r_type =
       KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
@@ -669,135 +684,135 @@ void test_compute_next_extents3D(std::size_t rank, std::size_t npx,
   const std::size_t n1_t3 = distribute_extents(gn1, rx, npx);
   const std::size_t n2_t3 = gn2;
 
-  extents_type global_shape{gn0, gn1, gn2};
-  extents_type ref_next_shape_t0_map012{n0_t0, n1_t0, n2_t0},
-      ref_next_shape_t0_map021{n0_t0, n2_t0, n1_t0},
-      ref_next_shape_t0_map102{n1_t0, n0_t0, n2_t0},
-      ref_next_shape_t0_map120{n1_t0, n2_t0, n0_t0},
-      ref_next_shape_t0_map201{n2_t0, n0_t0, n1_t0},
-      ref_next_shape_t0_map210{n2_t0, n1_t0, n0_t0},
-      ref_next_shape_t1_map012{n0_t1, n1_t1, n2_t1},
-      ref_next_shape_t1_map021{n0_t1, n2_t1, n1_t1},
-      ref_next_shape_t1_map102{n1_t1, n0_t1, n2_t1},
-      ref_next_shape_t1_map120{n1_t1, n2_t1, n0_t1},
-      ref_next_shape_t1_map201{n2_t1, n0_t1, n1_t1},
-      ref_next_shape_t1_map210{n2_t1, n1_t1, n0_t1},
-      ref_next_shape_t2_map012{n0_t2, n1_t2, n2_t2},
-      ref_next_shape_t2_map021{n0_t2, n2_t2, n1_t2},
-      ref_next_shape_t2_map102{n1_t2, n0_t2, n2_t2},
-      ref_next_shape_t2_map120{n1_t2, n2_t2, n0_t2},
-      ref_next_shape_t2_map201{n2_t2, n0_t2, n1_t2},
-      ref_next_shape_t2_map210{n2_t2, n1_t2, n0_t2},
-      ref_next_shape_t3_map012{n0_t3, n1_t3, n2_t3},
-      ref_next_shape_t3_map021{n0_t3, n2_t3, n1_t3},
-      ref_next_shape_t3_map102{n1_t3, n0_t3, n2_t3},
-      ref_next_shape_t3_map120{n1_t3, n2_t3, n0_t3},
-      ref_next_shape_t3_map201{n2_t3, n0_t3, n1_t3},
-      ref_next_shape_t3_map210{n2_t3, n1_t3, n0_t3};
+  extents_type global_extents{gn0, gn1, gn2};
+  extents_type ref_local_extents_t0_map012{n0_t0, n1_t0, n2_t0},
+      ref_local_extents_t0_map021{n0_t0, n2_t0, n1_t0},
+      ref_local_extents_t0_map102{n1_t0, n0_t0, n2_t0},
+      ref_local_extents_t0_map120{n1_t0, n2_t0, n0_t0},
+      ref_local_extents_t0_map201{n2_t0, n0_t0, n1_t0},
+      ref_local_extents_t0_map210{n2_t0, n1_t0, n0_t0},
+      ref_local_extents_t1_map012{n0_t1, n1_t1, n2_t1},
+      ref_local_extents_t1_map021{n0_t1, n2_t1, n1_t1},
+      ref_local_extents_t1_map102{n1_t1, n0_t1, n2_t1},
+      ref_local_extents_t1_map120{n1_t1, n2_t1, n0_t1},
+      ref_local_extents_t1_map201{n2_t1, n0_t1, n1_t1},
+      ref_local_extents_t1_map210{n2_t1, n1_t1, n0_t1},
+      ref_local_extents_t2_map012{n0_t2, n1_t2, n2_t2},
+      ref_local_extents_t2_map021{n0_t2, n2_t2, n1_t2},
+      ref_local_extents_t2_map102{n1_t2, n0_t2, n2_t2},
+      ref_local_extents_t2_map120{n1_t2, n2_t2, n0_t2},
+      ref_local_extents_t2_map201{n2_t2, n0_t2, n1_t2},
+      ref_local_extents_t2_map210{n2_t2, n1_t2, n0_t2},
+      ref_local_extents_t3_map012{n0_t3, n1_t3, n2_t3},
+      ref_local_extents_t3_map021{n0_t3, n2_t3, n1_t3},
+      ref_local_extents_t3_map102{n1_t3, n0_t3, n2_t3},
+      ref_local_extents_t3_map120{n1_t3, n2_t3, n0_t3},
+      ref_local_extents_t3_map201{n2_t3, n0_t3, n1_t3},
+      ref_local_extents_t3_map210{n2_t3, n1_t3, n0_t3};
 
-  auto next_shape_t0_map012 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology0, map012, rank);
-  auto next_shape_t0_map021 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology0, map021, rank);
-  auto next_shape_t0_map102 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology0, map102, rank);
-  auto next_shape_t0_map120 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology0, map120, rank);
-  auto next_shape_t0_map201 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology0, map201, rank);
-  auto next_shape_t0_map210 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology0, map210, rank);
+  auto local_extents_t0_map012 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology0, map012, rank);
+  auto local_extents_t0_map021 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology0, map021, rank);
+  auto local_extents_t0_map102 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology0, map102, rank);
+  auto local_extents_t0_map120 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology0, map120, rank);
+  auto local_extents_t0_map201 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology0, map201, rank);
+  auto local_extents_t0_map210 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology0, map210, rank);
 
-  auto next_shape_t1_map012 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology1, map012, rank);
-  auto next_shape_t1_map021 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology1, map021, rank);
-  auto next_shape_t1_map102 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology1, map102, rank);
-  auto next_shape_t1_map120 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology1, map120, rank);
-  auto next_shape_t1_map201 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology1, map201, rank);
-  auto next_shape_t1_map210 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology1, map210, rank);
+  auto local_extents_t1_map012 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology1, map012, rank);
+  auto local_extents_t1_map021 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology1, map021, rank);
+  auto local_extents_t1_map102 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology1, map102, rank);
+  auto local_extents_t1_map120 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology1, map120, rank);
+  auto local_extents_t1_map201 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology1, map201, rank);
+  auto local_extents_t1_map210 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology1, map210, rank);
 
-  auto next_shape_t2_map012 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology2, map012, rank);
-  auto next_shape_t2_map021 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology2, map021, rank);
-  auto next_shape_t2_map102 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology2, map102, rank);
-  auto next_shape_t2_map120 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology2, map120, rank);
-  auto next_shape_t2_map201 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology2, map201, rank);
-  auto next_shape_t2_map210 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology2, map210, rank);
+  auto local_extents_t2_map012 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology2, map012, rank);
+  auto local_extents_t2_map021 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology2, map021, rank);
+  auto local_extents_t2_map102 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology2, map102, rank);
+  auto local_extents_t2_map120 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology2, map120, rank);
+  auto local_extents_t2_map201 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology2, map201, rank);
+  auto local_extents_t2_map210 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology2, map210, rank);
 
-  auto next_shape_t3_map012 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology3, map012, rank);
-  auto next_shape_t3_map021 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology3, map021, rank);
-  auto next_shape_t3_map102 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology3, map102, rank);
-  auto next_shape_t3_map120 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology3, map120, rank);
-  auto next_shape_t3_map201 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology3, map201, rank);
-  auto next_shape_t3_map210 =
-      KokkosFFT::Distributed::Impl::compute_next_extents(
-          global_shape, topology3, map210, rank);
+  auto local_extents_t3_map012 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology3, map012, rank);
+  auto local_extents_t3_map021 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology3, map021, rank);
+  auto local_extents_t3_map102 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology3, map102, rank);
+  auto local_extents_t3_map120 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology3, map120, rank);
+  auto local_extents_t3_map201 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology3, map201, rank);
+  auto local_extents_t3_map210 =
+      KokkosFFT::Distributed::Impl::compute_local_extents(
+          global_extents, topology3, map210, rank);
 
-  EXPECT_EQ(next_shape_t0_map012, ref_next_shape_t0_map012);
-  EXPECT_EQ(next_shape_t0_map021, ref_next_shape_t0_map021);
-  EXPECT_EQ(next_shape_t0_map102, ref_next_shape_t0_map102);
-  EXPECT_EQ(next_shape_t0_map120, ref_next_shape_t0_map120);
-  EXPECT_EQ(next_shape_t0_map201, ref_next_shape_t0_map201);
-  EXPECT_EQ(next_shape_t0_map210, ref_next_shape_t0_map210);
+  EXPECT_EQ(local_extents_t0_map012, ref_local_extents_t0_map012);
+  EXPECT_EQ(local_extents_t0_map021, ref_local_extents_t0_map021);
+  EXPECT_EQ(local_extents_t0_map102, ref_local_extents_t0_map102);
+  EXPECT_EQ(local_extents_t0_map120, ref_local_extents_t0_map120);
+  EXPECT_EQ(local_extents_t0_map201, ref_local_extents_t0_map201);
+  EXPECT_EQ(local_extents_t0_map210, ref_local_extents_t0_map210);
 
-  EXPECT_EQ(next_shape_t1_map012, ref_next_shape_t1_map012);
-  EXPECT_EQ(next_shape_t1_map021, ref_next_shape_t1_map021);
-  EXPECT_EQ(next_shape_t1_map102, ref_next_shape_t1_map102);
-  EXPECT_EQ(next_shape_t1_map120, ref_next_shape_t1_map120);
-  EXPECT_EQ(next_shape_t1_map201, ref_next_shape_t1_map201);
-  EXPECT_EQ(next_shape_t1_map210, ref_next_shape_t1_map210);
+  EXPECT_EQ(local_extents_t1_map012, ref_local_extents_t1_map012);
+  EXPECT_EQ(local_extents_t1_map021, ref_local_extents_t1_map021);
+  EXPECT_EQ(local_extents_t1_map102, ref_local_extents_t1_map102);
+  EXPECT_EQ(local_extents_t1_map120, ref_local_extents_t1_map120);
+  EXPECT_EQ(local_extents_t1_map201, ref_local_extents_t1_map201);
+  EXPECT_EQ(local_extents_t1_map210, ref_local_extents_t1_map210);
 
-  EXPECT_EQ(next_shape_t2_map012, ref_next_shape_t2_map012);
-  EXPECT_EQ(next_shape_t2_map021, ref_next_shape_t2_map021);
-  EXPECT_EQ(next_shape_t2_map102, ref_next_shape_t2_map102);
-  EXPECT_EQ(next_shape_t2_map120, ref_next_shape_t2_map120);
-  EXPECT_EQ(next_shape_t2_map201, ref_next_shape_t2_map201);
-  EXPECT_EQ(next_shape_t2_map210, ref_next_shape_t2_map210);
+  EXPECT_EQ(local_extents_t2_map012, ref_local_extents_t2_map012);
+  EXPECT_EQ(local_extents_t2_map021, ref_local_extents_t2_map021);
+  EXPECT_EQ(local_extents_t2_map102, ref_local_extents_t2_map102);
+  EXPECT_EQ(local_extents_t2_map120, ref_local_extents_t2_map120);
+  EXPECT_EQ(local_extents_t2_map201, ref_local_extents_t2_map201);
+  EXPECT_EQ(local_extents_t2_map210, ref_local_extents_t2_map210);
 
-  EXPECT_EQ(next_shape_t3_map012, ref_next_shape_t3_map012);
-  EXPECT_EQ(next_shape_t3_map021, ref_next_shape_t3_map021);
-  EXPECT_EQ(next_shape_t3_map102, ref_next_shape_t3_map102);
-  EXPECT_EQ(next_shape_t3_map120, ref_next_shape_t3_map120);
-  EXPECT_EQ(next_shape_t3_map201, ref_next_shape_t3_map201);
-  EXPECT_EQ(next_shape_t3_map210, ref_next_shape_t3_map210);
+  EXPECT_EQ(local_extents_t3_map012, ref_local_extents_t3_map012);
+  EXPECT_EQ(local_extents_t3_map021, ref_local_extents_t3_map021);
+  EXPECT_EQ(local_extents_t3_map102, ref_local_extents_t3_map102);
+  EXPECT_EQ(local_extents_t3_map120, ref_local_extents_t3_map120);
+  EXPECT_EQ(local_extents_t3_map201, ref_local_extents_t3_map201);
+  EXPECT_EQ(local_extents_t3_map210, ref_local_extents_t3_map210);
 }
 
 }  // namespace
@@ -878,23 +893,23 @@ TYPED_TEST(TestMPIExtents, compute_local_extents_and_starts3D) {
       this->m_rank, this->m_npx, this->m_npx);
 }
 
-TYPED_TEST(TestMPIExtents, compute_next_extents2D) {
+TYPED_TEST(TestMPIExtents, compute_local_extents2D) {
   using layout_type = typename TestFixture::layout_type;
 
   for (std::size_t nprocs = 1; nprocs <= 6; ++nprocs) {
     for (std::size_t rank = 0; rank < nprocs; ++rank) {
-      test_compute_next_extents2D<layout_type>(rank, nprocs);
+      test_compute_local_extents2D<layout_type>(rank, nprocs);
     }
   }
 }
 
-TYPED_TEST(TestMPIExtents, compute_next_extents3D) {
+TYPED_TEST(TestMPIExtents, compute_local_extents3D) {
   using layout_type = typename TestFixture::layout_type;
 
   for (std::size_t npx = 1; npx <= 3; ++npx) {
     for (std::size_t npy = 1; npy <= 3; ++npy) {
       for (std::size_t rank = 0; rank < npx * npy; ++rank) {
-        test_compute_next_extents3D<layout_type>(rank, npx, npy);
+        test_compute_local_extents3D<layout_type>(rank, npx, npy);
       }
     }
   }

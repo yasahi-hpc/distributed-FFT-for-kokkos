@@ -151,7 +151,7 @@ void test_propose_transpose_block(std::size_t rank,
   }
 
   // Compute expected out_extents
-  auto ref_out_extents = KokkosFFT::Distributed::Impl::compute_next_extents(
+  auto ref_out_extents = KokkosFFT::Distributed::Impl::compute_local_extents(
       global_extents, out_topology, block.m_out_map, rank, is_layout_right);
   EXPECT_EQ(block.m_out_extents, ref_out_extents);
 

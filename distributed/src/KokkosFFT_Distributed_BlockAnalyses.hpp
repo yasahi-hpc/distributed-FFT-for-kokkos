@@ -121,7 +121,7 @@ auto propose_transpose_block(const std::array<std::size_t, DIM>& map,
                      : permute_map_by_axes<LayoutType>(block.m_in_map, axes);
   }
 
-  block.m_out_extents = compute_next_extents(
+  block.m_out_extents = compute_local_extents(
       global_extents, out_topology, block.m_out_map, rank, is_layout_right);
   block.m_buffer_extents = compute_buffer_extents<LayoutType>(
       global_extents, in_topology, out_topology);
@@ -215,7 +215,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
       auto topology       = all_topologies.at(block_idx);
       auto fft_in_extents = compute_mapped_extents(in_extents, map);
       auto fft_out_extents =
-          compute_next_extents(gout_extents, topology, map, rank);
+          compute_local_extents(gout_extents, topology, map, rank);
       auto fft_block_tuple = propose_fft_block<BlockInfoType>(
           map, fft_in_extents, fft_out_extents, fft_dim, 0);
       block_vector.push_back(fft_block_tuple);
@@ -235,7 +235,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
         // First FFT block
         auto topology = block_infos.back().m_out_topology;
         auto fft_out_extents =
-            compute_next_extents(gout_extents, topology, in_map, rank);
+            compute_local_extents(gout_extents, topology, in_map, rank);
         auto fft_block_tuple = propose_fft_block<BlockInfoType>(
             in_map, fft_in_extents, fft_out_extents, fft_dim, 0);
         block_vector.push_back(fft_block_tuple);
@@ -343,8 +343,8 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
     if (block_infos.empty()) {
       auto topology        = all_topologies.at(block_idx);
       auto fft_in_extents  = compute_mapped_extents(in_extents, map);
-      auto fft_out_extents = compute_next_extents(gout_extents, topology, map,
-                                                  rank, is_layout_right);
+      auto fft_out_extents = compute_local_extents(gout_extents, topology, map,
+                                                   rank, is_layout_right);
       auto fft_block_tuple = propose_fft_block<BlockInfoType>(
           map, fft_in_extents, fft_out_extents, fft_dim, 0);
       block_vector.push_back(fft_block_tuple);
@@ -363,7 +363,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
       if (nb_fft_blocks == 0) {
         // First FFT block
         auto topology        = block_infos.back().m_out_topology;
-        auto fft_out_extents = compute_next_extents(
+        auto fft_out_extents = compute_local_extents(
             gout_extents, topology, in_map, rank, is_layout_right);
         auto fft_block_tuple = propose_fft_block<BlockInfoType>(
             in_map, fft_in_extents, fft_out_extents, fft_dim, 0);
