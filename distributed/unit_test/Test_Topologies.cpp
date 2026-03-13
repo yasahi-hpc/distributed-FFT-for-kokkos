@@ -584,10 +584,10 @@ void test_is_topology(std::size_t nprocs) {
     std::vector<topology1D_and_ref1D_type> topo1D_test_cases = {
         {topology1, TopologyType::Shared},
         {topology1D_type{0}, TopologyType::Empty}};
-    for (const auto& [topo, ref_topo_typ] : topo1D_test_cases) {
+    for (const auto& [topo, ref_topo_type] : topo1D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ) {
+        if (topo_type == ref_topo_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo))
               << error_is_topology(topo, topo_type, true);
@@ -606,10 +606,10 @@ void test_is_topology(std::size_t nprocs) {
         {topology2D_type{0, nprocs}, TopologyType::Empty},
         {topology2D_type{nprocs, 0}, TopologyType::Empty}};
 
-    for (const auto& [topo, ref_topo_typ] : topo2D_test_cases) {
+    for (const auto& [topo, ref_topo_type] : topo2D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ) {
+        if (topo_type == ref_topo_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo))
               << error_is_topology(topo, topo_type, true);
@@ -633,10 +633,10 @@ void test_is_topology(std::size_t nprocs) {
         {topology3D_type{p0, 0, p2}, TopologyType::Empty},
         {topology3D_type{p0, p1, 0}, TopologyType::Empty}};
 
-    for (const auto& [topo, ref_topo_typ] : topo3D_test_cases) {
+    for (const auto& [topo, ref_topo_type] : topo3D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ) {
+        if (topo_type == ref_topo_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo))
               << error_is_topology(topo, topo_type, true);
@@ -659,10 +659,10 @@ void test_is_topology(std::size_t nprocs) {
         {topology4_7, TopologyType::Slab},
         {topology4_8, TopologyType::Shared}};
 
-    for (const auto& [topo, ref_topo_typ] : topo4D_test_cases) {
+    for (const auto& [topo, ref_topo_type] : topo4D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ) {
+        if (topo_type == ref_topo_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo))
               << error_is_topology(topo, topo_type, true);
@@ -678,10 +678,10 @@ void test_is_topology(std::size_t nprocs) {
     std::vector<topology1D_and_ref1D_type> topo1D_test_cases = {
         {topology1, TopologyType::Slab},
         {topology1D_type{0}, TopologyType::Empty}};
-    for (const auto& [topo, ref_topo_typ] : topo1D_test_cases) {
+    for (const auto& [topo, ref_topo_type] : topo1D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ) {
+        if (topo_type == ref_topo_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo))
               << error_is_topology(topo, topo_type, true);
@@ -700,10 +700,10 @@ void test_is_topology(std::size_t nprocs) {
         {topology2D_type{0, nprocs}, TopologyType::Empty},
         {topology2D_type{nprocs, 0}, TopologyType::Empty}};
 
-    for (const auto& [topo, ref_topo_typ] : topo2D_test_cases) {
+    for (const auto& [topo, ref_topo_type] : topo2D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ) {
+        if (topo_type == ref_topo_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo))
               << error_is_topology(topo, topo_type, true);
@@ -731,10 +731,10 @@ void test_is_topology(std::size_t nprocs) {
         {topology3D_type{p0, 0, p2}, TopologyType::Empty},
         {topology3D_type{p0, p1, 0}, TopologyType::Empty}};
 
-    for (const auto& [topo, ref_topo_typ] : topo3D_test_cases) {
+    for (const auto& [topo, ref_topo_type] : topo3D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ) {
+        if (topo_type == ref_topo_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo))
               << error_is_topology(topo, topo_type, true);
@@ -757,10 +757,10 @@ void test_is_topology(std::size_t nprocs) {
         {topology4_7, TopologyType::Invalid},
         {topology4_8, TopologyType::Invalid}};
 
-    for (const auto& [topo, ref_topo_typ] : topo4D_test_cases) {
+    for (const auto& [topo, ref_topo_type] : topo4D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ) {
+        if (topo_type == ref_topo_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo))
               << error_is_topology(topo, topo_type, true);
@@ -832,11 +832,11 @@ void test_are_topologies(std::size_t nprocs) {
         {topology1, topology1, TopologyType::Shared, true},
         {topology1D_type{0}, topology1D_type{0}, TopologyType::Empty, true},
         {topology1, topology1D_type{0}, TopologyType::Invalid, false}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo1D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -857,11 +857,11 @@ void test_are_topologies(std::size_t nprocs) {
         {topology2_1, topology2D_type{nprocs, 0}, TopologyType::Invalid,
          false}};
 
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo2D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -889,11 +889,11 @@ void test_are_topologies(std::size_t nprocs) {
          TopologyType::Empty, true},
         {topology3D_r_type{p0, p1, 0}, topology3D_r_type{p0, p1, 0},
          TopologyType::Empty, true}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo3D_rr_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -910,11 +910,11 @@ void test_are_topologies(std::size_t nprocs) {
         {topology3_3, topology3_8, TopologyType::Pencil, true},
         {topology3_4, topology3_9, TopologyType::Slab, true},
         {topology3_5, topology3_10, TopologyType::Shared, true}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo3D_rl_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if (topo_type == ref_topo_typ && is_same_type) {
+        if (topo_type == ref_topo_type && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -936,11 +936,11 @@ void test_are_topologies(std::size_t nprocs) {
         {topology4_6, topology4_6, TopologyType::Pencil, true},
         {topology4_7, topology4_7, TopologyType::Slab, true},
         {topology4_8, topology4_8, TopologyType::Shared, true}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo4D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -957,11 +957,11 @@ void test_are_topologies(std::size_t nprocs) {
         {topology1, topology1, TopologyType::Slab, true},
         {topology1D_type{0}, topology1D_type{0}, TopologyType::Empty, true},
         {topology1, topology1D_type{0}, TopologyType::Invalid, false}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo1D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -981,11 +981,11 @@ void test_are_topologies(std::size_t nprocs) {
         {topology2_1, topology2D_type{0, nprocs}, TopologyType::Invalid, false},
         {topology2_1, topology2D_type{nprocs, 0}, TopologyType::Invalid,
          false}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo2D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -1013,11 +1013,11 @@ void test_are_topologies(std::size_t nprocs) {
          TopologyType::Empty, true},
         {topology3D_r_type{p0, p1, 0}, topology3D_r_type{p0, p1, 0},
          TopologyType::Empty, true}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo3D_rr_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -1035,11 +1035,11 @@ void test_are_topologies(std::size_t nprocs) {
         {topology3_3, topology3_8, TopologyType::Brick, true},
         {topology3_4, topology3_9, TopologyType::Brick, true},
         {topology3_5, topology3_10, TopologyType::Brick, true}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo3D_rl_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
@@ -1061,11 +1061,11 @@ void test_are_topologies(std::size_t nprocs) {
         {topology4_6, topology4_6, TopologyType::Invalid, true},
         {topology4_7, topology4_7, TopologyType::Invalid, true},
         {topology4_8, topology4_8, TopologyType::Invalid, true}};
-    for (const auto& [topo1, topo2, ref_topo_typ, is_same_type] :
+    for (const auto& [topo1, topo2, ref_topo_type, is_same_type] :
          topo4D_test_cases) {
       for (int i = 0; i < static_cast<int>(TopologyType::Count); ++i) {
         auto topo_type = static_cast<TopologyType>(i);
-        if ((topo_type == ref_topo_typ) && is_same_type) {
+        if ((topo_type == ref_topo_type) && is_same_type) {
           EXPECT_TRUE(KokkosFFT::Distributed::Impl::are_specified_topologies(
               topo_type, topo1, topo2))
               << error_are_topologies(topo1, topo2, topo_type, true);
