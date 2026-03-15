@@ -65,7 +65,7 @@ inline bool are_specified_topologies(const TopologyType topology_type,
 template <class... Topologies>
 inline auto get_common_topology_type(const Topologies&... topologies) {
   static_assert((are_allowed_topologies_v<Topologies...>),
-                "are_brick_topologies: topologies must be either in "
+                "get_common_topology_type: topologies must be either in "
                 "std::array or Topology");
 
   // Quick return if empty topology is found

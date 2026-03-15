@@ -146,8 +146,42 @@ std::string error_are_topologies(
   return msg;
 }
 
+/// \brief Generate error message for slab_in_out_axes test failures.
+/// \tparam Topology1Type The type of the first topology input.
+/// \tparam Topology2Type The type of the second topology input.
+/// \param[in] topo1 The first input topology that caused the failure.
+/// \param[in] topo2 The second input topology that caused the failure.
+/// \param[in] expected The expected slab in/out axes.
+/// \return Error message including the input topologies and the expected slab
+/// in/out axes.
+template <typename Topology1Type, typename Topology2Type>
+std::string error_slab_in_out_axes(
+    const Topology1Type& topo1, const Topology2Type& topo2,
+    std::tuple<std::size_t, std::size_t> expected) {
+  auto actual = KokkosFFT::Distributed::Impl::slab_in_out_axes(topo1, topo2);
+  std::string msg;
+  msg += "Input topologies: ";
+  msg += "(" + std::to_string(topo1.at(0));
+  for (std::size_t i = 1; i < topo1.size(); ++i) {
+    msg += ", " + std::to_string(topo1.at(i));
+  }
+  msg += ") and (";
+  msg += std::to_string(topo2.at(0));
+  for (std::size_t i = 1; i < topo2.size(); ++i) {
+    msg += ", " + std::to_string(topo2.at(i));
+  }
+  msg += ")";
+  msg += "), should have slab in/out axes: (" +
+         std::to_string(std::get<0>(expected)) + ", " +
+         std::to_string(std::get<1>(expected)) + "), but got: (" +
+         std::to_string(std::get<0>(actual)) + ", " +
+         std::to_string(std::get<1>(actual)) + ").";
+  return msg;
+}
+
 template <bool is_std_array>
 void test_to_topology_type(std::size_t nprocs) {
+  using KokkosFFT::Distributed::Impl::TopologyType;
   using topology1D_type = std::conditional_t<
       is_std_array, std::array<std::size_t, 1>,
       KokkosFFT::Distributed::Topology<std::size_t, 1, Kokkos::LayoutRight>>;
@@ -161,14 +195,10 @@ void test_to_topology_type(std::size_t nprocs) {
       is_std_array, std::array<std::size_t, 4>,
       KokkosFFT::Distributed::Topology<std::size_t, 4, Kokkos::LayoutLeft>>;
 
-  using topology1D_and_ref1D_type =
-      std::tuple<topology1D_type, KokkosFFT::Distributed::Impl::TopologyType>;
-  using topology2D_and_ref2D_type =
-      std::tuple<topology2D_type, KokkosFFT::Distributed::Impl::TopologyType>;
-  using topology3D_and_ref3D_type =
-      std::tuple<topology3D_type, KokkosFFT::Distributed::Impl::TopologyType>;
-  using topology4D_and_ref4D_type =
-      std::tuple<topology4D_type, KokkosFFT::Distributed::Impl::TopologyType>;
+  using topology1D_and_ref1D_type = std::tuple<topology1D_type, TopologyType>;
+  using topology2D_and_ref2D_type = std::tuple<topology2D_type, TopologyType>;
+  using topology3D_and_ref3D_type = std::tuple<topology3D_type, TopologyType>;
+  using topology4D_and_ref4D_type = std::tuple<topology4D_type, TopologyType>;
 
   const std::size_t p0 = 2, p1 = 3, p2 = 4, p3 = 5;
 
@@ -197,12 +227,10 @@ void test_to_topology_type(std::size_t nprocs) {
 
     // 2D topology
     std::vector<topology2D_and_ref2D_type> topo2D_test_cases = {
-        {topology2_1, KokkosFFT::Distributed::Impl::TopologyType::Slab},
-        {topology2_2, KokkosFFT::Distributed::Impl::TopologyType::Slab},
-        {topology2D_type{0, nprocs},
-         KokkosFFT::Distributed::Impl::TopologyType::Empty},
-        {topology2D_type{nprocs, 0},
-         KokkosFFT::Distributed::Impl::TopologyType::Empty}};
+        {topology2_1, TopologyType::Slab},
+        {topology2_2, TopologyType::Slab},
+        {topology2D_type{0, nprocs}, TopologyType::Empty},
+        {topology2D_type{nprocs, 0}, TopologyType::Empty}};
     for (const auto& [topo, ref] : topo2D_test_cases) {
       auto topo_type = KokkosFFT::Distributed::Impl::to_topology_type(topo);
       EXPECT_EQ(topo_type, ref) << error_to_topology_type(topo, ref);
@@ -210,11 +238,11 @@ void test_to_topology_type(std::size_t nprocs) {
 
     // 3D topology
     std::vector<topology3D_and_ref3D_type> topo3D_test_cases = {
-        {topology3_1, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology3_2, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology3_3, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology3_4, KokkosFFT::Distributed::Impl::TopologyType::Slab},
-        {topology3_5, KokkosFFT::Distributed::Impl::TopologyType::Shared}};
+        {topology3_1, TopologyType::Pencil},
+        {topology3_2, TopologyType::Pencil},
+        {topology3_3, TopologyType::Pencil},
+        {topology3_4, TopologyType::Slab},
+        {topology3_5, TopologyType::Shared}};
     for (const auto& [topo, ref] : topo3D_test_cases) {
       auto topo_type = KokkosFFT::Distributed::Impl::to_topology_type(topo);
       EXPECT_EQ(topo_type, ref) << error_to_topology_type(topo, ref);
@@ -222,14 +250,14 @@ void test_to_topology_type(std::size_t nprocs) {
 
     // 4D topology
     std::vector<topology4D_and_ref4D_type> topo4D_test_cases = {
-        {topology4_1, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_2, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_3, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_4, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_5, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_6, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_7, KokkosFFT::Distributed::Impl::TopologyType::Slab},
-        {topology4_8, KokkosFFT::Distributed::Impl::TopologyType::Shared}};
+        {topology4_1, TopologyType::Pencil},
+        {topology4_2, TopologyType::Pencil},
+        {topology4_3, TopologyType::Pencil},
+        {topology4_4, TopologyType::Pencil},
+        {topology4_5, TopologyType::Pencil},
+        {topology4_6, TopologyType::Pencil},
+        {topology4_7, TopologyType::Slab},
+        {topology4_8, TopologyType::Shared}};
     for (const auto& [topo, ref] : topo4D_test_cases) {
       auto topo_type = KokkosFFT::Distributed::Impl::to_topology_type(topo);
       EXPECT_EQ(topo_type, ref) << error_to_topology_type(topo, ref);
@@ -237,7 +265,7 @@ void test_to_topology_type(std::size_t nprocs) {
   } else {
     // 1D topology
     std::vector<topology1D_and_ref1D_type> topo1D_test_cases = {
-        {topology1, KokkosFFT::Distributed::Impl::TopologyType::Slab}};
+        {topology1, TopologyType::Slab}};
     for (const auto& [topo, ref] : topo1D_test_cases) {
       auto topo_type = KokkosFFT::Distributed::Impl::to_topology_type(topo);
       EXPECT_EQ(topo_type, ref) << error_to_topology_type(topo, ref);
@@ -245,8 +273,8 @@ void test_to_topology_type(std::size_t nprocs) {
 
     // 2D topology
     std::vector<topology2D_and_ref2D_type> topo2D_test_cases = {
-        {topology2_1, KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology2_2, KokkosFFT::Distributed::Impl::TopologyType::Pencil}};
+        {topology2_1, TopologyType::Pencil},
+        {topology2_2, TopologyType::Pencil}};
     for (const auto& [topo, ref] : topo2D_test_cases) {
       auto topo_type = KokkosFFT::Distributed::Impl::to_topology_type(topo);
       EXPECT_EQ(topo_type, ref) << error_to_topology_type(topo, ref);
@@ -254,11 +282,11 @@ void test_to_topology_type(std::size_t nprocs) {
 
     // 3D topology
     std::vector<topology3D_and_ref3D_type> topo3D_test_cases = {
-        {topology3_1, KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_2, KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_3, KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_4, KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_5, KokkosFFT::Distributed::Impl::TopologyType::Brick}};
+        {topology3_1, TopologyType::Brick},
+        {topology3_2, TopologyType::Brick},
+        {topology3_3, TopologyType::Brick},
+        {topology3_4, TopologyType::Brick},
+        {topology3_5, TopologyType::Brick}};
     for (const auto& [topo, ref] : topo3D_test_cases) {
       auto topo_type = KokkosFFT::Distributed::Impl::to_topology_type(topo);
       EXPECT_EQ(topo_type, ref) << error_to_topology_type(topo, ref);
@@ -266,14 +294,14 @@ void test_to_topology_type(std::size_t nprocs) {
 
     // 4D topology
     std::vector<topology4D_and_ref4D_type> topo4D_test_cases = {
-        {topology4_1, KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_2, KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_3, KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_4, KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_5, KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_6, KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_7, KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_8, KokkosFFT::Distributed::Impl::TopologyType::Invalid}};
+        {topology4_1, TopologyType::Invalid},
+        {topology4_2, TopologyType::Invalid},
+        {topology4_3, TopologyType::Invalid},
+        {topology4_4, TopologyType::Invalid},
+        {topology4_5, TopologyType::Invalid},
+        {topology4_6, TopologyType::Invalid},
+        {topology4_7, TopologyType::Invalid},
+        {topology4_8, TopologyType::Invalid}};
     for (const auto& [topo, ref] : topo4D_test_cases) {
       auto topo_type = KokkosFFT::Distributed::Impl::to_topology_type(topo);
       EXPECT_EQ(topo_type, ref) << error_to_topology_type(topo, ref);
@@ -283,6 +311,7 @@ void test_to_topology_type(std::size_t nprocs) {
 
 template <bool is_std_array>
 void test_get_common_topology_type(std::size_t nprocs) {
+  using KokkosFFT::Distributed::Impl::TopologyType;
   using topology1D_type = std::conditional_t<
       is_std_array, std::array<std::size_t, 1>,
       KokkosFFT::Distributed::Topology<std::size_t, 1, Kokkos::LayoutRight>>;
@@ -297,17 +326,13 @@ void test_get_common_topology_type(std::size_t nprocs) {
       KokkosFFT::Distributed::Topology<std::size_t, 4, Kokkos::LayoutLeft>>;
 
   using topology1D_and_ref1D_type =
-      std::tuple<topology1D_type, topology1D_type,
-                 KokkosFFT::Distributed::Impl::TopologyType>;
+      std::tuple<topology1D_type, topology1D_type, TopologyType>;
   using topology2D_and_ref2D_type =
-      std::tuple<topology2D_type, topology2D_type,
-                 KokkosFFT::Distributed::Impl::TopologyType>;
+      std::tuple<topology2D_type, topology2D_type, TopologyType>;
   using topology3D_and_ref3D_type =
-      std::tuple<topology3D_type, topology3D_type,
-                 KokkosFFT::Distributed::Impl::TopologyType>;
+      std::tuple<topology3D_type, topology3D_type, TopologyType>;
   using topology4D_and_ref4D_type =
-      std::tuple<topology4D_type, topology4D_type,
-                 KokkosFFT::Distributed::Impl::TopologyType>;
+      std::tuple<topology4D_type, topology4D_type, TopologyType>;
 
   const std::size_t p0 = 2, p1 = 3, p2 = 4, p3 = 5;
 
@@ -359,24 +384,15 @@ void test_get_common_topology_type(std::size_t nprocs) {
 
     // 3D topology
     std::vector<topology3D_and_ref3D_type> topo3D_test_cases = {
-        {topology3_1, topology3_1,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology3_2, topology3_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology3_3, topology3_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology3_4, topology3_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Slab},
-        {topology3_5, topology3_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Shared},
-        {topology3_1, topology3_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology3_1, topology3_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology3_1, topology3_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology3_1, topology3_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid}};
+        {topology3_1, topology3_1, TopologyType::Pencil},
+        {topology3_2, topology3_2, TopologyType::Pencil},
+        {topology3_3, topology3_3, TopologyType::Pencil},
+        {topology3_4, topology3_4, TopologyType::Slab},
+        {topology3_5, topology3_5, TopologyType::Shared},
+        {topology3_1, topology3_2, TopologyType::Pencil},
+        {topology3_1, topology3_3, TopologyType::Pencil},
+        {topology3_1, topology3_4, TopologyType::Invalid},
+        {topology3_1, topology3_5, TopologyType::Invalid}};
     for (const auto& [topo1, topo2, ref] : topo3D_test_cases) {
       auto topo_type =
           KokkosFFT::Distributed::Impl::get_common_topology_type(topo1, topo2);
@@ -386,56 +402,31 @@ void test_get_common_topology_type(std::size_t nprocs) {
 
     // 4D topology
     std::vector<topology4D_and_ref4D_type> topo4D_test_cases = {
-        {topology4_1, topology4_1,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_2, topology4_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_3, topology4_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_4, topology4_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_5, topology4_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_6, topology4_6,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_7, topology4_7,
-         KokkosFFT::Distributed::Impl::TopologyType::Slab},
-        {topology4_8, topology4_8,
-         KokkosFFT::Distributed::Impl::TopologyType::Shared},
-        {topology4_1, topology4_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_1, topology4_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_1, topology4_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_1, topology4_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_1, topology4_6,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_2, topology4_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_2, topology4_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_2, topology4_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_2, topology4_6,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_3, topology4_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_3, topology4_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_3, topology4_6,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_4, topology4_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_4, topology4_6,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_5, topology4_6,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology4_7, topology4_7,
-         KokkosFFT::Distributed::Impl::TopologyType::Slab},
-        {topology4_8, topology4_8,
-         KokkosFFT::Distributed::Impl::TopologyType::Shared}};
+        {topology4_1, topology4_1, TopologyType::Pencil},
+        {topology4_2, topology4_2, TopologyType::Pencil},
+        {topology4_3, topology4_3, TopologyType::Pencil},
+        {topology4_4, topology4_4, TopologyType::Pencil},
+        {topology4_5, topology4_5, TopologyType::Pencil},
+        {topology4_6, topology4_6, TopologyType::Pencil},
+        {topology4_7, topology4_7, TopologyType::Slab},
+        {topology4_8, topology4_8, TopologyType::Shared},
+        {topology4_1, topology4_2, TopologyType::Pencil},
+        {topology4_1, topology4_3, TopologyType::Pencil},
+        {topology4_1, topology4_4, TopologyType::Pencil},
+        {topology4_1, topology4_5, TopologyType::Pencil},
+        {topology4_1, topology4_6, TopologyType::Pencil},
+        {topology4_2, topology4_3, TopologyType::Pencil},
+        {topology4_2, topology4_4, TopologyType::Pencil},
+        {topology4_2, topology4_5, TopologyType::Pencil},
+        {topology4_2, topology4_6, TopologyType::Pencil},
+        {topology4_3, topology4_4, TopologyType::Pencil},
+        {topology4_3, topology4_5, TopologyType::Pencil},
+        {topology4_3, topology4_6, TopologyType::Pencil},
+        {topology4_4, topology4_5, TopologyType::Pencil},
+        {topology4_4, topology4_6, TopologyType::Pencil},
+        {topology4_5, topology4_6, TopologyType::Pencil},
+        {topology4_7, topology4_7, TopologyType::Slab},
+        {topology4_8, topology4_8, TopologyType::Shared}};
 
     for (const auto& [topo1, topo2, ref] : topo4D_test_cases) {
       auto topo_type =
@@ -446,8 +437,7 @@ void test_get_common_topology_type(std::size_t nprocs) {
   } else {
     // 1D topology
     std::vector<topology1D_and_ref1D_type> topo1D_test_cases = {
-        {topology1, topology1,
-         KokkosFFT::Distributed::Impl::TopologyType::Slab}};
+        {topology1, topology1, TopologyType::Slab}};
     for (const auto& [topo1, topo2, ref] : topo1D_test_cases) {
       auto topo_type =
           KokkosFFT::Distributed::Impl::get_common_topology_type(topo1, topo2);
@@ -457,12 +447,9 @@ void test_get_common_topology_type(std::size_t nprocs) {
 
     // 2D topology
     std::vector<topology2D_and_ref2D_type> topo2D_test_cases = {
-        {topology2_1, topology2_1,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology2_2, topology2_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil},
-        {topology2_1, topology2_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Pencil}};
+        {topology2_1, topology2_1, TopologyType::Pencil},
+        {topology2_2, topology2_2, TopologyType::Pencil},
+        {topology2_1, topology2_2, TopologyType::Pencil}};
     for (const auto& [topo1, topo2, ref] : topo2D_test_cases) {
       auto topo_type =
           KokkosFFT::Distributed::Impl::get_common_topology_type(topo1, topo2);
@@ -472,24 +459,15 @@ void test_get_common_topology_type(std::size_t nprocs) {
 
     // 3D topology
     std::vector<topology3D_and_ref3D_type> topo3D_test_cases = {
-        {topology3_1, topology3_1,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_2, topology3_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_3, topology3_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_4, topology3_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_5, topology3_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_1, topology3_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_1, topology3_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_1, topology3_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick},
-        {topology3_1, topology3_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Brick}};
+        {topology3_1, topology3_1, TopologyType::Brick},
+        {topology3_2, topology3_2, TopologyType::Brick},
+        {topology3_3, topology3_3, TopologyType::Brick},
+        {topology3_4, topology3_4, TopologyType::Brick},
+        {topology3_5, topology3_5, TopologyType::Brick},
+        {topology3_1, topology3_2, TopologyType::Brick},
+        {topology3_1, topology3_3, TopologyType::Brick},
+        {topology3_1, topology3_4, TopologyType::Brick},
+        {topology3_1, topology3_5, TopologyType::Brick}};
     for (const auto& [topo1, topo2, ref] : topo3D_test_cases) {
       auto topo_type =
           KokkosFFT::Distributed::Impl::get_common_topology_type(topo1, topo2);
@@ -499,38 +477,22 @@ void test_get_common_topology_type(std::size_t nprocs) {
 
     // 4D topology
     std::vector<topology4D_and_ref4D_type> topo4D_test_cases = {
-        {topology4_1, topology4_1,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_2, topology4_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_3, topology4_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_4, topology4_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_5, topology4_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_6, topology4_6,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_7, topology4_7,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_8, topology4_8,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_1, topology4_2,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_1, topology4_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_1, topology4_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_1, topology4_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_1, topology4_6,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_2, topology4_3,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_2, topology4_4,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid},
-        {topology4_2, topology4_5,
-         KokkosFFT::Distributed::Impl::TopologyType::Invalid}};
+        {topology4_1, topology4_1, TopologyType::Invalid},
+        {topology4_2, topology4_2, TopologyType::Invalid},
+        {topology4_3, topology4_3, TopologyType::Invalid},
+        {topology4_4, topology4_4, TopologyType::Invalid},
+        {topology4_5, topology4_5, TopologyType::Invalid},
+        {topology4_6, topology4_6, TopologyType::Invalid},
+        {topology4_7, topology4_7, TopologyType::Invalid},
+        {topology4_8, topology4_8, TopologyType::Invalid},
+        {topology4_1, topology4_2, TopologyType::Invalid},
+        {topology4_1, topology4_3, TopologyType::Invalid},
+        {topology4_1, topology4_4, TopologyType::Invalid},
+        {topology4_1, topology4_5, TopologyType::Invalid},
+        {topology4_1, topology4_6, TopologyType::Invalid},
+        {topology4_2, topology4_3, TopologyType::Invalid},
+        {topology4_2, topology4_4, TopologyType::Invalid},
+        {topology4_2, topology4_5, TopologyType::Invalid}};
 
     for (const auto& [topo1, topo2, ref] : topo4D_test_cases) {
       auto topo_type =
@@ -557,14 +519,10 @@ void test_is_topology(std::size_t nprocs) {
       is_std_array, std::array<std::size_t, 4>,
       KokkosFFT::Distributed::Topology<std::size_t, 4, Kokkos::LayoutLeft>>;
 
-  using topology1D_and_ref1D_type =
-      std::tuple<topology1D_type, KokkosFFT::Distributed::Impl::TopologyType>;
-  using topology2D_and_ref2D_type =
-      std::tuple<topology2D_type, KokkosFFT::Distributed::Impl::TopologyType>;
-  using topology3D_and_ref3D_type =
-      std::tuple<topology3D_type, KokkosFFT::Distributed::Impl::TopologyType>;
-  using topology4D_and_ref4D_type =
-      std::tuple<topology4D_type, KokkosFFT::Distributed::Impl::TopologyType>;
+  using topology1D_and_ref1D_type = std::tuple<topology1D_type, TopologyType>;
+  using topology2D_and_ref2D_type = std::tuple<topology2D_type, TopologyType>;
+  using topology3D_and_ref3D_type = std::tuple<topology3D_type, TopologyType>;
+  using topology4D_and_ref4D_type = std::tuple<topology4D_type, TopologyType>;
   const std::size_t p0 = 2, p1 = 3, p2 = 4, p3 = 5;
 
   topology1D_type topology1{nprocs};
@@ -794,20 +752,15 @@ void test_are_topologies(std::size_t nprocs) {
       KokkosFFT::Distributed::Topology<std::size_t, 4, Kokkos::LayoutLeft>>;
 
   using topology1D_and_ref1D_type =
-      std::tuple<topology1D_type, topology1D_type,
-                 KokkosFFT::Distributed::Impl::TopologyType, bool>;
+      std::tuple<topology1D_type, topology1D_type, TopologyType, bool>;
   using topology2D_and_ref2D_type =
-      std::tuple<topology2D_type, topology2D_type,
-                 KokkosFFT::Distributed::Impl::TopologyType, bool>;
+      std::tuple<topology2D_type, topology2D_type, TopologyType, bool>;
   using topology3D_rr_and_ref3D_type =
-      std::tuple<topology3D_r_type, topology3D_r_type,
-                 KokkosFFT::Distributed::Impl::TopologyType, bool>;
+      std::tuple<topology3D_r_type, topology3D_r_type, TopologyType, bool>;
   using topology3D_rl_and_ref3D_type =
-      std::tuple<topology3D_r_type, topology3D_l_type,
-                 KokkosFFT::Distributed::Impl::TopologyType, bool>;
+      std::tuple<topology3D_r_type, topology3D_l_type, TopologyType, bool>;
   using topology4D_and_ref4D_type =
-      std::tuple<topology4D_type, topology4D_type,
-                 KokkosFFT::Distributed::Impl::TopologyType, bool>;
+      std::tuple<topology4D_type, topology4D_type, TopologyType, bool>;
 
   const std::size_t p0 = 2, p1 = 3, p2 = 4, p3 = 5;
 
@@ -1080,152 +1033,95 @@ void test_are_topologies(std::size_t nprocs) {
 }
 
 void test_slab_in_out_axes_2D(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 2>;
-  topology_type topology0 = {1, nprocs}, topology1 = {nprocs, 1},
-                topology2 = {nprocs, 7}, topology3 = {1, 1};
+  using topo_type = std::array<std::size_t, 2>;
+  using topo_and_ref_type =
+      std::tuple<topo_type, topo_type, std::tuple<std::size_t, std::size_t>>;
+  topo_type topo0{1, nprocs}, topo1{nprocs, 1}, topo2{nprocs, 7}, topo3{1, 1};
 
   if (nprocs == 1) {
     // Failure tests because of size 1 case
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis01 =
-              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
-                                                             topology1);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis10 =
-              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1,
-                                                             topology0);
-        },
-        std::runtime_error);
+    std::vector<topo_and_ref_type> topo_test_cases = {{topo0, topo1, {0, 1}},
+                                                      {topo1, topo0, {1, 0}}};
+    for (const auto& [topo_in, topo_out, ref_inout_axes] : topo_test_cases) {
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto inout_axes =
+                KokkosFFT::Distributed::Impl::slab_in_out_axes(topo_in,
+                                                               topo_out);
+          },
+          std::runtime_error);
+    }
   } else {
-    // Slab tests
-    auto [in_axis01, out_axis01] =
-        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0, topology1);
-    auto [in_axis10, out_axis10] =
-        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1, topology0);
+    std::vector<topo_and_ref_type> topo_test_cases = {{topo0, topo1, {0, 1}},
+                                                      {topo1, topo0, {1, 0}}};
 
-    EXPECT_EQ(in_axis01, 0);
-    EXPECT_EQ(out_axis01, 1);
-    EXPECT_EQ(in_axis10, 1);
-    EXPECT_EQ(out_axis10, 0);
+    for (const auto& [topo_in, topo_out, ref_inout_axes] : topo_test_cases) {
+      auto inout_axes =
+          KokkosFFT::Distributed::Impl::slab_in_out_axes(topo_in, topo_out);
+      EXPECT_EQ(inout_axes, ref_inout_axes)
+          << error_slab_in_out_axes(topo_in, topo_out, ref_inout_axes);
+    }
   }
 
   // Failure tests because of shape mismatch (or size 1 case)
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto inout_axis02 =
-            KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
-                                                           topology2);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto inout_axis03 =
-            KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
-                                                           topology3);
-      },
-      std::runtime_error);
+  std::vector<topo_and_ref_type> topo_failure_test_cases = {
+      {topo0, topo2, {0, 1}}, {topo0, topo3, {0, 1}}};
+  for (const auto& [topo_in, topo_out, ref_inout_axes] :
+       topo_failure_test_cases) {
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axes =
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topo_in, topo_out);
+        },
+        std::runtime_error);
+  }
 }
 
 void test_slab_in_out_axes_3D(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, 1, nprocs};
-  topology_type topology1 = {1, nprocs, 1};
-  topology_type topology2 = {nprocs, 1, 1};
-  topology_type topology3 = {1, nprocs, 7};
-  topology_type topology4 = {1, 1, 1};
+  using topo_type = std::array<std::size_t, 3>;
+  using topo_and_ref_type =
+      std::tuple<topo_type, topo_type, std::tuple<std::size_t, std::size_t>>;
+  topo_type topo0{1, 1, nprocs}, topo1{1, nprocs, 1}, topo2{nprocs, 1, 1},
+      topo3{1, nprocs, 7}, topo4{1, 1, 1};
 
   if (nprocs == 1) {
     // Failure tests because of size 1 case
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis01 =
-              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
-                                                             topology1);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis02 =
-              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
-                                                             topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis10 =
-              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1,
-                                                             topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis12 =
-              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1,
-                                                             topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis20 =
-              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology2,
-                                                             topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis21 =
-              KokkosFFT::Distributed::Impl::slab_in_out_axes(topology2,
-                                                             topology1);
-        },
-        std::runtime_error);
+    std::vector<topo_and_ref_type> topo_test_cases = {
+        {topo0, topo1, {0, 1}}, {topo0, topo2, {0, 2}}, {topo1, topo0, {1, 0}},
+        {topo1, topo2, {1, 2}}, {topo2, topo0, {2, 0}}, {topo2, topo1, {2, 1}}};
+    for (const auto& [topo_in, topo_out, ref_inout_axes] : topo_test_cases) {
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto inout_axes =
+                KokkosFFT::Distributed::Impl::slab_in_out_axes(topo_in,
+                                                               topo_out);
+          },
+          std::runtime_error);
+    }
   } else {
-    // Slab tests
-    auto [in_axis01, out_axis01] =
-        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0, topology1);
-    auto [in_axis02, out_axis02] =
-        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0, topology2);
-    auto [in_axis10, out_axis10] =
-        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1, topology0);
-    auto [in_axis12, out_axis12] =
-        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology1, topology2);
-    auto [in_axis20, out_axis20] =
-        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology2, topology0);
-    auto [in_axis21, out_axis21] =
-        KokkosFFT::Distributed::Impl::slab_in_out_axes(topology2, topology1);
-
-    EXPECT_EQ(in_axis01, 1);
-    EXPECT_EQ(out_axis01, 2);
-    EXPECT_EQ(in_axis02, 0);
-    EXPECT_EQ(out_axis02, 2);
-    EXPECT_EQ(in_axis10, 2);
-    EXPECT_EQ(out_axis10, 1);
-    EXPECT_EQ(in_axis12, 0);
-    EXPECT_EQ(out_axis12, 1);
-    EXPECT_EQ(in_axis20, 2);
-    EXPECT_EQ(out_axis20, 0);
-    EXPECT_EQ(in_axis21, 1);
-    EXPECT_EQ(out_axis21, 0);
+    std::vector<topo_and_ref_type> topo_test_cases = {
+        {topo0, topo1, {1, 2}}, {topo0, topo2, {0, 2}}, {topo1, topo0, {2, 1}},
+        {topo1, topo2, {0, 1}}, {topo2, topo0, {2, 0}}, {topo2, topo1, {1, 0}}};
+    for (const auto& [topo_in, topo_out, ref_inout_axes] : topo_test_cases) {
+      auto inout_axes =
+          KokkosFFT::Distributed::Impl::slab_in_out_axes(topo_in, topo_out);
+      EXPECT_EQ(inout_axes, ref_inout_axes)
+          << error_slab_in_out_axes(topo_in, topo_out, ref_inout_axes);
+    }
   }
 
   // Failure tests because of shape mismatch (or size 1 case)
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto inout_axis03 =
-            KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
-                                                           topology3);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto inout_axis04 =
-            KokkosFFT::Distributed::Impl::slab_in_out_axes(topology0,
-                                                           topology4);
-      },
-      std::runtime_error);
+  std::vector<topo_and_ref_type> topo_failure_test_cases = {
+      {topo0, topo3, {0, 1}}, {topo0, topo4, {0, 1}}};
+  for (const auto& [topo_in, topo_out, ref_inout_axes] :
+       topo_failure_test_cases) {
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axes =
+              KokkosFFT::Distributed::Impl::slab_in_out_axes(topo_in, topo_out);
+        },
+        std::runtime_error);
+  }
 }
 
 void test_get_all_slab_topologies1D_3DView(std::size_t nprocs) {
@@ -1459,14 +1355,12 @@ void test_get_all_slab_topologies1D_3DView(std::size_t nprocs) {
 
 void test_get_all_slab_topologies2D_2DView(std::size_t nprocs) {
   using topology_type     = std::array<std::size_t, 2>;
-  topology_type topology0 = {1, nprocs};
-  topology_type topology1 = {nprocs, 1};
+  topology_type topology0 = {1, nprocs}, topology1 = {nprocs, 1};
 
-  using axes_type  = std::array<std::size_t, 2>;
-  axes_type axes01 = {0, 1};
-  axes_type axes10 = {1, 0};
+  using axes_type = std::array<std::size_t, 2>;
+  axes_type axes01{0, 1}, axes10{1, 0};
 
-  std::vector<axes_type> all_axes = {axes01, axes10};
+  std::vector<axes_type> all_axes{axes01, axes10};
 
   if (nprocs == 1) {
     for (const auto& axes : all_axes) {
@@ -1550,18 +1444,13 @@ void test_get_all_slab_topologies2D_2DView(std::size_t nprocs) {
 }
 
 void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, 1, nprocs};
-  topology_type topology1 = {1, nprocs, 1};
-  topology_type topology2 = {nprocs, 1, 1};
+  using topology_type = std::array<std::size_t, 3>;
+  topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
+      topology2{nprocs, 1, 1};
 
-  using axes_type  = std::array<std::size_t, 2>;
-  axes_type axes01 = {0, 1};
-  axes_type axes02 = {0, 2};
-  axes_type axes10 = {1, 0};
-  axes_type axes12 = {1, 2};
-  axes_type axes20 = {2, 0};
-  axes_type axes21 = {2, 1};
+  using axes_type = std::array<std::size_t, 2>;
+  axes_type axes01{0, 1}, axes02{0, 2}, axes10{1, 0}, axes12{1, 2},
+      axes20{2, 0}, axes21{2, 1};
 
   std::vector<axes_type> all_axes = {axes01, axes02, axes10,
                                      axes12, axes20, axes21};
@@ -1982,18 +1871,13 @@ void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
 }
 
 void test_get_all_slab_topologies3D_3DView(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, 1, nprocs};
-  topology_type topology1 = {1, nprocs, 1};
-  topology_type topology2 = {nprocs, 1, 1};
+  using topology_type = std::array<std::size_t, 3>;
+  topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
+      topology2{nprocs, 1, 1};
 
-  using axes_type   = std::array<std::size_t, 3>;
-  axes_type axes012 = {0, 1, 2};
-  axes_type axes021 = {0, 2, 1};
-  axes_type axes102 = {1, 0, 2};
-  axes_type axes120 = {1, 2, 0};
-  axes_type axes201 = {2, 0, 1};
-  axes_type axes210 = {2, 1, 0};
+  using axes_type = std::array<std::size_t, 3>;
+  axes_type axes012{0, 1, 2}, axes021{0, 2, 1}, axes102{1, 0, 2},
+      axes120{1, 2, 0}, axes201{2, 0, 1}, axes210{2, 1, 0};
 
   std::vector<axes_type> all_axes = {axes012, axes021, axes102,
                                      axes120, axes201, axes210};
