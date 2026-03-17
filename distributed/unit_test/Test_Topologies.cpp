@@ -146,18 +146,18 @@ std::string error_are_topologies(
   return msg;
 }
 
-/// \brief Generate error message for slab_in_out_axes test failures.
+/// \brief Generate error message for in_out_axes test failures.
 /// \tparam Topology1Type The type of the first topology input.
 /// \tparam Topology2Type The type of the second topology input.
 /// \param[in] topo1 The first input topology that caused the failure.
 /// \param[in] topo2 The second input topology that caused the failure.
-/// \param[in] expected The expected slab in/out axes.
-/// \return Error message including the input topologies and the expected slab
-/// in/out axes.
+/// \param[in] expected The expected in/out axes.
+/// \return Error message including the input topologies and the expected in/out
+/// axes.
 template <typename Topology1Type, typename Topology2Type>
-std::string error_slab_in_out_axes(
-    const Topology1Type& topo1, const Topology2Type& topo2,
-    std::tuple<std::size_t, std::size_t> expected) {
+std::string error_in_out_axes(const Topology1Type& topo1,
+                              const Topology2Type& topo2,
+                              std::tuple<std::size_t, std::size_t> expected) {
   auto actual = KokkosFFT::Distributed::Impl::slab_in_out_axes(topo1, topo2);
   std::string msg;
   msg += "Input topologies: ";
@@ -1059,7 +1059,7 @@ void test_slab_in_out_axes_2D(std::size_t nprocs) {
       auto inout_axes =
           KokkosFFT::Distributed::Impl::slab_in_out_axes(topo_in, topo_out);
       EXPECT_EQ(inout_axes, ref_inout_axes)
-          << error_slab_in_out_axes(topo_in, topo_out, ref_inout_axes);
+          << error_in_out_axes(topo_in, topo_out, ref_inout_axes);
     }
   }
 
@@ -1106,7 +1106,7 @@ void test_slab_in_out_axes_3D(std::size_t nprocs) {
       auto inout_axes =
           KokkosFFT::Distributed::Impl::slab_in_out_axes(topo_in, topo_out);
       EXPECT_EQ(inout_axes, ref_inout_axes)
-          << error_slab_in_out_axes(topo_in, topo_out, ref_inout_axes);
+          << error_in_out_axes(topo_in, topo_out, ref_inout_axes);
     }
   }
 
@@ -3137,118 +3137,52 @@ void test_get_all_slab_topologies3D_4DView(std::size_t nprocs) {
 }
 
 void test_pencil_in_out_axes_3D(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {1, 1, nprocs};
-  topology_type topology1 = {1, nprocs, 1};
-  topology_type topology2 = {nprocs, 1, 1};
-  topology_type topology3 = {nprocs, 1, 2};
-  topology_type topology4 = {nprocs, 2, 1};
+  using topo_type = std::array<std::size_t, 3>;
+  using topo_and_ref_type =
+      std::tuple<topo_type, topo_type, std::tuple<std::size_t, std::size_t>>;
+  topo_type topo0{1, 1, nprocs}, topo1{1, nprocs, 1}, topo2{nprocs, 1, 1},
+      topo3{nprocs, 1, 2}, topo4{nprocs, 2, 1};
 
   if (nprocs == 1) {
     // Failure tests because of size 1 case
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis01 =
-              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology0,
-                                                               topology1);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis02 =
-              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology0,
-                                                               topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis10 =
-              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology1,
-                                                               topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis12 =
-              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology1,
-                                                               topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis20 =
-              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology2,
-                                                               topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto inout_axis21 =
-              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology2,
-                                                               topology1);
-        },
-        std::runtime_error);
+    std::vector<topo_and_ref_type> topo_and_ref_vec = {
+        {topo0, topo1, {1, 2}}, {topo0, topo2, {0, 2}}, {topo1, topo0, {2, 1}},
+        {topo1, topo2, {0, 1}}, {topo2, topo0, {2, 0}}, {topo2, topo1, {1, 0}}};
+    for (const auto& [topo_in, topo_out, ref_in_out] : topo_and_ref_vec) {
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto inout_axis =
+                KokkosFFT::Distributed::Impl::pencil_in_out_axes(topo_in,
+                                                                 topo_out);
+          },
+          std::runtime_error);
+    }
   } else {
-    // Slab tests
-    auto [in_axis01, out_axis01] =
-        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology0, topology1);
-    auto [in_axis02, out_axis02] =
-        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology0, topology2);
-    auto [in_axis10, out_axis10] =
-        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology1, topology0);
-    auto [in_axis12, out_axis12] =
-        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology1, topology2);
-    auto [in_axis20, out_axis20] =
-        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology2, topology0);
-    auto [in_axis21, out_axis21] =
-        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology2, topology1);
-
-    EXPECT_EQ(in_axis01, 1);
-    EXPECT_EQ(out_axis01, 2);
-    EXPECT_EQ(in_axis02, 0);
-    EXPECT_EQ(out_axis02, 2);
-    EXPECT_EQ(in_axis10, 2);
-    EXPECT_EQ(out_axis10, 1);
-    EXPECT_EQ(in_axis12, 0);
-    EXPECT_EQ(out_axis12, 1);
-    EXPECT_EQ(in_axis20, 2);
-    EXPECT_EQ(out_axis20, 0);
-    EXPECT_EQ(in_axis21, 1);
-    EXPECT_EQ(out_axis21, 0);
-
-    // Pencil tests
-    auto [in_axis34, out_axis34] =
-        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology3, topology4);
-    auto [in_axis43, out_axis43] =
-        KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology4, topology3);
-    EXPECT_EQ(in_axis34, 1);
-    EXPECT_EQ(out_axis34, 2);
-    EXPECT_EQ(in_axis43, 2);
-    EXPECT_EQ(out_axis43, 1);
+    std::vector<topo_and_ref_type> topo_and_ref_vec = {
+        {topo0, topo1, {1, 2}}, {topo0, topo2, {0, 2}}, {topo1, topo0, {2, 1}},
+        {topo1, topo2, {0, 1}}, {topo2, topo0, {2, 0}}, {topo2, topo1, {1, 0}},
+        {topo3, topo4, {1, 2}}, {topo4, topo3, {2, 1}}};
+    for (const auto& [topo_in, topo_out, ref_inout_axes] : topo_and_ref_vec) {
+      auto inout_axes =
+          KokkosFFT::Distributed::Impl::pencil_in_out_axes(topo_in, topo_out);
+      EXPECT_EQ(inout_axes, ref_inout_axes)
+          << error_in_out_axes(topo_in, topo_out, ref_inout_axes);
+    }
   }
 
   // Failure tests because of shape mismatch (or size 1 case)
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto inout_axis30 =
-            KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology3,
-                                                             topology0);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto inout_axis31 =
-            KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology3,
-                                                             topology1);
-      },
-      std::runtime_error);
-  EXPECT_THROW(
-      {
-        [[maybe_unused]] auto inout_axis32 =
-            KokkosFFT::Distributed::Impl::pencil_in_out_axes(topology3,
-                                                             topology2);
-      },
-      std::runtime_error);
+  std::vector<topo_and_ref_type> topo_failure_test_cases = {
+      {topo3, topo0, {0, 1}}, {topo3, topo1, {0, 1}}, {topo3, topo2, {0, 2}}};
+  for (const auto& [topo_in, topo_out, ref_inout_axes] :
+       topo_failure_test_cases) {
+    EXPECT_THROW(
+        {
+          [[maybe_unused]] auto inout_axes =
+              KokkosFFT::Distributed::Impl::pencil_in_out_axes(topo_in,
+                                                               topo_out);
+        },
+        std::runtime_error);
+  }
 }
 
 void test_get_mid_array_pencil_3D(std::size_t nprocs) {
