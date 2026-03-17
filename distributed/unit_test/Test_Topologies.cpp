@@ -202,11 +202,13 @@ std::string error_mid_topology(const TopologyType& topo1,
   for (std::size_t i = 1; i < topo2.size(); ++i) {
     msg += ", " + std::to_string(topo2.at(i));
   }
-  msg += ")";
-  msg += "), should have mid topology: (" + msg +=
-      std::to_string(expected.at(0));
+  msg += "), should have a mid topology: (" + std::to_string(expected.at(0));
   for (std::size_t i = 1; i < expected.size(); ++i) {
     msg += ", " + std::to_string(expected.at(i));
+  }
+  msg += "), but got (" + std::to_string(actual.at(0));
+  for (std::size_t i = 1; i < actual.size(); ++i) {
+    msg += ", " + std::to_string(actual.at(i));
   }
   msg += ").";
   return msg;
