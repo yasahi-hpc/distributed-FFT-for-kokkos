@@ -171,11 +171,44 @@ std::string error_in_out_axes(const Topology1Type& topo1,
     msg += ", " + std::to_string(topo2.at(i));
   }
   msg += ")";
-  msg += "), should have slab in/out axes: (" +
+  msg += "), should have in/out axes: (" +
          std::to_string(std::get<0>(expected)) + ", " +
          std::to_string(std::get<1>(expected)) + "), but got: (" +
          std::to_string(std::get<0>(actual)) + ", " +
          std::to_string(std::get<1>(actual)) + ").";
+  return msg;
+}
+
+/// \brief Generate error message for mid_topology test failures.
+/// \tparam TopologyType The type of the topology input.
+/// \param[in] topo1 The first input topology that caused the failure.
+/// \param[in] topo2 The second input topology that caused the failure.
+/// \param[in] expected The expected topology
+/// \return Error message including the input topologies and the expected
+/// topology
+template <typename TopologyType>
+std::string error_mid_topology(const TopologyType& topo1,
+                               const TopologyType& topo2,
+                               const TopologyType& expected) {
+  auto actual = KokkosFFT::Distributed::Impl::propose_mid_array(topo1, topo2);
+  std::string msg;
+  msg += "Input topologies: ";
+  msg += "(" + std::to_string(topo1.at(0));
+  for (std::size_t i = 1; i < topo1.size(); ++i) {
+    msg += ", " + std::to_string(topo1.at(i));
+  }
+  msg += ") and (";
+  msg += std::to_string(topo2.at(0));
+  for (std::size_t i = 1; i < topo2.size(); ++i) {
+    msg += ", " + std::to_string(topo2.at(i));
+  }
+  msg += ")";
+  msg += "), should have mid topology: (" + msg +=
+      std::to_string(expected.at(0));
+  for (std::size_t i = 1; i < expected.size(); ++i) {
+    msg += ", " + std::to_string(expected.at(i));
+  }
+  msg += ").";
   return msg;
 }
 
@@ -3186,249 +3219,104 @@ void test_pencil_in_out_axes_3D(std::size_t nprocs) {
 }
 
 void test_get_mid_array_pencil_3D(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 3>;
-  topology_type topology0 = {nprocs, 1, 8};
-  topology_type topology1 = {nprocs, 8, 1};
-  topology_type topology2 = {8, nprocs, 1};
-  topology_type topology3 = {1, 2, nprocs};
-  topology_type topology4 = {2, nprocs, 1};
+  using topo_type         = std::array<std::size_t, 3>;
+  using topo_and_ref_type = std::tuple<topo_type, topo_type, topo_type>;
+  topo_type topo0{nprocs, 1, 8}, topo1{nprocs, 8, 1}, topo2{8, nprocs, 1},
+      topo3{1, 2, nprocs}, topo4{2, nprocs, 1};
 
   if (nprocs == 1) {
     // Failure tests because only two elements differ
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid01 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
-                                                              topology1);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid02 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
-                                                              topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid10 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
-                                                              topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid12 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
-                                                              topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid20 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
-                                                              topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid21 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
-                                                              topology1);
-        },
-        std::runtime_error);
+    std::vector<topo_and_ref_type> topo_and_ref_vec = {
+        {topo0, topo1, topo_type{}}, {topo0, topo2, topo_type{}},
+        {topo1, topo0, topo_type{}}, {topo1, topo2, topo_type{}},
+        {topo2, topo0, topo_type{}}, {topo2, topo1, topo_type{}}};
+    for (const auto& [topo_in, topo_out, ref_mid] : topo_and_ref_vec) {
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto mid =
+                KokkosFFT::Distributed::Impl::propose_mid_array(topo_in,
+                                                                topo_out);
+          },
+          std::runtime_error);
+    }
   } else {
     // Failure tests because only two elements differ
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid01 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
-                                                              topology1);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid10 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
-                                                              topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid12 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
-                                                              topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid21 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
-                                                              topology1);
-        },
-        std::runtime_error);
-
-    auto mid02 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology0, topology2);
-    auto mid20 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology2, topology0);
-
-    topology_type ref_mid02 = {1, nprocs, 8};
-    topology_type ref_mid20 = {1, nprocs, 8};
-
-    EXPECT_EQ(mid02, ref_mid02);
-    EXPECT_EQ(mid20, ref_mid20);
-
-    auto mid34 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology3, topology4);
-    auto mid43 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology4, topology3);
-
-    topology_type ref_mid34 = {2, 1, nprocs};
-    topology_type ref_mid43 = {2, 1, nprocs};
-
-    EXPECT_EQ(mid34, ref_mid34);
-    EXPECT_EQ(mid43, ref_mid43);
+    std::vector<topo_and_ref_type> topo_failure_test_cases = {
+        {topo0, topo1, topo_type{}},
+        {topo1, topo0, topo_type{}},
+        {topo1, topo2, topo_type{}},
+        {topo2, topo1, topo_type{}}};
+    for (const auto& [topo_in, topo_out, ref_mid] : topo_failure_test_cases) {
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto mid =
+                KokkosFFT::Distributed::Impl::propose_mid_array(topo_in,
+                                                                topo_out);
+          },
+          std::runtime_error);
+    }
+    topo_type ref_mid02{1, nprocs, 8}, ref_mid34{2, 1, nprocs};
+    std::vector<topo_and_ref_type> topo_test_cases = {
+        {topo0, topo2, ref_mid02},
+        {topo2, topo0, ref_mid02},
+        {topo3, topo4, ref_mid34},
+        {topo4, topo3, ref_mid34}};
+    for (const auto& [topo_in, topo_out, ref_mid] : topo_test_cases) {
+      auto mid =
+          KokkosFFT::Distributed::Impl::propose_mid_array(topo_in, topo_out);
+      EXPECT_EQ(mid, ref_mid) << error_mid_topology(topo_in, topo_out, ref_mid);
+    }
   }
 }
 
 void test_get_mid_array_pencil_4D(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 4>;
-  topology_type topology0 = {1, 1, nprocs, 8};
-  topology_type topology1 = {1, nprocs, 1, 8};
-  topology_type topology2 = {1, 8, nprocs, 1};
-  topology_type topology3 = {1, nprocs, 8, 1};
-  topology_type topology4 = {1, 8, 1, nprocs};
-  topology_type topology5 = {1, 1, 8, nprocs};
+  using topo_type         = std::array<std::size_t, 4>;
+  using topo_and_ref_type = std::tuple<topo_type, topo_type, topo_type>;
+  topo_type topo0{1, 1, nprocs, 8}, topo1{1, nprocs, 1, 8},
+      topo2{1, 8, nprocs, 1}, topo3{1, nprocs, 8, 1}, topo4{1, 8, 1, nprocs},
+      topo5{1, 1, 8, nprocs};
 
   if (nprocs == 1) {
     // Failure tests because only two elements differ
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid01 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
-                                                              topology1);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid02 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
-                                                              topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid10 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
-                                                              topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid12 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
-                                                              topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid20 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
-                                                              topology0);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid21 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
-                                                              topology1);
-        },
-        std::runtime_error);
+    std::vector<topo_and_ref_type> topo_and_ref_vec = {
+        {topo0, topo1, topo_type{}}, {topo0, topo2, topo_type{}},
+        {topo1, topo0, topo_type{}}, {topo1, topo2, topo_type{}},
+        {topo2, topo0, topo_type{}}, {topo2, topo1, topo_type{}}};
+    for (const auto& [topo_in, topo_out, ref_mid] : topo_and_ref_vec) {
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto mid =
+                KokkosFFT::Distributed::Impl::propose_mid_array(topo_in,
+                                                                topo_out);
+          },
+          std::runtime_error);
+    }
   } else {
     // Failure tests because only two elements differ
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid01 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
-                                                              topology1);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid02 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
-                                                              topology2);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid05 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology0,
-                                                              topology5);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid13 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
-                                                              topology3);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid14 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology1,
-                                                              topology4);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid23 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
-                                                              topology3);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid24 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology2,
-                                                              topology4);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid35 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology3,
-                                                              topology5);
-        },
-        std::runtime_error);
-    EXPECT_THROW(
-        {
-          [[maybe_unused]] auto mid45 =
-              KokkosFFT::Distributed::Impl::propose_mid_array(topology4,
-                                                              topology5);
-        },
-        std::runtime_error);
+    std::vector<topo_and_ref_type> topo_failure_test_cases = {
+        {topo0, topo1, topo_type{}}, {topo0, topo2, topo_type{}},
+        {topo0, topo5, topo_type{}}, {topo1, topo3, topo_type{}},
+        {topo1, topo4, topo_type{}}, {topo2, topo3, topo_type{}},
+        {topo2, topo4, topo_type{}}, {topo3, topo5, topo_type{}},
+        {topo4, topo5, topo_type{}}};
+    for (const auto& [topo_in, topo_out, ref_mid] : topo_failure_test_cases) {
+      EXPECT_THROW(
+          {
+            [[maybe_unused]] auto mid =
+                KokkosFFT::Distributed::Impl::propose_mid_array(topo_in,
+                                                                topo_out);
+          },
+          std::runtime_error);
+    }
 
-    auto mid03 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology0, topology3);
-    auto mid04 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology0, topology4);
-    auto mid12 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology1, topology2);
-    auto mid15 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology1, topology5);
-    auto mid25 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology2, topology5);
-    auto mid34 =
-        KokkosFFT::Distributed::Impl::propose_mid_array(topology3, topology4);
-    EXPECT_EQ(mid03, topology1);
-    EXPECT_EQ(mid04, topology2);
-    EXPECT_EQ(mid12, topology0);
-    EXPECT_EQ(mid15, topology3);
-    EXPECT_EQ(mid25, topology4);
-    EXPECT_EQ(mid34, topology5);
+    std::vector<topo_and_ref_type> topo_test_cases = {
+        {topo0, topo3, topo1}, {topo0, topo4, topo2}, {topo1, topo2, topo0},
+        {topo1, topo5, topo3}, {topo2, topo5, topo4}, {topo3, topo4, topo5}};
+    for (const auto& [topo_in, topo_out, ref_mid] : topo_test_cases) {
+      auto mid =
+          KokkosFFT::Distributed::Impl::propose_mid_array(topo_in, topo_out);
+      EXPECT_EQ(mid, ref_mid) << error_mid_topology(topo_in, topo_out, ref_mid);
+    }
   }
 }
 
