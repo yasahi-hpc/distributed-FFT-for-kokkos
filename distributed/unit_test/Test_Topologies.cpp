@@ -1716,26 +1716,22 @@ void test_get_all_slab_topologies1D_3DView(std::size_t nprocs) {
       std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
 
   topo_type topo0{1, 1, nprocs}, topo1{1, nprocs, 1}, topo2{nprocs, 1, 1};
-
   axes_type axes0{0}, axes1{1}, axes2{2};
   std::vector<axes_type> all_axes{axes0, axes1, axes2};
 
   if (nprocs == 1) {
     for (const auto& axes : all_axes) {
       // Failure tests because these are shared topologies
-      std::vector<topo_and_ref_type> topo_failure_test_cases = {
-          {topo0, topo0, axes, vec_topo_type{topo0}},
-          {topo1, topo1, axes, vec_topo_type{topo1}},
-          {topo2, topo2, axes, vec_topo_type{topo2}}};
-      for (const auto& [topo_in, topo_out, tmp_axes, ref_topos] :
-           topo_failure_test_cases) {
-        EXPECT_THROW(
-            {
-              [[maybe_unused]] auto all_slab_topologies =
-                  KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                      topo_in, topo_out, tmp_axes);
-            },
-            std::runtime_error);
+      for (const auto& topo_in : vec_topo_type{topo0, topo1, topo2}) {
+        for (const auto& topo_out : vec_topo_type{topo0, topo1, topo2}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto all_slab_topologies =
+                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                        topo_in, topo_out, axes);
+              },
+              std::runtime_error);
+        }
       }
     }
   } else {
@@ -1777,1785 +1773,392 @@ void test_get_all_slab_topologies1D_3DView(std::size_t nprocs) {
 }
 
 void test_get_all_slab_topologies2D_2DView(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 2>;
-  topology_type topology0 = {1, nprocs}, topology1 = {nprocs, 1};
+  using topo_type     = std::array<std::size_t, 2>;
+  using axes_type     = std::array<std::size_t, 2>;
+  using vec_topo_type = std::vector<topo_type>;
+  using topo_and_ref_type =
+      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
+  topo_type topo0{1, nprocs}, topo1{nprocs, 1};
 
-  using axes_type = std::array<std::size_t, 2>;
   axes_type axes01{0, 1}, axes10{1, 0};
-
   std::vector<axes_type> all_axes{axes01, axes10};
 
   if (nprocs == 1) {
     for (const auto& axes : all_axes) {
       // Failure tests because these are shared topologies
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology0, axes);
-          },
-          std::runtime_error);
+      for (const auto& topo_in : vec_topo_type{topo0, topo1}) {
+        for (const auto& topo_out : vec_topo_type{topo0, topo1}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto all_slab_topologies =
+                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                        topo_in, topo_out, axes);
+              },
+              std::runtime_error);
+        }
+      }
     }
   } else {
-    // topology0 (X-slab) to topology0 (X-slab)
-    auto all_slab_topologies_0_0_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes01);
-    auto all_slab_topologies_0_0_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes10);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax01 = {
-        topology0, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax01, ref_all_slab_topologies_0_0_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax10 = {
-        topology0, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax10, ref_all_slab_topologies_0_0_ax10);
-
-    // topology0 (X-slab) to topology1 (Y-slab)
-    auto all_slab_topologies_0_1_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes01);
-    auto all_slab_topologies_0_1_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes10);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax01 = {
-        topology0, topology1, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax01, ref_all_slab_topologies_0_1_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax10 = {topology0,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax10, ref_all_slab_topologies_0_1_ax10);
-
-    // topology1 (Y-slab) to topology0 (X-slab)
-    auto all_slab_topologies_1_0_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes01);
-    auto all_slab_topologies_1_0_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes10);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax01 = {topology1,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax01, ref_all_slab_topologies_1_0_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax10 = {
-        topology1, topology0, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax10, ref_all_slab_topologies_1_0_ax10);
-
-    // topology1 (Y-slab) to topology1 (Y-slab)
-    auto all_slab_topologies_1_1_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes01);
-    auto all_slab_topologies_1_1_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes10);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax01 = {
-        topology1, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax01, ref_all_slab_topologies_1_1_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax10 = {
-        topology1, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax10, ref_all_slab_topologies_1_1_ax10);
+    std::vector<topo_and_ref_type> topo_test_cases = {
+        {topo0, topo0, axes01, vec_topo_type{topo0, topo1, topo0}},
+        {topo0, topo0, axes10, vec_topo_type{topo0, topo1, topo0}},
+        {topo0, topo1, axes01, vec_topo_type{topo0, topo1, topo0, topo1}},
+        {topo0, topo1, axes10, vec_topo_type{topo0, topo1}},
+        {topo1, topo0, axes01, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes10, vec_topo_type{topo1, topo0, topo1, topo0}},
+        {topo1, topo1, axes01, vec_topo_type{topo1, topo0, topo1}},
+        {topo1, topo1, axes10, vec_topo_type{topo1, topo0, topo1}}};
+    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
+      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+          topo_in, topo_out, axes);
+      EXPECT_EQ(topos, ref_topos)
+          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
+    }
   }
 }
 
 void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
-  using topology_type = std::array<std::size_t, 3>;
-  topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
-      topology2{nprocs, 1, 1};
+  using topo_type     = std::array<std::size_t, 3>;
+  using axes_type     = std::array<std::size_t, 2>;
+  using vec_topo_type = std::vector<topo_type>;
+  using topo_and_ref_type =
+      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
+  topo_type topo0{1, 1, nprocs}, topo1{1, nprocs, 1}, topo2{nprocs, 1, 1};
 
-  using axes_type = std::array<std::size_t, 2>;
   axes_type axes01{0, 1}, axes02{0, 2}, axes10{1, 0}, axes12{1, 2},
       axes20{2, 0}, axes21{2, 1};
 
-  std::vector<axes_type> all_axes = {axes01, axes02, axes10,
-                                     axes12, axes20, axes21};
+  std::vector<axes_type> all_axes{axes01, axes02, axes10,
+                                  axes12, axes20, axes21};
 
   if (nprocs == 1) {
     for (const auto& axes : all_axes) {
       // Failure tests because these are shared topologies
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology2, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology2, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology2, axes);
-          },
-          std::runtime_error);
+      for (const auto& topo_in : vec_topo_type{topo0, topo1, topo2}) {
+        for (const auto& topo_out : vec_topo_type{topo0, topo1, topo2}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto all_slab_topologies =
+                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                        topo_in, topo_out, axes);
+              },
+              std::runtime_error);
+        }
+      }
     }
   } else {
-    // topology0 (XY-slab) to topology0 (XY-slab)
-    auto all_slab_topologies_0_0_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes01);
-    auto all_slab_topologies_0_0_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes02);
-    auto all_slab_topologies_0_0_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes10);
-    auto all_slab_topologies_0_0_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes12);
-    auto all_slab_topologies_0_0_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes20);
-    auto all_slab_topologies_0_0_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax01 = {topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax01, ref_all_slab_topologies_0_0_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax02 = {
-        topology0, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax02, ref_all_slab_topologies_0_0_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax10 = {topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax10, ref_all_slab_topologies_0_0_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax12 = {
-        topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax12, ref_all_slab_topologies_0_0_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax20 = {
-        topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax20, ref_all_slab_topologies_0_0_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax21 = {
-        topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax21, ref_all_slab_topologies_0_0_ax21);
-
-    // topology0 (XY-slab) to topology1 (XZ-slab)
-    auto all_slab_topologies_0_1_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes01);
-    auto all_slab_topologies_0_1_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes02);
-    auto all_slab_topologies_0_1_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes10);
-    auto all_slab_topologies_0_1_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes12);
-    auto all_slab_topologies_0_1_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes20);
-    auto all_slab_topologies_0_1_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax01 = {topology0,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax01, ref_all_slab_topologies_0_1_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax02 = {topology0,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax02, ref_all_slab_topologies_0_1_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax10 = {topology0,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax10, ref_all_slab_topologies_0_1_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax12 = {
-        topology0, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax12, ref_all_slab_topologies_0_1_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax20 = {topology0,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax20, ref_all_slab_topologies_0_1_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax21 = {topology0,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax21, ref_all_slab_topologies_0_1_ax21);
-
-    // topology0 (XY-slab) to topology2 (YZ-slab)
-    auto all_slab_topologies_0_2_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes01);
-    auto all_slab_topologies_0_2_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes02);
-    auto all_slab_topologies_0_2_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes10);
-    auto all_slab_topologies_0_2_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes12);
-    auto all_slab_topologies_0_2_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes20);
-    auto all_slab_topologies_0_2_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax01 = {topology0,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax01, ref_all_slab_topologies_0_2_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax02 = {
-        topology0, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax02, ref_all_slab_topologies_0_2_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax10 = {topology0,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax10, ref_all_slab_topologies_0_2_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax12 = {topology0,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax12, ref_all_slab_topologies_0_2_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax20 = {topology0,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax20, ref_all_slab_topologies_0_2_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax21 = {topology0,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax21, ref_all_slab_topologies_0_2_ax21);
-
-    // topology1 (XZ-slab) to topology0 (XY-slab)
-    auto all_slab_topologies_1_0_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes01);
-    auto all_slab_topologies_1_0_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes02);
-    auto all_slab_topologies_1_0_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes10);
-    auto all_slab_topologies_1_0_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes12);
-    auto all_slab_topologies_1_0_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes20);
-    auto all_slab_topologies_1_0_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax01 = {topology1,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax01, ref_all_slab_topologies_1_0_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax02 = {topology1,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax02, ref_all_slab_topologies_1_0_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax10 = {topology1,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax10, ref_all_slab_topologies_1_0_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax12 = {topology1,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax12, ref_all_slab_topologies_1_0_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax20 = {topology1,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax20, ref_all_slab_topologies_1_0_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax21 = {
-        topology1, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax21, ref_all_slab_topologies_1_0_ax21);
-
-    // topology1 (XZ-slab) to topology1 (XZ-slab)
-    auto all_slab_topologies_1_1_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes01);
-    auto all_slab_topologies_1_1_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes02);
-    auto all_slab_topologies_1_1_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes10);
-    auto all_slab_topologies_1_1_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes12);
-    auto all_slab_topologies_1_1_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes20);
-    auto all_slab_topologies_1_1_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax01 = {
-        topology1, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax01, ref_all_slab_topologies_1_1_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax02 = {topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax02, ref_all_slab_topologies_1_1_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax10 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax10, ref_all_slab_topologies_1_1_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax12 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax12, ref_all_slab_topologies_1_1_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax20 = {topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax20, ref_all_slab_topologies_1_1_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax21 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax21, ref_all_slab_topologies_1_1_ax21);
-
-    // topology1 (XZ-slab) to topology2 (YZ-slab)
-    auto all_slab_topologies_1_2_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes01);
-    auto all_slab_topologies_1_2_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes02);
-    auto all_slab_topologies_1_2_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes10);
-    auto all_slab_topologies_1_2_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes12);
-    auto all_slab_topologies_1_2_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes20);
-    auto all_slab_topologies_1_2_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax01 = {
-        topology1, topology0, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax01, ref_all_slab_topologies_1_2_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax02 = {topology1,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax02, ref_all_slab_topologies_1_2_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax10 = {topology1,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax10, ref_all_slab_topologies_1_2_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax12 = {topology1,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax12, ref_all_slab_topologies_1_2_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax20 = {topology1,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax20, ref_all_slab_topologies_1_2_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax21 = {topology1,
-                                                                   topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax21, ref_all_slab_topologies_1_2_ax21);
-
-    // topology2 (YZ-slab) to topology0 (XY-slab)
-    auto all_slab_topologies_2_0_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes01);
-    auto all_slab_topologies_2_0_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes02);
-    auto all_slab_topologies_2_0_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes10);
-    auto all_slab_topologies_2_0_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes12);
-    auto all_slab_topologies_2_0_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes20);
-    auto all_slab_topologies_2_0_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax01 = {topology2,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax01, ref_all_slab_topologies_2_0_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax02 = {topology2,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax02, ref_all_slab_topologies_2_0_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax10 = {topology2,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax10, ref_all_slab_topologies_2_0_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax12 = {topology2,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax12, ref_all_slab_topologies_2_0_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax20 = {
-        topology2, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax20, ref_all_slab_topologies_2_0_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax21 = {topology2,
-                                                                   topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax21, ref_all_slab_topologies_2_0_ax21);
-
-    // topology2 (YZ-slab) to topology1 (XZ-slab)
-    auto all_slab_topologies_2_1_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes01);
-    auto all_slab_topologies_2_1_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes02);
-    auto all_slab_topologies_2_1_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes10);
-    auto all_slab_topologies_2_1_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes12);
-    auto all_slab_topologies_2_1_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes20);
-    auto all_slab_topologies_2_1_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax01 = {topology2,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax01, ref_all_slab_topologies_2_1_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax02 = {topology2,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax02, ref_all_slab_topologies_2_1_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax10 = {
-        topology2, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax10, ref_all_slab_topologies_2_1_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax12 = {topology2,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax12, ref_all_slab_topologies_2_1_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax20 = {topology2,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax20, ref_all_slab_topologies_2_1_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax21 = {topology2,
-                                                                   topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax21, ref_all_slab_topologies_2_1_ax21);
-
-    // topology2 (YZ-slab) to topology2 (YZ-slab)
-    auto all_slab_topologies_2_2_ax01 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes01);
-    auto all_slab_topologies_2_2_ax02 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes02);
-    auto all_slab_topologies_2_2_ax10 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes10);
-    auto all_slab_topologies_2_2_ax12 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes12);
-    auto all_slab_topologies_2_2_ax20 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes20);
-    auto all_slab_topologies_2_2_ax21 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes21);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax01 = {
-        topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax01, ref_all_slab_topologies_2_2_ax01);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax02 = {
-        topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax02, ref_all_slab_topologies_2_2_ax02);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax10 = {
-        topology2, topology0, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax10, ref_all_slab_topologies_2_2_ax10);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax12 = {topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax12, ref_all_slab_topologies_2_2_ax12);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax20 = {
-        topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax20, ref_all_slab_topologies_2_2_ax20);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax21 = {topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax21, ref_all_slab_topologies_2_2_ax21);
+    std::vector<topo_and_ref_type> topo_test_cases = {
+        {topo0, topo0, axes01, vec_topo_type{topo0}},
+        {topo0, topo0, axes02, vec_topo_type{topo0, topo1, topo0}},
+        {topo0, topo0, axes10, vec_topo_type{topo0}},
+        {topo0, topo0, axes12, vec_topo_type{topo0, topo2, topo0}},
+        {topo0, topo0, axes20, vec_topo_type{topo0, topo2, topo0}},
+        {topo0, topo0, axes21, vec_topo_type{topo0, topo2, topo0}},
+        {topo0, topo1, axes01, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes02, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes10, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes12, vec_topo_type{topo0, topo2, topo1}},
+        {topo0, topo1, axes20, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes21, vec_topo_type{topo0, topo1}},
+        {topo0, topo2, axes01, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes02, vec_topo_type{topo0, topo1, topo2}},
+        {topo0, topo2, axes10, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes12, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes20, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes21, vec_topo_type{topo0, topo2}},
+        {topo1, topo0, axes01, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes02, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes10, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes12, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes20, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes21, vec_topo_type{topo1, topo2, topo0}},
+        {topo1, topo1, axes01, vec_topo_type{topo1, topo0, topo1}},
+        {topo1, topo1, axes02, vec_topo_type{topo1}},
+        {topo1, topo1, axes10, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo1, axes12, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo1, axes20, vec_topo_type{topo1}},
+        {topo1, topo1, axes21, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo2, axes01, vec_topo_type{topo1, topo0, topo2}},
+        {topo1, topo2, axes02, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes10, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes12, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes20, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes21, vec_topo_type{topo1, topo2}},
+        {topo2, topo0, axes01, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes02, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes10, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes12, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes20, vec_topo_type{topo2, topo1, topo0}},
+        {topo2, topo0, axes21, vec_topo_type{topo2, topo0}},
+        {topo2, topo1, axes01, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes02, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes10, vec_topo_type{topo2, topo0, topo1}},
+        {topo2, topo1, axes12, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes20, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes21, vec_topo_type{topo2, topo1}},
+        {topo2, topo2, axes01, vec_topo_type{topo2, topo1, topo2}},
+        {topo2, topo2, axes02, vec_topo_type{topo2, topo1, topo2}},
+        {topo2, topo2, axes10, vec_topo_type{topo2, topo0, topo2}},
+        {topo2, topo2, axes12, vec_topo_type{topo2}},
+        {topo2, topo2, axes20, vec_topo_type{topo2, topo1, topo2}},
+        {topo2, topo2, axes21, vec_topo_type{topo2}}};
+    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
+      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+          topo_in, topo_out, axes);
+      EXPECT_EQ(topos, ref_topos)
+          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
+    }
   }
 }
 
 void test_get_all_slab_topologies3D_3DView(std::size_t nprocs) {
-  using topology_type = std::array<std::size_t, 3>;
-  topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
-      topology2{nprocs, 1, 1};
+  using topo_type     = std::array<std::size_t, 3>;
+  using axes_type     = std::array<std::size_t, 3>;
+  using vec_topo_type = std::vector<topo_type>;
+  using topo_and_ref_type =
+      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
+  topo_type topo0{1, 1, nprocs}, topo1{1, nprocs, 1}, topo2{nprocs, 1, 1};
 
-  using axes_type = std::array<std::size_t, 3>;
   axes_type axes012{0, 1, 2}, axes021{0, 2, 1}, axes102{1, 0, 2},
       axes120{1, 2, 0}, axes201{2, 0, 1}, axes210{2, 1, 0};
 
-  std::vector<axes_type> all_axes = {axes012, axes021, axes102,
-                                     axes120, axes201, axes210};
+  std::vector<axes_type> all_axes{axes012, axes021, axes102,
+                                  axes120, axes201, axes210};
 
   if (nprocs == 1) {
     for (const auto& axes : all_axes) {
       // Failure tests because these are shared topologies
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology2, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology2, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology2, axes);
-          },
-          std::runtime_error);
+      for (const auto& topo_in : vec_topo_type{topo0, topo1, topo2}) {
+        for (const auto& topo_out : vec_topo_type{topo0, topo1, topo2}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto all_slab_topologies =
+                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                        topo_in, topo_out, axes);
+              },
+              std::runtime_error);
+        }
+      }
     }
   } else {
-    // topology0 (XY-slab) to topology0 (XY-slab)
-    auto all_slab_topologies_0_0_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes012);
-    auto all_slab_topologies_0_0_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes021);
-    auto all_slab_topologies_0_0_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes102);
-    auto all_slab_topologies_0_0_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes120);
-    auto all_slab_topologies_0_0_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes201);
-    auto all_slab_topologies_0_0_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax012 = {
-        topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax012, ref_all_slab_topologies_0_0_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax021 = {
-        topology0, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax021, ref_all_slab_topologies_0_0_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax102 = {
-        topology0, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax102, ref_all_slab_topologies_0_0_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax120 = {
-        topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax120, ref_all_slab_topologies_0_0_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax201 = {
-        topology0, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax201, ref_all_slab_topologies_0_0_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax210 = {
-        topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax210, ref_all_slab_topologies_0_0_ax210);
-
-    // topology0 (XY-slab) to topology1 (XZ-slab)
-    auto all_slab_topologies_0_1_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes012);
-    auto all_slab_topologies_0_1_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes021);
-    auto all_slab_topologies_0_1_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes102);
-    auto all_slab_topologies_0_1_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes120);
-    auto all_slab_topologies_0_1_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes201);
-    auto all_slab_topologies_0_1_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax012 = {
-        topology0, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax012, ref_all_slab_topologies_0_1_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax021 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax021, ref_all_slab_topologies_0_1_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax102 = {
-        topology0, topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax102, ref_all_slab_topologies_0_1_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax120 = {
-        topology0, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax120, ref_all_slab_topologies_0_1_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax201 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax201, ref_all_slab_topologies_0_1_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax210 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax210, ref_all_slab_topologies_0_1_ax210);
-
-    // topology0 (XY-slab) to topology2 (YZ-slab)
-    auto all_slab_topologies_0_2_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes012);
-    auto all_slab_topologies_0_2_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes021);
-    auto all_slab_topologies_0_2_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes102);
-    auto all_slab_topologies_0_2_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes120);
-    auto all_slab_topologies_0_2_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes201);
-    auto all_slab_topologies_0_2_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax012 = {
-        topology0, topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax012, ref_all_slab_topologies_0_2_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax021 = {
-        topology0, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax021, ref_all_slab_topologies_0_2_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax102 = {
-        topology0, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax102, ref_all_slab_topologies_0_2_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax120 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax120, ref_all_slab_topologies_0_2_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax201 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax201, ref_all_slab_topologies_0_2_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax210 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax210, ref_all_slab_topologies_0_2_ax210);
-
-    // topology1 (XZ-slab) to topology0 (XY-slab)
-    auto all_slab_topologies_1_0_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes012);
-    auto all_slab_topologies_1_0_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes021);
-    auto all_slab_topologies_1_0_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes102);
-    auto all_slab_topologies_1_0_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes120);
-    auto all_slab_topologies_1_0_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes201);
-    auto all_slab_topologies_1_0_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax012 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax012, ref_all_slab_topologies_1_0_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax021 = {
-        topology1, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax021, ref_all_slab_topologies_1_0_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax102 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax102, ref_all_slab_topologies_1_0_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax120 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax120, ref_all_slab_topologies_1_0_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax201 = {
-        topology1, topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax201, ref_all_slab_topologies_1_0_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax210 = {
-        topology1, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax210, ref_all_slab_topologies_1_0_ax210);
-
-    // topology1 (XZ-slab) to topology1 (XZ-slab)
-    auto all_slab_topologies_1_1_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes012);
-    auto all_slab_topologies_1_1_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes021);
-    auto all_slab_topologies_1_1_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes102);
-    auto all_slab_topologies_1_1_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes120);
-    auto all_slab_topologies_1_1_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes201);
-    auto all_slab_topologies_1_1_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax012 = {
-        topology1, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax012, ref_all_slab_topologies_1_1_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax021 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax021, ref_all_slab_topologies_1_1_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax102 = {
-        topology1, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax102, ref_all_slab_topologies_1_1_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax120 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax120, ref_all_slab_topologies_1_1_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax201 = {
-        topology1, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax201, ref_all_slab_topologies_1_1_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax210 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax210, ref_all_slab_topologies_1_1_ax210);
-
-    // topology1 (XZ-slab) to topology2 (YZ-slab)
-    auto all_slab_topologies_1_2_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes012);
-    auto all_slab_topologies_1_2_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes021);
-    auto all_slab_topologies_1_2_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes102);
-    auto all_slab_topologies_1_2_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes120);
-    auto all_slab_topologies_1_2_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes201);
-    auto all_slab_topologies_1_2_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax012 = {
-        topology1, topology0, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax012, ref_all_slab_topologies_1_2_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax021 = {
-        topology1, topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax021, ref_all_slab_topologies_1_2_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax102 = {topology1,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax102, ref_all_slab_topologies_1_2_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax120 = {topology1,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax120, ref_all_slab_topologies_1_2_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax201 = {
-        topology1, topology0, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax201, ref_all_slab_topologies_1_2_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax210 = {topology1,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax210, ref_all_slab_topologies_1_2_ax210);
-
-    // topology2 (YZ-slab) to topology0 (XY-slab)
-    auto all_slab_topologies_2_0_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes012);
-    auto all_slab_topologies_2_0_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes021);
-    auto all_slab_topologies_2_0_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes102);
-    auto all_slab_topologies_2_0_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes120);
-    auto all_slab_topologies_2_0_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes201);
-    auto all_slab_topologies_2_0_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax012 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax012, ref_all_slab_topologies_2_0_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax021 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax021, ref_all_slab_topologies_2_0_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax102 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax102, ref_all_slab_topologies_2_0_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax120 = {
-        topology2, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax120, ref_all_slab_topologies_2_0_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax201 = {
-        topology2, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax201, ref_all_slab_topologies_2_0_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax210 = {
-        topology2, topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax210, ref_all_slab_topologies_2_0_ax210);
-
-    // topology2 (YZ-slab) to topology1 (XZ-slab)
-    auto all_slab_topologies_2_1_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes012);
-    auto all_slab_topologies_2_1_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes021);
-    auto all_slab_topologies_2_1_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes102);
-    auto all_slab_topologies_2_1_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes120);
-    auto all_slab_topologies_2_1_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes201);
-    auto all_slab_topologies_2_1_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax012 = {topology2,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax012, ref_all_slab_topologies_2_1_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax021 = {topology2,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax021, ref_all_slab_topologies_2_1_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax102 = {
-        topology2, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax102, ref_all_slab_topologies_2_1_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax120 = {
-        topology2, topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax120, ref_all_slab_topologies_2_1_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax201 = {topology2,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax201, ref_all_slab_topologies_2_1_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax210 = {
-        topology2, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax210, ref_all_slab_topologies_2_1_ax210);
-
-    // topology2 (YZ-slab) to topology2 (YZ-slab)
-    auto all_slab_topologies_2_2_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes012);
-    auto all_slab_topologies_2_2_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes021);
-    auto all_slab_topologies_2_2_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes102);
-    auto all_slab_topologies_2_2_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes120);
-    auto all_slab_topologies_2_2_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes201);
-    auto all_slab_topologies_2_2_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax012 = {
-        topology2, topology0, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax012, ref_all_slab_topologies_2_2_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax021 = {
-        topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax021, ref_all_slab_topologies_2_2_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax102 = {
-        topology2, topology0, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax102, ref_all_slab_topologies_2_2_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax120 = {
-        topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax120, ref_all_slab_topologies_2_2_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax201 = {
-        topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax201, ref_all_slab_topologies_2_2_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax210 = {
-        topology2, topology0, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax210, ref_all_slab_topologies_2_2_ax210);
+    std::vector<topo_and_ref_type> topo_test_cases = {
+        {topo0, topo0, axes012, vec_topo_type{topo0, topo2, topo0}},
+        {topo0, topo0, axes021, vec_topo_type{topo0, topo1, topo0}},
+        {topo0, topo0, axes102, vec_topo_type{topo0, topo1, topo0}},
+        {topo0, topo0, axes120, vec_topo_type{topo0, topo2, topo0}},
+        {topo0, topo0, axes201, vec_topo_type{topo0, topo1, topo0}},
+        {topo0, topo0, axes210, vec_topo_type{topo0, topo2, topo0}},
+        {topo0, topo1, axes012, vec_topo_type{topo0, topo2, topo1}},
+        {topo0, topo1, axes021, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes102, vec_topo_type{topo0, topo1, topo2, topo1}},
+        {topo0, topo1, axes120, vec_topo_type{topo0, topo2, topo1}},
+        {topo0, topo1, axes201, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes210, vec_topo_type{topo0, topo1}},
+        {topo0, topo2, axes012, vec_topo_type{topo0, topo2, topo1, topo2}},
+        {topo0, topo2, axes021, vec_topo_type{topo0, topo1, topo2}},
+        {topo0, topo2, axes102, vec_topo_type{topo0, topo1, topo2}},
+        {topo0, topo2, axes120, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes201, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes210, vec_topo_type{topo0, topo2}},
+        {topo1, topo0, axes012, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes021, vec_topo_type{topo1, topo2, topo0}},
+        {topo1, topo0, axes102, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes120, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes201, vec_topo_type{topo1, topo0, topo2, topo0}},
+        {topo1, topo0, axes210, vec_topo_type{topo1, topo2, topo0}},
+        {topo1, topo1, axes012, vec_topo_type{topo1, topo0, topo1}},
+        {topo1, topo1, axes021, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo1, axes102, vec_topo_type{topo1, topo0, topo1}},
+        {topo1, topo1, axes120, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo1, axes201, vec_topo_type{topo1, topo0, topo1}},
+        {topo1, topo1, axes210, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo2, axes012, vec_topo_type{topo1, topo0, topo2}},
+        {topo1, topo2, axes021, vec_topo_type{topo1, topo2, topo1, topo2}},
+        {topo1, topo2, axes102, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes120, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes201, vec_topo_type{topo1, topo0, topo2}},
+        {topo1, topo2, axes210, vec_topo_type{topo1, topo2}},
+        {topo2, topo0, axes012, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes021, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes102, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes120, vec_topo_type{topo2, topo1, topo0}},
+        {topo2, topo0, axes201, vec_topo_type{topo2, topo1, topo0}},
+        {topo2, topo0, axes210, vec_topo_type{topo2, topo0, topo2, topo0}},
+        {topo2, topo1, axes012, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes021, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes102, vec_topo_type{topo2, topo0, topo1}},
+        {topo2, topo1, axes120, vec_topo_type{topo2, topo1, topo2, topo1}},
+        {topo2, topo1, axes201, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes210, vec_topo_type{topo2, topo0, topo1}},
+        {topo2, topo2, axes012, vec_topo_type{topo2, topo0, topo2}},
+        {topo2, topo2, axes021, vec_topo_type{topo2, topo1, topo2}},
+        {topo2, topo2, axes102, vec_topo_type{topo2, topo0, topo2}},
+        {topo2, topo2, axes120, vec_topo_type{topo2, topo1, topo2}},
+        {topo2, topo2, axes201, vec_topo_type{topo2, topo1, topo2}},
+        {topo2, topo2, axes210, vec_topo_type{topo2, topo0, topo2}}};
+    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
+      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+          topo_in, topo_out, axes);
+      EXPECT_EQ(topos, ref_topos)
+          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
+    }
   }
 }
 
 void test_get_all_slab_topologies3D_4DView(std::size_t nprocs) {
-  using topology_type     = std::array<std::size_t, 4>;
-  topology_type topology0 = {1, 1, 1, nprocs}, topology1 = {1, 1, nprocs, 1},
-                topology2 = {1, nprocs, 1, 1}, topology3 = {nprocs, 1, 1, 1};
+  using topo_type     = std::array<std::size_t, 4>;
+  using axes_type     = std::array<std::size_t, 3>;
+  using vec_topo_type = std::vector<topo_type>;
+  using topo_and_ref_type =
+      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
 
-  using axes_type   = std::array<std::size_t, 3>;
-  axes_type axes012 = {0, 1, 2}, axes021 = {0, 2, 1}, axes102 = {1, 0, 2},
-            axes120 = {1, 2, 0}, axes201 = {2, 0, 1}, axes210 = {2, 1, 0},
-            axes123 = {1, 2, 3}, axes132 = {1, 3, 2};
+  topo_type topo0{1, 1, 1, nprocs}, topo1{1, 1, nprocs, 1},
+      topo2{1, nprocs, 1, 1}, topo3{nprocs, 1, 1, 1};
 
-  std::vector<axes_type> all_axes = {axes012, axes021, axes102, axes120,
-                                     axes201, axes210, axes123, axes132};
+  axes_type axes012{0, 1, 2}, axes021{0, 2, 1}, axes102{1, 0, 2},
+      axes120{1, 2, 0}, axes201{2, 0, 1}, axes210{2, 1, 0}, axes123{1, 2, 3},
+      axes132{1, 3, 2};
+
+  std::vector<axes_type> all_axes{axes012, axes021, axes102, axes120,
+                                  axes201, axes210, axes123, axes132};
 
   if (nprocs == 1) {
     for (const auto& axes : all_axes) {
       // Failure tests because these are shared topologies
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology0, topology2, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology1, topology2, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto all_slab_topologies =
-                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                    topology2, topology2, axes);
-          },
-          std::runtime_error);
+      for (const auto& topo_in : vec_topo_type{topo0, topo1, topo2}) {
+        for (const auto& topo_out : vec_topo_type{topo0, topo1, topo2}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto all_slab_topologies =
+                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                        topo_in, topo_out, axes);
+              },
+              std::runtime_error);
+        }
+      }
     }
   } else {
-    // topology0 (W-slab) to topology0 (W-slab)
-    auto all_slab_topologies_0_0_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes012);
-    auto all_slab_topologies_0_0_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes021);
-    auto all_slab_topologies_0_0_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes102);
-    auto all_slab_topologies_0_0_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes120);
-    auto all_slab_topologies_0_0_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes201);
-    auto all_slab_topologies_0_0_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes210);
-    auto all_slab_topologies_0_0_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes123);
-    auto all_slab_topologies_0_0_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology0, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax012 = {topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax012, ref_all_slab_topologies_0_0_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax021 = {topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax021, ref_all_slab_topologies_0_0_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax102 = {topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax102, ref_all_slab_topologies_0_0_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax120 = {topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax120, ref_all_slab_topologies_0_0_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax201 = {topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax201, ref_all_slab_topologies_0_0_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax210 = {topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax210, ref_all_slab_topologies_0_0_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax123 = {
-        topology0, topology2, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax123, ref_all_slab_topologies_0_0_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_0_0_ax132 = {
-        topology0, topology1, topology0};
-    EXPECT_EQ(all_slab_topologies_0_0_ax132, ref_all_slab_topologies_0_0_ax132);
-
-    // topology0 (W-slab) to topology1 (Z-slab)
-    auto all_slab_topologies_0_1_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes012);
-    auto all_slab_topologies_0_1_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes021);
-    auto all_slab_topologies_0_1_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes102);
-    auto all_slab_topologies_0_1_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes120);
-    auto all_slab_topologies_0_1_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes201);
-    auto all_slab_topologies_0_1_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology1, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax012 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax012, ref_all_slab_topologies_0_1_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax021 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax021, ref_all_slab_topologies_0_1_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax102 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax102, ref_all_slab_topologies_0_1_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax120 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax120, ref_all_slab_topologies_0_1_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax201 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax201, ref_all_slab_topologies_0_1_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_0_1_ax210 = {topology0,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_0_1_ax210, ref_all_slab_topologies_0_1_ax210);
-
-    // topology0 (W-slab) to topology2 (Y-slab)
-    auto all_slab_topologies_0_2_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes012);
-    auto all_slab_topologies_0_2_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes021);
-    auto all_slab_topologies_0_2_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes102);
-    auto all_slab_topologies_0_2_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes120);
-    auto all_slab_topologies_0_2_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes201);
-    auto all_slab_topologies_0_2_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology2, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax012 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax012, ref_all_slab_topologies_0_2_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax021 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax021, ref_all_slab_topologies_0_2_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax102 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax102, ref_all_slab_topologies_0_2_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax120 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax120, ref_all_slab_topologies_0_2_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax201 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax201, ref_all_slab_topologies_0_2_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_0_2_ax210 = {topology0,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_0_2_ax210, ref_all_slab_topologies_0_2_ax210);
-
-    // topology0 (W-slab) to topology3 (X-slab)
-    auto all_slab_topologies_0_3_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology3, axes012);
-    auto all_slab_topologies_0_3_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology3, axes021);
-    auto all_slab_topologies_0_3_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology3, axes102);
-    auto all_slab_topologies_0_3_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology3, axes120);
-    auto all_slab_topologies_0_3_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology3, axes201);
-    auto all_slab_topologies_0_3_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology3, axes210);
-    auto all_slab_topologies_0_3_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology3, axes123);
-    auto all_slab_topologies_0_3_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology0, topology3, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_0_3_ax012 = {topology0,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_0_3_ax012, ref_all_slab_topologies_0_3_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_0_3_ax021 = {topology0,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_0_3_ax021, ref_all_slab_topologies_0_3_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_0_3_ax102 = {topology0,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_0_3_ax102, ref_all_slab_topologies_0_3_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_0_3_ax120 = {topology0,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_0_3_ax120, ref_all_slab_topologies_0_3_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_0_3_ax201 = {topology0,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_0_3_ax201, ref_all_slab_topologies_0_3_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_0_3_ax210 = {topology0,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_0_3_ax210, ref_all_slab_topologies_0_3_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_0_3_ax123 = {topology0,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_0_3_ax123, ref_all_slab_topologies_0_3_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_0_3_ax132 = {topology0,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_0_3_ax132, ref_all_slab_topologies_0_3_ax132);
-
-    // topology1 (Z-slab) to topology0 (W-slab)
-    auto all_slab_topologies_1_0_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes012);
-    auto all_slab_topologies_1_0_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes021);
-    auto all_slab_topologies_1_0_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes102);
-    auto all_slab_topologies_1_0_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes120);
-    auto all_slab_topologies_1_0_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes201);
-    auto all_slab_topologies_1_0_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology0, axes210);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax012 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax012, ref_all_slab_topologies_1_0_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax021 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax021, ref_all_slab_topologies_1_0_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax102 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax102, ref_all_slab_topologies_1_0_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax120 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax120, ref_all_slab_topologies_1_0_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax201 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax201, ref_all_slab_topologies_1_0_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_1_0_ax210 = {topology1,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_1_0_ax210, ref_all_slab_topologies_1_0_ax210);
-
-    // topology1 (Z-slab) to topology1 (Z-slab)
-    auto all_slab_topologies_1_1_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes012);
-    auto all_slab_topologies_1_1_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes021);
-    auto all_slab_topologies_1_1_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes102);
-    auto all_slab_topologies_1_1_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes120);
-    auto all_slab_topologies_1_1_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes201);
-    auto all_slab_topologies_1_1_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes210);
-    auto all_slab_topologies_1_1_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes123);
-    auto all_slab_topologies_1_1_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology1, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax012 = {
-        topology1, topology3, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax012, ref_all_slab_topologies_1_1_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax021 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax021, ref_all_slab_topologies_1_1_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax102 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax102, ref_all_slab_topologies_1_1_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax120 = {
-        topology1, topology3, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax120, ref_all_slab_topologies_1_1_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax201 = {
-        topology1, topology3, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax201, ref_all_slab_topologies_1_1_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax210 = {
-        topology1, topology3, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax210, ref_all_slab_topologies_1_1_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax123 = {
-        topology1, topology0, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax123, ref_all_slab_topologies_1_1_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_1_1_ax132 = {
-        topology1, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_1_1_ax132, ref_all_slab_topologies_1_1_ax132);
-
-    // topology1 (Z-slab) to topology2 (Y-slab)
-    auto all_slab_topologies_1_2_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes012);
-    auto all_slab_topologies_1_2_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes021);
-    auto all_slab_topologies_1_2_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes102);
-    auto all_slab_topologies_1_2_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes120);
-    auto all_slab_topologies_1_2_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes201);
-    auto all_slab_topologies_1_2_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes210);
-    auto all_slab_topologies_1_2_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes123);
-    auto all_slab_topologies_1_2_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology2, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax012 = {
-        topology1, topology3, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax012, ref_all_slab_topologies_1_2_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax021 = {topology1,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax021, ref_all_slab_topologies_1_2_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax102 = {
-        topology1, topology2, topology3, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax102, ref_all_slab_topologies_1_2_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax120 = {
-        topology1, topology3, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax120, ref_all_slab_topologies_1_2_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax201 = {topology1,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax201, ref_all_slab_topologies_1_2_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax210 = {topology1,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax210, ref_all_slab_topologies_1_2_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax123 = {
-        topology1, topology0, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax123, ref_all_slab_topologies_1_2_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_1_2_ax132 = {
-        topology1, topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_1_2_ax132, ref_all_slab_topologies_1_2_ax132);
-
-    // topology1 (Z-slab) to topology3 (X-slab)
-    auto all_slab_topologies_1_3_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology3, axes012);
-    auto all_slab_topologies_1_3_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology3, axes021);
-    auto all_slab_topologies_1_3_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology3, axes102);
-    auto all_slab_topologies_1_3_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology3, axes120);
-    auto all_slab_topologies_1_3_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology3, axes201);
-    auto all_slab_topologies_1_3_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology3, axes210);
-    auto all_slab_topologies_1_3_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology3, axes123);
-    auto all_slab_topologies_1_3_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology1, topology3, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_1_3_ax012 = {
-        topology1, topology3, topology2, topology3};
-    EXPECT_EQ(all_slab_topologies_1_3_ax012, ref_all_slab_topologies_1_3_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_1_3_ax021 = {
-        topology1, topology2, topology3};
-    EXPECT_EQ(all_slab_topologies_1_3_ax021, ref_all_slab_topologies_1_3_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_1_3_ax102 = {
-        topology1, topology2, topology3};
-    EXPECT_EQ(all_slab_topologies_1_3_ax102, ref_all_slab_topologies_1_3_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_1_3_ax120 = {topology1,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_1_3_ax120, ref_all_slab_topologies_1_3_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_1_3_ax201 = {topology1,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_1_3_ax201, ref_all_slab_topologies_1_3_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_1_3_ax210 = {topology1,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_1_3_ax210, ref_all_slab_topologies_1_3_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_1_3_ax123 = {topology1,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_1_3_ax123, ref_all_slab_topologies_1_3_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_1_3_ax132 = {topology1,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_1_3_ax132, ref_all_slab_topologies_1_3_ax132);
-
-    // topology2 (Y-slab) to topology0 (W-slab)
-    auto all_slab_topologies_2_0_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes012);
-    auto all_slab_topologies_2_0_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes021);
-    auto all_slab_topologies_2_0_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes102);
-    auto all_slab_topologies_2_0_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes120);
-    auto all_slab_topologies_2_0_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes201);
-    auto all_slab_topologies_2_0_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes210);
-    auto all_slab_topologies_2_0_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes123);
-    auto all_slab_topologies_2_0_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology0, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax012 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax012, ref_all_slab_topologies_2_0_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax021 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax021, ref_all_slab_topologies_2_0_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax102 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax102, ref_all_slab_topologies_2_0_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax120 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax120, ref_all_slab_topologies_2_0_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax201 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax201, ref_all_slab_topologies_2_0_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax210 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax210, ref_all_slab_topologies_2_0_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax123 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax123, ref_all_slab_topologies_2_0_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_2_0_ax132 = {topology2,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_2_0_ax132, ref_all_slab_topologies_2_0_ax132);
-
-    // topology2 (Y-slab) to topology1 (Z-slab)
-    auto all_slab_topologies_2_1_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes012);
-    auto all_slab_topologies_2_1_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes021);
-    auto all_slab_topologies_2_1_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes102);
-    auto all_slab_topologies_2_1_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes120);
-    auto all_slab_topologies_2_1_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes201);
-    auto all_slab_topologies_2_1_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes210);
-    auto all_slab_topologies_2_1_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes123);
-    auto all_slab_topologies_2_1_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology1, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax012 = {topology2,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax012, ref_all_slab_topologies_2_1_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax021 = {
-        topology2, topology3, topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax021, ref_all_slab_topologies_2_1_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax102 = {topology2,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax102, ref_all_slab_topologies_2_1_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax120 = {topology2,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax120, ref_all_slab_topologies_2_1_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax201 = {
-        topology2, topology1, topology3, topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax201, ref_all_slab_topologies_2_1_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax210 = {
-        topology2, topology3, topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax210, ref_all_slab_topologies_2_1_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax123 = {topology2,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax123, ref_all_slab_topologies_2_1_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_2_1_ax132 = {topology2,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_2_1_ax132, ref_all_slab_topologies_2_1_ax132);
-
-    // topology2 (Y-slab) to topology2 (Y-slab)
-    auto all_slab_topologies_2_2_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes012);
-    auto all_slab_topologies_2_2_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes021);
-    auto all_slab_topologies_2_2_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes102);
-    auto all_slab_topologies_2_2_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes120);
-    auto all_slab_topologies_2_2_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes201);
-    auto all_slab_topologies_2_2_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes210);
-    auto all_slab_topologies_2_2_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes123);
-    auto all_slab_topologies_2_2_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology2, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax012 = {
-        topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax012, ref_all_slab_topologies_2_2_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax021 = {
-        topology2, topology3, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax021, ref_all_slab_topologies_2_2_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax102 = {
-        topology2, topology3, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax102, ref_all_slab_topologies_2_2_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax120 = {
-        topology2, topology3, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax120, ref_all_slab_topologies_2_2_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax201 = {
-        topology2, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax201, ref_all_slab_topologies_2_2_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_2_2_ax210 = {
-        topology2, topology3, topology2};
-    EXPECT_EQ(all_slab_topologies_2_2_ax210, ref_all_slab_topologies_2_2_ax210);
-
-    // topology2 (Y-slab) to topology3 (X-slab)
-    auto all_slab_topologies_2_3_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology3, axes012);
-    auto all_slab_topologies_2_3_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology3, axes021);
-    auto all_slab_topologies_2_3_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology3, axes102);
-    auto all_slab_topologies_2_3_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology3, axes120);
-    auto all_slab_topologies_2_3_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology3, axes201);
-    auto all_slab_topologies_2_3_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology3, axes210);
-    auto all_slab_topologies_2_3_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology3, axes123);
-    auto all_slab_topologies_2_3_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology2, topology3, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_2_3_ax012 = {
-        topology2, topology1, topology3};
-    EXPECT_EQ(all_slab_topologies_2_3_ax012, ref_all_slab_topologies_2_3_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_2_3_ax021 = {
-        topology2, topology3, topology2, topology3};
-    EXPECT_EQ(all_slab_topologies_2_3_ax021, ref_all_slab_topologies_2_3_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_2_3_ax102 = {topology2,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_2_3_ax102, ref_all_slab_topologies_2_3_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_2_3_ax120 = {topology2,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_2_3_ax120, ref_all_slab_topologies_2_3_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_2_3_ax201 = {
-        topology2, topology1, topology3};
-    EXPECT_EQ(all_slab_topologies_2_3_ax201, ref_all_slab_topologies_2_3_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_2_3_ax210 = {topology2,
-                                                                    topology3};
-    EXPECT_EQ(all_slab_topologies_2_3_ax210, ref_all_slab_topologies_2_3_ax210);
-
-    // topology3 (X-slab) to topology0 (W-slab)
-    auto all_slab_topologies_3_0_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology0, axes012);
-    auto all_slab_topologies_3_0_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology0, axes021);
-    auto all_slab_topologies_3_0_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology0, axes102);
-    auto all_slab_topologies_3_0_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology0, axes120);
-    auto all_slab_topologies_3_0_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology0, axes201);
-    auto all_slab_topologies_3_0_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology0, axes210);
-    auto all_slab_topologies_3_0_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology0, axes123);
-    auto all_slab_topologies_3_0_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology0, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_3_0_ax012 = {topology3,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_3_0_ax012, ref_all_slab_topologies_3_0_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_3_0_ax021 = {topology3,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_3_0_ax021, ref_all_slab_topologies_3_0_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_3_0_ax102 = {topology3,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_3_0_ax102, ref_all_slab_topologies_3_0_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_3_0_ax120 = {topology3,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_3_0_ax120, ref_all_slab_topologies_3_0_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_3_0_ax201 = {topology3,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_3_0_ax201, ref_all_slab_topologies_3_0_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_3_0_ax210 = {topology3,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_3_0_ax210, ref_all_slab_topologies_3_0_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_3_0_ax123 = {topology3,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_3_0_ax123, ref_all_slab_topologies_3_0_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_3_0_ax132 = {topology3,
-                                                                    topology0};
-    EXPECT_EQ(all_slab_topologies_3_0_ax132, ref_all_slab_topologies_3_0_ax132);
-
-    // topology3 (X-slab) to topology1 (Z-slab)
-    auto all_slab_topologies_3_1_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology1, axes012);
-    auto all_slab_topologies_3_1_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology1, axes021);
-    auto all_slab_topologies_3_1_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology1, axes102);
-    auto all_slab_topologies_3_1_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology1, axes120);
-    auto all_slab_topologies_3_1_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology1, axes201);
-    auto all_slab_topologies_3_1_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology1, axes210);
-    auto all_slab_topologies_3_1_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology1, axes123);
-    auto all_slab_topologies_3_1_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology1, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_3_1_ax012 = {topology3,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_3_1_ax012, ref_all_slab_topologies_3_1_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_3_1_ax021 = {topology3,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_3_1_ax021, ref_all_slab_topologies_3_1_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_3_1_ax102 = {topology3,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_3_1_ax102, ref_all_slab_topologies_3_1_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_3_1_ax120 = {
-        topology3, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_3_1_ax120, ref_all_slab_topologies_3_1_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_3_1_ax201 = {
-        topology3, topology2, topology1};
-    EXPECT_EQ(all_slab_topologies_3_1_ax201, ref_all_slab_topologies_3_1_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_3_1_ax210 = {
-        topology3, topology1, topology3, topology1};
-    EXPECT_EQ(all_slab_topologies_3_1_ax210, ref_all_slab_topologies_3_1_ax210);
-    std::vector<topology_type> ref_all_slab_topologies_3_1_ax123 = {topology3,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_3_1_ax123, ref_all_slab_topologies_3_1_ax123);
-    std::vector<topology_type> ref_all_slab_topologies_3_1_ax132 = {topology3,
-                                                                    topology1};
-    EXPECT_EQ(all_slab_topologies_3_1_ax132, ref_all_slab_topologies_3_1_ax132);
-
-    // topology3 (X-slab) to topology2 (Y-slab)
-    auto all_slab_topologies_3_2_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology2, axes012);
-    auto all_slab_topologies_3_2_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology2, axes021);
-    auto all_slab_topologies_3_2_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology2, axes102);
-    auto all_slab_topologies_3_2_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology2, axes120);
-    auto all_slab_topologies_3_2_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology2, axes201);
-    auto all_slab_topologies_3_2_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology2, axes210);
-    auto all_slab_topologies_3_2_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology2, axes123);
-    auto all_slab_topologies_3_2_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology2, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_3_2_ax012 = {topology3,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_3_2_ax012, ref_all_slab_topologies_3_2_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_3_2_ax021 = {topology3,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_3_2_ax021, ref_all_slab_topologies_3_2_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_3_2_ax102 = {
-        topology3, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_3_2_ax102, ref_all_slab_topologies_3_2_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_3_2_ax120 = {
-        topology3, topology2, topology3, topology2};
-    EXPECT_EQ(all_slab_topologies_3_2_ax120, ref_all_slab_topologies_3_2_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_3_2_ax201 = {topology3,
-                                                                    topology2};
-    EXPECT_EQ(all_slab_topologies_3_2_ax201, ref_all_slab_topologies_3_2_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_3_2_ax210 = {
-        topology3, topology1, topology2};
-    EXPECT_EQ(all_slab_topologies_3_2_ax210, ref_all_slab_topologies_3_2_ax210);
-
-    // topology3 (X-slab) to topology3 (X-slab)
-    auto all_slab_topologies_3_3_ax012 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology3, axes012);
-    auto all_slab_topologies_3_3_ax021 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology3, axes021);
-    auto all_slab_topologies_3_3_ax102 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology3, axes102);
-    auto all_slab_topologies_3_3_ax120 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology3, axes120);
-    auto all_slab_topologies_3_3_ax201 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology3, axes201);
-    auto all_slab_topologies_3_3_ax210 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology3, axes210);
-    auto all_slab_topologies_3_3_ax123 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology3, axes123);
-    auto all_slab_topologies_3_3_ax132 =
-        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            topology3, topology3, axes132);
-
-    std::vector<topology_type> ref_all_slab_topologies_3_3_ax012 = {
-        topology3, topology2, topology3};
-    EXPECT_EQ(all_slab_topologies_3_3_ax012, ref_all_slab_topologies_3_3_ax012);
-    std::vector<topology_type> ref_all_slab_topologies_3_3_ax021 = {
-        topology3, topology2, topology3};
-    EXPECT_EQ(all_slab_topologies_3_3_ax021, ref_all_slab_topologies_3_3_ax021);
-    std::vector<topology_type> ref_all_slab_topologies_3_3_ax102 = {
-        topology3, topology1, topology3};
-    EXPECT_EQ(all_slab_topologies_3_3_ax102, ref_all_slab_topologies_3_3_ax102);
-    std::vector<topology_type> ref_all_slab_topologies_3_3_ax120 = {
-        topology3, topology2, topology3};
-    EXPECT_EQ(all_slab_topologies_3_3_ax120, ref_all_slab_topologies_3_3_ax120);
-    std::vector<topology_type> ref_all_slab_topologies_3_3_ax201 = {
-        topology3, topology2, topology3};
-    EXPECT_EQ(all_slab_topologies_3_3_ax201, ref_all_slab_topologies_3_3_ax201);
-    std::vector<topology_type> ref_all_slab_topologies_3_3_ax210 = {
-        topology3, topology1, topology3};
-    EXPECT_EQ(all_slab_topologies_3_3_ax210, ref_all_slab_topologies_3_3_ax210);
+    std::vector<topo_and_ref_type> topo_test_cases = {
+        {topo0, topo0, axes012, vec_topo_type{topo0}},
+        {topo0, topo0, axes021, vec_topo_type{topo0}},
+        {topo0, topo0, axes102, vec_topo_type{topo0}},
+        {topo0, topo0, axes120, vec_topo_type{topo0}},
+        {topo0, topo0, axes201, vec_topo_type{topo0}},
+        {topo0, topo0, axes210, vec_topo_type{topo0}},
+        {topo0, topo0, axes123, vec_topo_type{topo0, topo2, topo0}},
+        {topo0, topo0, axes132, vec_topo_type{topo0, topo1, topo0}},
+        {topo0, topo1, axes012, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes021, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes102, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes120, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes201, vec_topo_type{topo0, topo1}},
+        {topo0, topo1, axes210, vec_topo_type{topo0, topo1}},
+        {topo0, topo2, axes012, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes021, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes102, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes120, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes201, vec_topo_type{topo0, topo2}},
+        {topo0, topo2, axes210, vec_topo_type{topo0, topo2}},
+        {topo0, topo3, axes012, vec_topo_type{topo0, topo3}},
+        {topo0, topo3, axes021, vec_topo_type{topo0, topo3}},
+        {topo0, topo3, axes102, vec_topo_type{topo0, topo3}},
+        {topo0, topo3, axes120, vec_topo_type{topo0, topo3}},
+        {topo0, topo3, axes201, vec_topo_type{topo0, topo3}},
+        {topo0, topo3, axes210, vec_topo_type{topo0, topo3}},
+        {topo0, topo3, axes123, vec_topo_type{topo0, topo3}},
+        {topo0, topo3, axes132, vec_topo_type{topo0, topo3}},
+        {topo1, topo0, axes012, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes021, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes102, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes120, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes201, vec_topo_type{topo1, topo0}},
+        {topo1, topo0, axes210, vec_topo_type{topo1, topo0}},
+        {topo1, topo1, axes012, vec_topo_type{topo1, topo3, topo1}},
+        {topo1, topo1, axes021, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo1, axes102, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo1, axes120, vec_topo_type{topo1, topo3, topo1}},
+        {topo1, topo1, axes201, vec_topo_type{topo1, topo3, topo1}},
+        {topo1, topo1, axes210, vec_topo_type{topo1, topo3, topo1}},
+        {topo1, topo1, axes123, vec_topo_type{topo1, topo0, topo1}},
+        {topo1, topo1, axes132, vec_topo_type{topo1, topo2, topo1}},
+        {topo1, topo2, axes012, vec_topo_type{topo1, topo3, topo2}},
+        {topo1, topo2, axes021, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes102, vec_topo_type{topo1, topo2, topo3, topo2}},
+        {topo1, topo2, axes120, vec_topo_type{topo1, topo3, topo2}},
+        {topo1, topo2, axes201, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes210, vec_topo_type{topo1, topo2}},
+        {topo1, topo2, axes123, vec_topo_type{topo1, topo0, topo2}},
+        {topo1, topo2, axes132, vec_topo_type{topo1, topo2, topo1, topo2}},
+        {topo1, topo3, axes012, vec_topo_type{topo1, topo3, topo2, topo3}},
+        {topo1, topo3, axes021, vec_topo_type{topo1, topo2, topo3}},
+        {topo1, topo3, axes102, vec_topo_type{topo1, topo2, topo3}},
+        {topo1, topo3, axes120, vec_topo_type{topo1, topo3}},
+        {topo1, topo3, axes201, vec_topo_type{topo1, topo3}},
+        {topo1, topo3, axes210, vec_topo_type{topo1, topo3}},
+        {topo1, topo3, axes123, vec_topo_type{topo1, topo3}},
+        {topo1, topo3, axes132, vec_topo_type{topo1, topo3}},
+        {topo2, topo0, axes012, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes021, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes102, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes120, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes201, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes210, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes123, vec_topo_type{topo2, topo0}},
+        {topo2, topo0, axes132, vec_topo_type{topo2, topo0}},
+        {topo2, topo1, axes012, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes021, vec_topo_type{topo2, topo3, topo1}},
+        {topo2, topo1, axes102, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes120, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes201, vec_topo_type{topo2, topo1, topo3, topo1}},
+        {topo2, topo1, axes210, vec_topo_type{topo2, topo3, topo1}},
+        {topo2, topo1, axes123, vec_topo_type{topo2, topo1}},
+        {topo2, topo1, axes132, vec_topo_type{topo2, topo1}},
+        {topo2, topo2, axes012, vec_topo_type{topo2, topo1, topo2}},
+        {topo2, topo2, axes021, vec_topo_type{topo2, topo3, topo2}},
+        {topo2, topo2, axes102, vec_topo_type{topo2, topo3, topo2}},
+        {topo2, topo2, axes120, vec_topo_type{topo2, topo3, topo2}},
+        {topo2, topo2, axes201, vec_topo_type{topo2, topo1, topo2}},
+        {topo2, topo2, axes210, vec_topo_type{topo2, topo3, topo2}},
+        {topo2, topo3, axes012, vec_topo_type{topo2, topo1, topo3}},
+        {topo2, topo3, axes021, vec_topo_type{topo2, topo3, topo2, topo3}},
+        {topo2, topo3, axes102, vec_topo_type{topo2, topo3}},
+        {topo2, topo3, axes120, vec_topo_type{topo2, topo3}},
+        {topo2, topo3, axes201, vec_topo_type{topo2, topo1, topo3}},
+        {topo2, topo3, axes210, vec_topo_type{topo2, topo3}},
+        {topo3, topo0, axes012, vec_topo_type{topo3, topo0}},
+        {topo3, topo0, axes021, vec_topo_type{topo3, topo0}},
+        {topo3, topo0, axes102, vec_topo_type{topo3, topo0}},
+        {topo3, topo0, axes120, vec_topo_type{topo3, topo0}},
+        {topo3, topo0, axes201, vec_topo_type{topo3, topo0}},
+        {topo3, topo0, axes210, vec_topo_type{topo3, topo0}},
+        {topo3, topo0, axes123, vec_topo_type{topo3, topo0}},
+        {topo3, topo0, axes132, vec_topo_type{topo3, topo0}},
+        {topo3, topo1, axes012, vec_topo_type{topo3, topo1}},
+        {topo3, topo1, axes021, vec_topo_type{topo3, topo1}},
+        {topo3, topo1, axes102, vec_topo_type{topo3, topo1}},
+        {topo3, topo1, axes120, vec_topo_type{topo3, topo2, topo1}},
+        {topo3, topo1, axes201, vec_topo_type{topo3, topo2, topo1}},
+        {topo3, topo1, axes210, vec_topo_type{topo3, topo1, topo3, topo1}},
+        {topo3, topo1, axes123, vec_topo_type{topo3, topo1}},
+        {topo3, topo1, axes132, vec_topo_type{topo3, topo1}},
+        {topo3, topo2, axes012, vec_topo_type{topo3, topo2}},
+        {topo3, topo2, axes021, vec_topo_type{topo3, topo2}},
+        {topo3, topo2, axes102, vec_topo_type{topo3, topo1, topo2}},
+        {topo3, topo2, axes120, vec_topo_type{topo3, topo2, topo3, topo2}},
+        {topo3, topo2, axes201, vec_topo_type{topo3, topo2}},
+        {topo3, topo2, axes210, vec_topo_type{topo3, topo1, topo2}},
+        {topo3, topo3, axes012, vec_topo_type{topo3, topo2, topo3}},
+        {topo3, topo3, axes021, vec_topo_type{topo3, topo2, topo3}},
+        {topo3, topo3, axes102, vec_topo_type{topo3, topo1, topo3}},
+        {topo3, topo3, axes120, vec_topo_type{topo3, topo2, topo3}},
+        {topo3, topo3, axes201, vec_topo_type{topo3, topo2, topo3}},
+        {topo3, topo3, axes210, vec_topo_type{topo3, topo1, topo3}}};
+    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
+      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+          topo_in, topo_out, axes);
+      EXPECT_EQ(topos, ref_topos)
+          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
+    }
   }
 }
 
