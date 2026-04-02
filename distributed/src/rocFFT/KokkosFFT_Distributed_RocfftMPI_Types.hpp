@@ -3,7 +3,6 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include <iostream>
 
 namespace KokkosFFT {
 namespace Distributed {
