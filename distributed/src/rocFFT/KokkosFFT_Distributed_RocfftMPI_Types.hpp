@@ -35,11 +35,12 @@ struct ScopedRocfftField {
     // Strides would be compued by
     // (1, extents[n-1], strides[1] * extents[n-2], ...)
     rocfft_brick brick = nullptr;
-    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_brick_create(&brick, lower.data(), upper.data(),
-                                strides.data(), lower.size(), deviceID));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(
+        rocfft_brick_create(&brick, lower.data(), upper.data(), strides.data(),
+		            lower.size(), deviceID));
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_field_add_brick(m_field, brick));
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_brick_destroy(brick));
-    brick  = nullptr;
+    brick = nullptr;
   }
   ~ScopedRocfftField() noexcept {
     rocfft_status status = rocfft_field_destroy(m_field);
@@ -77,8 +78,8 @@ struct ScopedRocfftMPIPlan {
                       KokkosFFT::Direction direction, const MPI_Comm &comm)
       : m_comm(comm) {
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_create(&m_description));
-    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_comm(m_description, rocfft_comm_mpi,
-                                              &m_comm));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_comm(
+	m_description, rocfft_comm_mpi, &m_comm));
 
     // Do not set stride information via the descriptor, they are to be defined
     // during field creation below
@@ -94,20 +95,21 @@ struct ScopedRocfftMPIPlan {
                                      0);
     ScopedRocfftField scoped_outfield(lower_output, upper_output,
                                       strides_output, 1, 0);
-    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_infield(m_description,
-                                                 scoped_infield.field()));
-    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_outfield(m_description,
-                                                  scoped_outfield.field()));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_infield(
+	m_description, scoped_infield.field()));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_outfield(
+        m_description, scoped_outfield.field()));
 
     // inplace or Out-of-place transform
     const rocfft_result_placement place = rocfft_placement_notinplace;
 
     // Create a plan
-    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_create(&m_plan, place, fft_direction, m_precision,
-                                length.size(),   // Dimension
-                                length.data(),   // Lengths
-                                1,               // Number of transforms
-                                m_description)); // Description
+    KOKKOSFFT_CHECK_ROCFFT_CALL(
+        rocfft_plan_create(&m_plan, place, fft_direction, m_precision,
+                           length.size(),   // Dimension
+                           length.data(),   // Lengths
+                           1,               // Number of transforms
+                           m_description)); // Description
   }
 
   ~ScopedRocfftMPIPlan() noexcept {
@@ -138,7 +140,7 @@ struct ScopedRocfftMPIBidirectionalPlan {
   using ScopedRocfftMPIBackwardPlanType =
       ScopedRocfftMPIPlan<ExecutionSpace, T2, T1>;
   using AllocationViewType =
-      Kokkos::View<T2*, Kokkos::LayoutRight, ExecutionSpace>;
+      Kokkos::View<T2 *, Kokkos::LayoutRight, ExecutionSpace>;
   ScopedRocfftMPIForwardPlanType m_plan_forward;
   ScopedRocfftMPIBackwardPlanType m_plan_backward;
   AllocationViewType m_buffer_allocation;
@@ -183,9 +185,10 @@ struct ScopedRocfftMPIBidirectionalPlan {
 
   template <typename ViewType, std::size_t DIM>
   auto buffer_data(const std::array<std::size_t, DIM>& extents) const {
-    using value_type = typename ViewType::non_const_value_type;
+    using value_type  = typename ViewType::non_const_value_type;
     using layout_type = typename ViewType::array_layout;
-    return ViewType(reinterpret_cast<value_type*>(m_buffer_allocation.data()), KokkosFFT::Impl::create_layout<layout_type>(extents));
+    return ViewType(reinterpret_cast<value_type*>(m_buffer_allocation.data()),
+		    KokkosFFT::Impl::create_layout<layout_type>(extents));
   }
 
   /// \brief Get the name of the plan implementation

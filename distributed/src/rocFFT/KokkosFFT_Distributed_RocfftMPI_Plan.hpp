@@ -88,18 +88,18 @@ void create_plan(const ExecutionSpace& exec_space,
     auto fft_extents =
         compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
 
-    auto in_raw_extents = KokkosFFT::Impl::extract_extents(in);
+    auto in_raw_extents  = KokkosFFT::Impl::extract_extents(in);
     auto out_raw_extents = KokkosFFT::Impl::extract_extents(out);
 
-    auto in_raw_starts = compute_local_starts(
-      in_raw_extents, in_topology, comm);
-    auto out_raw_starts = compute_local_starts(
-      out_raw_extents, out_topology, comm);
+    auto in_raw_starts =
+	compute_local_starts(in_raw_extents, in_topology, comm);
+    auto out_raw_starts =
+	compute_local_starts(out_raw_extents, out_topology, comm);
 
-    auto in_extents = compute_mapped_extents(in_raw_extents, map);
+    auto in_extents  = compute_mapped_extents(in_raw_extents, map);
     auto out_extents = compute_mapped_extents(out_raw_extents, map);
-    auto in_starts = compute_mapped_extents(in_raw_starts, map);
-    auto out_starts = compute_mapped_extents(out_raw_starts, map);
+    auto in_starts   = compute_mapped_extents(in_raw_starts, map);
+    auto out_starts  = compute_mapped_extents(out_raw_starts, map);
 
     std::array<std::size_t, DIM> in_ends{}, out_ends{};
     std::transform(in_starts.begin(), in_starts.end(), in_extents.begin(),
@@ -107,10 +107,14 @@ void create_plan(const ExecutionSpace& exec_space,
     std::transform(out_starts.begin(), out_starts.end(), out_extents.begin(),
                    out_ends.begin(), std::plus<std::size_t>());
 
-    auto in_lower  = KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_starts));
-    auto in_upper  = KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_ends));
-    auto out_lower = KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_starts));
-    auto out_upper = KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_ends));
+    auto in_lower  =
+	KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_starts));
+    auto in_upper  =
+	KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_ends));
+    auto out_lower =
+	KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_starts));
+    auto out_upper =
+	KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_ends));
     auto in_strides = KokkosFFT::Impl::to_vector(
         KokkosFFT::Impl::compute_strides(in_extents));
     auto out_strides = KokkosFFT::Impl::to_vector(
@@ -121,7 +125,7 @@ void create_plan(const ExecutionSpace& exec_space,
 
     std::size_t buffer_size = 0;
     if (KokkosFFT::Impl::is_transpose_needed(map)) {
-      using in_value_type  = typename InViewType::non_const_value_type;
+      using in_value_type   = typename InViewType::non_const_value_type;
       constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<in_value_type>;
       // We allocate a buffer based on the output size
       // Input can be either real or complex, but Output is always complex

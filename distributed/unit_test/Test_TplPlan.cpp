@@ -864,7 +864,7 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     plan_1_0_ax01.backward(u_hat_0_ax01, u_inv_1);
     EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-    
+
     // topo1 -> topo0 with ax = {1, 0}:
     // (n0/p, n1) -> ((n0/2+1)/p, n1)
     Kokkos::deep_copy(u_1, ref_u_inv_1);
