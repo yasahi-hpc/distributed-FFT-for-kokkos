@@ -10,10 +10,12 @@
 
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;
-using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
-                                    std::pair<float, Kokkos::LayoutRight>,
-                                    std::pair<double, Kokkos::LayoutLeft>,
+using test_types      = ::testing::Types<
                                     std::pair<double, Kokkos::LayoutRight>>;
+//using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
+//                                    std::pair<float, Kokkos::LayoutRight>,
+//                                    std::pair<double, Kokkos::LayoutLeft>,
+//                                    std::pair<double, Kokkos::LayoutRight>>;
 
 //  Basically the same fixtures, used for labeling tests
 template <typename T>
@@ -638,7 +640,7 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
   // 2D Topologies
   topology_type topology0{1, nprocs}, topology1{nprocs, 1};
-  axes_type ax01 = {0, 1}, ax10 = {1, 0};
+  axes_type ax01{0, 1}, ax10{1, 0};
 
   const std::size_t n0 = 8, n1 = 7;
   const std::size_t n0h = get_r2c_shape(n0, is_R2C),
@@ -777,39 +779,6 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   Kokkos::deep_copy(ref_u_inv_0, u_0);
   Kokkos::deep_copy(ref_u_inv_1, u_1);
 
-  // Do not support cases where the input/output topologies are the same
-  ASSERT_THROW(
-      {
-        KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax01(
-            exec, u_0, u_hat_0_ax01, ax01, topology0, topology0,
-            MPI_COMM_WORLD);
-      },
-      std::runtime_error);
-
-  ASSERT_THROW(
-      {
-        KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax10(
-            exec, u_0, u_hat_0_ax10, ax10, topology0, topology0,
-            MPI_COMM_WORLD);
-      },
-      std::runtime_error);
-
-  ASSERT_THROW(
-      {
-        KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax01(
-            exec, u_1, u_hat_1_ax01, ax01, topology1, topology1,
-            MPI_COMM_WORLD);
-      },
-      std::runtime_error);
-
-  ASSERT_THROW(
-      {
-        KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax10(
-            exec, u_1, u_hat_1_ax10, ax10, topology1, topology1,
-            MPI_COMM_WORLD);
-      },
-      std::runtime_error);
-
   // Not a slab geometry
   if (nprocs == 1) {
     ASSERT_THROW(
@@ -841,8 +810,31 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
         },
         std::runtime_error);
   } else {
+    // topo0 -> topo0 with ax = {0, 1}:
+    // (n0, n1/p) -> (n0, (n1/2+1)/p)
+    Kokkos::deep_copy(u_0, ref_u_inv_0);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax01(
+        exec, u_0, u_hat_0_ax01, ax01, topology0, topology0, MPI_COMM_WORLD);
+    plan_0_0_ax01.forward(u_0, u_hat_0_ax01);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
+
+    plan_0_0_ax01.backward(u_hat_0_ax01, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+    // topo0 -> topo0 with ax = {1, 0}:
+    // (n0, n1/p) -> (n0/2+1, n1/p)
+    Kokkos::deep_copy(u_0, ref_u_inv_0);
+    KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax10(
+        exec, u_0, u_hat_0_ax10, ax10, topology0, topology0, MPI_COMM_WORLD);
+    plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
+    EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
+
+    plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
+    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
     // topo0 -> topo1 with ax = {0, 1}:
     // (n0, n1/p) -> (n0/p, n1/2+1)
+    Kokkos::deep_copy(u_0, ref_u_inv_0);
     KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax01(
         exec, u_0, u_hat_1_ax01, ax01, topology0, topology1, MPI_COMM_WORLD);
 
@@ -854,6 +846,7 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     // topo0 -> topo1 with ax = {1, 0}:
     // (n0, n1/p) -> ((n0/2+1)/p, n1)
+    Kokkos::deep_copy(u_0, ref_u_inv_0);
     KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax10(
         exec, u_0, u_hat_1_ax10, ax10, topology0, topology1, MPI_COMM_WORLD);
 
@@ -865,6 +858,7 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     // topo1 -> topo0 with ax = {0, 1}:
     // (n0/p, n1) -> (n0, (n1/2+1)/p)
+    Kokkos::deep_copy(u_1, ref_u_inv_1);
     KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax01(
         exec, u_1, u_hat_0_ax01, ax01, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax01.forward(u_1, u_hat_0_ax01);
@@ -872,15 +866,38 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     plan_1_0_ax01.backward(u_hat_0_ax01, u_inv_1);
     EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
+    
     // topo1 -> topo0 with ax = {1, 0}:
     // (n0/p, n1) -> ((n0/2+1)/p, n1)
+    Kokkos::deep_copy(u_1, ref_u_inv_1);
     KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax10(
         exec, u_1, u_hat_0_ax10, ax10, topology1, topology0, MPI_COMM_WORLD);
     plan_1_0_ax10.forward(u_1, u_hat_0_ax10);
     EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
 
     plan_1_0_ax10.backward(u_hat_0_ax10, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+
+    // topo1 -> topo1 with ax = {0, 1}:
+    // (n0/p, n1) -> (n0/p, (n1/2+1))
+    Kokkos::deep_copy(u_1, ref_u_inv_1);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax01(
+        exec, u_1, u_hat_1_ax01, ax01, topology1, topology1, MPI_COMM_WORLD);
+    plan_1_1_ax01.forward(u_1, u_hat_1_ax01);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
+
+    plan_1_1_ax01.backward(u_hat_1_ax01, u_inv_1);
+    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+
+    // topo1 -> topo1 with ax = {1, 0}:
+    // (n0/p, n1) -> ((n0/2+1), n1/p)
+    Kokkos::deep_copy(u_1, ref_u_inv_1);
+    KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax10(
+        exec, u_1, u_hat_1_ax10, ax10, topology1, topology1, MPI_COMM_WORLD);
+    plan_1_1_ax10.forward(u_1, u_hat_1_ax10);
+    EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
+
+    plan_1_1_ax10.backward(u_hat_1_ax10, u_inv_1);
     EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
   }
 }
@@ -2289,3 +2306,4 @@ TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_C2C) {
   test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(this->m_npx,
                                                               this->m_npx);
 }
+

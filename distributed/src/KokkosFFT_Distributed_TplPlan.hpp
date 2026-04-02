@@ -115,10 +115,13 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     auto gin_extents        = compute_global_extents(in, in_topology, comm);
     auto gout_extents       = compute_global_extents(out, out_topology, comm);
     auto gin_padded_extents = gin_extents;
+
+#if defined(ENABLE_TPL_CUFFT_MP)
     if (KokkosFFT::Impl::is_real_v<in_value_type>) {
       gin_padded_extents =
           compute_padded_extents(gout_extents, non_negative_axes);
     }
+#endif
 
     auto [in_extents, in_starts] =
         compute_local_extents_and_starts(gin_padded_extents, in_topology, comm);
@@ -154,7 +157,7 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   void backward(const OutViewType& out, const InViewType& in) const override {
     good(in, out);
     execute_impl(*m_plan, out, in, m_out_mapped_extents, m_in_mapped_extents,
-                 m_in_map, m_out_map, KokkosFFT::Direction::backward);
+                 m_out_map, m_in_map, KokkosFFT::Direction::backward);
   }
 
   /// \brief Get the name of the plan implementation

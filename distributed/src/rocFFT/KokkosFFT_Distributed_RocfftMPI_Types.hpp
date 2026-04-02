@@ -3,6 +3,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include <iostream>
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -23,9 +24,7 @@ struct ScopedRocfftField {
                     const std::vector<std::size_t> &field_upper,
                     const std::vector<std::size_t> &brick_stride,
                     std::size_t batch_size, int deviceID) {
-    rocfft_status status = rocfft_field_create(&m_field);
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_field_create failed");
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_field_create(&m_field));
 
     std::vector<std::size_t> lower   = field_lower;
     std::vector<std::size_t> upper   = field_upper;
@@ -37,18 +36,11 @@ struct ScopedRocfftField {
     // Strides would be compued by
     // (1, extents[n-1], strides[1] * extents[n-2], ...)
     rocfft_brick brick = nullptr;
-    status             = rocfft_brick_create(&brick, lower.data(), upper.data(),
-                                             strides.data(), lower.size(), deviceID);
-
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_brick_create failed");
-    status = rocfft_field_add_brick(m_field, brick);
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_field_add_brick failed");
-    status = rocfft_brick_destroy(brick);
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_brick_create(&brick, lower.data(), upper.data(),
+                                strides.data(), lower.size(), deviceID));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_field_add_brick(m_field, brick));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_brick_destroy(brick));
     brick  = nullptr;
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_brick_destroy failed");
   }
   ~ScopedRocfftField() noexcept {
     rocfft_status status = rocfft_field_destroy(m_field);
@@ -85,14 +77,9 @@ struct ScopedRocfftMPIPlan {
                       const std::vector<std::size_t> &strides_output,
                       KokkosFFT::Direction direction, const MPI_Comm &comm)
       : m_comm(comm) {
-    rocfft_status status = rocfft_plan_description_create(&m_description);
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_plan_description_create failed");
-
-    status = rocfft_plan_description_set_comm(m_description, rocfft_comm_mpi,
-                                              &m_comm);
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_plan_description_set_comm failed");
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_create(&m_description));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_comm(m_description, rocfft_comm_mpi,
+                                              &m_comm));
 
     // Do not set stride information via the descriptor, they are to be defined
     // during field creation below
@@ -100,37 +87,28 @@ struct ScopedRocfftMPIPlan {
         KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
     auto [in_array_type, out_array_type, fft_direction] =
         KokkosFFT::Impl::get_in_out_array_type(transform_type, direction);
-    status = rocfft_plan_description_set_data_layout(
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_data_layout(
         m_description, in_array_type, out_array_type, nullptr, nullptr, 0,
-        nullptr, 0, 0, nullptr, 0);
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_plan_description_set_data_layout failed");
+        nullptr, 0, 0, nullptr, 0));
 
     ScopedRocfftField scoped_infield(lower_input, upper_input, strides_input, 1,
                                      0);
     ScopedRocfftField scoped_outfield(lower_output, upper_output,
                                       strides_output, 1, 0);
-    status = rocfft_plan_description_add_infield(m_description,
-                                                 scoped_infield.field());
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_plan_description_add_infield failed");
-
-    status = rocfft_plan_description_add_outfield(m_description,
-                                                  scoped_outfield.field());
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_plan_description_add_outfield failed");
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_infield(m_description,
+                                                 scoped_infield.field()));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_outfield(m_description,
+                                                  scoped_outfield.field()));
 
     // inplace or Out-of-place transform
     const rocfft_result_placement place = rocfft_placement_notinplace;
 
     // Create a plan
-    status = rocfft_plan_create(&m_plan, place, fft_direction, m_precision,
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_create(&m_plan, place, fft_direction, m_precision,
                                 length.size(),   // Dimension
                                 length.data(),   // Lengths
                                 1,               // Number of transforms
-                                m_description);  // Description
-    KOKKOSFFT_THROW_IF(status != rocfft_status_success,
-                       "rocfft_plan_create failed");
+                                m_description)); // Description
   }
 
   ~ScopedRocfftMPIPlan() noexcept {
@@ -160,8 +138,11 @@ struct ScopedRocfftMPIBidirectionalPlan {
       ScopedRocfftMPIPlan<ExecutionSpace, T1, T2>;
   using ScopedRocfftMPIBackwardPlanType =
       ScopedRocfftMPIPlan<ExecutionSpace, T2, T1>;
+  using AllocationViewType =
+      Kokkos::View<T2*, Kokkos::LayoutRight, ExecutionSpace>;
   ScopedRocfftMPIForwardPlanType m_plan_forward;
   ScopedRocfftMPIBackwardPlanType m_plan_backward;
+  AllocationViewType m_buffer_allocation;
 
  public:
   ScopedRocfftMPIBidirectionalPlan(
@@ -171,13 +152,15 @@ struct ScopedRocfftMPIBidirectionalPlan {
       const std::vector<std::size_t> &lower_output,
       const std::vector<std::size_t> &upper_output,
       const std::vector<std::size_t> &strides_input,
-      const std::vector<std::size_t> &strides_output, const MPI_Comm &comm)
+      const std::vector<std::size_t> &strides_output,
+      const std::size_t buffer_size, const MPI_Comm &comm)
       : m_plan_forward(length, lower_input, upper_input, lower_output,
                        upper_output, strides_input, strides_output,
                        KokkosFFT::Direction::forward, comm),
         m_plan_backward(length, lower_output, upper_output, lower_input,
                         upper_input, strides_output, strides_input,
-                        KokkosFFT::Direction::backward, comm) {}
+                        KokkosFFT::Direction::backward, comm),
+	m_buffer_allocation("buffer_allocation", buffer_size) {}
 
   ScopedRocfftMPIBidirectionalPlan() = delete;
   ScopedRocfftMPIBidirectionalPlan(const ScopedRocfftMPIBidirectionalPlan &) =
@@ -197,6 +180,13 @@ struct ScopedRocfftMPIBidirectionalPlan {
   void commit(const Kokkos::HIP &exec_space) const {
     m_plan_forward.commit(exec_space);
     m_plan_backward.commit(exec_space);
+  }
+
+  template <typename ViewType, std::size_t DIM>
+  auto buffer_data(const std::array<std::size_t, DIM>& extents) const {
+    using value_type = typename ViewType::non_const_value_type;
+    using layout_type = typename ViewType::array_layout;
+    return ViewType(reinterpret_cast<value_type*>(m_buffer_allocation.data()), KokkosFFT::Impl::create_layout<layout_type>(extents));
   }
 
   /// \brief Get the name of the plan implementation
