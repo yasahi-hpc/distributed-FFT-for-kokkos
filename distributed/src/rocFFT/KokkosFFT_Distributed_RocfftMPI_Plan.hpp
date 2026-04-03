@@ -92,9 +92,9 @@ void create_plan(const ExecutionSpace& exec_space,
     auto out_raw_extents = KokkosFFT::Impl::extract_extents(out);
 
     auto in_raw_starts =
-	compute_local_starts(in_raw_extents, in_topology, comm);
+        compute_local_starts(in_raw_extents, in_topology, comm);
     auto out_raw_starts =
-	compute_local_starts(out_raw_extents, out_topology, comm);
+        compute_local_starts(out_raw_extents, out_topology, comm);
 
     auto in_extents  = compute_mapped_extents(in_raw_extents, map);
     auto out_extents = compute_mapped_extents(out_raw_extents, map);
@@ -108,13 +108,13 @@ void create_plan(const ExecutionSpace& exec_space,
                    out_ends.begin(), std::plus<std::size_t>());
 
     auto in_lower  =
-	KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_starts));
+        KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_starts));
     auto in_upper  =
-	KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_ends));
+        KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_ends));
     auto out_lower =
-	KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_starts));
+        KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_starts));
     auto out_upper =
-	KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_ends));
+        KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_ends));
     auto in_strides = KokkosFFT::Impl::to_vector(
         KokkosFFT::Impl::compute_strides(in_extents));
     auto out_strides = KokkosFFT::Impl::to_vector(
@@ -129,7 +129,8 @@ void create_plan(const ExecutionSpace& exec_space,
       constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<in_value_type>;
       // We allocate a buffer based on the output size
       // Input can be either real or complex, but Output is always complex
-      auto in_size = KokkosFFT::Impl::extent_after_transform(KokkosFFT::Impl::total_size(in_raw_extents), is_R2C);
+      auto in_size = KokkosFFT::Impl::extent_after_transform(
+          KokkosFFT::Impl::total_size(in_raw_extents), is_R2C);
       auto out_size = KokkosFFT::Impl::total_size(out_raw_extents);
 
       // allocation is made in complex type

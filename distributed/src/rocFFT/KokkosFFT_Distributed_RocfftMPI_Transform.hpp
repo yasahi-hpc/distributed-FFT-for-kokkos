@@ -24,7 +24,7 @@ inline void exec_plan(
     const KokkosFFT::axis_type<OutViewType::rank()>& out_map,
     KokkosFFT::Direction direction) {
   bool is_transpose_needed = KokkosFFT::Impl::is_transpose_needed(in_map) ||
-	                     KokkosFFT::Impl::is_transpose_needed(out_map);
+                             KokkosFFT::Impl::is_transpose_needed(out_map);
   if (is_transpose_needed) {
     using in_value_type  = typename InViewType::non_const_value_type;
     using out_value_type = typename OutViewType::non_const_value_type;
@@ -40,25 +40,26 @@ inline void exec_plan(
 
     auto in_buffer_extents = KokkosFFT::Impl::extract_extents(in);
     auto in_buffer =
-	scoped_plan.template buffer_data<InRightViewType>(in_buffer_extents);
-    auto in_T =
-	InRightViewType(in.data(),
-	KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(in_extents));
+        scoped_plan.template buffer_data<InRightViewType>(in_buffer_extents);
+    auto in_T = InRightViewType(
+        in.data(),
+        KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(in_extents));
 
     Kokkos::deep_copy(exec_space, in_buffer, in);
     KokkosFFT::Impl::transpose(exec_space, in_buffer, in_T, in_map, true);
 
-    // FIXME remove fencee. need to bind stream to the plan which is not done yet
+    // FIXME remove fence. Need to bind stream to the plan
     exec_space.fence();
     auto out_buffer =
-	scoped_plan.template buffer_data<OutRightViewType, OutViewType::rank()>(out_extents);
+        scoped_plan.template buffer_data<OutRightViewType, OutViewType::rank()>(
+            out_extents);
     {
       Kokkos::Profiling::ScopedRegion region("exec_plan[TPL_rocFFTMPIExec]");
       auto* in_data  = in.data();
       auto* out_data = out_buffer.data();
       KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_execute(scoped_plan.plan(direction),
-			          (void**)&in_data,
-                                  (void**)&out_data, nullptr));
+                                                 (void**)&in_data,
+                                                 (void**)&out_data, nullptr));
     }
     KokkosFFT::Impl::transpose(exec_space, out_buffer, out, out_map, true);
   } else {
@@ -66,8 +67,8 @@ inline void exec_plan(
     auto* in_data  = in.data();
     auto* out_data = out.data();
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_execute(scoped_plan.plan(direction),
-			        (void**)&in_data,
-                                (void**)&out_data, nullptr));
+                                               (void**)&in_data,
+                                               (void**)&out_data, nullptr));
   }
 }
 
