@@ -107,9 +107,9 @@ void create_plan(const ExecutionSpace& exec_space,
     std::transform(out_starts.begin(), out_starts.end(), out_extents.begin(),
                    out_ends.begin(), std::plus<std::size_t>());
 
-    auto in_lower  =
+    auto in_lower =
         KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_starts));
-    auto in_upper  =
+    auto in_upper =
         KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(in_ends));
     auto out_lower =
         KokkosFFT::Impl::reversed(KokkosFFT::Impl::to_vector(out_starts));

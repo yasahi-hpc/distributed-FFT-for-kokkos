@@ -109,7 +109,7 @@ struct ScopedRocfftMPIPlan {
                            length.size(),    // Dimension
                            length.data(),    // Lengths
                            1,                // Number of transforms
-			   m_description));  // Description
+                           m_description));  // Description
   }
 
   ~ScopedRocfftMPIPlan() noexcept {

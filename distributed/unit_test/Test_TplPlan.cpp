@@ -2304,4 +2304,3 @@ TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_C2C) {
   test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(this->m_npx,
                                                               this->m_npx);
 }
-
