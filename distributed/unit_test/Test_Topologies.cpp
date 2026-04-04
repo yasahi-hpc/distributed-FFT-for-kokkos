@@ -2476,514 +2476,376 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
 }
 
 void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
-  using topology_type   = std::array<std::size_t, 3>;
-  using topologies_type = std::vector<topology_type>;
-  using topology_r_type =
+  using topo_type     = std::array<std::size_t, 3>;
+  using axes_type     = std::array<std::size_t, 2>;
+  using vec_topo_type = std::vector<topo_type>;
+  using topo_r_type =
       KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
-  using topology_l_type =
+  using topo_l_type =
       KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutLeft>;
-  using vec_axis_type = std::vector<std::size_t>;
-  using layouts_type  = std::vector<std::size_t>;
-  std::size_t np0     = 4;
+  using vec_topo_r_type = std::vector<topo_r_type>;
+  using vec_topo_l_type = std::vector<topo_l_type>;
+  using vec_axis_type   = std::vector<std::size_t>;
+  using vec_layout_type = std::vector<std::size_t>;
+  using topo_rr_and_ref_type =
+      std::tuple<topo_r_type, topo_r_type, axes_type, vec_axis_type,
+                 vec_layout_type, vec_topo_type>;
+  using topo_rl_and_ref_type =
+      std::tuple<topo_r_type, topo_l_type, axes_type, vec_axis_type,
+                 vec_layout_type, vec_topo_type>;
+  using topo_lr_and_ref_type =
+      std::tuple<topo_l_type, topo_r_type, axes_type, vec_axis_type,
+                 vec_layout_type, vec_topo_type>;
+  using topo_ll_and_ref_type =
+      std::tuple<topo_l_type, topo_l_type, axes_type, vec_axis_type,
+                 vec_layout_type, vec_topo_type>;
+  std::size_t np0 = 4;
 
-  topology_r_type topology0 = {1, nprocs, np0}, topology1 = {nprocs, 1, np0},
-                  topology3 = {nprocs, np0, 1};
-  topology_l_type topology2 = {np0, nprocs, 1}, topology4 = {np0, 1, nprocs},
-                  topology5 = {1, np0, nprocs};
+  topo_r_type topo0{1, nprocs, np0}, topo1{nprocs, 1, np0},
+      topo2{nprocs, np0, 1};
+  topo_l_type topo3{np0, nprocs, 1}, topo4{np0, 1, nprocs},
+      topo5{1, np0, nprocs};
 
-  topology_type ref_topo0 = topology0.array(), ref_topo1 = topology1.array(),
-                ref_topo2 = topology2.array(), ref_topo3 = topology3.array(),
-                ref_topo4 = topology4.array(), ref_topo5 = topology5.array();
+  topo_type ref_topo0 = topo0.array(), ref_topo1 = topo1.array(),
+            ref_topo2 = topo2.array(), ref_topo3 = topo3.array(),
+            ref_topo4 = topo4.array(), ref_topo5 = topo5.array();
 
-  using axes_type  = std::array<std::size_t, 2>;
-  axes_type axes01 = {0, 1}, axes02 = {0, 2}, axes10 = {1, 0}, axes12 = {1, 2},
-            axes20 = {2, 0}, axes21 = {2, 1};
-
-  std::vector<axes_type> all_axes = {axes01, axes02, axes10,
-                                     axes12, axes20, axes21};
+  axes_type axes01{0, 1}, axes02{0, 2}, axes10{1, 0}, axes12{1, 2},
+      axes20{2, 0}, axes21{2, 1};
+  std::vector<axes_type> all_axes{axes01, axes02, axes10,
+                                  axes12, axes20, axes21};
 
   if (nprocs == 1) {
     for (const auto& axes : all_axes) {
       // Failure tests because only two elements differ (slabs)
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto topologies_and_axes_0_1 =
-                KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-                    topology0, topology1, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto topologies_and_axes_0_2 =
-                KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-                    topology0, topology2, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto topologies_and_axes_1_0 =
-                KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-                    topology1, topology0, axes);
-          },
-          std::runtime_error);
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto topologies_and_axes_2_0 =
-                KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-                    topology2, topology0, axes);
-          },
-          std::runtime_error);
+      for (const auto& topo_r_in : vec_topo_r_type{topo0, topo1, topo2}) {
+        for (const auto& topo_r_out : vec_topo_r_type{topo0, topo1, topo2}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto topologies_and_axes =
+                    KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
+                        topo_r_in, topo_r_out, axes);
+              },
+              std::runtime_error);
+        }
+        for (const auto& topo_l_out : vec_topo_l_type{topo3, topo4, topo5}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto topologies_and_axes =
+                    KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
+                        topo_r_in, topo_l_out, axes);
+              },
+              std::runtime_error);
+        }
+      }
+      for (const auto& topo_l_in : vec_topo_l_type{topo3, topo4, topo5}) {
+        for (const auto& topo_r_out : vec_topo_r_type{topo0, topo1, topo2}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto topologies_and_axes =
+                    KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
+                        topo_l_in, topo_r_out, axes);
+              },
+              std::runtime_error);
+        }
+        for (const auto& topo_l_out : vec_topo_l_type{topo3, topo4, topo5}) {
+          EXPECT_THROW(
+              {
+                [[maybe_unused]] auto topologies_and_axes =
+                    KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
+                        topo_l_in, topo_l_out, axes);
+              },
+              std::runtime_error);
+        }
+      }
     }
   } else {
-    // topology0 to topology0
-    auto topologies_and_axes_0_0_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology0, axes01);
-    auto topologies_and_axes_0_0_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology0, axes02);
-    auto topologies_and_axes_0_0_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology0, axes10);
-    auto topologies_and_axes_0_0_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology0, axes12);
-    auto topologies_and_axes_0_0_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology0, axes20);
-    auto topologies_and_axes_0_0_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology0, axes21);
+    std::vector<topo_rr_and_ref_type> topo_rr_test_cases = {
+        {topo0, topo0, axes01, vec_axis_type{0, 0}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo0}},
+        {topo0, topo0, axes02, vec_axis_type{1, 1}, vec_layout_type{1, 0, 1},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo0}},
+        {topo0, topo0, axes10, vec_axis_type{0, 0}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo0}},
+        {topo0, topo0, axes12, vec_axis_type{1, 0, 0, 1},
+         vec_layout_type{1, 0, 0, 0, 1},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo4, ref_topo3, ref_topo0}},
+        {topo0, topo0, axes20, vec_axis_type{1, 1}, vec_layout_type{1, 0, 1},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo0}},
+        {topo0, topo0, axes21, vec_axis_type{0, 1, 1, 0},
+         vec_layout_type{1, 1, 1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo2, ref_topo1, ref_topo0}},
+        {topo0, topo1, axes01, vec_axis_type{0, 0, 0},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo0, ref_topo1}},
+        {topo0, topo1, axes02, vec_axis_type{1, 1, 0},
+         vec_layout_type{1, 0, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo0, ref_topo1}},
+        {topo0, topo1, axes10, vec_axis_type{0}, vec_layout_type{1, 1},
+         vec_topo_type{ref_topo0, ref_topo1}},
+        {topo0, topo1, axes12, vec_axis_type{1, 1, 0},
+         vec_layout_type{1, 0, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo0, ref_topo1}},
+        {topo0, topo1, axes20, vec_axis_type{1, 1, 0},
+         vec_layout_type{1, 0, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo0, ref_topo1}},
+        {topo0, topo1, axes21, vec_axis_type{0, 1, 1},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo2, ref_topo1}},
+        {topo0, topo2, axes01, vec_axis_type{0, 0, 0, 1},
+         vec_layout_type{1, 1, 1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo0, ref_topo1, ref_topo2}},
+        {topo0, topo2, axes02, vec_axis_type{1, 1, 0, 1},
+         vec_layout_type{1, 0, 1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo0, ref_topo1, ref_topo2}},
+        {topo0, topo2, axes10, vec_axis_type{0, 1}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo2}},
+        {topo0, topo2, axes12, vec_axis_type{1, 0, 1, 0},
+         vec_layout_type{1, 0, 0, 0, 1},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo4, ref_topo5, ref_topo2}},
+        {topo0, topo2, axes20, vec_axis_type{0, 1}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo2}},
+        {topo0, topo2, axes21, vec_axis_type{0, 1}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo2}},
+        {topo1, topo0, axes01, vec_axis_type{0}, vec_layout_type{1, 1},
+         vec_topo_type{ref_topo1, ref_topo0}},
+        {topo1, topo0, axes02, vec_axis_type{1, 1, 0},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo2, ref_topo1, ref_topo0}},
+        {topo1, topo0, axes10, vec_axis_type{0, 0, 0},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo0, ref_topo1, ref_topo0}},
+        {topo1, topo0, axes12, vec_axis_type{1, 1, 0},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo2, ref_topo1, ref_topo0}},
+        {topo1, topo0, axes20, vec_axis_type{0, 1, 1},
+         vec_layout_type{1, 1, 0, 1},
+         vec_topo_type{ref_topo1, ref_topo0, ref_topo3, ref_topo0}},
+        {topo1, topo0, axes21, vec_axis_type{1, 1, 0},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo2, ref_topo1, ref_topo0}},
+        {topo1, topo1, axes01, vec_axis_type{0, 0}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo0, ref_topo1}},
+        {topo1, topo1, axes02, vec_axis_type{1, 0, 0, 1},
+         vec_layout_type{1, 1, 0, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo2, ref_topo5, ref_topo2, ref_topo1}},
+        {topo1, topo1, axes10, vec_axis_type{0, 0}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo0, ref_topo1}},
+        {topo1, topo1, axes12, vec_axis_type{1, 1}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo2, ref_topo1}},
+        {topo1, topo1, axes20, vec_axis_type{0, 1, 1, 0},
+         vec_layout_type{1, 1, 0, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo0, ref_topo3, ref_topo0, ref_topo1}},
+        {topo1, topo1, axes21, vec_axis_type{1, 1}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo2, ref_topo1}},
+        {topo1, topo2, axes01, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo0, ref_topo1, ref_topo2}},
+        {topo1, topo2, axes02, vec_axis_type{1, 0, 0},
+         vec_layout_type{1, 1, 0, 1},
+         vec_topo_type{ref_topo1, ref_topo2, ref_topo5, ref_topo2}},
+        {topo1, topo2, axes10, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo0, ref_topo1, ref_topo2}},
+        {topo1, topo2, axes12, vec_axis_type{1, 1, 1},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo2, ref_topo1, ref_topo2}},
+        {topo1, topo2, axes20, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo1, ref_topo0, ref_topo1, ref_topo2}},
+        {topo1, topo2, axes21, vec_axis_type{1}, vec_layout_type{1, 1},
+         vec_topo_type{ref_topo1, ref_topo2}},
+        {topo2, topo0, axes01, vec_axis_type{1, 0}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo0}},
+        {topo2, topo0, axes02, vec_axis_type{1, 0}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo0}},
+        {topo2, topo0, axes10, vec_axis_type{0, 1, 0, 1},
+         vec_layout_type{1, 0, 0, 0, 1},
+         vec_topo_type{ref_topo2, ref_topo5, ref_topo4, ref_topo3, ref_topo0}},
+        {topo2, topo0, axes12, vec_axis_type{1, 0}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo0}},
+        {topo2, topo0, axes20, vec_axis_type{0, 0, 1, 0},
+         vec_layout_type{1, 0, 1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo5, ref_topo2, ref_topo1, ref_topo0}},
+        {topo2, topo0, axes21, vec_axis_type{1, 1, 1, 0},
+         vec_layout_type{1, 1, 1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo2, ref_topo1, ref_topo0}},
+        {topo2, topo1, axes01, vec_axis_type{1, 0, 0},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo0, ref_topo1}},
+        {topo2, topo1, axes02, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 0, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo5, ref_topo2, ref_topo1}},
+        {topo2, topo1, axes10, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 0, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo5, ref_topo2, ref_topo1}},
+        {topo2, topo1, axes12, vec_axis_type{1}, vec_layout_type{1, 1},
+         vec_topo_type{ref_topo2, ref_topo1}},
+        {topo2, topo1, axes20, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 0, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo5, ref_topo2, ref_topo1}},
+        {topo2, topo1, axes21, vec_axis_type{1, 1, 1},
+         vec_layout_type{1, 1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo2, ref_topo1}},
+        {topo2, topo2, axes01, vec_axis_type{1, 0, 0, 1},
+         vec_layout_type{1, 1, 1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo0, ref_topo1, ref_topo2}},
+        {topo2, topo2, axes02, vec_axis_type{0, 0}, vec_layout_type{1, 0, 1},
+         vec_topo_type{ref_topo2, ref_topo5, ref_topo2}},
+        {topo2, topo2, axes10, vec_axis_type{0, 1, 1, 0},
+         vec_layout_type{1, 0, 0, 0, 1},
+         vec_topo_type{ref_topo2, ref_topo5, ref_topo4, ref_topo5, ref_topo2}},
+        {topo2, topo2, axes12, vec_axis_type{1, 1}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo2}},
+        {topo2, topo2, axes20, vec_axis_type{0, 0}, vec_layout_type{1, 0, 1},
+         vec_topo_type{ref_topo2, ref_topo5, ref_topo2}},
+        {topo2, topo2, axes21, vec_axis_type{1, 1}, vec_layout_type{1, 1, 1},
+         vec_topo_type{ref_topo2, ref_topo1, ref_topo2}}};
+    for (const auto& [topo_r_in, topo_r_out, axes, ref_axes, ref_layouts,
+                      ref_topos] : topo_rr_test_cases) {
+      auto topo_and_axes =
+          KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
+              topo_r_in, topo_r_out, axes);
+      auto ref_topo_and_axes =
+          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
+          << error_all_pencil_topologies(topo_r_in, topo_r_out, axes,
+                                         topo_and_axes, ref_topo_and_axes);
+    }
 
-    auto ref_topologies_and_axes_0_0_01 =
-        std::make_tuple(topologies_type{ref_topo0, ref_topo1, ref_topo0},
-                        vec_axis_type{0, 0}, layouts_type{1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_0_0_01, ref_topologies_and_axes_0_0_01);
+    std::vector<topo_rl_and_ref_type> topo_rl_test_cases = {
+        {topo0, topo3, axes01, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 1, 1, 0},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo0, ref_topo3}},
+        {topo0, topo3, axes02, vec_axis_type{1, 1, 1},
+         vec_layout_type{1, 0, 1, 0},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo0, ref_topo3}},
+        {topo0, topo3, axes10, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 1, 1, 0},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo0, ref_topo3}},
+        {topo0, topo3, axes12, vec_axis_type{1, 0, 0},
+         vec_layout_type{1, 0, 0, 0},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo4, ref_topo3}},
+        {topo0, topo3, axes20, vec_axis_type{1}, vec_layout_type{1, 0},
+         vec_topo_type{ref_topo0, ref_topo3}},
+        {topo0, topo3, axes21, vec_axis_type{0, 0, 1},
+         vec_layout_type{1, 1, 1, 0},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo0, ref_topo3}},
+        {topo0, topo4, axes01, vec_axis_type{0, 0, 1, 0},
+         vec_layout_type{1, 1, 1, 0, 0},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo0, ref_topo3, ref_topo4}},
+        {topo0, topo4, axes02, vec_axis_type{1, 1, 1, 0},
+         vec_layout_type{1, 0, 1, 0, 0},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo0, ref_topo3, ref_topo4}},
+        {topo0, topo4, axes10, vec_axis_type{1, 0}, vec_layout_type{1, 0, 0},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo4}},
+        {topo0, topo4, axes12, vec_axis_type{1, 0}, vec_layout_type{1, 0, 0},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo4}},
+        {topo0, topo4, axes20, vec_axis_type{1, 0}, vec_layout_type{1, 0, 0},
+         vec_topo_type{ref_topo0, ref_topo3, ref_topo4}},
+        {topo0, topo4, axes21, vec_axis_type{0, 1, 0, 1},
+         vec_layout_type{1, 1, 1, 0, 0},
+         vec_topo_type{ref_topo0, ref_topo1, ref_topo2, ref_topo5, ref_topo4}}};
+    for (const auto& [topo_r_in, topo_l_out, axes, ref_axes, ref_layouts,
+                      ref_topos] : topo_rl_test_cases) {
+      auto topo_and_axes =
+          KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
+              topo_r_in, topo_l_out, axes);
+      auto ref_topo_and_axes =
+          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
+          << error_all_pencil_topologies(topo_r_in, topo_l_out, axes,
+                                         topo_and_axes, ref_topo_and_axes);
+    }
 
-    auto ref_topologies_and_axes_0_0_02 =
-        std::make_tuple(topologies_type{ref_topo0, ref_topo2, ref_topo0},
-                        vec_axis_type{1, 1}, layouts_type{1, 0, 1});
-    EXPECT_EQ(topologies_and_axes_0_0_02, ref_topologies_and_axes_0_0_02);
+    std::vector<topo_lr_and_ref_type> topo_lr_test_cases = {
+        {topo3, topo0, axes01, vec_axis_type{0, 0, 1},
+         vec_layout_type{0, 0, 0, 1},
+         vec_topo_type{ref_topo3, ref_topo4, ref_topo3, ref_topo0}},
+        {topo3, topo0, axes02, vec_axis_type{1}, vec_layout_type{0, 1},
+         vec_topo_type{ref_topo3, ref_topo0}},
+        {topo3, topo0, axes10, vec_axis_type{1, 0, 0},
+         vec_layout_type{0, 1, 1, 1},
+         vec_topo_type{ref_topo3, ref_topo0, ref_topo1, ref_topo0}},
+        {topo3, topo0, axes12, vec_axis_type{0, 0, 1},
+         vec_layout_type{0, 0, 0, 1},
+         vec_topo_type{ref_topo3, ref_topo4, ref_topo3, ref_topo0}},
+        {topo3, topo0, axes20, vec_axis_type{1, 1, 1},
+         vec_layout_type{0, 1, 0, 1},
+         vec_topo_type{ref_topo3, ref_topo0, ref_topo3, ref_topo0}},
+        {topo3, topo0, axes21, vec_axis_type{0, 0, 1},
+         vec_layout_type{0, 0, 0, 1},
+         vec_topo_type{ref_topo3, ref_topo4, ref_topo3, ref_topo0}},
+        {topo4, topo0, axes01, vec_axis_type{0, 1}, vec_layout_type{0, 0, 1},
+         vec_topo_type{ref_topo4, ref_topo3, ref_topo0}},
+        {topo4, topo0, axes02, vec_axis_type{0, 1}, vec_layout_type{0, 0, 1},
+         vec_topo_type{ref_topo4, ref_topo3, ref_topo0}},
+        {topo4, topo0, axes10, vec_axis_type{1, 1, 0, 1},
+         vec_layout_type{0, 0, 0, 0, 1},
+         vec_topo_type{ref_topo4, ref_topo5, ref_topo4, ref_topo3, ref_topo0}},
+        {topo4, topo0, axes12, vec_axis_type{0, 0, 0, 1},
+         vec_layout_type{0, 0, 0, 0, 1},
+         vec_topo_type{ref_topo4, ref_topo3, ref_topo4, ref_topo3, ref_topo0}},
+        {topo4, topo0, axes20, vec_axis_type{1, 0, 1, 0},
+         vec_layout_type{0, 0, 1, 1, 1},
+         vec_topo_type{ref_topo4, ref_topo5, ref_topo2, ref_topo1, ref_topo0}},
+        {topo4, topo0, axes21, vec_axis_type{0, 1}, vec_layout_type{0, 0, 1},
+         vec_topo_type{ref_topo4, ref_topo3, ref_topo0}}};
+    for (const auto& [topo_l_in, topo_r_out, axes, ref_axes, ref_layouts,
+                      ref_topos] : topo_lr_test_cases) {
+      auto topo_and_axes =
+          KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
+              topo_l_in, topo_r_out, axes);
+      auto ref_topo_and_axes =
+          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
+          << error_all_pencil_topologies(topo_l_in, topo_r_out, axes,
+                                         topo_and_axes, ref_topo_and_axes);
+    }
 
-    auto ref_topologies_and_axes_0_0_10 =
-        std::make_tuple(topologies_type{ref_topo0, ref_topo1, ref_topo0},
-                        vec_axis_type{0, 0}, layouts_type{1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_0_0_10, ref_topologies_and_axes_0_0_10);
-
-    auto ref_topologies_and_axes_0_0_12 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo2, ref_topo4, ref_topo2, ref_topo0},
-        vec_axis_type{1, 0, 0, 1}, layouts_type{1, 0, 0, 0, 1});
-    EXPECT_EQ(topologies_and_axes_0_0_12, ref_topologies_and_axes_0_0_12);
-
-    auto ref_topologies_and_axes_0_0_20 =
-        std::make_tuple(topologies_type{ref_topo0, ref_topo2, ref_topo0},
-                        vec_axis_type{1, 1}, layouts_type{1, 0, 1});
-    EXPECT_EQ(topologies_and_axes_0_0_20, ref_topologies_and_axes_0_0_20);
-
-    auto ref_topologies_and_axes_0_0_21 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo1, ref_topo3, ref_topo1, ref_topo0},
-        vec_axis_type{0, 1, 1, 0}, layouts_type{1, 1, 1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_0_0_21, ref_topologies_and_axes_0_0_21);
-
-    // topology0 to topology1
-    auto topologies_and_axes_0_1_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology1, axes01);
-    auto topologies_and_axes_0_1_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology1, axes02);
-    auto topologies_and_axes_0_1_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology1, axes10);
-    auto topologies_and_axes_0_1_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology1, axes12);
-    auto topologies_and_axes_0_1_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology1, axes20);
-    auto topologies_and_axes_0_1_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology1, axes21);
-
-    auto ref_topologies_and_axes_0_1_01 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo1, ref_topo0, ref_topo1},
-        vec_axis_type{0, 0, 0}, layouts_type{1, 1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_0_1_01, ref_topologies_and_axes_0_1_01);
-
-    auto ref_topologies_and_axes_0_1_02 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo2, ref_topo0, ref_topo1},
-        vec_axis_type{1, 1, 0}, layouts_type{1, 0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_0_1_02, ref_topologies_and_axes_0_1_02);
-
-    auto ref_topologies_and_axes_0_1_10 =
-        std::make_tuple(topologies_type{ref_topo0, ref_topo1}, vec_axis_type{0},
-                        layouts_type{1, 1});
-    EXPECT_EQ(topologies_and_axes_0_1_10, ref_topologies_and_axes_0_1_10);
-
-    auto ref_topologies_and_axes_0_1_12 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo2, ref_topo0, ref_topo1},
-        vec_axis_type{1, 1, 0}, layouts_type{1, 0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_0_1_12, ref_topologies_and_axes_0_1_12);
-
-    auto ref_topologies_and_axes_0_1_20 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo2, ref_topo0, ref_topo1},
-        vec_axis_type{1, 1, 0}, layouts_type{1, 0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_0_1_20, ref_topologies_and_axes_0_1_20);
-
-    auto ref_topologies_and_axes_0_1_21 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo1, ref_topo3, ref_topo1},
-        vec_axis_type{0, 1, 1}, layouts_type{1, 1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_0_1_21, ref_topologies_and_axes_0_1_21);
-
-    // topology0 to topology2
-    auto topologies_and_axes_0_2_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology2, axes02);
-    auto topologies_and_axes_0_2_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology2, axes01);
-    auto topologies_and_axes_0_2_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology2, axes10);
-    auto topologies_and_axes_0_2_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology2, axes12);
-    auto topologies_and_axes_0_2_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology2, axes20);
-    auto topologies_and_axes_0_2_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology0, topology2, axes21);
-
-    auto ref_topologies_and_axes_0_2_01 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo1, ref_topo0, ref_topo2},
-        vec_axis_type{0, 0, 1}, layouts_type{1, 1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_0_2_01, ref_topologies_and_axes_0_2_01);
-
-    auto ref_topologies_and_axes_0_2_02 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo2, ref_topo0, ref_topo2},
-        vec_axis_type{1, 1, 1}, layouts_type{1, 0, 1, 0});
-    EXPECT_EQ(topologies_and_axes_0_2_02, ref_topologies_and_axes_0_2_02);
-
-    auto ref_topologies_and_axes_0_2_10 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo1, ref_topo0, ref_topo2},
-        vec_axis_type{0, 0, 1}, layouts_type{1, 1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_0_2_10, ref_topologies_and_axes_0_2_10);
-
-    auto ref_topologies_and_axes_0_2_12 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo2, ref_topo4, ref_topo2},
-        vec_axis_type{1, 0, 0}, layouts_type{1, 0, 0, 0});
-    EXPECT_EQ(topologies_and_axes_0_2_12, ref_topologies_and_axes_0_2_12);
-
-    auto ref_topologies_and_axes_0_2_20 =
-        std::make_tuple(topologies_type{ref_topo0, ref_topo2}, vec_axis_type{1},
-                        layouts_type{1, 0});
-    EXPECT_EQ(topologies_and_axes_0_2_20, ref_topologies_and_axes_0_2_20);
-
-    auto ref_topologies_and_axes_0_2_21 = std::make_tuple(
-        topologies_type{ref_topo0, ref_topo1, ref_topo0, ref_topo2},
-        vec_axis_type{0, 0, 1}, layouts_type{1, 1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_0_2_21, ref_topologies_and_axes_0_2_21);
-
-    // topology1 to topology0
-    auto topologies_and_axes_1_0_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology0, axes01);
-    auto topologies_and_axes_1_0_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology0, axes02);
-    auto topologies_and_axes_1_0_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology0, axes10);
-    auto topologies_and_axes_1_0_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology0, axes12);
-    auto topologies_and_axes_1_0_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology0, axes20);
-    auto topologies_and_axes_1_0_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology0, axes21);
-
-    auto ref_topologies_and_axes_1_0_01 =
-        std::make_tuple(topologies_type{ref_topo1, ref_topo0}, vec_axis_type{0},
-                        layouts_type{1, 1});
-    EXPECT_EQ(topologies_and_axes_1_0_01, ref_topologies_and_axes_1_0_01);
-
-    auto ref_topologies_and_axes_1_0_02 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo3, ref_topo1, ref_topo0},
-        vec_axis_type{1, 1, 0}, layouts_type{1, 1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_0_02, ref_topologies_and_axes_1_0_02);
-
-    auto ref_topologies_and_axes_1_0_10 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo0, ref_topo1, ref_topo0},
-        vec_axis_type{0, 0, 0}, layouts_type{1, 1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_0_10, ref_topologies_and_axes_1_0_10);
-
-    auto ref_topologies_and_axes_1_0_12 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo3, ref_topo1, ref_topo0},
-        vec_axis_type{1, 1, 0}, layouts_type{1, 1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_0_12, ref_topologies_and_axes_1_0_12);
-
-    auto ref_topologies_and_axes_1_0_20 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo0, ref_topo2, ref_topo0},
-        vec_axis_type{0, 1, 1}, layouts_type{1, 1, 0, 1});
-    EXPECT_EQ(topologies_and_axes_1_0_20, ref_topologies_and_axes_1_0_20);
-
-    auto ref_topologies_and_axes_1_0_21 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo3, ref_topo1, ref_topo0},
-        vec_axis_type{1, 1, 0}, layouts_type{1, 1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_0_21, ref_topologies_and_axes_1_0_21);
-
-    // topology1 to topology1
-    auto topologies_and_axes_1_1_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology1, axes01);
-    auto topologies_and_axes_1_1_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology1, axes02);
-    auto topologies_and_axes_1_1_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology1, axes10);
-    auto topologies_and_axes_1_1_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology1, axes12);
-    auto topologies_and_axes_1_1_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology1, axes20);
-    auto topologies_and_axes_1_1_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology1, axes21);
-
-    auto ref_topologies_and_axes_1_1_01 =
-        std::make_tuple(topologies_type{ref_topo1, ref_topo0, ref_topo1},
-                        vec_axis_type{0, 0}, layouts_type{1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_1_01, ref_topologies_and_axes_1_1_01);
-
-    auto ref_topologies_and_axes_1_1_02 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo3, ref_topo5, ref_topo3, ref_topo1},
-        vec_axis_type{1, 0, 0, 1}, layouts_type{1, 1, 0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_1_02, ref_topologies_and_axes_1_1_02);
-
-    auto ref_topologies_and_axes_1_1_10 =
-        std::make_tuple(topologies_type{ref_topo1, ref_topo0, ref_topo1},
-                        vec_axis_type{0, 0}, layouts_type{1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_1_10, ref_topologies_and_axes_1_1_10);
-
-    auto ref_topologies_and_axes_1_1_12 =
-        std::make_tuple(topologies_type{ref_topo1, ref_topo3, ref_topo1},
-                        vec_axis_type{1, 1}, layouts_type{1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_1_12, ref_topologies_and_axes_1_1_12);
-
-    auto ref_topologies_and_axes_1_1_20 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo0, ref_topo2, ref_topo0, ref_topo1},
-        vec_axis_type{0, 1, 1, 0}, layouts_type{1, 1, 0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_1_20, ref_topologies_and_axes_1_1_20);
-
-    auto ref_topologies_and_axes_1_1_21 =
-        std::make_tuple(topologies_type{ref_topo1, ref_topo3, ref_topo1},
-                        vec_axis_type{1, 1}, layouts_type{1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_1_1_21, ref_topologies_and_axes_1_1_21);
-
-    // topology1 to topology2
-    auto topologies_and_axes_1_2_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology2, axes01);
-    auto topologies_and_axes_1_2_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology2, axes02);
-    auto topologies_and_axes_1_2_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology2, axes10);
-    auto topologies_and_axes_1_2_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology2, axes12);
-    auto topologies_and_axes_1_2_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology2, axes20);
-    auto topologies_and_axes_1_2_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology1, topology2, axes21);
-
-    auto ref_topologies_and_axes_1_2_01 =
-        std::make_tuple(topologies_type{ref_topo1, ref_topo0, ref_topo2},
-                        vec_axis_type{0, 1}, layouts_type{1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_1_2_01, ref_topologies_and_axes_1_2_01);
-
-    auto ref_topologies_and_axes_1_2_02 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo3, ref_topo5, ref_topo4, ref_topo2},
-        vec_axis_type{1, 0, 1, 0}, layouts_type{1, 1, 0, 0, 0});
-    EXPECT_EQ(topologies_and_axes_1_2_02, ref_topologies_and_axes_1_2_02);
-
-    auto ref_topologies_and_axes_1_2_10 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo0, ref_topo1, ref_topo0, ref_topo2},
-        vec_axis_type{0, 0, 0, 1}, layouts_type{1, 1, 1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_1_2_10, ref_topologies_and_axes_1_2_10);
-
-    auto ref_topologies_and_axes_1_2_12 = std::make_tuple(
-        topologies_type{ref_topo1, ref_topo3, ref_topo1, ref_topo0, ref_topo2},
-        vec_axis_type{1, 1, 0, 1}, layouts_type{1, 1, 1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_1_2_12, ref_topologies_and_axes_1_2_12);
-
-    auto ref_topologies_and_axes_1_2_20 =
-        std::make_tuple(topologies_type{ref_topo1, ref_topo0, ref_topo2},
-                        vec_axis_type{0, 1}, layouts_type{1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_1_2_20, ref_topologies_and_axes_1_2_20);
-
-    auto ref_topologies_and_axes_1_2_21 =
-        std::make_tuple(topologies_type{ref_topo1, ref_topo0, ref_topo2},
-                        vec_axis_type{0, 1}, layouts_type{1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_1_2_21, ref_topologies_and_axes_1_2_21);
-
-    // topology2 to topology0
-    auto topologies_and_axes_2_0_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology0, axes01);
-    auto topologies_and_axes_2_0_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology0, axes02);
-    auto topologies_and_axes_2_0_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology0, axes10);
-    auto topologies_and_axes_2_0_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology0, axes12);
-    auto topologies_and_axes_2_0_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology0, axes20);
-    auto topologies_and_axes_2_0_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology0, axes21);
-
-    auto ref_topologies_and_axes_2_0_01 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo4, ref_topo2, ref_topo0},
-        vec_axis_type{0, 0, 1}, layouts_type{0, 0, 0, 1});
-    EXPECT_EQ(topologies_and_axes_2_0_01, ref_topologies_and_axes_2_0_01);
-
-    auto ref_topologies_and_axes_2_0_02 =
-        std::make_tuple(topologies_type{ref_topo2, ref_topo0}, vec_axis_type{1},
-                        layouts_type{0, 1});
-    EXPECT_EQ(topologies_and_axes_2_0_02, ref_topologies_and_axes_2_0_02);
-
-    auto ref_topologies_and_axes_2_0_10 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo0, ref_topo1, ref_topo0},
-        vec_axis_type{1, 0, 0}, layouts_type{0, 1, 1, 1});
-    EXPECT_EQ(topologies_and_axes_2_0_10, ref_topologies_and_axes_2_0_10);
-
-    auto ref_topologies_and_axes_2_0_12 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo4, ref_topo2, ref_topo0},
-        vec_axis_type{0, 0, 1}, layouts_type{0, 0, 0, 1});
-    EXPECT_EQ(topologies_and_axes_2_0_12, ref_topologies_and_axes_2_0_12);
-
-    auto ref_topologies_and_axes_2_0_20 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo0, ref_topo2, ref_topo0},
-        vec_axis_type{1, 1, 1}, layouts_type{0, 1, 0, 1});
-    EXPECT_EQ(topologies_and_axes_2_0_20, ref_topologies_and_axes_2_0_20);
-
-    auto ref_topologies_and_axes_2_0_21 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo4, ref_topo2, ref_topo0},
-        vec_axis_type{0, 0, 1}, layouts_type{0, 0, 0, 1});
-    EXPECT_EQ(topologies_and_axes_2_0_21, ref_topologies_and_axes_2_0_21);
-
-    // topology2 to topology1
-    auto topologies_and_axes_2_1_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology1, axes01);
-    auto topologies_and_axes_2_1_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology1, axes02);
-    auto topologies_and_axes_2_1_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology1, axes10);
-    auto topologies_and_axes_2_1_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology1, axes12);
-    auto topologies_and_axes_2_1_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology1, axes20);
-    auto topologies_and_axes_2_1_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology1, axes21);
-
-    auto ref_topologies_and_axes_2_1_01 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo4, ref_topo5, ref_topo3, ref_topo1},
-        vec_axis_type{0, 1, 0, 1}, layouts_type{0, 0, 0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_2_1_01, ref_topologies_and_axes_2_1_01);
-
-    auto ref_topologies_and_axes_2_1_02 =
-        std::make_tuple(topologies_type{ref_topo2, ref_topo0, ref_topo1},
-                        vec_axis_type{1, 0}, layouts_type{0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_2_1_02, ref_topologies_and_axes_2_1_02);
-
-    auto ref_topologies_and_axes_2_1_10 =
-        std::make_tuple(topologies_type{ref_topo2, ref_topo0, ref_topo1},
-                        vec_axis_type{1, 0}, layouts_type{0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_2_1_10, ref_topologies_and_axes_2_1_10);
-
-    auto ref_topologies_and_axes_2_1_12 =
-        std::make_tuple(topologies_type{ref_topo2, ref_topo0, ref_topo1},
-                        vec_axis_type{1, 0}, layouts_type{0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_2_1_12, ref_topologies_and_axes_2_1_12);
-
-    auto ref_topologies_and_axes_2_1_20 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo0, ref_topo2, ref_topo0, ref_topo1},
-        vec_axis_type{1, 1, 1, 0}, layouts_type{0, 1, 0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_2_1_20, ref_topologies_and_axes_2_1_20);
-
-    auto ref_topologies_and_axes_2_1_21 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo4, ref_topo2, ref_topo0, ref_topo1},
-        vec_axis_type{0, 0, 1, 0}, layouts_type{0, 0, 0, 1, 1});
-    EXPECT_EQ(topologies_and_axes_2_1_21, ref_topologies_and_axes_2_1_21);
-
-    // topology2 to topology2
-    auto topologies_and_axes_2_2_01 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology2, axes01);
-    auto topologies_and_axes_2_2_02 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology2, axes02);
-    auto topologies_and_axes_2_2_10 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology2, axes10);
-    auto topologies_and_axes_2_2_12 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology2, axes12);
-    auto topologies_and_axes_2_2_20 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology2, axes20);
-    auto topologies_and_axes_2_2_21 =
-        KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
-            topology2, topology2, axes21);
-
-    auto ref_topologies_and_axes_2_2_01 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo4, ref_topo5, ref_topo4, ref_topo2},
-        vec_axis_type{0, 1, 1, 0}, layouts_type{0, 0, 0, 0, 0});
-    EXPECT_EQ(topologies_and_axes_2_2_01, ref_topologies_and_axes_2_2_01);
-
-    auto ref_topologies_and_axes_2_2_02 =
-        std::make_tuple(topologies_type{ref_topo2, ref_topo0, ref_topo2},
-                        vec_axis_type{1, 1}, layouts_type{0, 1, 0});
-    EXPECT_EQ(topologies_and_axes_2_2_02, ref_topologies_and_axes_2_2_02);
-
-    auto ref_topologies_and_axes_2_2_10 = std::make_tuple(
-        topologies_type{ref_topo2, ref_topo0, ref_topo1, ref_topo0, ref_topo2},
-        vec_axis_type{1, 0, 0, 1}, layouts_type{0, 1, 1, 1, 0});
-    EXPECT_EQ(topologies_and_axes_2_2_10, ref_topologies_and_axes_2_2_10);
-
-    auto ref_topologies_and_axes_2_2_12 =
-        std::make_tuple(topologies_type{ref_topo2, ref_topo4, ref_topo2},
-                        vec_axis_type{0, 0}, layouts_type{0, 0, 0});
-    EXPECT_EQ(topologies_and_axes_2_2_12, ref_topologies_and_axes_2_2_12);
-
-    auto ref_topologies_and_axes_2_2_20 =
-        std::make_tuple(topologies_type{ref_topo2, ref_topo0, ref_topo2},
-                        vec_axis_type{1, 1}, layouts_type{0, 1, 0});
-    EXPECT_EQ(topologies_and_axes_2_2_20, ref_topologies_and_axes_2_2_20);
-
-    auto ref_topologies_and_axes_2_2_21 =
-        std::make_tuple(topologies_type{ref_topo2, ref_topo4, ref_topo2},
-                        vec_axis_type{0, 0}, layouts_type{0, 0, 0});
-    EXPECT_EQ(topologies_and_axes_2_2_21, ref_topologies_and_axes_2_2_21);
+    std::vector<topo_ll_and_ref_type> topo_ll_test_cases = {
+        {topo3, topo3, axes01, vec_axis_type{0, 1, 1, 0},
+         vec_layout_type{0, 0, 0, 0, 0},
+         vec_topo_type{ref_topo3, ref_topo4, ref_topo5, ref_topo4, ref_topo3}},
+        {topo3, topo3, axes02, vec_axis_type{1, 1}, vec_layout_type{0, 1, 0},
+         vec_topo_type{ref_topo3, ref_topo0, ref_topo3}},
+        {topo3, topo3, axes10, vec_axis_type{1, 0, 0, 1},
+         vec_layout_type{0, 1, 1, 1, 0},
+         vec_topo_type{ref_topo3, ref_topo0, ref_topo1, ref_topo0, ref_topo3}},
+        {topo3, topo3, axes12, vec_axis_type{0, 0}, vec_layout_type{0, 0, 0},
+         vec_topo_type{ref_topo3, ref_topo4, ref_topo3}},
+        {topo3, topo3, axes20, vec_axis_type{1, 1}, vec_layout_type{0, 1, 0},
+         vec_topo_type{ref_topo3, ref_topo0, ref_topo3}},
+        {topo3, topo3, axes21, vec_axis_type{0, 0}, vec_layout_type{0, 0, 0},
+         vec_topo_type{ref_topo3, ref_topo4, ref_topo3}},
+        {topo3, topo4, axes01, vec_axis_type{0, 1, 1},
+         vec_layout_type{0, 0, 0, 0},
+         vec_topo_type{ref_topo3, ref_topo4, ref_topo5, ref_topo4}},
+        {topo3, topo4, axes02, vec_axis_type{1, 1, 0},
+         vec_layout_type{0, 1, 0, 0},
+         vec_topo_type{ref_topo3, ref_topo0, ref_topo3, ref_topo4}},
+        {topo3, topo4, axes10, vec_axis_type{1, 1, 0},
+         vec_layout_type{0, 1, 0, 0},
+         vec_topo_type{ref_topo3, ref_topo0, ref_topo3, ref_topo4}},
+        {topo3, topo4, axes12, vec_axis_type{0}, vec_layout_type{0, 0},
+         vec_topo_type{ref_topo3, ref_topo4}},
+        {topo3, topo4, axes20, vec_axis_type{1, 1, 0},
+         vec_layout_type{0, 1, 0, 0},
+         vec_topo_type{ref_topo3, ref_topo0, ref_topo3, ref_topo4}},
+        {topo3, topo4, axes21, vec_axis_type{0, 0, 0},
+         vec_layout_type{0, 0, 0, 0},
+         vec_topo_type{ref_topo3, ref_topo4, ref_topo3, ref_topo4}}};
+    for (const auto& [topo_l_in, topo_l_out, axes, ref_axes, ref_layouts,
+                      ref_topos] : topo_ll_test_cases) {
+      auto topo_and_axes =
+          KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
+              topo_l_in, topo_l_out, axes);
+      auto ref_topo_and_axes =
+          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
+          << error_all_pencil_topologies(topo_l_in, topo_l_out, axes,
+                                         topo_and_axes, ref_topo_and_axes);
+    }
   }
 }
 
