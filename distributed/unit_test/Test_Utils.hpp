@@ -51,10 +51,6 @@ bool allclose(const ExecutionSpace& exec, const AViewType& a,
   return error == 0;
 }
 
-inline auto get_r2c_shape(std::size_t len, bool is_R2C) {
-  return is_R2C ? (len / 2 + 1) : len;
-}
-
 template <typename LayoutType, typename iType, std::size_t Rank>
 inline auto get_buffer_shape(const std::array<iType, Rank>& shape,
                              iType nprocs) {
