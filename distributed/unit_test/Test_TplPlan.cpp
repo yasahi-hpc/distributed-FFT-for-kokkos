@@ -641,8 +641,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   axes_type ax01{0, 1}, ax10{1, 0};
 
   const std::size_t n0 = 8, n1 = 7;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C);
   extents_type global_in_extents{n0, n1}, global_out_extents_ax0{n0h, n1},
       global_out_extents_ax1{n0, n1h};
 
@@ -916,9 +916,9 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
       topology2{nprocs, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 9;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C),
-                    n2h = get_r2c_shape(n2, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C),
+                    n2h = KokkosFFT::Impl::extent_after_transform(n2, is_R2C);
   extents_type global_in_extents{n0, n1, n2},
       global_out_extents_ax0{n0h, n1, n2}, global_out_extents_ax1{n0, n1h, n2},
       global_out_extents_ax2{n0, n1, n2h};
@@ -1721,9 +1721,9 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
       topology2{npx, npy, 1};
 
   const std::size_t n0 = 5, n1 = 6, n2 = 7;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C),
-                    n2h = get_r2c_shape(n2, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C),
+                    n2h = KokkosFFT::Impl::extent_after_transform(n2, is_R2C);
   extents_type global_in_extents{n0, n1, n2},
       global_out_extents_ax0{n0h, n1, n2}, global_out_extents_ax1{n0, n1h, n2},
       global_out_extents_ax2{n0, n1, n2h};

@@ -89,8 +89,8 @@ void test_slab1D_view2D(std::size_t nprocs) {
   topology_type topology1{nprocs, 1};
 
   const std::size_t n0 = 8, n1 = 7;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C);
   extents_type global_in_extents{n0, n1}, global_out_extents_ax0{n0h, n1},
       global_out_extents_ax1{n0, n1h};
 
@@ -331,9 +331,9 @@ void test_slab1D_view3D(std::size_t nprocs) {
       topology2{nprocs, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 6;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C),
-                    n2h = get_r2c_shape(n2, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C),
+                    n2h = KokkosFFT::Impl::extent_after_transform(n2, is_R2C);
   extents_type global_in_extents{n0, n1, n2},
       global_out_extents_ax0{n0h, n1, n2}, global_out_extents_ax1{n0, n1h, n2},
       global_out_extents_ax2{n0, n1, n2h};
@@ -761,8 +761,8 @@ void test_slab2D_view2D(std::size_t nprocs) {
   topology_type topology0{1, nprocs}, topology1{nprocs, 1};
 
   const std::size_t n0 = 8, n1 = 7;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C);
   extents_type global_in_extents{n0, n1}, global_out_extents_ax0{n0h, n1},
       global_out_extents_ax1{n0, n1h};
 
@@ -1041,9 +1041,9 @@ void test_slab2D_view3D(std::size_t nprocs) {
       topology2{nprocs, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 6;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C),
-                    n2h = get_r2c_shape(n2, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C),
+                    n2h = KokkosFFT::Impl::extent_after_transform(n2, is_R2C);
   extents_type global_in_extents{n0, n1, n2},
       global_out_extents_ax0{n0h, n1, n2}, global_out_extents_ax1{n0, n1h, n2},
       global_out_extents_ax2{n0, n1, n2h};
@@ -2082,9 +2082,9 @@ void test_slab3D_view3D(std::size_t nprocs) {
       topology2{nprocs, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 6;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C),
-                    n2h = get_r2c_shape(n2, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C),
+                    n2h = KokkosFFT::Impl::extent_after_transform(n2, is_R2C);
   extents_type global_in_extents{n0, n1, n2},
       global_out_extents_ax0{n0h, n1, n2}, global_out_extents_ax1{n0, n1h, n2},
       global_out_extents_ax2{n0, n1, n2h};
@@ -2736,10 +2736,10 @@ void test_slab3D_view4D(std::size_t nprocs) {
       topology2{1, nprocs, 1, 1}, topology3{nprocs, 1, 1, 1};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 6, n3 = 6;
-  const std::size_t n0h = get_r2c_shape(n0, is_R2C),
-                    n1h = get_r2c_shape(n1, is_R2C),
-                    n2h = get_r2c_shape(n2, is_R2C),
-                    n3h = get_r2c_shape(n3, is_R2C);
+  const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
+                    n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C),
+                    n2h = KokkosFFT::Impl::extent_after_transform(n2, is_R2C),
+                    n3h = KokkosFFT::Impl::extent_after_transform(n3, is_R2C);
   extents_type global_in_extents{n0, n1, n2, n3},
       global_out_extents_ax0{n0h, n1, n2, n3},
       global_out_extents_ax1{n0, n1h, n2, n3},
