@@ -72,10 +72,6 @@ struct TestTplPlan3D : public ::testing::Test {
       GTEST_SKIP() << "The number of MPI processes should be smaller or equal "
                       "to 4 for this test";
     }
-    if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
-      GTEST_SKIP() << "The number of MPI processes should be a perfect square "
-                      "for this test";
-    }
   }
 };
 
@@ -446,8 +442,8 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
   topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1},
       topology2{nprocs, 1, 1};
 
-  axes_type ax012 = {0, 1, 2}, ax021 = {0, 2, 1}, ax102 = {1, 0, 2},
-            ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
+  axes_type ax012{0, 1, 2}, ax021{0, 2, 1}, ax102{1, 0, 2}, ax120{1, 2, 0},
+      ax201{2, 0, 1}, ax210{2, 1, 0};
 
   const std::size_t n0 = 8, n1 = 7, n2 = 5;
   extents_type global_in_extents{n0, n1, n2},
@@ -810,25 +806,31 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
   } else {
     // topo0 -> topo0 with ax = {0, 1}:
     // (n0, n1/p) -> (n0, (n1/2+1)/p)
-    Kokkos::deep_copy(u_0, ref_u_inv_0);
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax01(
-        exec, u_0, u_hat_0_ax01, ax01, topology0, topology0, MPI_COMM_WORLD);
-    plan_0_0_ax01.forward(u_0, u_hat_0_ax01);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
+    if (KokkosFFT::Distributed::Impl::is_tpl_available(
+            exec, u_0, u_hat_0_ax01, ax01, topology0, topology0)) {
+      Kokkos::deep_copy(u_0, ref_u_inv_0);
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax01(
+          exec, u_0, u_hat_0_ax01, ax01, topology0, topology0, MPI_COMM_WORLD);
+      plan_0_0_ax01.forward(u_0, u_hat_0_ax01);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
 
-    plan_0_0_ax01.backward(u_hat_0_ax01, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+      plan_0_0_ax01.backward(u_hat_0_ax01, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
 
-    // topo0 -> topo0 with ax = {1, 0}:
-    // (n0, n1/p) -> (n0/2+1, n1/p)
-    Kokkos::deep_copy(u_0, ref_u_inv_0);
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax10(
-        exec, u_0, u_hat_0_ax10, ax10, topology0, topology0, MPI_COMM_WORLD);
-    plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
+    if (KokkosFFT::Distributed::Impl::is_tpl_available(
+            exec, u_0, u_hat_0_ax10, ax10, topology0, topology0)) {
+      // topo0 -> topo0 with ax = {1, 0}:
+      // (n0, n1/p) -> (n0/2+1, n1/p)
+      Kokkos::deep_copy(u_0, ref_u_inv_0);
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax10(
+          exec, u_0, u_hat_0_ax10, ax10, topology0, topology0, MPI_COMM_WORLD);
+      plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
 
-    plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+      plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
 
     // topo0 -> topo1 with ax = {0, 1}:
     // (n0, n1/p) -> (n0/p, n1/2+1)
@@ -878,25 +880,31 @@ void test_tpl2D_execute_View2D(std::size_t nprocs) {
 
     // topo1 -> topo1 with ax = {0, 1}:
     // (n0/p, n1) -> (n0/p, (n1/2+1))
-    Kokkos::deep_copy(u_1, ref_u_inv_1);
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax01(
-        exec, u_1, u_hat_1_ax01, ax01, topology1, topology1, MPI_COMM_WORLD);
-    plan_1_1_ax01.forward(u_1, u_hat_1_ax01);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
+    if (KokkosFFT::Distributed::Impl::is_tpl_available(
+            exec, u_1, u_hat_1_ax01, ax01, topology1, topology1)) {
+      Kokkos::deep_copy(u_1, ref_u_inv_1);
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax01(
+          exec, u_1, u_hat_1_ax01, ax01, topology1, topology1, MPI_COMM_WORLD);
+      plan_1_1_ax01.forward(u_1, u_hat_1_ax01);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
 
-    plan_1_1_ax01.backward(u_hat_1_ax01, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+      plan_1_1_ax01.backward(u_hat_1_ax01, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
 
     // topo1 -> topo1 with ax = {1, 0}:
     // (n0/p, n1) -> ((n0/2+1), n1/p)
-    Kokkos::deep_copy(u_1, ref_u_inv_1);
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax10(
-        exec, u_1, u_hat_1_ax10, ax10, topology1, topology1, MPI_COMM_WORLD);
-    plan_1_1_ax10.forward(u_1, u_hat_1_ax10);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
+    if (KokkosFFT::Distributed::Impl::is_tpl_available(
+            exec, u_1, u_hat_1_ax10, ax10, topology1, topology1)) {
+      Kokkos::deep_copy(u_1, ref_u_inv_1);
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax10(
+          exec, u_1, u_hat_1_ax10, ax10, topology1, topology1, MPI_COMM_WORLD);
+      plan_1_1_ax10.forward(u_1, u_hat_1_ax10);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
 
-    plan_1_1_ax10.backward(u_hat_1_ax10, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+      plan_1_1_ax10.backward(u_hat_1_ax10, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
   }
 }
 
@@ -924,8 +932,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
       global_out_extents_ax2{n0, n1, n2h};
 
   // All axes
-  axes_type ax012 = {0, 1, 2}, ax021 = {0, 2, 1}, ax102 = {1, 0, 2},
-            ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
+  axes_type ax012{0, 1, 2}, ax021{0, 2, 1}, ax102{1, 0, 2}, ax120{1, 2, 0},
+      ax201{2, 0, 1}, ax210{2, 1, 0};
 
   auto [in_extents_t0, in_starts_t0] =
       KokkosFFT::Distributed::compute_local_extents_and_starts(
@@ -1729,8 +1737,8 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
       global_out_extents_ax2{n0, n1, n2h};
 
   // All axes
-  axes_type ax012 = {0, 1, 2}, ax021 = {0, 2, 1}, ax102 = {1, 0, 2},
-            ax120 = {1, 2, 0}, ax201 = {2, 0, 1}, ax210 = {2, 1, 0};
+  axes_type ax012{0, 1, 2}, ax021{0, 2, 1}, ax102{1, 0, 2}, ax120{1, 2, 0},
+      ax201{2, 0, 1}, ax210{2, 1, 0};
 
   auto [in_extents_t0, in_starts_t0] =
       KokkosFFT::Distributed::compute_local_extents_and_starts(
@@ -2291,7 +2299,10 @@ TYPED_TEST(TestTplPlan3D, ExecuteView3D_C2C) {
 TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_R2C) {
   using float_type  = typename TestFixture::float_type;
   using layout_type = typename TestFixture::layout_type;
-
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
   test_tpl3D_execute_View3D_pencil<float_type, layout_type>(this->m_npx,
                                                             this->m_npx);
 }
@@ -2300,7 +2311,10 @@ TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_C2C) {
   using float_type   = typename TestFixture::float_type;
   using layout_type  = typename TestFixture::layout_type;
   using complex_type = Kokkos::complex<float_type>;
-
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
   test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(this->m_npx,
                                                               this->m_npx);
 }
