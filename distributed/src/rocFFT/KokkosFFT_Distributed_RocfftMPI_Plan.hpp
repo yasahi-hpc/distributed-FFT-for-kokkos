@@ -96,10 +96,14 @@ void create_plan(const ExecutionSpace& exec_space,
     auto out_raw_starts =
         compute_local_starts(out_raw_extents, out_topology, comm);
 
-    auto in_extents  = compute_mapped_extents(in_raw_extents, map);
-    auto out_extents = compute_mapped_extents(out_raw_extents, map);
-    auto in_starts   = compute_mapped_extents(in_raw_starts, map);
-    auto out_starts  = compute_mapped_extents(out_raw_starts, map);
+    auto in_extents =
+        KokkosFFT::Impl::compute_mapped_extents(in_raw_extents, map);
+    auto out_extents =
+        KokkosFFT::Impl::compute_mapped_extents(out_raw_extents, map);
+    auto in_starts =
+        KokkosFFT::Impl::compute_mapped_extents(in_raw_starts, map);
+    auto out_starts =
+        KokkosFFT::Impl::compute_mapped_extents(out_raw_starts, map);
 
     std::array<std::size_t, DIM> in_ends{}, out_ends{};
     std::transform(in_starts.begin(), in_starts.end(), in_extents.begin(),
