@@ -118,7 +118,8 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
           KokkosFFT::Impl::convert_base_int_type<std::size_t>(
               KokkosFFT::Impl::convert_negative_axes(axes, DIM));
       gin_padded_extents =
-          compute_padded_extents(gout_extents, non_negative_axes);
+          KokkosFFT::Impl::compute_padded_extents<in_value_type>(
+              gout_extents, non_negative_axes);
     }
 #endif
 
@@ -127,8 +128,10 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
     auto [out_extents, out_starts] =
         compute_local_extents_and_starts(gout_extents, out_topology, comm);
 
-    m_in_mapped_extents  = compute_mapped_extents(in_extents, m_in_map);
-    m_out_mapped_extents = compute_mapped_extents(out_extents, m_in_map);
+    m_in_mapped_extents =
+        KokkosFFT::Impl::compute_mapped_extents(in_extents, m_in_map);
+    m_out_mapped_extents =
+        KokkosFFT::Impl::compute_mapped_extents(out_extents, m_in_map);
 
     // Calling setup function
     using float_type = KokkosFFT::Impl::base_floating_point_type<in_value_type>;

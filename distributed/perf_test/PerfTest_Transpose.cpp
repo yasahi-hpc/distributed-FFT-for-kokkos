@@ -27,7 +27,7 @@ static void benchmark_transpose(benchmark::State& state) {
     return;
   }
 
-  map_type map = {};
+  map_type map{};
   if constexpr (DIM == 2) {
     map = (order == 0) ? map_type{0, 1} : map_type{1, 0};
   } else {
@@ -39,13 +39,12 @@ static void benchmark_transpose(benchmark::State& state) {
                          : map_type({2, 1, 0});
   }
 
-  shape_type src_extents = {};
+  shape_type src_extents{};
   for (std::size_t i = 0; i < src_extents.size(); i++) {
     src_extents.at(i) = i == axis ? size / nprocs : size;
   }
 
-  auto dst_extents =
-      KokkosFFT::Distributed::Impl::compute_mapped_extents(src_extents, map);
+  auto dst_extents = KokkosFFT::Impl::compute_mapped_extents(src_extents, map);
 
   ViewType src("src", KokkosFFT::Impl::create_layout<LayoutType>(src_extents));
   ViewType dst("dst", KokkosFFT::Impl::create_layout<LayoutType>(dst_extents));

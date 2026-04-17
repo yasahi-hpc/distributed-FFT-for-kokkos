@@ -11,31 +11,6 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief Compute padded extents from the extents in Fourier space
-///
-/// Example, if the first FFT dimension is the 2nd dimension
-/// in extents (real): (8, 7, 8)
-/// out extents (complex): (8, 7, 5)
-/// axes: (0, 1, 2)
-/// FFT is operated from 2nd axis, so we have
-/// padded extents (real): (8, 7, 10)
-///
-/// \tparam DIM The number of dimensions of the extents.
-///
-/// \param[in] in_extents Extents of the global input View.
-/// \param[in] out_extents Extents of the global output View.
-/// \param[in] axes Axes of the transform
-/// \return A extents of the permuted view
-template <std::size_t DIM>
-auto compute_padded_extents(const std::array<std::size_t, DIM> &extents,
-                            const std::array<std::size_t, DIM> &axes) {
-  std::array<std::size_t, DIM> padded_extents = extents;
-  auto last_axis                              = axes.back();
-  padded_extents.at(last_axis) *= 2;
-
-  return padded_extents;
-}
-
 /// \brief Calculate the buffer extents based on the global extents,
 /// the in-topology, and the out-topology.
 ///
@@ -117,39 +92,6 @@ auto compute_buffer_extents(
     const Topology<iType, DIM, OutLayoutType> &out_topology) {
   return compute_buffer_extents<LayoutType>(extents, in_topology.array(),
                                             out_topology.array());
-}
-
-/// \brief Calculate the permuted extents based on the map
-///
-/// Example
-/// View extents: (n0, n1, n2, n3)
-/// map: (0, 2, 3, 1)
-/// Next extents: (n0, n2, n3, n1)
-///
-/// \tparam ContainerType The container type
-/// \tparam iType The integer type used for extents
-/// \tparam DIM The number of dimensions of the extents.
-///
-/// \param[in] extents Extents of the View.
-/// \param[in] map A map representing how the data is permuted
-/// \return A extents of the permuted view
-/// \throws std::runtime_error if the size of map is not equal to DIM
-template <typename ContainerType, typename iType, std::size_t DIM>
-auto compute_mapped_extents(const std::array<iType, DIM> &extents,
-                            const ContainerType &map) {
-  using value_type = std::remove_cv_t<
-      std::remove_reference_t<typename ContainerType::value_type>>;
-  static_assert(std::is_integral_v<value_type>,
-                "compute_mapped_extents: Map container value type must be an "
-                "integral type");
-  KOKKOSFFT_THROW_IF(map.size() != DIM,
-                     "extents size must be equal to map size.");
-  std::array<iType, DIM> mapped_extents{};
-  std::transform(
-      map.begin(), map.end(), mapped_extents.begin(),
-      [&](std::size_t mapped_idx) { return extents.at(mapped_idx); });
-
-  return mapped_extents;
 }
 
 /// \brief Compute the larger extents. Larger one corresponds to

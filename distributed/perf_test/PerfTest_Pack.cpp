@@ -21,8 +21,8 @@ static void benchmark_pack(benchmark::State& state) {
 
   std::size_t size = state.range(0), nprocs = state.range(1);
 
-  src_shape_type global_extents = {}, local_extents = {};
-  map_type src_topology = {}, dst_topology = {};
+  src_shape_type global_extents{}, local_extents{};
+  map_type src_topology{}, dst_topology{};
   for (std::size_t i = 0; i < global_extents.size(); i++) {
     global_extents.at(i) = size;
   }
@@ -50,8 +50,8 @@ static void benchmark_pack(benchmark::State& state) {
                              : map_type({2, 1, 0});
   }
 
-  auto src_extents = KokkosFFT::Distributed::Impl::compute_mapped_extents(
-      local_extents, src_map);
+  auto src_extents =
+      KokkosFFT::Impl::compute_mapped_extents(local_extents, src_map);
   auto dst_extents =
       KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           global_extents, src_topology, dst_topology);

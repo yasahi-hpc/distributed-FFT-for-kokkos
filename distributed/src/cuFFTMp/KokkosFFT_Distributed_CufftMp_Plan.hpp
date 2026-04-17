@@ -155,7 +155,8 @@ void create_plan(const ExecutionSpace& exec_space,
   if (KokkosFFT::Impl::is_real_v<in_value_type>) {
     // Using general API
     auto gin_padded_extents =
-        compute_padded_extents(gout_extents, non_negative_axes);
+        KokkosFFT::Impl::compute_padded_extents<in_value_type>(
+            gout_extents, non_negative_axes);
     auto [in_extents, in_starts] =
         compute_local_extents_and_starts(gin_extents, in_topology, comm);
     auto [out_extents, out_starts] =
@@ -170,14 +171,19 @@ void create_plan(const ExecutionSpace& exec_space,
                    out_ends.begin(), std::plus<std::size_t>());
 
     // Mapping based of axes
-    auto mapped_in_extents = compute_mapped_extents(in_extents, map);
+    auto mapped_in_extents =
+        KokkosFFT::Impl::compute_mapped_extents(in_extents, map);
     auto mapped_in_padded_extents =
-        compute_mapped_extents(in_padded_extents, map);
-    auto mapped_out_extents = compute_mapped_extents(out_extents, map);
-    auto mapped_in_starts   = compute_mapped_extents(in_starts, map);
-    auto mapped_out_starts  = compute_mapped_extents(out_starts, map);
-    auto mapped_in_ends     = compute_mapped_extents(in_ends, map);
-    auto mapped_out_ends    = compute_mapped_extents(out_ends, map);
+        KokkosFFT::Impl::compute_mapped_extents(in_padded_extents, map);
+    auto mapped_out_extents =
+        KokkosFFT::Impl::compute_mapped_extents(out_extents, map);
+    auto mapped_in_starts =
+        KokkosFFT::Impl::compute_mapped_extents(in_starts, map);
+    auto mapped_out_starts =
+        KokkosFFT::Impl::compute_mapped_extents(out_starts, map);
+    auto mapped_in_ends = KokkosFFT::Impl::compute_mapped_extents(in_ends, map);
+    auto mapped_out_ends =
+        KokkosFFT::Impl::compute_mapped_extents(out_ends, map);
 
     auto in_strides = KokkosFFT::Impl::reversed(
         KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));
@@ -201,9 +207,10 @@ void create_plan(const ExecutionSpace& exec_space,
     plan->commit(exec_space);
 
   } else {
-    auto in_mapped_topology = compute_mapped_extents(in_topology, map);
-    bool is_xslab           = in_mapped_topology.at(0) > 1;
-    plan = std::make_unique<PlanType>(nx, ny, comm, is_xslab);
+    auto in_mapped_topology =
+        KokkosFFT::Impl::compute_mapped_extents(in_topology, map);
+    bool is_xslab = in_mapped_topology.at(0) > 1;
+    plan          = std::make_unique<PlanType>(nx, ny, comm, is_xslab);
     plan->commit(exec_space);
   }
 }
@@ -267,8 +274,9 @@ void create_plan(const ExecutionSpace& exec_space,
       are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
 
   if (is_slab && is_first_dim_ready) {
-    auto in_mapped_topology = compute_mapped_extents(in_topology, map);
-    bool is_xslab           = in_mapped_topology.at(0) > 1;
+    auto in_mapped_topology =
+        KokkosFFT::Impl::compute_mapped_extents(in_topology, map);
+    bool is_xslab = in_mapped_topology.at(0) > 1;
 
     plan = std::make_unique<PlanType>(nx, ny, nz, comm, is_xslab);
     plan->commit(exec_space);
@@ -277,7 +285,8 @@ void create_plan(const ExecutionSpace& exec_space,
     auto gin_padded_extents = gin_extents;
     if (KokkosFFT::Impl::is_real_v<in_value_type>) {
       gin_padded_extents =
-          compute_padded_extents(gout_extents, non_negative_axes);
+          KokkosFFT::Impl::compute_padded_extents<in_value_type>(
+              gout_extents, non_negative_axes);
     }
 
     auto [in_extents, in_starts] =
@@ -294,14 +303,19 @@ void create_plan(const ExecutionSpace& exec_space,
                    out_ends.begin(), std::plus<std::size_t>());
 
     // Mapping based of axes
-    auto mapped_in_extents = compute_mapped_extents(in_extents, map);
+    auto mapped_in_extents =
+        KokkosFFT::Impl::compute_mapped_extents(in_extents, map);
     auto mapped_in_padded_extents =
-        compute_mapped_extents(in_padded_extents, map);
-    auto mapped_out_extents = compute_mapped_extents(out_extents, map);
-    auto mapped_in_starts   = compute_mapped_extents(in_starts, map);
-    auto mapped_out_starts  = compute_mapped_extents(out_starts, map);
-    auto mapped_in_ends     = compute_mapped_extents(in_ends, map);
-    auto mapped_out_ends    = compute_mapped_extents(out_ends, map);
+        KokkosFFT::Impl::compute_mapped_extents(in_padded_extents, map);
+    auto mapped_out_extents =
+        KokkosFFT::Impl::compute_mapped_extents(out_extents, map);
+    auto mapped_in_starts =
+        KokkosFFT::Impl::compute_mapped_extents(in_starts, map);
+    auto mapped_out_starts =
+        KokkosFFT::Impl::compute_mapped_extents(out_starts, map);
+    auto mapped_in_ends = KokkosFFT::Impl::compute_mapped_extents(in_ends, map);
+    auto mapped_out_ends =
+        KokkosFFT::Impl::compute_mapped_extents(out_ends, map);
 
     auto in_strides = KokkosFFT::Impl::reversed(
         KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));
