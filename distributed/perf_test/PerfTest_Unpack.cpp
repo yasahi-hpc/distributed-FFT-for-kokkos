@@ -22,8 +22,8 @@ static void benchmark_unpack(benchmark::State& state) {
 
   std::size_t size = state.range(0), nprocs = state.range(1);
 
-  dst_shape_type global_extents = {}, local_extents = {};
-  map_type src_topology = {}, dst_topology = {};
+  dst_shape_type global_extents{}, local_extents{};
+  map_type src_topology{}, dst_topology{};
   for (std::size_t i = 0; i < global_extents.size(); i++) {
     global_extents.at(i) = size;
   }
@@ -39,7 +39,7 @@ static void benchmark_unpack(benchmark::State& state) {
     local_extents.at(i) = size / src_topology.at(i);
   }
 
-  map_type dst_map = {};
+  map_type dst_map{};
   if constexpr (DIM == 2) {
     dst_map = (order == 0) ? map_type{0, 1} : map_type{1, 0};
   } else {
@@ -55,8 +55,7 @@ static void benchmark_unpack(benchmark::State& state) {
       KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           global_extents, src_topology, dst_topology);
   auto dst_extents =
-      KokkosFFT::Distributed::Impl::KokkosFFT::Impl::compute_mapped_extents(
-          local_extents, dst_map);
+      KokkosFFT::Impl::compute_mapped_extents(local_extents, dst_map);
 
   SrcViewType src("src",
                   KokkosFFT::Impl::create_layout<LayoutType>(src_extents));
