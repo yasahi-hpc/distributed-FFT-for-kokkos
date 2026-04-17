@@ -154,8 +154,9 @@ void create_plan(const ExecutionSpace& exec_space,
 
   if (KokkosFFT::Impl::is_real_v<in_value_type>) {
     // Using general API
-    auto gin_padded_extents = KokkosFFT::Impl::compute_padded_extents(
-        gout_extents, non_negative_axes);
+    auto gin_padded_extents =
+        KokkosFFT::Impl::compute_padded_extents<in_value_type>(
+            gout_extents, non_negative_axes);
     auto [in_extents, in_starts] =
         compute_local_extents_and_starts(gin_extents, in_topology, comm);
     auto [out_extents, out_starts] =
@@ -283,8 +284,9 @@ void create_plan(const ExecutionSpace& exec_space,
     // Using general API
     auto gin_padded_extents = gin_extents;
     if (KokkosFFT::Impl::is_real_v<in_value_type>) {
-      gin_padded_extents = KokkosFFT::Impl::compute_padded_extents(
-          gout_extents, non_negative_axes);
+      gin_padded_extents =
+          KokkosFFT::Impl::compute_padded_extents<in_value_type>(
+              gout_extents, non_negative_axes);
     }
 
     auto [in_extents, in_starts] =

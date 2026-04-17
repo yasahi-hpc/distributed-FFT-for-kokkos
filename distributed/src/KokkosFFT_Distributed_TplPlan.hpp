@@ -117,8 +117,9 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       auto non_negative_axes =
           KokkosFFT::Impl::convert_base_int_type<std::size_t>(
               KokkosFFT::Impl::convert_negative_axes(axes, DIM));
-      gin_padded_extents = KokkosFFT::Impl::compute_padded_extents(
-          gout_extents, non_negative_axes);
+      gin_padded_extents =
+          KokkosFFT::Impl::compute_padded_extents<in_value_type>(
+              gout_extents, non_negative_axes);
     }
 #endif
 
