@@ -61,6 +61,13 @@ bool is_tpl_available(
       Topology<std::size_t, OutViewType::rank()>(out_topology));
 }
 
+template <typename ExecutionSpace, typename T,
+          std::enable_if_t<std::is_same_v<ExecutionSpace, Kokkos::HIP>,
+                           std::nullptr_t> = nullptr>
+void setup(MPI_Comm /*comm*/) {
+  KokkosFFT::Impl::setup<ExecutionSpace, T>();
+}
+
 // General interface
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType, std::size_t DIM>

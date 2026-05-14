@@ -1341,375 +1341,489 @@ void test_tpl3D_execute_View3D(std::size_t nprocs) {
   } else {
     // topo 0 -> topo 1 with ax = {0, 1, 2}:
     // (n0, n1, n2/p) -> (n0, n1/p, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax012(
-        exec, u_0, u_hat_1_ax012, ax012, topology0, topology1, MPI_COMM_WORLD);
-    plan_0_1_ax012.forward(u_0, u_hat_1_ax012);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
-
-    plan_0_1_ax012.backward(u_hat_1_ax012, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 1 with ax = {0, 2, 1}:
-    // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax021(
-        exec, u_0, u_hat_1_ax021, ax021, topology0, topology1, MPI_COMM_WORLD);
-    plan_0_1_ax021.forward(u_0, u_hat_1_ax021);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021, 1.0e-5, 1.0e-6));
-
-    plan_0_1_ax021.backward(u_hat_1_ax021, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 1 with ax = {1, 0, 2}:
-    // (n0, n1, n2/p) -> (n0, n1/p, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax102(
-        exec, u_0, u_hat_1_ax102, ax102, topology0, topology1, MPI_COMM_WORLD);
-    plan_0_1_ax102.forward(u_0, u_hat_1_ax102);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102, 1.0e-5, 1.0e-5));
-
-    plan_0_1_ax102.backward(u_hat_1_ax102, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 1 with ax = {1, 2, 0}:
-    // (n0, n1, n2/p) -> (n0/2+1, n1/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax120(
-        exec, u_0, u_hat_1_ax120, ax120, topology0, topology1, MPI_COMM_WORLD);
-    plan_0_1_ax120.forward(u_0, u_hat_1_ax120);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
-
-    plan_0_1_ax120.backward(u_hat_1_ax120, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 1 with ax = {2, 0, 1}:
-    // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax201(
-        exec, u_0, u_hat_1_ax201, ax201, topology0, topology1, MPI_COMM_WORLD);
-    plan_0_1_ax201.forward(u_0, u_hat_1_ax201);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201));
-
-    plan_0_1_ax201.backward(u_hat_1_ax201, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 1 with ax = {2, 1, 0}:
-    // (n0, n1, n2/p) -> (n0/2+1, n1/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax210(
-        exec, u_0, u_hat_1_ax210, ax210, topology0, topology1, MPI_COMM_WORLD);
-    plan_0_1_ax210.forward(u_0, u_hat_1_ax210);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210));
-
-    plan_0_1_ax210.backward(u_hat_1_ax210, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 2 with ax = {0, 1, 2}:
-    // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax012(
-        exec, u_0, u_hat_2_ax012, ax012, topology0, topology2, MPI_COMM_WORLD);
-    plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 1.0e-5));
-
-    plan_0_2_ax012.backward(u_hat_2_ax012, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 2 with ax = {0, 2, 1}:
-    // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax021(
-        exec, u_0, u_hat_2_ax021, ax021, topology0, topology2, MPI_COMM_WORLD);
-    plan_0_2_ax021.forward(u_0, u_hat_2_ax021);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021, 1.0e-5, 1.0e-6));
-
-    plan_0_2_ax021.backward(u_hat_2_ax021, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 2 with ax = {1, 0, 2}:
-    // (n0, n1, n2/p) -> (n0, n1/p, n2) -> (n0, n1/p, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax102(
-        exec, u_0, u_hat_2_ax102, ax102, topology0, topology2, MPI_COMM_WORLD);
-    plan_0_2_ax102.forward(u_0, u_hat_2_ax102);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102));
-
-    plan_0_2_ax102.backward(u_hat_2_ax102, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 2 with ax = {1, 2, 0}:
-    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax120(
-        exec, u_0, u_hat_2_ax120, ax120, topology0, topology2, MPI_COMM_WORLD);
-    plan_0_2_ax120.forward(u_0, u_hat_2_ax120);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
-
-    plan_0_2_ax120.backward(u_hat_2_ax120, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 2 with ax = {2, 0, 1}:
-    // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax201(
-        exec, u_0, u_hat_2_ax201, ax201, topology0, topology2, MPI_COMM_WORLD);
-    plan_0_2_ax201.forward(u_0, u_hat_2_ax201);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
-
-    plan_0_2_ax201.backward(u_hat_2_ax201, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 0 -> topo 2 with ax = {2, 1, 0}:
-    // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax210(
-        exec, u_0, u_hat_2_ax210, ax210, topology0, topology2, MPI_COMM_WORLD);
-    plan_0_2_ax210.forward(u_0, u_hat_2_ax210);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210));
-
-    plan_0_2_ax210.backward(u_hat_2_ax210, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 0 with ax = {0, 1, 2}:
-    // (n0p, n1/p, n2) -> (n0, n1, (n2/2+1)/p)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax012(
-        exec, u_1, u_hat_0_ax012, ax012, topology1, topology0, MPI_COMM_WORLD);
-    plan_1_0_ax012.forward(u_1, u_hat_0_ax012);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5, 1.0e-5));
-
-    plan_1_0_ax012.backward(u_hat_0_ax012, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 0 with ax = {0, 2, 1}:
-    // (n0p, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax021(
-        exec, u_1, u_hat_0_ax021, ax021, topology1, topology0, MPI_COMM_WORLD);
-    plan_1_0_ax021.forward(u_1, u_hat_0_ax021);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
-
-    plan_1_0_ax021.backward(u_hat_0_ax021, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 0 with ax = {1, 0, 2}:
-    // (n0p, n1/p, n2) -> (n0, n1/2+1, (n2/2+1)/p)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax102(
-        exec, u_1, u_hat_0_ax102, ax102, topology1, topology0, MPI_COMM_WORLD);
-    plan_1_0_ax102.forward(u_1, u_hat_0_ax102);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
-
-    plan_1_0_ax102.backward(u_hat_0_ax102, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 0 with ax = {1, 2, 0}:
-    // (n0p, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax120(
-        exec, u_1, u_hat_0_ax120, ax120, topology1, topology0, MPI_COMM_WORLD);
-    plan_1_0_ax120.forward(u_1, u_hat_0_ax120);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
-
-    plan_1_0_ax120.backward(u_hat_0_ax120, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 0 with ax = {2, 0, 1}:
-    // (n0p, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax201(
-        exec, u_1, u_hat_0_ax201, ax201, topology1, topology0, MPI_COMM_WORLD);
-    plan_1_0_ax201.forward(u_1, u_hat_0_ax201);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201, 1.0e-5, 1.0e-6));
-
-    plan_1_0_ax201.backward(u_hat_0_ax201, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 0 with ax = {2, 1, 0}:
-    // (n0p, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax210(
-        exec, u_1, u_hat_0_ax210, ax210, topology1, topology0, MPI_COMM_WORLD);
-    plan_1_0_ax210.forward(u_1, u_hat_0_ax210);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
-
-    plan_1_0_ax210.backward(u_hat_0_ax210, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 2 with ax = {0, 1, 2}:
-    // (n0, n1/p, n2) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax012(
-        exec, u_1, u_hat_2_ax012, ax012, topology1, topology2, MPI_COMM_WORLD);
-    plan_1_2_ax012.forward(u_1, u_hat_2_ax012);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 1.0e-5));
-
-    plan_1_2_ax012.backward(u_hat_2_ax012, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 2 with ax = {0, 2, 1}:
-    // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax021(
-        exec, u_1, u_hat_2_ax021, ax021, topology1, topology2, MPI_COMM_WORLD);
-    plan_1_2_ax021.forward(u_1, u_hat_2_ax021);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021, 1.0e-5, 1.0e-6));
-
-    plan_1_2_ax021.backward(u_hat_2_ax021, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 2 with ax = {1, 0, 2}:
-    // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, n1/p, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax102(
-        exec, u_1, u_hat_2_ax102, ax102, topology1, topology2, MPI_COMM_WORLD);
-    plan_1_2_ax102.forward(u_1, u_hat_2_ax102);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102));
-
-    plan_1_2_ax102.backward(u_hat_2_ax102, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 2 with ax = {1, 2, 0}:
-    // (n0, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax120(
-        exec, u_1, u_hat_2_ax120, ax120, topology1, topology2, MPI_COMM_WORLD);
-    plan_1_2_ax120.forward(u_1, u_hat_2_ax120);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
-
-    plan_1_2_ax120.backward(u_hat_2_ax120, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 2 with ax = {2, 0, 1}:
-    // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax201(
-        exec, u_1, u_hat_2_ax201, ax201, topology1, topology2, MPI_COMM_WORLD);
-    plan_1_2_ax201.forward(u_1, u_hat_2_ax201);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
-
-    plan_1_2_ax201.backward(u_hat_2_ax201, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 1 -> topo 2 with ax = {2, 1, 0}:
-    // (n0, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax210(
-        exec, u_1, u_hat_2_ax210, ax210, topology1, topology2, MPI_COMM_WORLD);
-    plan_1_2_ax210.forward(u_1, u_hat_2_ax210);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210));
-
-    plan_1_2_ax210.backward(u_hat_2_ax210, u_inv_1);
-    EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 0 with ax = {0, 1, 2}:
-    // (n0/p, n1, n2) -> (n0, n1, n2/2+1) -> (n0, n1, n2/p)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax012(
-        exec, u_2, u_hat_0_ax012, ax012, topology2, topology0, MPI_COMM_WORLD);
-    plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
-
-    plan_2_0_ax012.backward(u_hat_0_ax012, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 0 with ax = {0, 2, 1}:
-    // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax021(
-        exec, u_2, u_hat_0_ax021, ax021, topology2, topology0, MPI_COMM_WORLD);
-    plan_2_0_ax021.forward(u_2, u_hat_0_ax021);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
-
-    plan_2_0_ax021.backward(u_hat_0_ax021, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 0 with ax = {1, 0, 2}:
-    // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, n1/p, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax102(
-        exec, u_2, u_hat_0_ax102, ax102, topology2, topology0, MPI_COMM_WORLD);
-    plan_2_0_ax102.forward(u_2, u_hat_0_ax102);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102, 1.0e-5, 1.0e-5));
-
-    plan_2_0_ax102.backward(u_hat_0_ax102, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 0 with ax = {1, 2, 0}:
-    // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax120(
-        exec, u_2, u_hat_0_ax120, ax120, topology2, topology0, MPI_COMM_WORLD);
-    plan_2_0_ax120.forward(u_2, u_hat_0_ax120);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
-
-    plan_2_0_ax120.backward(u_hat_0_ax120, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 0 with ax = {2, 0, 1}:
-    // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax201(
-        exec, u_2, u_hat_0_ax201, ax201, topology2, topology0, MPI_COMM_WORLD);
-    plan_2_0_ax201.forward(u_2, u_hat_0_ax201);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201, 1.0e-5, 1.0e-6));
-
-    plan_2_0_ax201.backward(u_hat_0_ax201, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 0 with ax = {2, 1, 0}:
-    // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax210(
-        exec, u_2, u_hat_0_ax210, ax210, topology2, topology0, MPI_COMM_WORLD);
-    plan_2_0_ax210.forward(u_2, u_hat_0_ax210);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
-
-    plan_2_0_ax210.backward(u_hat_0_ax210, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 1 with ax = {0, 1, 2}:
-    // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax012(
-        exec, u_2, u_hat_1_ax012, ax012, topology2, topology1, MPI_COMM_WORLD);
-    plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
-
-    plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 1 with ax = {0, 2, 1}:
-    // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax021(
-        exec, u_2, u_hat_1_ax021, ax021, topology2, topology1, MPI_COMM_WORLD);
-    plan_2_1_ax021.forward(u_2, u_hat_1_ax021);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021));
-
-    plan_2_1_ax021.backward(u_hat_1_ax021, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 1 with ax = {1, 0, 2}:
-    // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax102(
-        exec, u_2, u_hat_1_ax102, ax102, topology2, topology1, MPI_COMM_WORLD);
-    plan_2_1_ax102.forward(u_2, u_hat_1_ax102);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102, 1.0e-5, 1.0e-5));
-
-    plan_2_1_ax102.backward(u_hat_1_ax102, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 1 with ax = {1, 2, 0}:
-    // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax120(
-        exec, u_2, u_hat_1_ax120, ax120, topology2, topology1, MPI_COMM_WORLD);
-    plan_2_1_ax120.forward(u_2, u_hat_1_ax120);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
-
-    plan_2_1_ax120.backward(u_hat_1_ax120, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 1 with ax = {2, 0, 1}:
-    // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax201(
-        exec, u_2, u_hat_1_ax201, ax201, topology2, topology1, MPI_COMM_WORLD);
-    plan_2_1_ax201.forward(u_2, u_hat_1_ax201);
-    EXPECT_TRUE(
-        allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201, 1.0e-5, 1.0e-6));
-
-    plan_2_1_ax201.backward(u_hat_1_ax201, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
-
-    // topo 2 -> topo 1 with ax = {2, 1, 0}:
-    // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax210(
-        exec, u_2, u_hat_1_ax210, ax210, topology2, topology1, MPI_COMM_WORLD);
-    plan_2_1_ax210.forward(u_2, u_hat_1_ax210);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210));
-
-    plan_2_1_ax210.backward(u_hat_1_ax210, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    {
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax012(
+          exec, u_0, u_hat_1_ax012, ax012, topology0, topology1,
+          MPI_COMM_WORLD);
+      plan_0_1_ax012.forward(u_0, u_hat_1_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+
+      plan_0_1_ax012.forward(u_0, u_hat_1_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+
+      plan_0_1_ax012.backward(u_hat_1_ax012, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+
+      plan_0_1_ax012.backward(u_hat_1_ax012, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 1 with ax = {0, 2, 1}:
+      // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax021(
+          exec, u_0, u_hat_1_ax021, ax021, topology0, topology1,
+          MPI_COMM_WORLD);
+      plan_0_1_ax021.forward(u_0, u_hat_1_ax021);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021, 1.0e-5, 1.0e-6));
+
+      plan_0_1_ax021.backward(u_hat_1_ax021, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 1 with ax = {1, 0, 2}:
+      // (n0, n1, n2/p) -> (n0, n1/p, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax102(
+          exec, u_0, u_hat_1_ax102, ax102, topology0, topology1,
+          MPI_COMM_WORLD);
+      plan_0_1_ax102.forward(u_0, u_hat_1_ax102);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102, 1.0e-5, 1.0e-5));
+
+      plan_0_1_ax102.backward(u_hat_1_ax102, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 1 with ax = {1, 2, 0}:
+      // (n0, n1, n2/p) -> (n0/2+1, n1/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax120(
+          exec, u_0, u_hat_1_ax120, ax120, topology0, topology1,
+          MPI_COMM_WORLD);
+      plan_0_1_ax120.forward(u_0, u_hat_1_ax120);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
+
+      plan_0_1_ax120.backward(u_hat_1_ax120, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 1 with ax = {2, 0, 1}:
+      // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax201(
+          exec, u_0, u_hat_1_ax201, ax201, topology0, topology1,
+          MPI_COMM_WORLD);
+      plan_0_1_ax201.forward(u_0, u_hat_1_ax201);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201));
+
+      plan_0_1_ax201.backward(u_hat_1_ax201, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 1 with ax = {2, 1, 0}:
+      // (n0, n1, n2/p) -> (n0/2+1, n1/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax210(
+          exec, u_0, u_hat_1_ax210, ax210, topology0, topology1,
+          MPI_COMM_WORLD);
+      plan_0_1_ax210.forward(u_0, u_hat_1_ax210);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210));
+
+      plan_0_1_ax210.backward(u_hat_1_ax210, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 2 with ax = {0, 1, 2}:
+      // (n0, n1, n2/p) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax012(
+          exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
+          MPI_COMM_WORLD);
+      plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 1.0e-5));
+
+      plan_0_2_ax012.backward(u_hat_2_ax012, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 2 with ax = {0, 2, 1}:
+      // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax021(
+          exec, u_0, u_hat_2_ax021, ax021, topology0, topology2,
+          MPI_COMM_WORLD);
+      plan_0_2_ax021.forward(u_0, u_hat_2_ax021);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021, 1.0e-5, 1.0e-6));
+
+      plan_0_2_ax021.backward(u_hat_2_ax021, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 2 with ax = {1, 0, 2}:
+      // (n0, n1, n2/p) -> (n0, n1/p, n2) -> (n0, n1/p, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax102(
+          exec, u_0, u_hat_2_ax102, ax102, topology0, topology2,
+          MPI_COMM_WORLD);
+      plan_0_2_ax102.forward(u_0, u_hat_2_ax102);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102));
+
+      plan_0_2_ax102.backward(u_hat_2_ax102, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 2 with ax = {1, 2, 0}:
+      // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax120(
+          exec, u_0, u_hat_2_ax120, ax120, topology0, topology2,
+          MPI_COMM_WORLD);
+      plan_0_2_ax120.forward(u_0, u_hat_2_ax120);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
+
+      plan_0_2_ax120.backward(u_hat_2_ax120, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 2 with ax = {2, 0, 1}:
+      // (n0, n1, n2/p) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax201(
+          exec, u_0, u_hat_2_ax201, ax201, topology0, topology2,
+          MPI_COMM_WORLD);
+      plan_0_2_ax201.forward(u_0, u_hat_2_ax201);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
+
+      plan_0_2_ax201.backward(u_hat_2_ax201, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 0 -> topo 2 with ax = {2, 1, 0}:
+      // (n0, n1, n2/p) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax210(
+          exec, u_0, u_hat_2_ax210, ax210, topology0, topology2,
+          MPI_COMM_WORLD);
+      plan_0_2_ax210.forward(u_0, u_hat_2_ax210);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210));
+
+      plan_0_2_ax210.backward(u_hat_2_ax210, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 0 with ax = {0, 1, 2}:
+      // (n0p, n1/p, n2) -> (n0, n1, (n2/2+1)/p)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax012(
+          exec, u_1, u_hat_0_ax012, ax012, topology1, topology0,
+          MPI_COMM_WORLD);
+      plan_1_0_ax012.forward(u_1, u_hat_0_ax012);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5, 1.0e-5));
+
+      plan_1_0_ax012.backward(u_hat_0_ax012, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 0 with ax = {0, 2, 1}:
+      // (n0p, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax021(
+          exec, u_1, u_hat_0_ax021, ax021, topology1, topology0,
+          MPI_COMM_WORLD);
+      plan_1_0_ax021.forward(u_1, u_hat_0_ax021);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
+
+      plan_1_0_ax021.backward(u_hat_0_ax021, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 0 with ax = {1, 0, 2}:
+      // (n0p, n1/p, n2) -> (n0, n1/2+1, (n2/2+1)/p)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax102(
+          exec, u_1, u_hat_0_ax102, ax102, topology1, topology0,
+          MPI_COMM_WORLD);
+      plan_1_0_ax102.forward(u_1, u_hat_0_ax102);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102));
+
+      plan_1_0_ax102.backward(u_hat_0_ax102, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 0 with ax = {1, 2, 0}:
+      // (n0p, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax120(
+          exec, u_1, u_hat_0_ax120, ax120, topology1, topology0,
+          MPI_COMM_WORLD);
+      plan_1_0_ax120.forward(u_1, u_hat_0_ax120);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
+
+      plan_1_0_ax120.backward(u_hat_0_ax120, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 0 with ax = {2, 0, 1}:
+      // (n0p, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax201(
+          exec, u_1, u_hat_0_ax201, ax201, topology1, topology0,
+          MPI_COMM_WORLD);
+      plan_1_0_ax201.forward(u_1, u_hat_0_ax201);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201, 1.0e-5, 1.0e-6));
+
+      plan_1_0_ax201.backward(u_hat_0_ax201, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 0 with ax = {2, 1, 0}:
+      // (n0p, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax210(
+          exec, u_1, u_hat_0_ax210, ax210, topology1, topology0,
+          MPI_COMM_WORLD);
+      plan_1_0_ax210.forward(u_1, u_hat_0_ax210);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
+
+      plan_1_0_ax210.backward(u_hat_0_ax210, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 2 with ax = {0, 1, 2}:
+      // (n0, n1/p, n2) -> (n0/p, n1, n2) -> (n0/p, n1, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax012(
+          exec, u_1, u_hat_2_ax012, ax012, topology1, topology2,
+          MPI_COMM_WORLD);
+      plan_1_2_ax012.forward(u_1, u_hat_2_ax012);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 1.0e-5));
+
+      plan_1_2_ax012.backward(u_hat_2_ax012, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 2 with ax = {0, 2, 1}:
+      // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax021(
+          exec, u_1, u_hat_2_ax021, ax021, topology1, topology2,
+          MPI_COMM_WORLD);
+      plan_1_2_ax021.forward(u_1, u_hat_2_ax021);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021, 1.0e-5, 1.0e-6));
+
+      plan_1_2_ax021.backward(u_hat_2_ax021, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 2 with ax = {1, 0, 2}:
+      // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0, n1/p, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax102(
+          exec, u_1, u_hat_2_ax102, ax102, topology1, topology2,
+          MPI_COMM_WORLD);
+      plan_1_2_ax102.forward(u_1, u_hat_2_ax102);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102));
+
+      plan_1_2_ax102.backward(u_hat_2_ax102, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 2 with ax = {1, 2, 0}:
+      // (n0, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax120(
+          exec, u_1, u_hat_2_ax120, ax120, topology1, topology2,
+          MPI_COMM_WORLD);
+      plan_1_2_ax120.forward(u_1, u_hat_2_ax120);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120));
+
+      plan_1_2_ax120.backward(u_hat_2_ax120, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 2 with ax = {2, 0, 1}:
+      // (n0, n1/p, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax201(
+          exec, u_1, u_hat_2_ax201, ax201, topology1, topology2,
+          MPI_COMM_WORLD);
+      plan_1_2_ax201.forward(u_1, u_hat_2_ax201);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201));
+
+      plan_1_2_ax201.backward(u_hat_2_ax201, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 1 -> topo 2 with ax = {2, 1, 0}:
+      // (n0, n1/p, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_1_2_ax210(
+          exec, u_1, u_hat_2_ax210, ax210, topology1, topology2,
+          MPI_COMM_WORLD);
+      plan_1_2_ax210.forward(u_1, u_hat_2_ax210);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210));
+
+      plan_1_2_ax210.backward(u_hat_2_ax210, u_inv_1);
+      EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 0 with ax = {0, 1, 2}:
+      // (n0/p, n1, n2) -> (n0, n1, n2/2+1) -> (n0, n1, n2/p)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax012(
+          exec, u_2, u_hat_0_ax012, ax012, topology2, topology0,
+          MPI_COMM_WORLD);
+      plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
+
+      plan_2_0_ax012.backward(u_hat_0_ax012, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 0 with ax = {0, 2, 1}:
+      // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax021(
+          exec, u_2, u_hat_0_ax021, ax021, topology2, topology0,
+          MPI_COMM_WORLD);
+      plan_2_0_ax021.forward(u_2, u_hat_0_ax021);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021));
+
+      plan_2_0_ax021.backward(u_hat_0_ax021, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 0 with ax = {1, 0, 2}:
+      // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, n1/p, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax102(
+          exec, u_2, u_hat_0_ax102, ax102, topology2, topology0,
+          MPI_COMM_WORLD);
+      plan_2_0_ax102.forward(u_2, u_hat_0_ax102);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102, 1.0e-5, 1.0e-5));
+
+      plan_2_0_ax102.backward(u_hat_0_ax102, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 0 with ax = {1, 2, 0}:
+      // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax120(
+          exec, u_2, u_hat_0_ax120, ax120, topology2, topology0,
+          MPI_COMM_WORLD);
+      plan_2_0_ax120.forward(u_2, u_hat_0_ax120);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120));
+
+      plan_2_0_ax120.backward(u_hat_0_ax120, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 0 with ax = {2, 0, 1}:
+      // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax201(
+          exec, u_2, u_hat_0_ax201, ax201, topology2, topology0,
+          MPI_COMM_WORLD);
+      plan_2_0_ax201.forward(u_2, u_hat_0_ax201);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201, 1.0e-5, 1.0e-6));
+
+      plan_2_0_ax201.backward(u_hat_0_ax201, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 0 with ax = {2, 1, 0}:
+      // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax210(
+          exec, u_2, u_hat_0_ax210, ax210, topology2, topology0,
+          MPI_COMM_WORLD);
+      plan_2_0_ax210.forward(u_2, u_hat_0_ax210);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210));
+
+      plan_2_0_ax210.backward(u_hat_0_ax210, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 1 with ax = {0, 1, 2}:
+      // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax012(
+          exec, u_2, u_hat_1_ax012, ax012, topology2, topology1,
+          MPI_COMM_WORLD);
+      plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+
+      plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 1 with ax = {0, 2, 1}:
+      // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0, (n1/2+1)/p, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax021(
+          exec, u_2, u_hat_1_ax021, ax021, topology2, topology1,
+          MPI_COMM_WORLD);
+      plan_2_1_ax021.forward(u_2, u_hat_1_ax021);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021));
+
+      plan_2_1_ax021.backward(u_hat_1_ax021, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 1 with ax = {1, 0, 2}:
+      // (n0/p, n1, n2) -> (n0/p, n1, n2/2+1) -> (n0, n1/p, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax102(
+          exec, u_2, u_hat_1_ax102, ax102, topology2, topology1,
+          MPI_COMM_WORLD);
+      plan_2_1_ax102.forward(u_2, u_hat_1_ax102);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102, 1.0e-5, 1.0e-5));
+
+      plan_2_1_ax102.backward(u_hat_1_ax102, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 1 with ax = {1, 2, 0}:
+      // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax120(
+          exec, u_2, u_hat_1_ax120, ax120, topology2, topology1,
+          MPI_COMM_WORLD);
+      plan_2_1_ax120.forward(u_2, u_hat_1_ax120);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120));
+
+      plan_2_1_ax120.backward(u_hat_1_ax120, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 1 with ax = {2, 0, 1}:
+      // (n0/p, n1, n2) -> (n0, n1/2+1, n2/p) -> (n0/p, n1/2+1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax201(
+          exec, u_2, u_hat_1_ax201, ax201, topology2, topology1,
+          MPI_COMM_WORLD);
+      plan_2_1_ax201.forward(u_2, u_hat_1_ax201);
+      EXPECT_TRUE(
+          allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201, 1.0e-5, 1.0e-6));
+
+      plan_2_1_ax201.backward(u_hat_1_ax201, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 1 with ax = {2, 1, 0}:
+      // (n0/p, n1, n2) -> (n0/2+1, n1, n2/p) -> ((n0/2+1)/p, n1, n2)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax210(
+          exec, u_2, u_hat_1_ax210, ax210, topology2, topology1,
+          MPI_COMM_WORLD);
+      plan_2_1_ax210.forward(u_2, u_hat_1_ax210);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210));
+
+      plan_2_1_ax210.backward(u_hat_1_ax210, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
   }
 }
 
@@ -2200,35 +2314,62 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
         },
         std::runtime_error);
   } else {
-    // topo 0 -> topo 2 with ax = {0, 1, 2}:
-    // (n0, n1/px, n2/py) -> (n0/px, n1/py, n2/2+1)
-    KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax012(
-        exec, u_0, u_hat_2_ax012, ax012, topology0, topology2, MPI_COMM_WORLD);
-    plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
-    EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
+    {
+      // topo 0 -> topo 2 with ax = {0, 1, 2}:
+      // (n0, n1/px, n2/py) -> (n0/px, n1/py, n2/2+1)
+      KokkosFFT::Distributed::Impl::TplPlan plan_0_2_ax012(
+          exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
+          MPI_COMM_WORLD);
+      plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
 
-    plan_0_2_ax012.backward(u_hat_2_ax012, u_inv_0);
-    EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+      plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
 
-    // topo 2 -> topo 0 with ax = {0, 1, 2}:
-    // (n0/px, n1/py, n2) -> (n0, n1/px, (n2/2+1)/py)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax012(
-        exec, u_2, u_hat_0_ax012, ax012, topology2, topology0, MPI_COMM_WORLD);
-    plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
-    EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
+      plan_0_2_ax012.backward(u_hat_2_ax012, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
 
-    plan_2_0_ax012.backward(u_hat_0_ax012, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+      plan_0_2_ax012.backward(u_hat_2_ax012, u_inv_0);
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+    }
 
-    // topo 2 -> topo 1 with ax = {0, 1, 2}:
-    // (n0/px, n1/py, n2) -> (n0/px, n1, (n2/2+1)/py)
-    KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax012(
-        exec, u_2, u_hat_1_ax012, ax012, topology2, topology1, MPI_COMM_WORLD);
-    plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
-    EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+    {
+      // topo 2 -> topo 0 with ax = {0, 1, 2}:
+      // (n0/px, n1/py, n2) -> (n0, n1/px, (n2/2+1)/py)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_0_ax012(
+          exec, u_2, u_hat_0_ax012, ax012, topology2, topology0,
+          MPI_COMM_WORLD);
+      plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
 
-    plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
-    EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+      plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
+
+      plan_2_0_ax012.backward(u_hat_0_ax012, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+
+      plan_2_0_ax012.backward(u_hat_0_ax012, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
+
+    {
+      // topo 2 -> topo 1 with ax = {0, 1, 2}:
+      // (n0/px, n1/py, n2) -> (n0/px, n1, (n2/2+1)/py)
+      KokkosFFT::Distributed::Impl::TplPlan plan_2_1_ax012(
+          exec, u_2, u_hat_1_ax012, ax012, topology2, topology1,
+          MPI_COMM_WORLD);
+      plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+
+      plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+
+      plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+
+      plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+    }
   }
 }
 
