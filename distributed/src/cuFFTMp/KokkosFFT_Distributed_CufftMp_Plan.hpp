@@ -291,56 +291,6 @@ void create_plan(const ExecutionSpace& exec_space,
       compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
   const auto [nx, ny, nz] = fft_extents;
 
-  /*
-  int mpirank, size;
-    MPI_Comm_rank(comm, &mpirank);
-    MPI_Comm_size(comm, &size);
-    MPI_Barrier(comm);
-    for (int i = 0; i < size; ++i) {
-      if (i == mpirank) {
-        std::cout << "Process " << mpirank << ": Creating general cuFFTMp plan
-  with extents: "; std::cout << "in extents: "; for (size_t j = 0; j <
-  InViewType::rank(); ++j) { std::cout << in.extent(j) << " ";
-        }
-        std::cout << "out extents: ";
-        for (size_t j = 0; j < OutViewType::rank(); ++j) {
-          std::cout << out.extent(j) << " ";
-        }
-        std::cout << "gin extents: ";
-        for (size_t j = 0; j < gin_extents.size(); ++j) {
-          std::cout << gin_extents[j] << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "gout extents: ";
-        for (size_t j = 0; j < gout_extents.size(); ++j) {
-          std::cout << gout_extents[j] << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "FFT extents: ";
-        for (size_t j = 0; j < fft_extents.size(); ++j) {
-          std::cout << fft_extents[j] << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "Axes: ";
-        for (size_t j = 0; j < axes.size(); ++j) {
-          std::cout << axes[j] << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "Input topology: ";
-        for (size_t j = 0; j < in_topology.size(); ++j) {
-          std::cout << in_topology[j] << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "Output topology: ";
-        for (size_t j = 0; j < out_topology.size(); ++j) {
-          std::cout << out_topology[j] << " ";
-        }
-        std::cout << std::endl;
-      }
-      MPI_Barrier(comm);
-    }
-      */
-
   // In case of slab geometry, we need to check that the first dimension is
   // ready
   auto last_axis          = axes.back();

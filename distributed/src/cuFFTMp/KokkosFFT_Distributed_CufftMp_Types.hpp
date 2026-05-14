@@ -25,10 +25,9 @@ struct cuFFTHandleWrapper {
 template <typename ExecutionSpace, typename T1, typename T2>
 struct ScopedCufftMpPlan {
   using buffer_data_type =
-      typename KokkosFFT::Impl::fft_data_type<ExecutionSpace, T2>::type *;
+      typename KokkosFFT::Impl::fft_data_type<ExecutionSpace, T2>::type;
   //@{
   //! cufftHandle for forward and backward plans
-  // cufftHandle m_plan_f = 0, m_plan_b = 0;
   cuFFTHandleWrapper m_plan_f, m_plan_b;
   ///@}
 

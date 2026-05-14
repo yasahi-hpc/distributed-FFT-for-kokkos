@@ -62,27 +62,6 @@ inline void exec_plan(
     KokkosFFT::Impl::exec_plan(scoped_plan.plan(direction), idata, odata, dir);
   }
   KokkosFFT::Impl::transpose(exec_space, out_buffer, out, out_map, true);
-
-  /*
-  cudaLibXtDesc* desc = scoped_plan.desc();
-  InRightViewType in_desc(
-      reinterpret_cast<in_value_type*>(desc->descriptor->data[0]),
-      KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(in_extents));
-  OutRightViewType out_desc(
-      reinterpret_cast<out_value_type*>(desc->descriptor->data[0]),
-      KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(out_extents));
-
-  KokkosFFT::Impl::transpose(exec_space, in, in_desc, in_map, true);
-  {
-    Kokkos::Profiling::ScopedRegion region("exec_plan[TPL_cuFFTMp]");
-    auto const cufft_direction = direction == KokkosFFT::Direction::forward
-                                     ? CUFFT_FORWARD
-                                     : CUFFT_INVERSE;
-    KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtExecDescriptor(
-        scoped_plan.plan(direction), desc, desc, cufft_direction));
-  }
-  KokkosFFT::Impl::transpose(exec_space, out_desc, out, out_map, true);
-  */
 }
 
 }  // namespace Impl
