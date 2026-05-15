@@ -135,7 +135,7 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
 
     // Calling setup function
     using float_type = KokkosFFT::Impl::base_floating_point_type<in_value_type>;
-    KokkosFFT::Impl::setup<ExecutionSpace, float_type>();
+    setup<ExecutionSpace, float_type>(comm);
 
     // Only support 2D or 3D FFTs
     create_plan(m_exec_space, m_plan, in, out, axes, m_in_map,

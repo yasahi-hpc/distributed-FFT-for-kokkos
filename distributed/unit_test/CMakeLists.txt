@@ -48,9 +48,6 @@ endif()
 add_executable(unit-tests-mpi ${SOURCES})
 find_package(MPI REQUIRED COMPONENTS CXX)
 
-target_compile_features(unit-tests-mpi PUBLIC cxx_std_17)
-target_compile_options(unit-tests-mpi PUBLIC -std=c++17)
-
 target_link_libraries(unit-tests-mpi PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
 
 # Enable GoogleTest
@@ -84,7 +81,6 @@ if(ENABLE_NCCL AND (Kokkos_ENABLE_CUDA OR Kokkos_ENABLE_HIP))
   set(NCCL_SOURCES Test_Main.cpp nccl/Test_NCCL_Types.cpp)
   add_executable(unit-tests-nccl ${NCCL_SOURCES})
 
-  target_compile_features(unit-tests-nccl PUBLIC cxx_std_17)
   target_link_libraries(unit-tests-nccl PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
 
   add_test(
@@ -99,7 +95,6 @@ if(ENABLE_ONECCL AND Kokkos_ENABLE_SYCL)
   set(oneCCL_SOURCES Test_Main.cpp oneCCL/Test_oneCCL_Types.cpp)
   add_executable(unit-tests-oneccl ${oneCCL_SOURCES})
 
-  target_compile_features(unit-tests-oneccl PUBLIC cxx_std_17)
   target_link_libraries(unit-tests-oneccl PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
 
   add_test(

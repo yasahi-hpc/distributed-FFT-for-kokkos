@@ -89,6 +89,33 @@ bool is_tpl_available(
       Topology<std::size_t, OutViewType::rank()>(out_topology));
 }
 
+template <typename ExecutionSpace, typename T,
+          std::enable_if_t<std::is_same_v<ExecutionSpace, Kokkos::Cuda>,
+                           std::nullptr_t> = nullptr>
+void setup(MPI_Comm comm) {
+  static bool once = [comm] {
+    if (!(Kokkos::is_initialized() || Kokkos::is_finalized())) {
+      Kokkos::abort(
+          "Error: KokkosFFT APIs must not be called before initializing "
+          "Kokkos.\n");
+    }
+    if (Kokkos::is_finalized()) {
+      Kokkos::abort(
+          "Error: KokkosFFT APIs must not be called after finalizing "
+          "Kokkos.\n");
+    }
+
+    nvshmemx_init_attr_t attr;
+    attr.mpi_comm = (void*)&comm;
+    nvshmemx_init_attr(NVSHMEMX_INIT_WITH_MPI_COMM, &attr);
+
+    // Register cleanup function as a hook in Kokkos::finalize
+    Kokkos::push_finalize_hook([]() { nvshmem_finalize(); });
+
+    return true;
+  }();
+}
+
 /// \brief General interface to create a cuFFTMp plan for distributed FFT
 /// Should not be called directly
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
@@ -204,14 +231,14 @@ void create_plan(const ExecutionSpace& exec_space,
     plan = std::make_unique<PlanType>(fft_int_extents, lower_input, upper_input,
                                       lower_output, upper_output, strides_input,
                                       strides_output, comm);
-    plan->commit(exec_space);
+    plan->commit(exec_space, in.size());
 
   } else {
     auto in_mapped_topology =
         KokkosFFT::Impl::compute_mapped_extents(in_topology, map);
     bool is_xslab = in_mapped_topology.at(0) > 1;
     plan          = std::make_unique<PlanType>(nx, ny, comm, is_xslab);
-    plan->commit(exec_space);
+    plan->commit(exec_space, in.size());
   }
 }
 
@@ -279,7 +306,7 @@ void create_plan(const ExecutionSpace& exec_space,
     bool is_xslab = in_mapped_topology.at(0) > 1;
 
     plan = std::make_unique<PlanType>(nx, ny, nz, comm, is_xslab);
-    plan->commit(exec_space);
+    plan->commit(exec_space, in.size());
   } else {
     // Using general API
     auto gin_padded_extents = gin_extents;
@@ -336,7 +363,7 @@ void create_plan(const ExecutionSpace& exec_space,
     plan = std::make_unique<PlanType>(fft_int_extents, lower_input, upper_input,
                                       lower_output, upper_output, strides_input,
                                       strides_output, comm);
-    plan->commit(exec_space);
+    plan->commit(exec_space, in.size());
   }
 }
 
