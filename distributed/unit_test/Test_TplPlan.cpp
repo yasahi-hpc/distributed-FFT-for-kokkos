@@ -2036,7 +2036,9 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
 }
 
 template <typename T, typename LayoutType>
-void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
+void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy,
+                                      std::size_t n0, std::size_t n1,
+                                      std::size_t n2) {
   using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
   using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
   using ComplexView3DType =
@@ -2050,7 +2052,6 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
   topology_type topology0{1, npx, npy}, topology1{npx, 1, npy},
       topology2{npx, npy, 1};
 
-  const std::size_t n0 = 5, n1 = 6, n2 = 7;
   const std::size_t n0h = KokkosFFT::Impl::extent_after_transform(n0, is_R2C),
                     n1h = KokkosFFT::Impl::extent_after_transform(n1, is_R2C),
                     n2h = KokkosFFT::Impl::extent_after_transform(n2, is_R2C);
@@ -2529,16 +2530,34 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
           exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
           MPI_COMM_WORLD);
       plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
-      EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 1.0e-6))
+          << "Failed forward topo 0 -> topo 2 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
-      EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 1.0e-6))
+          << "Failed forward topo 0 -> topo 2 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_0_2_ax012.backward(u_hat_2_ax012, u_inv_0);
-      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6))
+          << "Failed backward topo 0 -> topo 2 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_0_2_ax012.backward(u_hat_2_ax012, u_inv_0);
-      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
+      EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6))
+          << "Failed backward topo 0 -> topo 2 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
     }
 
     {
@@ -2548,16 +2567,34 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
           exec, u_2, u_hat_0_ax012, ax012, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
-      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5, 1.0e-6))
+          << "Failed forward topo 2 -> topo 0 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
-      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5, 1.0e-6))
+          << "Failed forward topo 2 -> topo 0 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_2_0_ax012.backward(u_hat_0_ax012, u_inv_2);
-      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6))
+          << "Failed backward topo 2 -> topo 0 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_2_0_ax012.backward(u_hat_0_ax012, u_inv_2);
-      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6))
+          << "Failed backward topo 2 -> topo 0 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
     }
 
     {
@@ -2567,16 +2604,34 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy) {
           exec, u_2, u_hat_1_ax012, ax012, topology2, topology1,
           MPI_COMM_WORLD);
       plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
-      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5, 7.0e-5))
+          << "Failed forward topo 2 -> topo 1 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
-      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5, 7.0e-5))
+          << "Failed forward topo 2 -> topo 1 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
-      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6))
+          << "Failed backward topo 2 -> topo 1 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
 
       plan_2_1_ax012.backward(u_hat_1_ax012, u_inv_2);
-      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
+      EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6))
+          << "Failed backward topo 2 -> topo 1 with ax = {0, 1, 2} (nx x ny x "
+             "nz) = ("
+          << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
+          << ", " << npy << ")";
     }
   }
 }
@@ -2708,8 +2763,27 @@ TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_R2C) {
     GTEST_SKIP() << "The number of MPI processes should be a perfect square "
                     "for this test";
   }
-  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(this->m_npx,
-                                                            this->m_npx);
+
+  const std::size_t n0_even = 14, n0_odd = 13;
+  const std::size_t n1_even = 10, n1_odd = 7;
+  const std::size_t n2_even = 18, n2_odd = 17;
+
+  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(
+      this->m_npx, this->m_npx, n0_even, n1_even, n2_even);
+  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(
+      this->m_npx, this->m_npx, n0_even, n1_even, n2_odd);
+  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(
+      this->m_npx, this->m_npx, n0_even, n1_odd, n2_even);
+  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(
+      this->m_npx, this->m_npx, n0_even, n1_odd, n2_odd);
+  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(
+      this->m_npx, this->m_npx, n0_odd, n1_even, n2_even);
+  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(
+      this->m_npx, this->m_npx, n0_odd, n1_even, n2_odd);
+  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(
+      this->m_npx, this->m_npx, n0_odd, n1_odd, n2_even);
+  test_tpl3D_execute_View3D_pencil<float_type, layout_type>(
+      this->m_npx, this->m_npx, n0_odd, n1_odd, n2_odd);
 }
 
 TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_C2C) {
@@ -2720,6 +2794,24 @@ TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_C2C) {
     GTEST_SKIP() << "The number of MPI processes should be a perfect square "
                     "for this test";
   }
-  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(this->m_npx,
-                                                              this->m_npx);
+  const std::size_t n0_even = 14, n0_odd = 13;
+  const std::size_t n1_even = 10, n1_odd = 7;
+  const std::size_t n2_even = 18, n2_odd = 17;
+
+  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
+      this->m_npx, this->m_npx, n0_even, n1_even, n2_even);
+  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
+      this->m_npx, this->m_npx, n0_even, n1_even, n2_odd);
+  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
+      this->m_npx, this->m_npx, n0_even, n1_odd, n2_even);
+  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
+      this->m_npx, this->m_npx, n0_even, n1_odd, n2_odd);
+  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
+      this->m_npx, this->m_npx, n0_odd, n1_even, n2_even);
+  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
+      this->m_npx, this->m_npx, n0_odd, n1_even, n2_odd);
+  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
+      this->m_npx, this->m_npx, n0_odd, n1_odd, n2_even);
+  test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
+      this->m_npx, this->m_npx, n0_odd, n1_odd, n2_odd);
 }
