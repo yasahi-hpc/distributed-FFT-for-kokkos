@@ -16,33 +16,67 @@ endif()
 
 # Allow override through environment or CMake variable
 set(_nvshmem_root "$ENV{NVSHMEM_ROOT}")
+if(NOT _nvshmem_root)
+  set(_nvshmem_root "$ENV{NVSHMEM_HOME}")
+endif()
 if(NOT _nvshmem_root AND DEFINED NVSHMEM_ROOT)
   set(_nvshmem_root "${NVSHMEM_ROOT}")
 endif()
 
+# Collect candidate roots for backward compatibility across NVHPC layouts.
+set(_nvshmem_roots)
+if(_nvshmem_root)
+  list(APPEND _nvshmem_roots "${_nvshmem_root}")
+endif()
+
+if(DEFINED ENV{NVCOMPILERS} AND DEFINED ENV{NVARCH} AND DEFINED ENV{NVHPC_VERSION})
+  list(APPEND _nvshmem_roots "$ENV{NVCOMPILERS}/$ENV{NVARCH}/$ENV{NVHPC_VERSION}/comm_libs/nvshmem")
+endif()
+if(DEFINED ENV{NVHPC_HOME})
+  list(APPEND _nvshmem_roots "$ENV{NVHPC_HOME}/comm_libs/nvshmem")
+endif()
+if(DEFINED ENV{HPCSDK_HOME})
+  list(APPEND _nvshmem_roots "$ENV{HPCSDK_HOME}/comm_libs/nvshmem")
+endif()
+
+# Common NVHPC default install roots (for environments that do not export NVCOMPILERS/NVHPC_HOME).
+file(GLOB _nvhpc_nvshmem_roots
+  "/opt/nvidia/hpc_sdk/*/*/comm_libs/nvshmem"
+  "/opt/nvidia/hpc_sdk/*/*/*/comm_libs/nvshmem"
+)
+if(_nvhpc_nvshmem_roots)
+  list(APPEND _nvshmem_roots ${_nvhpc_nvshmem_roots})
+endif()
+
+list(REMOVE_DUPLICATES _nvshmem_roots)
+
 set(_nvshmem_include_hints
-  ${_nvshmem_root}/include
   /usr/local/include
   /usr/include
 )
-
 set(_nvshmem_lib_hints
-  ${_nvshmem_root}/lib
-  ${_nvshmem_root}/lib64
   /usr/local/lib
   /usr/local/lib64
   /usr/lib
   /usr/lib64
 )
-
 set(_nvshmem_config_hints)
-if(_nvshmem_root)
-  list(APPEND _nvshmem_config_hints
-    ${_nvshmem_root}
-    ${_nvshmem_root}/lib/cmake/nvshmem
-    ${_nvshmem_root}/lib64/cmake/nvshmem
+
+foreach(_root IN LISTS _nvshmem_roots)
+  list(APPEND _nvshmem_include_hints
+    ${_root}/include
   )
-endif()
+  list(APPEND _nvshmem_lib_hints
+    ${_root}/lib
+    ${_root}/lib64
+  )
+  list(APPEND _nvshmem_config_hints
+    ${_root}
+    ${_root}/lib/cmake/nvshmem
+    ${_root}/lib64/cmake/nvshmem
+    ${_root}/share/cmake/nvshmem
+  )
+endforeach()
 
 function(_nvshmem_detect_version include_dir)
   unset(NVSHMEM_VERSION PARENT_SCOPE)
