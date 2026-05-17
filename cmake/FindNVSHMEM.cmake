@@ -1,185 +1,216 @@
 ## FindNVSHMEM.cmake - Locate NVSHMEM library and headers
-# This module provides the following variables:
-#  NVSHMEM_FOUND        - True if NVSHMEM was found
-#  NVSHMEM_LIBRARIES    - Libraries to link against for NVSHMEM
-#  NVSHMEM_INCLUDE_DIRS - Include directories for NVSHMEM
-#  NVSHMEM_VERSION      - NVSHMEM version (if detected)
+#
+# Compatible with:
+#   - NVHPC 25.x (classic libnvshmem.so layout)
+#   - NVHPC 26.x (official CMake package with split host/device targets)
+#
+# Provides:
+#   NVSHMEM_FOUND
+#   NVSHMEM_LIBRARIES
+#   NVSHMEM_INCLUDE_DIRS
+#   NVSHMEM_VERSION
+#
+# Imported targets:
+#   NVSHMEM::NVSHMEM          - compatibility target
+#   nvshmem::nvshmem_host     - vendor target when available
+#   nvshmem::nvshmem_device   - vendor target when available
 #
 # Usage:
 #   find_package(NVSHMEM REQUIRED)
-#   target_include_directories(MyTarget PUBLIC ${NVSHMEM_INCLUDE_DIRS})
-#   target_link_libraries(MyTarget PUBLIC ${NVSHMEM_LIBRARIES})
+#   target_link_libraries(my_target PRIVATE NVSHMEM::NVSHMEM)
+#
+
+include(CMakeFindDependencyMacro)
 
 if(NOT NVSHMEM_FIND_VERSION)
   set(NVSHMEM_FIND_VERSION "")
 endif()
 
-# Allow override through environment or CMake variable
-set(_nvshmem_root "$ENV{NVSHMEM_ROOT}")
-if(NOT _nvshmem_root)
-  set(_nvshmem_root "$ENV{NVSHMEM_HOME}")
-endif()
-if(NOT _nvshmem_root AND DEFINED NVSHMEM_ROOT)
+# -----------------------------------------------------------------------------
+# Discover installation root
+# -----------------------------------------------------------------------------
+
+set(_nvshmem_root "")
+
+if(DEFINED NVSHMEM_ROOT)
   set(_nvshmem_root "${NVSHMEM_ROOT}")
+elseif(DEFINED ENV{NVSHMEM_ROOT})
+  set(_nvshmem_root "$ENV{NVSHMEM_ROOT}")
 endif()
 
-# Collect candidate roots for backward compatibility across NVHPC layouts.
-set(_nvshmem_roots)
-if(_nvshmem_root)
-  list(APPEND _nvshmem_roots "${_nvshmem_root}")
-endif()
-
-if(DEFINED ENV{NVCOMPILERS} AND DEFINED ENV{NVARCH} AND DEFINED ENV{NVHPC_VERSION})
-  list(APPEND _nvshmem_roots "$ENV{NVCOMPILERS}/$ENV{NVARCH}/$ENV{NVHPC_VERSION}/comm_libs/nvshmem")
-endif()
-if(DEFINED ENV{NVHPC_HOME})
-  list(APPEND _nvshmem_roots "$ENV{NVHPC_HOME}/comm_libs/nvshmem")
-endif()
-if(DEFINED ENV{HPCSDK_HOME})
-  list(APPEND _nvshmem_roots "$ENV{HPCSDK_HOME}/comm_libs/nvshmem")
-endif()
-
-# Common NVHPC default install roots (for environments that do not export NVCOMPILERS/NVHPC_HOME).
-file(GLOB _nvhpc_nvshmem_roots
-  "/opt/nvidia/hpc_sdk/*/*/comm_libs/nvshmem"
-  "/opt/nvidia/hpc_sdk/*/*/*/comm_libs/nvshmem"
+# NVHPC default installation layouts
+set(_nvshmem_config_hints
+  ${_nvshmem_root}
+  /opt/nvidia/hpc_sdk/Linux_x86_64
 )
-if(_nvhpc_nvshmem_roots)
-  list(APPEND _nvshmem_roots ${_nvhpc_nvshmem_roots})
-endif()
 
-list(REMOVE_DUPLICATES _nvshmem_roots)
-
-set(_nvshmem_include_hints
-  /usr/local/include
-  /usr/include
-)
-set(_nvshmem_lib_hints
-  /usr/local/lib
-  /usr/local/lib64
-  /usr/lib
-  /usr/lib64
-)
-set(_nvshmem_config_hints)
-
-foreach(_root IN LISTS _nvshmem_roots)
-  list(APPEND _nvshmem_include_hints
-    ${_root}/include
-  )
-  list(APPEND _nvshmem_lib_hints
-    ${_root}/lib
-    ${_root}/lib64
-  )
-  list(APPEND _nvshmem_config_hints
-    ${_root}
-    ${_root}/lib/cmake/nvshmem
-    ${_root}/lib64/cmake/nvshmem
-    ${_root}/share/cmake/nvshmem
-  )
-endforeach()
-
-function(_nvshmem_detect_version include_dir)
-  unset(NVSHMEM_VERSION PARENT_SCOPE)
-
-  set(_nvshmem_version_header "${include_dir}/non_abi/nvshmem_version.h")
-  if(EXISTS "${_nvshmem_version_header}")
-    file(READ "${_nvshmem_version_header}" _nvshmem_header_content)
-    string(REGEX MATCH "#define[ \t]+NVSHMEM_VENDOR_MAJOR_VERSION[ \t]+([0-9]+)" _major_match "${_nvshmem_header_content}")
-    string(REGEX MATCH "#define[ \t]+NVSHMEM_VENDOR_MINOR_VERSION[ \t]+([0-9]+)" _minor_match "${_nvshmem_header_content}")
-  elseif(EXISTS "${include_dir}/nvshmem.h")
-    file(READ "${include_dir}/nvshmem.h" _nvshmem_header_content)
-    string(REGEX MATCH "#define[ \t]+NVSHMEM_VERSION_MAJOR[ \t]+([0-9]+)" _major_match "${_nvshmem_header_content}")
-    string(REGEX MATCH "#define[ \t]+NVSHMEM_VERSION_MINOR[ \t]+([0-9]+)" _minor_match "${_nvshmem_header_content}")
-  endif()
-
-  if(_major_match AND _minor_match)
-    string(REGEX REPLACE ".*#define[ \t]+(NVSHMEM_VENDOR_)?VERSION_MAJOR[ \t]+([0-9]+).*" "\\2" _nvshmem_major "${_major_match}")
-    string(REGEX REPLACE ".*#define[ \t]+(NVSHMEM_VENDOR_)?VERSION_MINOR[ \t]+([0-9]+).*" "\\2" _nvshmem_minor "${_minor_match}")
-    set(NVSHMEM_VERSION "${_nvshmem_major}.${_nvshmem_minor}" PARENT_SCOPE)
-  endif()
-endfunction()
+# -----------------------------------------------------------------------------
+# NVHPC 26.x path:
+# Use vendor-provided CMake package if available.
+# -----------------------------------------------------------------------------
 
 set(NVSHMEM_FOUND FALSE)
 
-# Prefer the vendor-supplied package when available. NVHPC 26.3 installs split
-# host/device targets here instead of a single libnvshmem.* artifact.
+# Required because nvshmem::nvshmem_device links against:
+#   CUDA::cudart_static
+# in NVHPC 26.x.
+find_package(CUDAToolkit QUIET)
+
 find_package(NVSHMEM CONFIG QUIET NO_MODULE
   HINTS ${_nvshmem_config_hints}
-  PATH_SUFFIXES lib/cmake/nvshmem lib64/cmake/nvshmem
+  PATH_SUFFIXES
+    lib/cmake/nvshmem
+    lib64/cmake/nvshmem
 )
 
-if(NVSHMEM_FOUND AND TARGET nvshmem::nvshmem_host)
-  get_target_property(_nvshmem_target_includes nvshmem::nvshmem_host INTERFACE_INCLUDE_DIRECTORIES)
-  if(_nvshmem_target_includes)
-    list(GET _nvshmem_target_includes 0 NVSHMEM_INCLUDE_DIR)
-  elseif(_nvshmem_root)
-    set(NVSHMEM_INCLUDE_DIR "${_nvshmem_root}/include")
+if(TARGET nvshmem::nvshmem_host)
+  get_target_property(_nvshmem_inc
+    nvshmem::nvshmem_host
+    INTERFACE_INCLUDE_DIRECTORIES
+  )
+
+  set(NVSHMEM_FOUND TRUE)
+  set(NVSHMEM_INCLUDE_DIRS "${_nvshmem_inc}")
+
+  # NVHPC 26.x separates host/device libraries. Both are required
+  # for proper linkage of device-side NVSHMEM symbols.
+  set(NVSHMEM_LIBRARIES
+    nvshmem::nvshmem_host
+    nvshmem::nvshmem_device
+  )
+
+  # Create compatibility target expected by older projects.
+  if(NOT TARGET NVSHMEM::NVSHMEM)
+    add_library(NVSHMEM::NVSHMEM INTERFACE IMPORTED)
+    set_target_properties(NVSHMEM::NVSHMEM PROPERTIES
+      INTERFACE_LINK_LIBRARIES
+        "nvshmem::nvshmem_host;nvshmem::nvshmem_device"
+      INTERFACE_INCLUDE_DIRECTORIES "${NVSHMEM_INCLUDE_DIRS}"
+    )
   endif()
 
-  set(NVSHMEM_INCLUDE_DIRS "${NVSHMEM_INCLUDE_DIR}")
-  set(NVSHMEM_LIBRARIES nvshmem::nvshmem_host)
-  if(TARGET nvshmem::nvshmem_device)
-    list(APPEND NVSHMEM_LIBRARIES nvshmem::nvshmem_device)
-  endif()
-else()
-  set(NVSHMEM_FOUND FALSE)
+  message(STATUS
+    "Found NVSHMEM: "
+    "nvshmem::nvshmem_host;nvshmem::nvshmem_device "
+    "(include: ${NVSHMEM_INCLUDE_DIRS})"
+  )
+endif()
+
+# -----------------------------------------------------------------------------
+# Fallback for NVHPC 25.x and older installations.
+# -----------------------------------------------------------------------------
+
+if(NOT NVSHMEM_FOUND)
 
   find_path(NVSHMEM_INCLUDE_DIR
     NAMES nvshmem.h
-    HINTS ${_nvshmem_include_hints}
+    HINTS
+      ${_nvshmem_root}/include
+      ${_nvshmem_root}/nvshmem/include
+      /usr/local/include
+      /usr/include
+    PATH_SUFFIXES include
   )
 
-  find_library(NVSHMEM_HOST_LIBRARY
-    NAMES nvshmem nvshmem_host
-    HINTS ${_nvshmem_lib_hints}
+  find_library(NVSHMEM_LIBRARY
+    NAMES nvshmem
+    HINTS
+      ${_nvshmem_root}/lib
+      ${_nvshmem_root}/lib64
+      ${_nvshmem_root}/nvshmem/lib
+      ${_nvshmem_root}/nvshmem/lib64
+      /usr/local/lib
+      /usr/local/lib64
+      /usr/lib
+      /usr/lib64
+    PATH_SUFFIXES lib lib64
   )
 
-  find_library(NVSHMEM_DEVICE_LIBRARY
-    NAMES nvshmem_device
-    HINTS ${_nvshmem_lib_hints}
-  )
-
-  if(NOT NVSHMEM_HOST_LIBRARY OR NOT NVSHMEM_INCLUDE_DIR)
+  # pkg-config fallback
+  if(NOT NVSHMEM_LIBRARY OR NOT NVSHMEM_INCLUDE_DIR)
     find_package(PkgConfig QUIET)
+
     if(PkgConfig_FOUND)
       pkg_check_modules(PC_NVSHMEM QUIET nvshmem)
+
       if(PC_NVSHMEM_FOUND)
         set(NVSHMEM_INCLUDE_DIR ${PC_NVSHMEM_INCLUDE_DIRS})
-        set(NVSHMEM_HOST_LIBRARY ${PC_NVSHMEM_LIBRARIES})
+        set(NVSHMEM_LIBRARY ${PC_NVSHMEM_LIBRARIES})
       endif()
     endif()
   endif()
 
-  if(NVSHMEM_INCLUDE_DIR AND NVSHMEM_HOST_LIBRARY)
+  if(NVSHMEM_INCLUDE_DIR AND NVSHMEM_LIBRARY)
     set(NVSHMEM_FOUND TRUE)
-    set(NVSHMEM_INCLUDE_DIRS "${NVSHMEM_INCLUDE_DIR}")
-    set(NVSHMEM_LIBRARIES "${NVSHMEM_HOST_LIBRARY}")
-    if(NVSHMEM_DEVICE_LIBRARY)
-      list(APPEND NVSHMEM_LIBRARIES "${NVSHMEM_DEVICE_LIBRARY}")
-      find_package(CUDAToolkit QUIET)
-      if(TARGET CUDA::cudart_static)
-        list(APPEND NVSHMEM_LIBRARIES CUDA::cudart_static)
+    set(NVSHMEM_INCLUDE_DIRS ${NVSHMEM_INCLUDE_DIR})
+    set(NVSHMEM_LIBRARIES ${NVSHMEM_LIBRARY})
+
+    # Extract version if available
+    if(EXISTS "${NVSHMEM_INCLUDE_DIR}/nvshmem.h")
+      file(READ "${NVSHMEM_INCLUDE_DIR}/nvshmem.h"
+        _nvshmem_header_content)
+
+      string(REGEX MATCH
+        "#define[ \t]+NVSHMEM_VERSION_MAJOR[ \t]+([0-9]+)"
+        _major_match
+        "${_nvshmem_header_content}"
+      )
+
+      string(REGEX MATCH
+        "#define[ \t]+NVSHMEM_VERSION_MINOR[ \t]+([0-9]+)"
+        _minor_match
+        "${_nvshmem_header_content}"
+      )
+
+      if(_major_match AND _minor_match)
+        string(REGEX REPLACE
+          ".*#define[ \t]+NVSHMEM_VERSION_MAJOR[ \t]+([0-9]+).*"
+          "\\1"
+          NVSHMEM_VERSION_MAJOR
+          "${_major_match}"
+        )
+
+        string(REGEX REPLACE
+          ".*#define[ \t]+NVSHMEM_VERSION_MINOR[ \t]+([0-9]+).*"
+          "\\1"
+          NVSHMEM_VERSION_MINOR
+          "${_minor_match}"
+        )
+
+        set(NVSHMEM_VERSION
+          "${NVSHMEM_VERSION_MAJOR}.${NVSHMEM_VERSION_MINOR}"
+        )
       endif()
     endif()
+
+    # Compatibility imported target
+    if(NOT TARGET NVSHMEM::NVSHMEM)
+      add_library(NVSHMEM::NVSHMEM UNKNOWN IMPORTED)
+      set_target_properties(NVSHMEM::NVSHMEM PROPERTIES
+        IMPORTED_LOCATION "${NVSHMEM_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${NVSHMEM_INCLUDE_DIRS}"
+      )
+    endif()
+
+    message(STATUS
+      "Found NVSHMEM: ${NVSHMEM_LIBRARIES} "
+      "(include: ${NVSHMEM_INCLUDE_DIRS})"
+    )
   endif()
 endif()
 
-if(NVSHMEM_FOUND AND NVSHMEM_INCLUDE_DIR)
-  _nvshmem_detect_version("${NVSHMEM_INCLUDE_DIR}")
-endif()
+# -----------------------------------------------------------------------------
+# Final result
+# -----------------------------------------------------------------------------
 
-if(NVSHMEM_FOUND AND NOT TARGET NVSHMEM::NVSHMEM)
-  add_library(NVSHMEM::NVSHMEM INTERFACE IMPORTED)
-  set_target_properties(NVSHMEM::NVSHMEM PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${NVSHMEM_INCLUDE_DIRS}"
-    INTERFACE_LINK_LIBRARIES "${NVSHMEM_LIBRARIES}"
+mark_as_advanced(
+  NVSHMEM_INCLUDE_DIR
+  NVSHMEM_LIBRARY
+)
+
+if(NOT NVSHMEM_FOUND)
+  message(FATAL_ERROR
+    "Could not find NVSHMEM library or headers. "
+    "Please set NVSHMEM_ROOT to the installation prefix."
   )
-endif()
-
-mark_as_advanced(NVSHMEM_INCLUDE_DIR NVSHMEM_HOST_LIBRARY NVSHMEM_DEVICE_LIBRARY)
-
-if(NVSHMEM_FOUND)
-  message(STATUS "Found NVSHMEM: ${NVSHMEM_LIBRARIES} (include: ${NVSHMEM_INCLUDE_DIRS})")
-else()
-  message(FATAL_ERROR "Could not find NVSHMEM library or headers. Please set NVSHMEM_ROOT to the installation prefix.")
 endif()
