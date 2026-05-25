@@ -1,8 +1,17 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_TOPOLOGIES_HPP
 #define KOKKOSFFT_DISTRIBUTED_TOPOLOGIES_HPP
 
+#include <algorithm>
+#include <array>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <vector>
+
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include "KokkosFFT_Asserts.hpp"
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
 #include "KokkosFFT_Distributed_Types.hpp"
 #include "KokkosFFT_Distributed_ContainerAnalyses.hpp"
@@ -12,12 +21,12 @@ namespace Distributed {
 namespace Impl {
 
 /// \brief Get the topology type from the given topology container
-/// Empty topology: 0 is included in the topology
-/// Shared topology: non-one element is not included in the topology
-/// Slab topology: 1 non-one element is included in the topology
-/// Pencil topology: 2 non-one elements are included in the topology
-/// Brick topology: 3 non-one elements are included in the topology
-/// Invalid topology: more than 3 non-one elements are included in the topology
+/// Empty topology: at least one element is 0
+/// Shared topology: no elements differ from 1
+/// Slab topology: exactly 1 element differs from 1
+/// Pencil topology: exactly 2 elements differ from 1
+/// Brick topology: exactly 3 elements differ from 1
+/// Invalid topology: more than 3 elements differ from 1
 ///
 /// \tparam ContainerType Topology container type (std::array or Topology)
 /// \param[in] topology Topology container
@@ -27,9 +36,15 @@ inline auto to_topology_type(const ContainerType& topology) {
   static_assert(
       (is_allowed_topology_v<ContainerType>),
       "to_topology_type: topologies must be either in std::array or Topology");
+  using value_type =
+      std::remove_cv_t<std::remove_reference_t<decltype(*topology.begin())>>;
+  static_assert(
+      std::is_integral_v<value_type>,
+      "to_topology_type: Container value type must be an integral type");
 
-  auto size = KokkosFFT::Impl::total_size(topology);
-  if (size == 0) return TopologyType::Empty;
+  for (const auto& value : topology) {
+    if (value == 0) return TopologyType::Empty;
+  }
 
   switch (count_non_ones(topology)) {
     case 0: return TopologyType::Shared;
@@ -44,10 +59,13 @@ inline auto to_topology_type(const ContainerType& topology) {
 /// \tparam Topologies Variadic template parameter for topology container types
 /// \param[in] topology_type a topology type of interest
 /// \param[in] topologies Topology containers
-/// \return true if all topologies are Shared type, false otherwise
+/// \return true if all topologies are of the specified type, false otherwise
 template <class... Topologies>
 inline bool are_specified_topologies(const TopologyType topology_type,
                                      const Topologies&... topologies) {
+  static_assert(
+      sizeof...(Topologies) > 0,
+      "are_specified_topologies: at least one topology must be provided");
   static_assert((are_allowed_topologies_v<Topologies...>),
                 "are_specified_topologies: topologies must be either in "
                 "std::array or Topology");
@@ -59,33 +77,46 @@ inline bool are_specified_topologies(const TopologyType topology_type,
 
 /// \brief Get the topology type from the given topology containers
 ///
-/// \tparam Topologies Variadic template parameter for topology container types
-/// \param[in] topology Topology container
-/// \return TopologyType enum value representing the topology type
-template <class... Topologies>
-inline auto get_common_topology_type(const Topologies&... topologies) {
-  static_assert((are_allowed_topologies_v<Topologies...>),
+/// \tparam FirstTopology The type of the first topology container
+/// \tparam RestTopologies Variadic template parameter for the rest of the
+/// topology container types
+/// \param[in] first_topology The first topology container
+/// \param[in] rest_topologies The rest of the topology containers
+/// \return TopologyType::Empty if any topology is empty; otherwise the common
+/// topology type if all topologies have the same non-empty type; otherwise
+/// TopologyType::Invalid
+template <class FirstTopology, class... RestTopologies>
+inline auto get_common_topology_type(const FirstTopology& first_topology,
+                                     const RestTopologies&... rest_topologies) {
+  static_assert((are_allowed_topologies_v<FirstTopology, RestTopologies...>),
                 "get_common_topology_type: topologies must be either in "
                 "std::array or Topology");
 
-  // Quick return if empty topology is found
-  auto is_empty = [](const auto& topology) {
-    return to_topology_type(topology) == TopologyType::Empty;
-  };
-  if ((is_empty(topologies) || ...)) {
+  const auto common_topology_type = to_topology_type(first_topology);
+  if (common_topology_type == TopologyType::Empty) {
     return TopologyType::Empty;
   }
 
-  const std::array<TopologyType, 4> all_topology_types = {
-      TopologyType::Shared, TopologyType::Slab, TopologyType::Pencil,
-      TopologyType::Brick};
-  for (TopologyType t : all_topology_types) {
-    if (are_specified_topologies(t, topologies...)) {
-      return t;
+  if constexpr (sizeof...(RestTopologies) > 0) {
+    const bool has_empty =
+        ((to_topology_type(rest_topologies) == TopologyType::Empty) || ...);
+    if (has_empty) {
+      return TopologyType::Empty;
     }
   }
 
-  return TopologyType::Invalid;
+  bool has_mismatch        = false;
+  auto check_topology_type = [&](const auto& topology) {
+    const auto topology_type = to_topology_type(topology);
+    if (topology_type != common_topology_type) {
+      has_mismatch = true;
+    }
+  };
+  if constexpr (sizeof...(RestTopologies) > 0) {
+    (check_topology_type(rest_topologies), ...);
+  }
+
+  return has_mismatch ? TopologyType::Invalid : common_topology_type;
 }
 
 /// \brief Get the axes of the input and output slab topologies that are
@@ -102,7 +133,7 @@ inline auto get_common_topology_type(const Topologies&... topologies) {
 /// \param[in] out_topology The output topology.
 /// \return A tuple of two size_t representing the axes that are different
 /// \throws std::runtime_error if the input and output topologies do not have
-/// the same size
+/// the same size or if they are identical
 /// \throws std::runtime_error if the input and output topologies are not slab
 /// topologies
 template <typename iType, std::size_t DIM>
@@ -113,6 +144,9 @@ auto slab_in_out_axes(const std::array<iType, DIM>& in_topology,
 
   KOKKOSFFT_THROW_IF(in_size != out_size,
                      "Input and output topologies must have the same size.");
+
+  KOKKOSFFT_THROW_IF(in_topology == out_topology,
+                     "Input and output topologies must be different.");
 
   bool is_slab =
       are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
@@ -212,8 +246,8 @@ std::array<iType, DIM> propose_mid_array(const std::array<iType, DIM>& in,
   iType idx_one_out = KokkosFFT::Impl::get_index(out_trimmed, iType(1));
 
   // Try all combinations of 2 indices for a single valid swap
-  for (size_t i = 0; i < diff_non_one_indices.size(); ++i) {
-    for (size_t j = i + 1; j < diff_non_one_indices.size(); ++j) {
+  for (std::size_t i = 0; i < diff_non_one_indices.size(); ++i) {
+    for (std::size_t j = i + 1; j < diff_non_one_indices.size(); ++j) {
       iType idx_in  = diff_non_one_indices.at(i);
       iType idx_out = diff_non_one_indices.at(j);
 
@@ -289,30 +323,18 @@ std::vector<std::vector<iType>> decompose_axes(
   auto error_msg = [&axes, &all_axes,
                     &topologies](std::string_view details) -> std::string {
     std::string msg(details);
-    msg += " Input axes: ";
-    for (auto axis : axes) {
-      msg += std::to_string(axis) + " ";
-    }
+    msg += KokkosFFT::Impl::container_to_string(" Input axes: ", axes);
     msg += "\n";
     msg += "Decomposed axes: \n";
     for (std::size_t i = 0; i < all_axes.size(); ++i) {
       auto topology = topologies.at(i);
-      msg += "at topology (";
-      msg += std::to_string(topology.at(0));
-      for (std::size_t j = 1; j < topology.size(); ++j) {
-        msg += ", " + std::to_string(topology.at(j));
-      }
-      msg += "): Ready axes: ";
+      msg += "at ";
+      msg += KokkosFFT::Impl::container_to_string("topology: ", topology);
+      msg += ": Ready axes: ";
       if (all_axes.at(i).empty()) {
         msg += "None";
       } else {
-        auto axis = all_axes.at(i);
-        msg += "(";
-        msg += std::to_string(axis.at(0));
-        for (std::size_t j = 1; j < axis.size(); ++j) {
-          msg += ", " + std::to_string(axis.at(j));
-        }
-        msg += ")";
+        msg += KokkosFFT::Impl::container_to_string("", all_axes.at(i));
       }
       msg += "\n";
     }
@@ -346,8 +368,8 @@ std::vector<std::vector<iType>> decompose_axes(
 /// exactly two non-one elements
 /// \throws std::runtime_error if the input and output topologies have identical
 /// non-one elements
-/// \throws std::runtime_error if the input and output topologies differ exactly
-/// two positions
+/// \throws std::runtime_error if the input and output topologies do not differ
+/// in exactly two positions
 template <typename iType, std::size_t DIM>
 auto compute_trans_axis(const std::array<iType, DIM>& in_topology,
                         const std::array<iType, DIM>& out_topology,
@@ -358,20 +380,11 @@ auto compute_trans_axis(const std::array<iType, DIM>& in_topology,
   auto error_msg = [&in_topology,
                     &out_topology](std::string_view details) -> std::string {
     std::string message(details);
-    message += "in_topology (";
-    message += std::to_string(in_topology.at(0));
-    for (std::size_t r = 1; r < in_topology.size(); r++) {
-      message += ",";
-      message += std::to_string(in_topology.at(r));
-    }
-    message += "), ";
-    message += "out_topology (";
-    message += std::to_string(out_topology.at(0));
-    for (std::size_t r = 1; r < out_topology.size(); r++) {
-      message += ",";
-      message += std::to_string(out_topology.at(r));
-    }
-    message += ")";
+    message +=
+        KokkosFFT::Impl::container_to_string("in_topology: ", in_topology);
+    message += ", ";
+    message +=
+        KokkosFFT::Impl::container_to_string("out_topology: ", out_topology);
     return message;
   };
 
