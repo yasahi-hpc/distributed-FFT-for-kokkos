@@ -1,5 +1,8 @@
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
+#include <map>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -33,6 +36,29 @@ inline std::string topology_type_to_string(
     case TopologyType::Invalid: return "Invalid";
     default: return "Unknown";
   }
+}
+
+template <std::size_t DIM, typename iType>
+auto to_slab_topology(std::size_t idx, iType value) {
+  std::array<iType, DIM> topology{};
+  topology.fill(1);
+  topology.at(idx) = value;
+  return topology;
+}
+
+template <std::size_t DIM, typename iType>
+auto to_vec_topology(const std::vector<iType>& indices, iType value) {
+  std::vector<std::array<iType, DIM>> topologies;
+  for (auto index : indices) {
+    topologies.push_back(to_slab_topology<DIM>(index, value));
+  }
+  return topologies;
+}
+
+template <std::size_t DIM, typename iType>
+bool has_consecutive_duplicates(
+    const std::vector<std::array<iType, DIM>>& vec) {
+  return vec.empty() || std::adjacent_find(vec.begin(), vec.end()) != vec.end();
 }
 
 /// \brief Generate error message for topology type test failures.
@@ -267,6 +293,8 @@ std::string error_trans_axis(const std::array<iType, DIM>& in_topology,
 /// \tparam iType The index type used for the topology.
 /// \tparam DIM The dimensionality of the topology.
 /// \tparam FFT_DIM The dimensionality of the FFT axes.
+/// \param[in] gin_extents The input extents.
+/// \param[in] gout_extents The output extents.
 /// \param[in] in_topology The input topology.
 /// \param[out] out_topology The output topology.
 /// \param[in] axes The axes along which the FFT is performed.
@@ -278,58 +306,36 @@ std::string error_trans_axis(const std::array<iType, DIM>& in_topology,
 /// expected vector of topologies
 template <typename iType, std::size_t DIM, std::size_t FFT_DIM>
 std::string error_all_topologies(
+    const std::array<std::size_t, DIM>& gin_extents,
+    const std::array<std::size_t, DIM>& gout_extents,
     const std::array<std::size_t, DIM>& in_topology,
     const std::array<std::size_t, DIM>& out_topology,
     const std::array<iType, FFT_DIM>& axes,
     const std::vector<std::array<std::size_t, DIM>>& actual,
     const std::vector<std::array<std::size_t, DIM>>& expected) {
   std::string msg;
-  msg += "Input topologies: ";
-  msg += "(";
-  for (std::size_t i = 0; i < in_topology.size(); ++i) {
-    msg += std::to_string(in_topology.at(i));
-    if (i != in_topology.size() - 1) {
-      msg += ", ";
-    }
-  }
-  msg += ") and (";
-  for (std::size_t i = 0; i < out_topology.size(); ++i) {
-    msg += std::to_string(out_topology.at(i));
-    if (i != out_topology.size() - 1) {
-      msg += ", ";
-    }
-  }
-  msg += "), with FFT axes: (";
-  msg += std::to_string(axes.at(0));
-  for (std::size_t i = 1; i < axes.size(); ++i) {
-    msg += ", " + std::to_string(axes.at(i));
-  }
-  msg += "), should have topologies: (";
+  msg += "Input global extents: ";
+  msg += KokkosFFT::Impl::container_to_string("gin_extents: ", gin_extents);
+  msg += " and ";
+  msg += KokkosFFT::Impl::container_to_string("gout_extents: ", gout_extents);
+  msg += ", with Input topologies: ";
+  msg += KokkosFFT::Impl::container_to_string("in_topology: ", in_topology);
+  msg += " and ";
+  msg += KokkosFFT::Impl::container_to_string("out_topology: ", out_topology);
+  msg += ", with FFT axes: ";
+  msg += KokkosFFT::Impl::container_to_string("axes: ", axes);
+  msg += ", should have topologies: (";
   for (std::size_t i = 0; i < expected.size(); ++i) {
-    msg += "(";
-    for (std::size_t j = 0; j < expected.at(i).size(); ++j) {
-      msg += std::to_string(expected.at(i).at(j));
-      if (j != expected.at(i).size() - 1) {
-        msg += ", ";
-      }
-    }
-    msg += ")";
+    msg += KokkosFFT::Impl::container_to_string("", expected.at(i));
     if (i != expected.size() - 1) {
-      msg += " and ";
+      msg += ", ";
     }
   }
   msg += "), but got: (";
   for (std::size_t i = 0; i < actual.size(); ++i) {
-    msg += "(";
-    for (std::size_t j = 0; j < actual.at(i).size(); ++j) {
-      msg += std::to_string(actual.at(i).at(j));
-      if (j != actual.at(i).size() - 1) {
-        msg += ", ";
-      }
-    }
-    msg += ")";
+    msg += KokkosFFT::Impl::container_to_string("", actual.at(i));
     if (i != actual.size() - 1) {
-      msg += " and ";
+      msg += ", ";
     }
   }
   msg += ").";
@@ -1763,456 +1769,789 @@ void test_get_mid_array_pencil_4D(std::size_t nprocs) {
   }
 }
 
-void test_get_all_slab_topologies1D_3DView(std::size_t nprocs) {
-  using topo_type     = std::array<std::size_t, 3>;
-  using axes_type     = std::array<std::size_t, 1>;
-  using vec_topo_type = std::vector<topo_type>;
-  using topo_and_ref_type =
-      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
+/// \brief Tests for get_all_slab_topologies for 1D FFT on 2D Views, which
+/// returns the list of all valid slab topologies for a given input topology,
+/// output topology, and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform
+template <bool is_R2C>
+void test_get_all_slab_topologies1D_2DView(
+    std::size_t nprocs, const std::array<std::size_t, 2>& gin_extents) {
+  using extents_type       = std::array<std::size_t, 2>;
+  using topo_type          = std::array<std::size_t, 2>;
+  using axes_type          = std::array<std::size_t, 1>;
+  using topo_and_axes_type = std::array<std::size_t, 3>;
+  using ref_vec_type       = std::vector<std::size_t>;
+  using ref_vec_topo_type  = std::vector<topo_type>;
+  using topo_and_ref_type  = std::map<topo_and_axes_type, ref_vec_type>;
 
-  topo_type topo0{1, 1, nprocs}, topo1{1, nprocs, 1}, topo2{nprocs, 1, 1};
-  axes_type axes0{0}, axes1{1}, axes2{2};
-  std::vector<axes_type> all_axes{axes0, axes1, axes2};
+  std::vector<std::size_t> all_dimensions{0, 1};
 
   if (nprocs == 1) {
-    for (const auto& axes : all_axes) {
-      // Failure tests because these are shared topologies
-      for (const auto& topo_in : vec_topo_type{topo0, topo1, topo2}) {
-        for (const auto& topo_out : vec_topo_type{topo0, topo1, topo2}) {
+    for (const auto& idx_axis : all_dimensions) {
+      for (const auto& idx_topo_in : all_dimensions) {
+        for (const auto& idx_topo_out : all_dimensions) {
+          axes_type axes{idx_axis};
+          topo_type topo_in  = to_slab_topology<2>(idx_topo_in, nprocs);
+          topo_type topo_out = to_slab_topology<2>(idx_topo_out, nprocs);
+
           EXPECT_THROW(
               {
+                auto gout_extents = gin_extents;
+                gout_extents.at(idx_axis) =
+                    KokkosFFT::Impl::extent_after_transform(
+                        gout_extents[idx_axis], is_R2C);
                 [[maybe_unused]] auto all_slab_topologies =
                     KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                        topo_in, topo_out, axes);
+                        gin_extents, gout_extents, topo_in, topo_out, axes);
               },
               std::runtime_error);
         }
       }
     }
   } else {
-    std::vector<topo_and_ref_type> topo_test_cases = {
-        {topo0, topo0, axes0, vec_topo_type{topo0}},
-        {topo0, topo0, axes1, vec_topo_type{topo0}},
-        {topo0, topo0, axes2, vec_topo_type{topo0, topo2, topo0}},
-        {topo0, topo1, axes0, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes1, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes2, vec_topo_type{topo0, topo1}},
-        {topo0, topo2, axes0, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes1, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes2, vec_topo_type{topo0, topo2}},
-        {topo1, topo0, axes0, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes1, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes2, vec_topo_type{topo1, topo0}},
-        {topo1, topo1, axes0, vec_topo_type{topo1}},
-        {topo1, topo1, axes1, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo1, axes2, vec_topo_type{topo1}},
-        {topo1, topo2, axes0, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes1, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes2, vec_topo_type{topo1, topo2}},
-        {topo2, topo0, axes0, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes1, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes2, vec_topo_type{topo2, topo0}},
-        {topo2, topo1, axes0, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes1, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes2, vec_topo_type{topo2, topo1}},
-        {topo2, topo2, axes0, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes1, vec_topo_type{topo2}},
-        {topo2, topo2, axes2, vec_topo_type{topo2}}};
-    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
-      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-          topo_in, topo_out, axes);
-      EXPECT_EQ(topos, ref_topos)
-          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
+    topo_and_ref_type topo_test_cases = {
+        {topo_and_axes_type{0, 0, 0}, ref_vec_type{0, 1, 0}},
+        {topo_and_axes_type{0, 0, 1}, ref_vec_type{0}},
+        {topo_and_axes_type{0, 1, 0}, ref_vec_type{0, 1}},
+        {topo_and_axes_type{0, 1, 1}, ref_vec_type{0, 1}},
+        {topo_and_axes_type{1, 0, 0}, ref_vec_type{1, 0}},
+        {topo_and_axes_type{1, 0, 1}, ref_vec_type{1, 0}},
+        {topo_and_axes_type{1, 1, 0}, ref_vec_type{1}},
+        {topo_and_axes_type{1, 1, 1}, ref_vec_type{1, 0, 1}}};
+
+    for (const auto& [topo_and_axes, ref_indices] : topo_test_cases) {
+      auto [idx_topo_in, idx_topo_out, idx_axis] = topo_and_axes;
+      axes_type axes{idx_axis};
+      topo_type topo_in  = to_slab_topology<2>(idx_topo_in, nprocs);
+      topo_type topo_out = to_slab_topology<2>(idx_topo_out, nprocs);
+      auto ref_topos     = to_vec_topology<2>(ref_indices, nprocs);
+
+      auto gout_extents        = gin_extents;
+      gout_extents.at(axes[0]) = KokkosFFT::Impl::extent_after_transform(
+          gout_extents[axes[0]], is_R2C);
+
+      auto in_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+          gin_extents, topo_in);
+      auto out_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+          gout_extents, topo_out);
+
+      auto in_size  = KokkosFFT::Impl::total_size(in_extents);
+      auto out_size = KokkosFFT::Impl::total_size(out_extents);
+
+      bool transpose_needed   = topo_in.at(idx_axis) > 1;
+      bool transpose_possible = false;
+      for (const auto& axis : all_dimensions) {
+        if (axis == idx_axis) continue;
+        if (gout_extents[axis] >= nprocs) {
+          transpose_possible = true;
+          break;
+        }
+      }
+
+      if (in_size == 0 || out_size == 0 ||
+          (transpose_needed && !transpose_possible)) {
+        EXPECT_THROW(
+            {
+              [[maybe_unused]] auto topos =
+                  KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                      gin_extents, gout_extents, topo_in, topo_out, axes);
+            },
+            std::runtime_error);
+      } else {
+        auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+            gin_extents, gout_extents, topo_in, topo_out, axes);
+
+        EXPECT_EQ(topos, ref_topos)
+            << error_all_topologies(gin_extents, gout_extents, topo_in,
+                                    topo_out, axes, topos, ref_topos);
+      }
     }
   }
 }
 
-void test_get_all_slab_topologies2D_2DView(std::size_t nprocs) {
-  using topo_type     = std::array<std::size_t, 2>;
-  using axes_type     = std::array<std::size_t, 2>;
-  using vec_topo_type = std::vector<topo_type>;
-  using topo_and_ref_type =
-      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
-  topo_type topo0{1, nprocs}, topo1{nprocs, 1};
+/// \brief Tests for get_all_slab_topologies for 1D FFT, which returns the list
+/// of all valid slab topologies for a given input topology, output topology,
+/// and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (2D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
+void test_get_all_slab_topologies1D(
+    std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
+  using extents_type = std::array<std::size_t, DIM>;
+  using topo_type    = std::array<std::size_t, DIM>;
+  using axes_type    = std::array<std::size_t, 1>;
 
-  axes_type axes01{0, 1}, axes10{1, 0};
-  std::vector<axes_type> all_axes{axes01, axes10};
+  std::vector<std::size_t> all_dimensions(DIM);
+  std::iota(all_dimensions.begin(), all_dimensions.end(), 0);
 
-  if (nprocs == 1) {
-    for (const auto& axes : all_axes) {
-      // Failure tests because these are shared topologies
-      for (const auto& topo_in : vec_topo_type{topo0, topo1}) {
-        for (const auto& topo_out : vec_topo_type{topo0, topo1}) {
+  for (const auto& idx_topo_in : all_dimensions) {
+    for (const auto& idx_topo_out : all_dimensions) {
+      for (const auto& idx_axis : all_dimensions) {
+        axes_type axes{idx_axis};
+        topo_type topo_in         = to_slab_topology<DIM>(idx_topo_in, nprocs);
+        topo_type topo_out        = to_slab_topology<DIM>(idx_topo_out, nprocs);
+        auto gout_extents         = gin_extents;
+        gout_extents.at(idx_axis) = KokkosFFT::Impl::extent_after_transform(
+            gout_extents[idx_axis], is_R2C);
+
+        if (nprocs == 1) {
           EXPECT_THROW(
               {
                 [[maybe_unused]] auto all_slab_topologies =
                     KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                        topo_in, topo_out, axes);
+                        gin_extents, gout_extents, topo_in, topo_out, axes);
               },
               std::runtime_error);
+        } else {
+          auto in_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+              gin_extents, topo_in);
+          auto out_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+              gout_extents, topo_out);
+
+          auto in_size            = KokkosFFT::Impl::total_size(in_extents);
+          auto out_size           = KokkosFFT::Impl::total_size(out_extents);
+          bool transpose_needed   = topo_in.at(idx_axis) > 1;
+          bool transpose_possible = false;
+          for (const auto& axis : all_dimensions) {
+            if (axis == idx_axis) continue;
+            if (gout_extents[axis] >= nprocs) {
+              transpose_possible = true;
+              break;
+            }
+          }
+
+          if (in_size == 0 || out_size == 0 ||
+              (transpose_needed && !transpose_possible)) {
+            EXPECT_THROW(
+                {
+                  [[maybe_unused]] auto topos =
+                      KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                          gin_extents, gout_extents, topo_in, topo_out, axes);
+                },
+                std::runtime_error);
+          } else {
+            // This must return length 1-3 vectors
+            auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                gin_extents, gout_extents, topo_in, topo_out, axes);
+
+            // In 1D, we can have at most 3 topologies
+            // (in, out, and 1 transpose)
+            std::size_t max_size = std::min(DIM, std::size_t(3));
+            EXPECT_GE(topos.size(), 1);
+            EXPECT_LE(topos.size(), max_size);
+            EXPECT_FALSE(has_consecutive_duplicates(topos));
+          }
         }
       }
-    }
-  } else {
-    std::vector<topo_and_ref_type> topo_test_cases = {
-        {topo0, topo0, axes01, vec_topo_type{topo0, topo1, topo0}},
-        {topo0, topo0, axes10, vec_topo_type{topo0, topo1, topo0}},
-        {topo0, topo1, axes01, vec_topo_type{topo0, topo1, topo0, topo1}},
-        {topo0, topo1, axes10, vec_topo_type{topo0, topo1}},
-        {topo1, topo0, axes01, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes10, vec_topo_type{topo1, topo0, topo1, topo0}},
-        {topo1, topo1, axes01, vec_topo_type{topo1, topo0, topo1}},
-        {topo1, topo1, axes10, vec_topo_type{topo1, topo0, topo1}}};
-    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
-      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-          topo_in, topo_out, axes);
-      EXPECT_EQ(topos, ref_topos)
-          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
     }
   }
 }
 
-void test_get_all_slab_topologies2D_3DView(std::size_t nprocs) {
-  using topo_type     = std::array<std::size_t, 3>;
-  using axes_type     = std::array<std::size_t, 2>;
-  using vec_topo_type = std::vector<topo_type>;
-  using topo_and_ref_type =
-      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
-  topo_type topo0{1, 1, nprocs}, topo1{1, nprocs, 1}, topo2{nprocs, 1, 1};
+/// \brief Tests for get_all_slab_topologies for 2D FFT on 2D Views, which
+/// returns the list of all valid slab topologies for a given input topology,
+/// output topology, and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform
+template <bool is_R2C>
+void test_get_all_slab_topologies2D_2DView(
+    std::size_t nprocs, const std::array<std::size_t, 2>& gin_extents) {
+  using extents_type       = std::array<std::size_t, 2>;
+  using topo_type          = std::array<std::size_t, 2>;
+  using axes_type          = std::array<std::size_t, 2>;
+  using topo_and_axes_type = std::array<std::size_t, 4>;
+  using ref_vec_type       = std::vector<std::size_t>;
+  using topo_and_ref_type  = std::map<topo_and_axes_type, ref_vec_type>;
 
-  axes_type axes01{0, 1}, axes02{0, 2}, axes10{1, 0}, axes12{1, 2},
-      axes20{2, 0}, axes21{2, 1};
-
-  std::vector<axes_type> all_axes{axes01, axes02, axes10,
-                                  axes12, axes20, axes21};
-
+  std::vector<std::size_t> all_dimensions{0, 1};
   if (nprocs == 1) {
-    for (const auto& axes : all_axes) {
-      // Failure tests because these are shared topologies
-      for (const auto& topo_in : vec_topo_type{topo0, topo1, topo2}) {
-        for (const auto& topo_out : vec_topo_type{topo0, topo1, topo2}) {
-          EXPECT_THROW(
-              {
-                [[maybe_unused]] auto all_slab_topologies =
-                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                        topo_in, topo_out, axes);
-              },
-              std::runtime_error);
+    for (const auto& idx_topo_in : all_dimensions) {
+      for (const auto& idx_topo_out : all_dimensions) {
+        for (const auto& axis0 : all_dimensions) {
+          for (const auto& axis1 : all_dimensions) {
+            if (axis0 == axis1) continue;
+            axes_type axes{axis0, axis1};
+            topo_type topo_in  = to_slab_topology<2>(idx_topo_in, nprocs);
+            topo_type topo_out = to_slab_topology<2>(idx_topo_out, nprocs);
+            EXPECT_THROW(
+                {
+                  auto gout_extents = gin_extents;
+                  gout_extents.at(axis1) =
+                      KokkosFFT::Impl::extent_after_transform(
+                          gout_extents[axis1], is_R2C);
+                  [[maybe_unused]] auto all_slab_topologies =
+                      KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                          gin_extents, gout_extents, topo_in, topo_out, axes);
+                },
+                std::runtime_error);
+          }
         }
       }
     }
   } else {
-    std::vector<topo_and_ref_type> topo_test_cases = {
-        {topo0, topo0, axes01, vec_topo_type{topo0}},
-        {topo0, topo0, axes02, vec_topo_type{topo0, topo1, topo0}},
-        {topo0, topo0, axes10, vec_topo_type{topo0}},
-        {topo0, topo0, axes12, vec_topo_type{topo0, topo2, topo0}},
-        {topo0, topo0, axes20, vec_topo_type{topo0, topo2, topo0}},
-        {topo0, topo0, axes21, vec_topo_type{topo0, topo2, topo0}},
-        {topo0, topo1, axes01, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes02, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes10, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes12, vec_topo_type{topo0, topo2, topo1}},
-        {topo0, topo1, axes20, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes21, vec_topo_type{topo0, topo1}},
-        {topo0, topo2, axes01, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes02, vec_topo_type{topo0, topo1, topo2}},
-        {topo0, topo2, axes10, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes12, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes20, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes21, vec_topo_type{topo0, topo2}},
-        {topo1, topo0, axes01, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes02, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes10, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes12, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes20, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes21, vec_topo_type{topo1, topo2, topo0}},
-        {topo1, topo1, axes01, vec_topo_type{topo1, topo0, topo1}},
-        {topo1, topo1, axes02, vec_topo_type{topo1}},
-        {topo1, topo1, axes10, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo1, axes12, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo1, axes20, vec_topo_type{topo1}},
-        {topo1, topo1, axes21, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo2, axes01, vec_topo_type{topo1, topo0, topo2}},
-        {topo1, topo2, axes02, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes10, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes12, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes20, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes21, vec_topo_type{topo1, topo2}},
-        {topo2, topo0, axes01, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes02, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes10, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes12, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes20, vec_topo_type{topo2, topo1, topo0}},
-        {topo2, topo0, axes21, vec_topo_type{topo2, topo0}},
-        {topo2, topo1, axes01, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes02, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes10, vec_topo_type{topo2, topo0, topo1}},
-        {topo2, topo1, axes12, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes20, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes21, vec_topo_type{topo2, topo1}},
-        {topo2, topo2, axes01, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes02, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes10, vec_topo_type{topo2, topo0, topo2}},
-        {topo2, topo2, axes12, vec_topo_type{topo2}},
-        {topo2, topo2, axes20, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes21, vec_topo_type{topo2}}};
-    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
-      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-          topo_in, topo_out, axes);
-      EXPECT_EQ(topos, ref_topos)
-          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
+    topo_and_ref_type topo_test_cases = {
+        {topo_and_axes_type{0, 0, 0, 1}, ref_vec_type{0, 1, 0}},
+        {topo_and_axes_type{0, 0, 1, 0}, ref_vec_type{0, 1, 0}},
+        {topo_and_axes_type{0, 1, 0, 1}, ref_vec_type{0, 1}},
+        {topo_and_axes_type{0, 1, 1, 0}, ref_vec_type{0, 1, 0, 1}},
+        {topo_and_axes_type{1, 0, 0, 1}, ref_vec_type{1, 0, 1, 0}},
+        {topo_and_axes_type{1, 0, 1, 0}, ref_vec_type{1, 0}},
+        {topo_and_axes_type{1, 1, 0, 1}, ref_vec_type{1, 0, 1}},
+        {topo_and_axes_type{1, 1, 1, 0}, ref_vec_type{1, 0, 1}}};
+    for (const auto& [topo_and_axes, ref_indices] : topo_test_cases) {
+      auto [idx_topo_in, idx_topo_out, axis0, axis1] = topo_and_axes;
+      axes_type axes{axis0, axis1};
+      topo_type topo_in  = to_slab_topology<2>(idx_topo_in, nprocs);
+      topo_type topo_out = to_slab_topology<2>(idx_topo_out, nprocs);
+      auto ref_topos     = to_vec_topology<2>(ref_indices, nprocs);
+
+      auto gout_extents      = gin_extents;
+      gout_extents.at(axis1) = KokkosFFT::Impl::extent_after_transform(
+          gout_extents.at(axis1), is_R2C);
+
+      auto in_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+          gin_extents, topo_in);
+      auto out_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+          gout_extents, topo_out);
+
+      auto in_size  = KokkosFFT::Impl::total_size(in_extents);
+      auto out_size = KokkosFFT::Impl::total_size(out_extents);
+
+      bool transpose_needed = false;
+      for (const auto& ax : axes) {
+        if (topo_in.at(ax) > 1) {
+          transpose_needed = true;
+          break;
+        }
+      }
+      bool transpose_possible = true;
+      for (const auto& ax : axes) {
+        bool tranpose_possible_for_ax = false;
+        for (std::size_t i = 0; i < 2; ++i) {
+          if (i == ax) continue;
+          if (gout_extents.at(i) >= nprocs) {
+            tranpose_possible_for_ax = true;
+            break;
+          }
+        }
+        if (!tranpose_possible_for_ax) {
+          transpose_possible = false;
+          break;
+        }
+      }
+
+      if (in_size == 0 || out_size == 0 ||
+          (transpose_needed && !transpose_possible)) {
+        EXPECT_THROW(
+            {
+              [[maybe_unused]] auto topos =
+                  KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                      gin_extents, gout_extents, topo_in, topo_out, axes);
+            },
+            std::runtime_error);
+      } else {
+        auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+            gin_extents, gout_extents, topo_in, topo_out, axes);
+
+        EXPECT_EQ(topos, ref_topos)
+            << error_all_topologies(gin_extents, gout_extents, topo_in,
+                                    topo_out, axes, topos, ref_topos);
+      }
     }
   }
 }
 
-void test_get_all_slab_topologies3D_3DView(std::size_t nprocs) {
-  using topo_type     = std::array<std::size_t, 3>;
-  using axes_type     = std::array<std::size_t, 3>;
-  using vec_topo_type = std::vector<topo_type>;
-  using topo_and_ref_type =
-      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
-  topo_type topo0{1, 1, nprocs}, topo1{1, nprocs, 1}, topo2{nprocs, 1, 1};
+/// \brief Tests for get_all_slab_topologies for 2D FFT, which returns the list
+/// of all valid slab topologies for a given input topology, output topology,
+/// and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (2D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
+void test_get_all_slab_topologies2D(
+    std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
+  using extents_type = std::array<std::size_t, DIM>;
+  using topo_type    = std::array<std::size_t, DIM>;
+  using axes_type    = std::array<std::size_t, 2>;
 
-  axes_type axes012{0, 1, 2}, axes021{0, 2, 1}, axes102{1, 0, 2},
-      axes120{1, 2, 0}, axes201{2, 0, 1}, axes210{2, 1, 0};
+  std::vector<std::size_t> all_dimensions(DIM);
+  std::iota(all_dimensions.begin(), all_dimensions.end(), 0);
 
-  std::vector<axes_type> all_axes{axes012, axes021, axes102,
-                                  axes120, axes201, axes210};
+  for (const auto& idx_topo_in : all_dimensions) {
+    for (const auto& idx_topo_out : all_dimensions) {
+      for (const auto& axis0 : all_dimensions) {
+        for (const auto& axis1 : all_dimensions) {
+          if (axis0 == axis1) continue;
+          axes_type axes{axis0, axis1};
+          topo_type topo_in      = to_slab_topology<DIM>(idx_topo_in, nprocs);
+          topo_type topo_out     = to_slab_topology<DIM>(idx_topo_out, nprocs);
+          auto gout_extents      = gin_extents;
+          gout_extents.at(axis1) = KokkosFFT::Impl::extent_after_transform(
+              gout_extents[axis1], is_R2C);
 
-  if (nprocs == 1) {
-    for (const auto& axes : all_axes) {
-      // Failure tests because these are shared topologies
-      for (const auto& topo_in : vec_topo_type{topo0, topo1, topo2}) {
-        for (const auto& topo_out : vec_topo_type{topo0, topo1, topo2}) {
-          EXPECT_THROW(
-              {
-                [[maybe_unused]] auto all_slab_topologies =
-                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                        topo_in, topo_out, axes);
-              },
-              std::runtime_error);
+          if (nprocs == 1) {
+            EXPECT_THROW(
+                {
+                  [[maybe_unused]] auto all_slab_topologies =
+                      KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                          gin_extents, gout_extents, topo_in, topo_out, axes);
+                },
+                std::runtime_error);
+          } else {
+            auto in_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+                gin_extents, topo_in);
+            auto out_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+                gout_extents, topo_out);
+
+            auto in_size          = KokkosFFT::Impl::total_size(in_extents);
+            auto out_size         = KokkosFFT::Impl::total_size(out_extents);
+            bool transpose_needed = false;
+            for (const auto& ax : axes) {
+              if (topo_in.at(ax) > 1) {
+                transpose_needed = true;
+                break;
+              }
+            }
+            bool transpose_possible = true;
+            for (const auto& ax : axes) {
+              bool tranpose_possible_for_ax = false;
+              for (std::size_t i = 0; i < DIM; ++i) {
+                if (i == ax) continue;
+                if (gout_extents.at(i) >= nprocs) {
+                  tranpose_possible_for_ax = true;
+                  break;
+                }
+              }
+              if (!tranpose_possible_for_ax) {
+                transpose_possible = false;
+                break;
+              }
+            }
+
+            if (in_size == 0 || out_size == 0 ||
+                (transpose_needed && !transpose_possible)) {
+              EXPECT_THROW(
+                  {
+                    [[maybe_unused]] auto topos =
+                        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                            gin_extents, gout_extents, topo_in, topo_out, axes);
+                  },
+                  std::runtime_error);
+            } else {
+              // This must return length 1-3 vectors
+              auto topos =
+                  KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                      gin_extents, gout_extents, topo_in, topo_out, axes);
+              // In 2D, we can have at most 4 topologies
+              // (in, out, and 2 transposes)
+              std::size_t max_size = std::min(DIM, std::size_t(4));
+              EXPECT_GE(topos.size(), 1);
+              EXPECT_LE(topos.size(), max_size);
+              EXPECT_FALSE(has_consecutive_duplicates(topos));
+            }
+          }
         }
       }
-    }
-  } else {
-    std::vector<topo_and_ref_type> topo_test_cases = {
-        {topo0, topo0, axes012, vec_topo_type{topo0, topo2, topo0}},
-        {topo0, topo0, axes021, vec_topo_type{topo0, topo1, topo0}},
-        {topo0, topo0, axes102, vec_topo_type{topo0, topo1, topo0}},
-        {topo0, topo0, axes120, vec_topo_type{topo0, topo2, topo0}},
-        {topo0, topo0, axes201, vec_topo_type{topo0, topo1, topo0}},
-        {topo0, topo0, axes210, vec_topo_type{topo0, topo2, topo0}},
-        {topo0, topo1, axes012, vec_topo_type{topo0, topo2, topo1}},
-        {topo0, topo1, axes021, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes102, vec_topo_type{topo0, topo1, topo2, topo1}},
-        {topo0, topo1, axes120, vec_topo_type{topo0, topo2, topo1}},
-        {topo0, topo1, axes201, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes210, vec_topo_type{topo0, topo1}},
-        {topo0, topo2, axes012, vec_topo_type{topo0, topo2, topo1, topo2}},
-        {topo0, topo2, axes021, vec_topo_type{topo0, topo1, topo2}},
-        {topo0, topo2, axes102, vec_topo_type{topo0, topo1, topo2}},
-        {topo0, topo2, axes120, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes201, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes210, vec_topo_type{topo0, topo2}},
-        {topo1, topo0, axes012, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes021, vec_topo_type{topo1, topo2, topo0}},
-        {topo1, topo0, axes102, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes120, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes201, vec_topo_type{topo1, topo0, topo2, topo0}},
-        {topo1, topo0, axes210, vec_topo_type{topo1, topo2, topo0}},
-        {topo1, topo1, axes012, vec_topo_type{topo1, topo0, topo1}},
-        {topo1, topo1, axes021, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo1, axes102, vec_topo_type{topo1, topo0, topo1}},
-        {topo1, topo1, axes120, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo1, axes201, vec_topo_type{topo1, topo0, topo1}},
-        {topo1, topo1, axes210, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo2, axes012, vec_topo_type{topo1, topo0, topo2}},
-        {topo1, topo2, axes021, vec_topo_type{topo1, topo2, topo1, topo2}},
-        {topo1, topo2, axes102, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes120, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes201, vec_topo_type{topo1, topo0, topo2}},
-        {topo1, topo2, axes210, vec_topo_type{topo1, topo2}},
-        {topo2, topo0, axes012, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes021, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes102, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes120, vec_topo_type{topo2, topo1, topo0}},
-        {topo2, topo0, axes201, vec_topo_type{topo2, topo1, topo0}},
-        {topo2, topo0, axes210, vec_topo_type{topo2, topo0, topo2, topo0}},
-        {topo2, topo1, axes012, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes021, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes102, vec_topo_type{topo2, topo0, topo1}},
-        {topo2, topo1, axes120, vec_topo_type{topo2, topo1, topo2, topo1}},
-        {topo2, topo1, axes201, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes210, vec_topo_type{topo2, topo0, topo1}},
-        {topo2, topo2, axes012, vec_topo_type{topo2, topo0, topo2}},
-        {topo2, topo2, axes021, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes102, vec_topo_type{topo2, topo0, topo2}},
-        {topo2, topo2, axes120, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes201, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes210, vec_topo_type{topo2, topo0, topo2}}};
-    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
-      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-          topo_in, topo_out, axes);
-      EXPECT_EQ(topos, ref_topos)
-          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
     }
   }
 }
 
-void test_get_all_slab_topologies3D_4DView(std::size_t nprocs) {
-  using topo_type     = std::array<std::size_t, 4>;
-  using axes_type     = std::array<std::size_t, 3>;
-  using vec_topo_type = std::vector<topo_type>;
-  using topo_and_ref_type =
-      std::tuple<topo_type, topo_type, axes_type, vec_topo_type>;
+/// \brief Tests for get_all_slab_topologies for 3D FFT on 3D Views, which
+/// returns the list of all valid slab topologies for a given input topology,
+/// output topology, and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in]gin_extents The global input extents for the transform
+template <bool is_R2C>
+void test_get_all_slab_topologies3D_3DView(
+    std::size_t nprocs, const std::array<std::size_t, 3>& gin_extents) {
+  using extents_type       = std::array<std::size_t, 3>;
+  using topo_type          = std::array<std::size_t, 3>;
+  using axes_type          = std::array<std::size_t, 3>;
+  using topo_and_axes_type = std::array<std::size_t, 5>;
+  using ref_vec_type       = std::vector<std::size_t>;
+  using topo_and_ref_type  = std::map<topo_and_axes_type, ref_vec_type>;
 
-  topo_type topo0{1, 1, 1, nprocs}, topo1{1, 1, nprocs, 1},
-      topo2{1, nprocs, 1, 1}, topo3{nprocs, 1, 1, 1};
-
-  axes_type axes012{0, 1, 2}, axes021{0, 2, 1}, axes102{1, 0, 2},
-      axes120{1, 2, 0}, axes201{2, 0, 1}, axes210{2, 1, 0}, axes123{1, 2, 3},
-      axes132{1, 3, 2};
-
-  std::vector<axes_type> all_axes{axes012, axes021, axes102, axes120,
-                                  axes201, axes210, axes123, axes132};
-
+  std::vector<std::size_t> all_dimensions{0, 1, 2};
   if (nprocs == 1) {
-    for (const auto& axes : all_axes) {
-      // Failure tests because these are shared topologies
-      for (const auto& topo_in : vec_topo_type{topo0, topo1, topo2}) {
-        for (const auto& topo_out : vec_topo_type{topo0, topo1, topo2}) {
-          EXPECT_THROW(
-              {
-                [[maybe_unused]] auto all_slab_topologies =
-                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                        topo_in, topo_out, axes);
-              },
-              std::runtime_error);
+    for (const auto& idx_topo_in : all_dimensions) {
+      for (const auto& idx_topo_out : all_dimensions) {
+        for (const auto& axis0 : all_dimensions) {
+          for (const auto& axis1 : all_dimensions) {
+            for (const auto& axis2 : all_dimensions) {
+              if (axis0 == axis1 || axis0 == axis2 || axis1 == axis2) continue;
+              axes_type axes{axis0, axis1, axis2};
+              topo_type topo_in  = to_slab_topology<3>(idx_topo_in, nprocs);
+              topo_type topo_out = to_slab_topology<3>(idx_topo_out, nprocs);
+              EXPECT_THROW(
+                  {
+                    auto gout_extents = gin_extents;
+                    gout_extents.at(axis2) =
+                        KokkosFFT::Impl::extent_after_transform(
+                            gout_extents.at(axis2), is_R2C);
+                    [[maybe_unused]] auto all_slab_topologies =
+                        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                            gin_extents, gout_extents, topo_in, topo_out, axes);
+                  },
+                  std::runtime_error);
+            }
+          }
         }
       }
     }
   } else {
-    std::vector<topo_and_ref_type> topo_test_cases = {
-        {topo0, topo0, axes012, vec_topo_type{topo0}},
-        {topo0, topo0, axes021, vec_topo_type{topo0}},
-        {topo0, topo0, axes102, vec_topo_type{topo0}},
-        {topo0, topo0, axes120, vec_topo_type{topo0}},
-        {topo0, topo0, axes201, vec_topo_type{topo0}},
-        {topo0, topo0, axes210, vec_topo_type{topo0}},
-        {topo0, topo0, axes123, vec_topo_type{topo0, topo2, topo0}},
-        {topo0, topo0, axes132, vec_topo_type{topo0, topo1, topo0}},
-        {topo0, topo1, axes012, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes021, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes102, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes120, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes201, vec_topo_type{topo0, topo1}},
-        {topo0, topo1, axes210, vec_topo_type{topo0, topo1}},
-        {topo0, topo2, axes012, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes021, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes102, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes120, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes201, vec_topo_type{topo0, topo2}},
-        {topo0, topo2, axes210, vec_topo_type{topo0, topo2}},
-        {topo0, topo3, axes012, vec_topo_type{topo0, topo3}},
-        {topo0, topo3, axes021, vec_topo_type{topo0, topo3}},
-        {topo0, topo3, axes102, vec_topo_type{topo0, topo3}},
-        {topo0, topo3, axes120, vec_topo_type{topo0, topo3}},
-        {topo0, topo3, axes201, vec_topo_type{topo0, topo3}},
-        {topo0, topo3, axes210, vec_topo_type{topo0, topo3}},
-        {topo0, topo3, axes123, vec_topo_type{topo0, topo3}},
-        {topo0, topo3, axes132, vec_topo_type{topo0, topo3}},
-        {topo1, topo0, axes012, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes021, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes102, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes120, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes201, vec_topo_type{topo1, topo0}},
-        {topo1, topo0, axes210, vec_topo_type{topo1, topo0}},
-        {topo1, topo1, axes012, vec_topo_type{topo1, topo3, topo1}},
-        {topo1, topo1, axes021, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo1, axes102, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo1, axes120, vec_topo_type{topo1, topo3, topo1}},
-        {topo1, topo1, axes201, vec_topo_type{topo1, topo3, topo1}},
-        {topo1, topo1, axes210, vec_topo_type{topo1, topo3, topo1}},
-        {topo1, topo1, axes123, vec_topo_type{topo1, topo0, topo1}},
-        {topo1, topo1, axes132, vec_topo_type{topo1, topo2, topo1}},
-        {topo1, topo2, axes012, vec_topo_type{topo1, topo3, topo2}},
-        {topo1, topo2, axes021, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes102, vec_topo_type{topo1, topo2, topo3, topo2}},
-        {topo1, topo2, axes120, vec_topo_type{topo1, topo3, topo2}},
-        {topo1, topo2, axes201, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes210, vec_topo_type{topo1, topo2}},
-        {topo1, topo2, axes123, vec_topo_type{topo1, topo0, topo2}},
-        {topo1, topo2, axes132, vec_topo_type{topo1, topo2, topo1, topo2}},
-        {topo1, topo3, axes012, vec_topo_type{topo1, topo3, topo2, topo3}},
-        {topo1, topo3, axes021, vec_topo_type{topo1, topo2, topo3}},
-        {topo1, topo3, axes102, vec_topo_type{topo1, topo2, topo3}},
-        {topo1, topo3, axes120, vec_topo_type{topo1, topo3}},
-        {topo1, topo3, axes201, vec_topo_type{topo1, topo3}},
-        {topo1, topo3, axes210, vec_topo_type{topo1, topo3}},
-        {topo1, topo3, axes123, vec_topo_type{topo1, topo3}},
-        {topo1, topo3, axes132, vec_topo_type{topo1, topo3}},
-        {topo2, topo0, axes012, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes021, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes102, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes120, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes201, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes210, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes123, vec_topo_type{topo2, topo0}},
-        {topo2, topo0, axes132, vec_topo_type{topo2, topo0}},
-        {topo2, topo1, axes012, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes021, vec_topo_type{topo2, topo3, topo1}},
-        {topo2, topo1, axes102, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes120, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes201, vec_topo_type{topo2, topo1, topo3, topo1}},
-        {topo2, topo1, axes210, vec_topo_type{topo2, topo3, topo1}},
-        {topo2, topo1, axes123, vec_topo_type{topo2, topo1}},
-        {topo2, topo1, axes132, vec_topo_type{topo2, topo1}},
-        {topo2, topo2, axes012, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes021, vec_topo_type{topo2, topo3, topo2}},
-        {topo2, topo2, axes102, vec_topo_type{topo2, topo3, topo2}},
-        {topo2, topo2, axes120, vec_topo_type{topo2, topo3, topo2}},
-        {topo2, topo2, axes201, vec_topo_type{topo2, topo1, topo2}},
-        {topo2, topo2, axes210, vec_topo_type{topo2, topo3, topo2}},
-        {topo2, topo3, axes012, vec_topo_type{topo2, topo1, topo3}},
-        {topo2, topo3, axes021, vec_topo_type{topo2, topo3, topo2, topo3}},
-        {topo2, topo3, axes102, vec_topo_type{topo2, topo3}},
-        {topo2, topo3, axes120, vec_topo_type{topo2, topo3}},
-        {topo2, topo3, axes201, vec_topo_type{topo2, topo1, topo3}},
-        {topo2, topo3, axes210, vec_topo_type{topo2, topo3}},
-        {topo3, topo0, axes012, vec_topo_type{topo3, topo0}},
-        {topo3, topo0, axes021, vec_topo_type{topo3, topo0}},
-        {topo3, topo0, axes102, vec_topo_type{topo3, topo0}},
-        {topo3, topo0, axes120, vec_topo_type{topo3, topo0}},
-        {topo3, topo0, axes201, vec_topo_type{topo3, topo0}},
-        {topo3, topo0, axes210, vec_topo_type{topo3, topo0}},
-        {topo3, topo0, axes123, vec_topo_type{topo3, topo0}},
-        {topo3, topo0, axes132, vec_topo_type{topo3, topo0}},
-        {topo3, topo1, axes012, vec_topo_type{topo3, topo1}},
-        {topo3, topo1, axes021, vec_topo_type{topo3, topo1}},
-        {topo3, topo1, axes102, vec_topo_type{topo3, topo1}},
-        {topo3, topo1, axes120, vec_topo_type{topo3, topo2, topo1}},
-        {topo3, topo1, axes201, vec_topo_type{topo3, topo2, topo1}},
-        {topo3, topo1, axes210, vec_topo_type{topo3, topo1, topo3, topo1}},
-        {topo3, topo1, axes123, vec_topo_type{topo3, topo1}},
-        {topo3, topo1, axes132, vec_topo_type{topo3, topo1}},
-        {topo3, topo2, axes012, vec_topo_type{topo3, topo2}},
-        {topo3, topo2, axes021, vec_topo_type{topo3, topo2}},
-        {topo3, topo2, axes102, vec_topo_type{topo3, topo1, topo2}},
-        {topo3, topo2, axes120, vec_topo_type{topo3, topo2, topo3, topo2}},
-        {topo3, topo2, axes201, vec_topo_type{topo3, topo2}},
-        {topo3, topo2, axes210, vec_topo_type{topo3, topo1, topo2}},
-        {topo3, topo3, axes012, vec_topo_type{topo3, topo2, topo3}},
-        {topo3, topo3, axes021, vec_topo_type{topo3, topo2, topo3}},
-        {topo3, topo3, axes102, vec_topo_type{topo3, topo1, topo3}},
-        {topo3, topo3, axes120, vec_topo_type{topo3, topo2, topo3}},
-        {topo3, topo3, axes201, vec_topo_type{topo3, topo2, topo3}},
-        {topo3, topo3, axes210, vec_topo_type{topo3, topo1, topo3}}};
-    for (const auto& [topo_in, topo_out, axes, ref_topos] : topo_test_cases) {
-      auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-          topo_in, topo_out, axes);
-      EXPECT_EQ(topos, ref_topos)
-          << error_all_topologies(topo_in, topo_out, axes, topos, ref_topos);
+    topo_and_ref_type topo_test_cases = {
+        {topo_and_axes_type{0, 0, 0, 1, 2}, ref_vec_type{0, 1, 0}},
+        {topo_and_axes_type{0, 0, 0, 2, 1}, ref_vec_type{0, 1, 0}},
+        {topo_and_axes_type{0, 0, 1, 0, 2}, ref_vec_type{0, 2, 0}},
+        {topo_and_axes_type{0, 0, 1, 2, 0}, ref_vec_type{0, 1, 0}},
+        {topo_and_axes_type{0, 0, 2, 0, 1}, ref_vec_type{0, 1, 0}},
+        {topo_and_axes_type{0, 0, 2, 1, 0}, ref_vec_type{0, 2, 0}},
+        {topo_and_axes_type{0, 1, 0, 1, 2}, ref_vec_type{0, 1}},
+        {topo_and_axes_type{0, 1, 0, 2, 1}, ref_vec_type{0, 1}},
+        {topo_and_axes_type{0, 1, 1, 0, 2}, ref_vec_type{0, 2, 1}},
+        {topo_and_axes_type{0, 1, 1, 2, 0}, ref_vec_type{0, 1, 0, 1}},
+        {topo_and_axes_type{0, 1, 2, 0, 1}, ref_vec_type{0, 1}},
+        {topo_and_axes_type{0, 1, 2, 1, 0}, ref_vec_type{0, 2, 1}},
+        {topo_and_axes_type{0, 2, 0, 1, 2}, ref_vec_type{0, 2}},
+        {topo_and_axes_type{0, 2, 0, 2, 1}, ref_vec_type{0, 2}},
+        {topo_and_axes_type{0, 2, 1, 0, 2}, ref_vec_type{0, 2}},
+        {topo_and_axes_type{0, 2, 1, 2, 0}, ref_vec_type{0, 1, 2}},
+        {topo_and_axes_type{0, 2, 2, 0, 1}, ref_vec_type{0, 1, 2}},
+        {topo_and_axes_type{0, 2, 2, 1, 0}, ref_vec_type{0, 2, 0, 2}},
+        {topo_and_axes_type{1, 0, 0, 1, 2}, ref_vec_type{1, 2, 0}},
+        {topo_and_axes_type{1, 0, 0, 2, 1}, ref_vec_type{1, 0, 1, 0}},
+        {topo_and_axes_type{1, 0, 1, 0, 2}, ref_vec_type{1, 0}},
+        {topo_and_axes_type{1, 0, 1, 2, 0}, ref_vec_type{1, 0}},
+        {topo_and_axes_type{1, 0, 2, 0, 1}, ref_vec_type{1, 2, 0}},
+        {topo_and_axes_type{1, 0, 2, 1, 0}, ref_vec_type{1, 0}},
+        {topo_and_axes_type{1, 1, 0, 1, 2}, ref_vec_type{1, 2, 1}},
+        {topo_and_axes_type{1, 1, 0, 2, 1}, ref_vec_type{1, 0, 1}},
+        {topo_and_axes_type{1, 1, 1, 0, 2}, ref_vec_type{1, 0, 1}},
+        {topo_and_axes_type{1, 1, 1, 2, 0}, ref_vec_type{1, 0, 1}},
+        {topo_and_axes_type{1, 1, 2, 0, 1}, ref_vec_type{1, 2, 1}},
+        {topo_and_axes_type{1, 1, 2, 1, 0}, ref_vec_type{1, 0, 1}},
+        {topo_and_axes_type{1, 2, 0, 1, 2}, ref_vec_type{1, 2}},
+        {topo_and_axes_type{1, 2, 0, 2, 1}, ref_vec_type{1, 0, 2}},
+        {topo_and_axes_type{1, 2, 1, 0, 2}, ref_vec_type{1, 2}},
+        {topo_and_axes_type{1, 2, 1, 2, 0}, ref_vec_type{1, 2}},
+        {topo_and_axes_type{1, 2, 2, 0, 1}, ref_vec_type{1, 2, 0, 2}},
+        {topo_and_axes_type{1, 2, 2, 1, 0}, ref_vec_type{1, 0, 2}},
+        {topo_and_axes_type{2, 0, 0, 1, 2}, ref_vec_type{2, 0, 1, 0}},
+        {topo_and_axes_type{2, 0, 0, 2, 1}, ref_vec_type{2, 1, 0}},
+        {topo_and_axes_type{2, 0, 1, 0, 2}, ref_vec_type{2, 1, 0}},
+        {topo_and_axes_type{2, 0, 1, 2, 0}, ref_vec_type{2, 0}},
+        {topo_and_axes_type{2, 0, 2, 0, 1}, ref_vec_type{2, 0}},
+        {topo_and_axes_type{2, 0, 2, 1, 0}, ref_vec_type{2, 0}},
+        {topo_and_axes_type{2, 1, 0, 1, 2}, ref_vec_type{2, 0, 1}},
+        {topo_and_axes_type{2, 1, 0, 2, 1}, ref_vec_type{2, 1}},
+        {topo_and_axes_type{2, 1, 1, 0, 2}, ref_vec_type{2, 1, 0, 1}},
+        {topo_and_axes_type{2, 1, 1, 2, 0}, ref_vec_type{2, 0, 1}},
+        {topo_and_axes_type{2, 1, 2, 0, 1}, ref_vec_type{2, 1}},
+        {topo_and_axes_type{2, 1, 2, 1, 0}, ref_vec_type{2, 1}},
+        {topo_and_axes_type{2, 2, 0, 1, 2}, ref_vec_type{2, 0, 2}},
+        {topo_and_axes_type{2, 2, 0, 2, 1}, ref_vec_type{2, 1, 2}},
+        {topo_and_axes_type{2, 2, 1, 0, 2}, ref_vec_type{2, 1, 2}},
+        {topo_and_axes_type{2, 2, 1, 2, 0}, ref_vec_type{2, 0, 2}},
+        {topo_and_axes_type{2, 2, 2, 0, 1}, ref_vec_type{2, 0, 2}},
+        {topo_and_axes_type{2, 2, 2, 1, 0}, ref_vec_type{2, 0, 2}},
+    };
+
+    // Update reference when some dimensions are smaller than nprocs
+    if (gin_extents.at(0) < nprocs) {
+      topo_test_cases.at(topo_and_axes_type{1, 1, 0, 2, 1}) =
+          ref_vec_type{1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 1, 1, 0, 2}) =
+          ref_vec_type{1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 1, 1, 2, 0}) =
+          ref_vec_type{1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 1, 2, 1, 0}) =
+          ref_vec_type{1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 2, 0, 2, 1}) =
+          ref_vec_type{1, 2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{1, 2, 2, 0, 1}) =
+          ref_vec_type{1, 2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{1, 2, 2, 1, 0}) =
+          ref_vec_type{1, 2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{2, 1, 0, 1, 2}) =
+          ref_vec_type{2, 1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{2, 1, 1, 0, 2}) =
+          ref_vec_type{2, 1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{2, 1, 1, 2, 0}) =
+          ref_vec_type{2, 1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 0, 1, 2}) =
+          ref_vec_type{2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 1, 2, 0}) =
+          ref_vec_type{2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 2, 0, 1}) =
+          ref_vec_type{2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 2, 1, 0}) =
+          ref_vec_type{2, 1, 2};
+    } else if (KokkosFFT::Impl::extent_after_transform(gin_extents.at(0),
+                                                       is_R2C) < nprocs) {
+      topo_test_cases.at(topo_and_axes_type{0, 1, 1, 2, 0}) =
+          ref_vec_type{0, 1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{0, 2, 2, 1, 0}) =
+          ref_vec_type{0, 2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{1, 1, 1, 2, 0}) =
+          ref_vec_type{1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 1, 2, 1, 0}) =
+          ref_vec_type{1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 2, 2, 1, 0}) =
+          ref_vec_type{1, 2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{2, 1, 1, 2, 0}) =
+          ref_vec_type{2, 1, 2, 1};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 1, 2, 0}) =
+          ref_vec_type{2, 1, 2};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 2, 1, 0}) =
+          ref_vec_type{2, 1, 2};
+    }
+
+    if (gin_extents.at(1) < nprocs) {
+      topo_test_cases.at(topo_and_axes_type{0, 0, 0, 1, 2}) =
+          ref_vec_type{0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 0, 0, 2, 1}) =
+          ref_vec_type{0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 0, 1, 2, 0}) =
+          ref_vec_type{0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 0, 2, 0, 1}) =
+          ref_vec_type{0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 2, 1, 2, 0}) =
+          ref_vec_type{0, 2, 0, 2};
+      topo_test_cases.at(topo_and_axes_type{0, 2, 2, 0, 1}) =
+          ref_vec_type{0, 2, 0, 2};
+      topo_test_cases.at(topo_and_axes_type{2, 0, 0, 1, 2}) =
+          ref_vec_type{2, 0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{2, 0, 0, 2, 1}) =
+          ref_vec_type{2, 0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{2, 0, 1, 0, 2}) =
+          ref_vec_type{2, 0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 0, 2, 1}) =
+          ref_vec_type{2, 0, 2};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 1, 0, 2}) =
+          ref_vec_type{2, 0, 2};
+    } else if (KokkosFFT::Impl::extent_after_transform(gin_extents.at(1),
+                                                       is_R2C) < nprocs) {
+      topo_test_cases.at(topo_and_axes_type{0, 0, 0, 2, 1}) =
+          ref_vec_type{0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 0, 2, 0, 1}) =
+          ref_vec_type{0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 2, 2, 0, 1}) =
+          ref_vec_type{0, 2, 0, 2};
+      topo_test_cases.at(topo_and_axes_type{1, 0, 0, 2, 1}) =
+          ref_vec_type{1, 0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{2, 0, 0, 2, 1}) =
+          ref_vec_type{2, 0, 2, 0};
+      topo_test_cases.at(topo_and_axes_type{2, 2, 0, 2, 1}) =
+          ref_vec_type{2, 0, 2};
+    }
+
+    if (gin_extents.at(2) < nprocs) {
+      topo_test_cases.at(topo_and_axes_type{0, 0, 1, 0, 2}) =
+          ref_vec_type{0, 1, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 0, 2, 1, 0}) =
+          ref_vec_type{0, 1, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 1, 1, 0, 2}) =
+          ref_vec_type{0, 1, 0, 1};
+      topo_test_cases.at(topo_and_axes_type{0, 1, 2, 1, 0}) =
+          ref_vec_type{0, 1, 0, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 0, 0, 1, 2}) =
+          ref_vec_type{1, 0, 1, 0};
+      topo_test_cases.at(topo_and_axes_type{1, 0, 2, 0, 1}) =
+          ref_vec_type{1, 0, 1, 0};
+      topo_test_cases.at(topo_and_axes_type{1, 1, 0, 1, 2}) =
+          ref_vec_type{1, 0, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 1, 2, 0, 1}) =
+          ref_vec_type{1, 0, 1};
+    } else if (KokkosFFT::Impl::extent_after_transform(gin_extents.at(2),
+                                                       is_R2C) < nprocs) {
+      topo_test_cases.at(topo_and_axes_type{0, 0, 1, 0, 2}) =
+          ref_vec_type{0, 1, 0};
+      topo_test_cases.at(topo_and_axes_type{0, 1, 1, 0, 2}) =
+          ref_vec_type{0, 1, 0, 1};
+      topo_test_cases.at(topo_and_axes_type{1, 0, 0, 1, 2}) =
+          ref_vec_type{1, 0, 1, 0};
+      topo_test_cases.at(topo_and_axes_type{1, 1, 0, 1, 2}) =
+          ref_vec_type{1, 0, 1};
+    }
+
+    for (const auto& [topo_and_axes, ref_indices] : topo_test_cases) {
+      auto [idx_topo_in, idx_topo_out, axis0, axis1, axis2] = topo_and_axes;
+      axes_type axes{axis0, axis1, axis2};
+      topo_type topo_in  = to_slab_topology<3>(idx_topo_in, nprocs);
+      topo_type topo_out = to_slab_topology<3>(idx_topo_out, nprocs);
+      auto ref_topos     = to_vec_topology<3>(ref_indices, nprocs);
+
+      auto gout_extents      = gin_extents;
+      gout_extents.at(axis2) = KokkosFFT::Impl::extent_after_transform(
+          gout_extents.at(axis2), is_R2C);
+
+      auto in_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+          gin_extents, topo_in);
+      auto out_extents = KokkosFFT::Distributed::Impl::divide_by_topology(
+          gout_extents, topo_out);
+
+      auto in_size  = KokkosFFT::Impl::total_size(in_extents);
+      auto out_size = KokkosFFT::Impl::total_size(out_extents);
+
+      bool transpose_needed = false;
+      for (const auto& ax : axes) {
+        if (topo_in.at(ax) > 1) {
+          transpose_needed = true;
+          break;
+        }
+      }
+      bool transpose_possible = true;
+      for (const auto& ax : axes) {
+        bool tranpose_possible_for_ax = false;
+        for (std::size_t i = 0; i < 3; ++i) {
+          if (i == ax) continue;
+          if (gout_extents.at(i) >= nprocs) {
+            tranpose_possible_for_ax = true;
+            break;
+          }
+        }
+        if (!tranpose_possible_for_ax) {
+          transpose_possible = false;
+          break;
+        }
+      }
+
+      if (in_size == 0 || out_size == 0 ||
+          (transpose_needed && !transpose_possible)) {
+        EXPECT_THROW(
+            {
+              [[maybe_unused]] auto topos =
+                  KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                      gin_extents, gout_extents, topo_in, topo_out, axes);
+            },
+            std::runtime_error);
+      } else {
+        auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+            gin_extents, gout_extents, topo_in, topo_out, axes);
+
+        EXPECT_EQ(topos, ref_topos)
+            << error_all_topologies(gin_extents, gout_extents, topo_in,
+                                    topo_out, axes, topos, ref_topos);
+      }
+    }
+  }
+}
+
+/// \brief Tests for get_all_slab_topologies for 3D FFT, which returns the list
+/// of all valid slab topologies for a given input topology, output topology,
+/// and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (3D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
+void test_get_all_slab_topologies3D(
+    std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
+  using extents_type = std::array<std::size_t, DIM>;
+  using topo_type    = std::array<std::size_t, DIM>;
+  using axes_type    = std::array<std::size_t, 3>;
+
+  std::vector<std::size_t> all_dimensions(DIM);
+  std::iota(all_dimensions.begin(), all_dimensions.end(), 0);
+
+  for (const auto& idx_topo_in : all_dimensions) {
+    for (const auto& idx_topo_out : all_dimensions) {
+      for (const auto& axis0 : all_dimensions) {
+        for (const auto& axis1 : all_dimensions) {
+          for (const auto& axis2 : all_dimensions) {
+            if (axis0 == axis1 || axis0 == axis2 || axis1 == axis2) continue;
+            axes_type axes{axis0, axis1, axis2};
+            topo_type topo_in  = to_slab_topology<DIM>(idx_topo_in, nprocs);
+            topo_type topo_out = to_slab_topology<DIM>(idx_topo_out, nprocs);
+            auto gout_extents  = gin_extents;
+            gout_extents.at(axis2) = KokkosFFT::Impl::extent_after_transform(
+                gout_extents[axis2], is_R2C);
+
+            if (nprocs == 1) {
+              EXPECT_THROW(
+                  {
+                    [[maybe_unused]] auto all_slab_topologies =
+                        KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                            gin_extents, gout_extents, topo_in, topo_out, axes);
+                  },
+                  std::runtime_error);
+            } else {
+              auto in_extents =
+                  KokkosFFT::Distributed::Impl::divide_by_topology(gin_extents,
+                                                                   topo_in);
+              auto out_extents =
+                  KokkosFFT::Distributed::Impl::divide_by_topology(gout_extents,
+                                                                   topo_out);
+
+              auto in_size          = KokkosFFT::Impl::total_size(in_extents);
+              auto out_size         = KokkosFFT::Impl::total_size(out_extents);
+              bool transpose_needed = false;
+              for (const auto& ax : axes) {
+                if (topo_in.at(ax) > 1) {
+                  transpose_needed = true;
+                  break;
+                }
+              }
+              bool transpose_possible = true;
+              for (const auto& ax : axes) {
+                bool tranpose_possible_for_ax = false;
+                for (std::size_t i = 0; i < DIM; ++i) {
+                  if (i == ax) continue;
+                  if (gout_extents.at(i) >= nprocs) {
+                    tranpose_possible_for_ax = true;
+                    break;
+                  }
+                }
+                if (!tranpose_possible_for_ax) {
+                  transpose_possible = false;
+                  break;
+                }
+              }
+
+              if (in_size == 0 || out_size == 0 ||
+                  (transpose_needed && !transpose_possible)) {
+                EXPECT_THROW(
+                    {
+                      [[maybe_unused]] auto topos =
+                          KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                              gin_extents, gout_extents, topo_in, topo_out,
+                              axes);
+                    },
+                    std::runtime_error);
+              } else {
+                // This must return length 1-3 vectors
+                auto topos =
+                    KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                        gin_extents, gout_extents, topo_in, topo_out, axes);
+                // In 3D, we can have at most 5 topologies
+                // (in, out, and 3 transposes)
+                std::size_t max_size = std::min(DIM, std::size_t(5));
+                EXPECT_GE(topos.size(), 1);
+                EXPECT_LE(topos.size(), max_size);
+                EXPECT_FALSE(has_consecutive_duplicates(topos));
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
@@ -4132,29 +4471,475 @@ TEST_P(TopologyParamTests, get_mid_array_4D) {
 INSTANTIATE_TEST_SUITE_P(TopologyTests, TopologyParamTests,
                          ::testing::Values(1, 2, 3, 4, 5, 6));
 
-TEST_P(SlabParamTests, GetAllSlabTopologies1D_3DView) {
-  int n0 = GetParam();
-  test_get_all_slab_topologies1D_3DView(n0);
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_2DView_R2C) {
+  using extents_type = std::array<std::size_t, 2>;
+  int nprocs         = GetParam();
+  std::size_t n0_big = 8, n1_big = 9;
+  std::size_t n_small = 2;
+
+  test_get_all_slab_topologies1D_2DView<true>(nprocs,
+                                              extents_type{n0_big, n1_big});
+  test_get_all_slab_topologies1D_2DView<true>(nprocs,
+                                              extents_type{n0_big, n_small});
+  test_get_all_slab_topologies1D_2DView<true>(nprocs,
+                                              extents_type{n_small, n1_big});
+  test_get_all_slab_topologies1D_2DView<true>(nprocs,
+                                              extents_type{n_small, n_small});
 }
 
-TEST_P(SlabParamTests, GetAllSlabTopologies2D_2DView) {
-  int n0 = GetParam();
-  test_get_all_slab_topologies2D_2DView(n0);
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_2DView_C2C) {
+  using extents_type = std::array<std::size_t, 2>;
+  int nprocs         = GetParam();
+  std::size_t n0_big = 8, n1_big = 9;
+  std::size_t n_small = 2;
+
+  test_get_all_slab_topologies1D_2DView<false>(nprocs,
+                                               extents_type{n0_big, n1_big});
+  test_get_all_slab_topologies1D_2DView<false>(nprocs,
+                                               extents_type{n0_big, n_small});
+  test_get_all_slab_topologies1D_2DView<false>(nprocs,
+                                               extents_type{n_small, n1_big});
+  test_get_all_slab_topologies1D_2DView<false>(nprocs,
+                                               extents_type{n_small, n_small});
 }
 
-TEST_P(SlabParamTests, GetAllSlabTopologies2D_3DView) {
-  int n0 = GetParam();
-  test_get_all_slab_topologies2D_3DView(n0);
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_3DView_R2C) {
+  using extents_type = std::array<std::size_t, 3>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 3; ++i) {
+    extents_type gin_extents{2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
 }
 
-TEST_P(SlabParamTests, GetAllSlabTopologies3D_3DView) {
-  int n0 = GetParam();
-  test_get_all_slab_topologies3D_3DView(n0);
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_3DView_C2C) {
+  using extents_type = std::array<std::size_t, 3>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 3; ++i) {
+    extents_type gin_extents{2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
 }
 
-TEST_P(SlabParamTests, GetAllSlabTopologies3D_4DView) {
-  int n0 = GetParam();
-  test_get_all_slab_topologies3D_4DView(n0);
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_4DView_R2C) {
+  using extents_type = std::array<std::size_t, 4>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 4; ++i) {
+    extents_type gin_extents{2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_4DView_C2C) {
+  using extents_type = std::array<std::size_t, 4>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 4; ++i) {
+    extents_type gin_extents{2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_5DView_R2C) {
+  using extents_type = std::array<std::size_t, 5>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 5; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_5DView_C2C) {
+  using extents_type = std::array<std::size_t, 5>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 5; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_6DView_R2C) {
+  using extents_type = std::array<std::size_t, 6>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 6; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_6DView_C2C) {
+  using extents_type = std::array<std::size_t, 6>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 6; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_7DView_R2C) {
+  using extents_type = std::array<std::size_t, 7>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 7; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies1D_7DView_C2C) {
+  using extents_type = std::array<std::size_t, 7>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 7; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_2DView_R2C) {
+  using extents_type = std::array<std::size_t, 2>;
+  int nprocs         = GetParam();
+  std::size_t n0 = 8, n1 = 9;
+  std::size_t n_small = 2;
+  test_get_all_slab_topologies2D_2DView<true>(nprocs, extents_type{n0, n1});
+  test_get_all_slab_topologies2D_2DView<true>(nprocs,
+                                              extents_type{n0, n_small});
+  test_get_all_slab_topologies2D_2DView<true>(nprocs,
+                                              extents_type{n_small, n1});
+  test_get_all_slab_topologies2D_2DView<true>(nprocs,
+                                              extents_type{n_small, n_small});
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_2DView_C2C) {
+  using extents_type = std::array<std::size_t, 2>;
+  int nprocs         = GetParam();
+  std::size_t n0 = 8, n1 = 9;
+  std::size_t n_small = 2;
+  test_get_all_slab_topologies2D_2DView<false>(nprocs, extents_type{n0, n1});
+  test_get_all_slab_topologies2D_2DView<false>(nprocs,
+                                               extents_type{n0, n_small});
+  test_get_all_slab_topologies2D_2DView<false>(nprocs,
+                                               extents_type{n_small, n1});
+  test_get_all_slab_topologies2D_2DView<false>(nprocs,
+                                               extents_type{n_small, n_small});
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_3DView_R2C) {
+  using extents_type = std::array<std::size_t, 3>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 3; ++i) {
+    extents_type gin_extents{2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_3DView_C2C) {
+  using extents_type = std::array<std::size_t, 3>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 3; ++i) {
+    extents_type gin_extents{2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_4DView_R2C) {
+  using extents_type = std::array<std::size_t, 4>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 4; ++i) {
+    extents_type gin_extents{2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_4DView_C2C) {
+  using extents_type = std::array<std::size_t, 4>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 4; ++i) {
+    extents_type gin_extents{2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_5DView_R2C) {
+  using extents_type = std::array<std::size_t, 5>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 5; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_5DView_C2C) {
+  using extents_type = std::array<std::size_t, 5>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 5; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_6DView_R2C) {
+  using extents_type = std::array<std::size_t, 6>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 6; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_6DView_C2C) {
+  using extents_type = std::array<std::size_t, 6>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 6; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_7DView_R2C) {
+  using extents_type = std::array<std::size_t, 7>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 7; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies2D_7DView_C2C) {
+  using extents_type = std::array<std::size_t, 7>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 7; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_3DView_R2C) {
+  using extents_type = std::array<std::size_t, 3>;
+  int nprocs         = GetParam();
+  std::size_t n0 = 8, n1 = 9, n2 = 7;
+  std::size_t n_small = 2;
+
+  test_get_all_slab_topologies3D_3DView<true>(nprocs, extents_type{n0, n1, n2});
+  test_get_all_slab_topologies3D_3DView<true>(nprocs,
+                                              extents_type{n0, n1, n_small});
+  test_get_all_slab_topologies3D_3DView<true>(nprocs,
+                                              extents_type{n0, n_small, n2});
+  test_get_all_slab_topologies3D_3DView<true>(nprocs,
+                                              extents_type{n_small, n1, n2});
+  test_get_all_slab_topologies3D_3DView<true>(
+      nprocs, extents_type{n0, n_small, n_small});
+  test_get_all_slab_topologies3D_3DView<true>(
+      nprocs, extents_type{n_small, n1, n_small});
+  test_get_all_slab_topologies3D_3DView<true>(
+      nprocs, extents_type{n_small, n_small, n2});
+  test_get_all_slab_topologies3D_3DView<true>(
+      nprocs, extents_type{n_small, n_small, n_small});
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_3DView_C2C) {
+  using extents_type = std::array<std::size_t, 3>;
+  int nprocs         = GetParam();
+  std::size_t n0 = 8, n1 = 9, n2 = 7;
+  std::size_t n_small = 2;
+
+  test_get_all_slab_topologies3D_3DView<false>(nprocs,
+                                               extents_type{n0, n1, n2});
+  test_get_all_slab_topologies3D_3DView<false>(nprocs,
+                                               extents_type{n0, n1, n_small});
+  test_get_all_slab_topologies3D_3DView<false>(nprocs,
+                                               extents_type{n0, n_small, n2});
+  test_get_all_slab_topologies3D_3DView<false>(nprocs,
+                                               extents_type{n_small, n1, n2});
+  test_get_all_slab_topologies3D_3DView<false>(
+      nprocs, extents_type{n0, n_small, n_small});
+  test_get_all_slab_topologies3D_3DView<false>(
+      nprocs, extents_type{n_small, n1, n_small});
+  test_get_all_slab_topologies3D_3DView<false>(
+      nprocs, extents_type{n_small, n_small, n2});
+  test_get_all_slab_topologies3D_3DView<false>(
+      nprocs, extents_type{n_small, n_small, n_small});
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_4DView_R2C) {
+  using extents_type = std::array<std::size_t, 4>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 4; ++i) {
+    extents_type gin_extents{2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_4DView_C2C) {
+  using extents_type = std::array<std::size_t, 4>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 4; ++i) {
+    extents_type gin_extents{2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_5DView_R2C) {
+  using extents_type = std::array<std::size_t, 5>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 5; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_5DView_C2C) {
+  using extents_type = std::array<std::size_t, 5>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 5; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_6DView_R2C) {
+  using extents_type = std::array<std::size_t, 6>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 6; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_6DView_C2C) {
+  using extents_type = std::array<std::size_t, 6>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 6; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_7DView_R2C) {
+  using extents_type = std::array<std::size_t, 7>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 7; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+}
+
+TEST_P(SlabParamTests, GetAllSlabTopologies3D_7DView_C2C) {
+  using extents_type = std::array<std::size_t, 7>;
+  int nprocs         = GetParam();
+  for (std::size_t i = 0; i < 7; ++i) {
+    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+  }
+  extents_type gin_extents{};
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
 }
 
 INSTANTIATE_TEST_SUITE_P(SlabTests, SlabParamTests,
