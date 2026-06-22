@@ -411,6 +411,166 @@ auto compute_trans_axis(const std::array<iType, DIM>& in_topology,
   return trans_axis;
 }
 
+/// \brief Divide the extents by the topology to get the local extents for each
+/// process This is not exactly same as the local extents, but is used to check
+/// whether the local extents include 0 or not.
+/// \tparam ExtentsType The extents type (std::array)
+/// \tparam TopologyContainerType The topology container type (std::array or
+/// TopologyType)
+/// \param[in] extents The extents
+/// \param[in] topology The topology
+/// \return The local extents for each process
+template <typename ExtentsType, typename TopologyContainerType>
+auto divide_by_topology(const ExtentsType& extents,
+                        const TopologyContainerType& topology) {
+  ExtentsType result;
+  for (std::size_t i = 0; i < result.size(); ++i) {
+    result.at(i) = extents.at(i) / topology.at(i);
+  }
+  return result;
+}
+
+/// \brief Append a topology to the vector of topologies if it is not already
+/// present. No op if the topology is the same as the last topology in the
+/// vector. This is used to avoid duplicate topologies in the vector.
+/// \tparam iType The index type
+/// \tparam DIM The dimension
+/// \param[in,out] topologies The vector of topologies
+/// \param[in] topology The topology to append
+template <typename iType, std::size_t DIM>
+void append_topology(std::vector<std::array<iType, DIM>>& topologies,
+                     const std::array<iType, DIM>& topology) {
+  if (topologies.empty() || topologies.back() != topology) {
+    topologies.push_back(topology);
+  }
+}
+
+/// \brief Check if the axes are ready for FFT
+/// \tparam iType The index type
+/// \tparam DIM The dimension
+/// \param[in] topology The topology
+/// \param[in] axes The axes along which the FFT is performed
+/// \return A pair of vectors of (remaining axes, ready axes). The first vector
+/// contains the axes that are not ready for FFT. The second vector contains the
+/// axes that are ready for FFT. remaining axes can be empty
+template <typename iType, std::size_t DIM>
+auto decompose_fft_axes(const std::array<std::size_t, DIM>& topology,
+                        const std::vector<iType>& axes) {
+  auto reversed_axes                = KokkosFFT::Impl::reversed(axes);
+  std::vector<iType> remaining_axes = reversed_axes;
+  std::vector<iType> ready_axes;
+
+  for (const auto axis : reversed_axes) {
+    if (topology.at(axis) > 1) break;
+    ready_axes.push_back(axis);
+
+    auto it = std::find(remaining_axes.begin(), remaining_axes.end(), axis);
+    if (it != remaining_axes.end()) {
+      remaining_axes.erase(it);
+    }
+  }
+
+  return std::make_pair(KokkosFFT::Impl::reversed(remaining_axes),
+                        KokkosFFT::Impl::reversed(ready_axes));
+}
+
+/// \brief Check if the topology is ready for FFT along the given axes
+/// \tparam iType The index type
+/// \tparam DIM The dimension
+/// \param[in] topology The topology
+/// \param[in] axes The axes along which the FFT is performed
+/// \return True if the topology is ready for FFT along the given axes, false
+/// otherwise
+template <typename iType, std::size_t DIM>
+bool is_fft_ready(const std::array<std::size_t, DIM>& topology,
+                  const std::vector<iType>& axes) {
+  return std::none_of(axes.begin(), axes.end(), [&topology](iType axis) {
+    return topology.at(axis) > 1;
+  });
+}
+
+/// \brief Find the transposed topology for a given topology and FFT extents
+/// A new topology is distributed along an axis that is not an FFT axis and is
+/// not identical to the original topology
+///
+/// Example
+/// topology: (1, P, 1), fft_extents: (N, M, K), axes: {1, 2}
+/// -> transposed_topology: (P, 1, 1)
+/// topology: (1, P, 1), fft_extents: (1, M, K), axes: {1, 2}
+/// -> transposed_topology: nullopt (no transposed topology found)
+/// \tparam iType The index type
+/// \tparam DIM The dimension
+/// \param[in] topology Input topology
+/// \param[in] fft_extents Global FFT extents
+/// \param[in] axes The axes along which the FFT is performed
+/// \return The transposed topology if it is a slab topology, std::nullopt
+/// otherwise
+template <typename iType, std::size_t DIM>
+std::optional<std::array<std::size_t, DIM>> find_transposed_topology(
+    const std::array<std::size_t, DIM>& topology,
+    const std::array<std::size_t, DIM>& fft_extents,
+    const std::vector<iType>& axes) {
+  auto p = KokkosFFT::Impl::total_size(topology);
+  std::array<std::size_t, DIM> transposed_topology;
+  transposed_topology.fill(1);
+  for (std::size_t axis = 0; axis < DIM; ++axis) {
+    // Skip if the axis is already an FFT axis or if the topology is identical
+    // to the original topology
+    if (KokkosFFT::Impl::is_found(axes, static_cast<iType>(axis)) ||
+        topology.at(axis) > 1)
+      continue;
+    if (fft_extents.at(axis) / p > 0) {
+      transposed_topology.at(axis) = p;
+      break;
+    }
+  }
+
+  // If a candidate found, transposed topology is a slab geometry
+  bool is_slab =
+      are_specified_topologies(TopologyType::Slab, transposed_topology);
+  return is_slab ? std::optional(transposed_topology) : std::nullopt;
+}
+
+/// \brief Find the next slab topology for a given topology and FFT extents
+/// A new topology is distributed along an axis that is not an FFT axis and is
+/// not identical
+/// \tparam iType The index type
+/// \tparam DIM The dimension
+/// \param[in] topology Input topology
+/// \param[in] fft_extents Global FFT extents
+/// \param[in] axes The axes along which the FFT is performed
+/// \return The next slab topology
+/// \throws std::runtime_error if no valid next slab topology is found
+template <typename iType, std::size_t DIM>
+auto find_next_slab_topology(const std::array<iType, DIM>& topology,
+                             const std::array<std::size_t, DIM>& fft_extents,
+                             const std::vector<iType>& axes) {
+  auto current_axes = axes;
+  std::array<iType, DIM> next_topology{};
+
+  while (true) {
+    auto transposed_topology =
+        find_transposed_topology(topology, fft_extents, current_axes);
+    if (transposed_topology.has_value()) {
+      next_topology = transposed_topology.value();
+      break;
+    } else {
+      // We should have found a slab topology
+      if (current_axes.size() == 1) break;
+
+      // We cannot manipulate all_axes one time, make sub-axes by suppressing
+      // the first element
+      current_axes.erase(current_axes.begin());
+    }
+  }
+
+  KOKKOSFFT_THROW_IF(KokkosFFT::Impl::total_size(next_topology) == 0,
+                     "No valid next slab topology found. Check if the input "
+                     "topology is valid and if the FFT axes are correct.");
+
+  return next_topology;
+}
+
 /// \brief Get all slab topologies for a given input and output topology
 ///
 /// Example: 3D case
@@ -425,209 +585,91 @@ auto compute_trans_axis(const std::array<iType, DIM>& in_topology,
 /// \tparam DIM The dimensionality of the topology.
 /// \tparam FFT_DIM The dimensionality of the FFT axes.
 ///
+/// \param[in] gin_extents The global input extents of the data.
+/// \param[in] gout_extents The global output extents of the data.
 /// \param[in] in_topology The input topology.
 /// \param[in] out_topology The output topology.
 /// \param[in] axes The axes along which the FFT is performed.
 /// \return A vector of all possible slab topologies that can be formed
 /// from the input and output topologies, considering the FFT axes.
+/// \throws std::runtime_error
+/// 1. if the input and output topologies are not slab topologies
+/// 2. if the input and output topologies do not have the same size
+/// 3. if the input and output extents include 0
+/// 4. if valid next slab topology cannot be found for the given input topology
+/// and FFT axes
 template <typename iType, std::size_t DIM, std::size_t FFT_DIM>
-std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
-    const std::array<std::size_t, DIM>& in_topology,
-    const std::array<std::size_t, DIM>& out_topology,
-    const std::array<iType, FFT_DIM>& axes) {
+auto get_all_slab_topologies(const std::array<std::size_t, DIM>& gin_extents,
+                             const std::array<std::size_t, DIM>& gout_extents,
+                             const std::array<std::size_t, DIM>& in_topology,
+                             const std::array<std::size_t, DIM>& out_topology,
+                             const std::array<iType, FFT_DIM>& axes) {
   static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
   static_assert(DIM >= 2 && DIM >= FFT_DIM, "DIM >= 2 and DIM >= FFT_DIM");
   static_assert(std::is_unsigned_v<iType>,
                 "get_all_slab_topologies: axes must be unsigned");
 
+  // Firstly, check if input topologies are slabs with the same size
   bool is_slab =
       are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
+
   KOKKOSFFT_THROW_IF(!is_slab,
                      "Input and output topologies must be slab topologies.");
 
-  std::vector<std::array<std::size_t, DIM>> topologies;
-  topologies.push_back(in_topology);
-  auto p = KokkosFFT::Impl::total_size(in_topology);
+  auto in_topology_size  = KokkosFFT::Impl::total_size(in_topology);
+  auto out_topology_size = KokkosFFT::Impl::total_size(out_topology);
 
-  auto add_topology_at = [&](std::size_t axis) {
-    std::array<std::size_t, DIM> t;
-    t.fill(1);
-    t.at(axis) = p;
-    if (topologies.back() != t) {
-      topologies.push_back(t);
-    }
-  };
+  KOKKOSFFT_THROW_IF(in_topology_size != out_topology_size,
+                     "Input and output topologies must have the same size.");
 
-  auto add_topology_at_first_one = [&](std::array<std::size_t, DIM> topo) {
-    for (std::size_t i = 0; i < DIM; ++i) {
-      if (topo.at(i) == 1) {
-        add_topology_at(i);
-        break;
-      }
-    }
-  };
+  // Check if local input and output sizes are not zero
+  auto in_extents  = divide_by_topology(gin_extents, in_topology);
+  auto out_extents = divide_by_topology(gout_extents, out_topology);
 
-  auto finalize = [&]() {
-    if (topologies.back() != out_topology) {
-      topologies.push_back(out_topology);
-    }
-    return topologies;
-  };
+  auto in_size  = KokkosFFT::Impl::total_size(in_extents);
+  auto out_size = KokkosFFT::Impl::total_size(out_extents);
 
-  auto axes_vec = KokkosFFT::Impl::to_vector(axes);
+  KOKKOSFFT_THROW_IF(in_size == 0 || out_size == 0,
+                     "Input and output extents must not include 0.");
 
-  // 2D case
-  if constexpr (DIM == 2 && FFT_DIM == 2) {
-    if (in_topology == out_topology) {
-      add_topology_at_first_one(in_topology);
-    } else {
-      // In case one transpose needed for first fft
-      // then we need to add two swapped topologies
-      auto last_axis = axes.back();
-      auto first_dim = in_topology.at(last_axis);
-      if (first_dim != 1) {
-        add_topology_at_first_one(in_topology);
-        if (topologies.back() != in_topology) {
-          topologies.push_back(in_topology);
-        }
-      }
-    }
-    return finalize();
+  // Secondly, check if we can perform FFTs without transpose
+  auto current_axes     = KokkosFFT::Impl::to_vector(axes);
+  auto current_topology = in_topology;
+
+  std::vector<std::array<std::size_t, DIM>> all_topologies;
+  std::vector<std::vector<std::size_t>> all_axes;
+
+  auto [remaining_axes, ready_axes] =
+      decompose_fft_axes(current_topology, current_axes);
+
+  append_topology(all_topologies, current_topology);
+  all_axes.push_back(ready_axes);
+
+  while (!remaining_axes.empty()) {
+    // Check if we can perform FFT on output topology without transpose
+    if (is_fft_ready(out_topology, remaining_axes)) break;
+
+    // Remaining axes must require transpose
+    bool is_transpose_only = remaining_axes == current_axes;
+    auto fft_extents       = is_transpose_only ? gin_extents : gout_extents;
+    auto next_topology =
+        find_next_slab_topology(current_topology, fft_extents, remaining_axes);
+    auto [next_remaining_axes, next_ready_axes] =
+        decompose_fft_axes(next_topology, remaining_axes);
+
+    // Add new topology and axes
+    append_topology(all_topologies, next_topology);
+    all_axes.push_back(next_ready_axes);
+
+    current_topology = next_topology;
+    remaining_axes   = next_remaining_axes;
   }
 
-  // 3D case
-  if constexpr (DIM == 3 && FFT_DIM == 3) {
-    if (in_topology == out_topology) {
-      auto last_axis = axes.back();
-      auto first_dim = in_topology.at(last_axis);
-      if (first_dim != 1) {
-        add_topology_at(axes.at(0));
-      } else {
-        add_topology_at(axes.back());
-      }
-    } else {
-      auto last_axis = axes.back();
-      auto first_dim = in_topology.at(last_axis);
-      if (first_dim != 1) {
-        add_topology_at(axes.at(0));
-        auto last_dim = out_topology.at(axes.front());
-        if (last_dim != 1) {
-          add_topology_at_first_one(topologies.back());
-        }
-      } else {
-        auto mid_dim = in_topology.at(axes.at(1));
-        if (mid_dim != 1) {
-          add_topology_at(axes.back());
-        } else {
-          auto last_dim = out_topology.at(axes.front());
-          if (last_dim != 1) {
-            add_topology_at_first_one(topologies.back());
-          }
-        }
-      }
-    }
-    return finalize();
+  append_topology(all_topologies, out_topology);
+  if (all_topologies.size() != all_axes.size()) {
+    all_axes.push_back({});
   }
-
-  // Batched case
-  // If input or output is ready, we can skip the rest of the logic
-  auto axes_reversed     = axes_vec;
-  auto is_topology_ready = [&](const std::array<std::size_t, DIM>& topo) {
-    bool is_ready = true;
-    for (const auto& axis : axes_reversed) {
-      if (topo.at(axis) > 1) is_ready = false;
-    }
-    return is_ready;
-  };
-
-  if (is_topology_ready(in_topology) || is_topology_ready(out_topology)) {
-    return finalize();
-  }
-
-  // If the conditions above are not satisfied, we need a
-  // intermediate topology
-  if constexpr (FFT_DIM == 1) {
-    for (std::size_t i = 0; i < DIM; ++i) {
-      if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
-        add_topology_at(i);
-        break;
-      }
-    }
-
-    return finalize();
-  } else if constexpr (DIM > 3 && FFT_DIM == 3) {
-    // First, remove the already ready axes
-    auto sorted_axes = axes_vec;
-    std::sort(sorted_axes.begin(), sorted_axes.end());
-    std::reverse(axes_reversed.begin(), axes_reversed.end());
-
-    // Get axes ready for transform
-    std::vector<iType> ready_axes;
-    for (auto axis : axes_reversed) {
-      if (in_topology.at(axis) > 1) break;
-      ready_axes.push_back(axis);
-    }
-
-    if (ready_axes.size() == 0) {
-      add_topology_at(axes_reversed.back());
-      for (auto axis : axes_reversed) {
-        if (topologies.back().at(axis) > 1) break;
-        ready_axes.push_back(axis);
-      }
-    }
-
-    // Remove already registered axes
-    for (auto axis : ready_axes) {
-      auto it = std::find(axes_reversed.begin(), axes_reversed.end(), axis);
-      if (it != axes_reversed.end()) {
-        axes_reversed.erase(it);
-      }
-    }
-    // test if output is ready
-    bool is_ready = is_topology_ready(out_topology);
-    if (!is_ready) {
-      // Need to find a new topology
-      for (auto axis : sorted_axes) {
-        if (!KokkosFFT::Impl::is_found(axes_reversed, axis)) {
-          add_topology_at(axis);
-          break;
-        }
-      }
-    }
-
-    return finalize();
-  } else {
-    // First, remove the already ready axes
-    std::reverse(axes_reversed.begin(), axes_reversed.end());
-
-    // Get axes ready for transform
-    std::vector<iType> ready_axes;
-    for (auto axis : axes_reversed) {
-      if (in_topology.at(axis) > 1) break;
-      ready_axes.push_back(axis);
-    }
-
-    for (auto axis : ready_axes) {
-      auto it = std::find(axes_reversed.begin(), axes_reversed.end(), axis);
-      if (it != axes_reversed.end()) {
-        axes_reversed.erase(it);
-      }
-    }
-
-    // test if output is ready
-    bool is_ready = is_topology_ready(out_topology);
-    if (!is_ready) {
-      // Need to find a new topology
-      for (std::size_t i = 0; i < DIM; ++i) {
-        if (!KokkosFFT::Impl::is_found(axes_reversed, i)) {
-          add_topology_at(i);
-          break;
-        }
-      }
-    }
-
-    return finalize();
-  }
+  return all_topologies;
 }
 
 /// \brief Get all pencil topologies for a given input and output topology
@@ -650,8 +692,9 @@ std::vector<std::array<std::size_t, DIM>> get_all_slab_topologies(
 /// \param[in] out_topology The output topology.
 /// \param[in] axes The axes along which the FFT is performed.
 /// \param[in] is_same_order If true, the in/out topologies are considered in
-/// the same order. \return A vector of all possible slab topologies that can be
-/// formed from the input and output topologies, considering the FFT axes.
+/// the same order.
+/// \return A vector of all possible slab topologies that can be formed from the
+/// input and output topologies, considering the FFT axes.
 template <typename iType, std::size_t DIM, std::size_t FFT_DIM,
           typename InLayoutType  = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
