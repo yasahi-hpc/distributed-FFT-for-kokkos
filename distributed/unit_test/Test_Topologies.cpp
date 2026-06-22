@@ -1780,12 +1780,10 @@ void test_get_mid_array_pencil_4D(std::size_t nprocs) {
 template <bool is_R2C>
 void test_get_all_slab_topologies1D_2DView(
     std::size_t nprocs, const std::array<std::size_t, 2>& gin_extents) {
-  using extents_type       = std::array<std::size_t, 2>;
   using topo_type          = std::array<std::size_t, 2>;
   using axes_type          = std::array<std::size_t, 1>;
   using topo_and_axes_type = std::array<std::size_t, 3>;
   using ref_vec_type       = std::vector<std::size_t>;
-  using ref_vec_topo_type  = std::vector<topo_type>;
   using topo_and_ref_type  = std::map<topo_and_axes_type, ref_vec_type>;
 
   std::vector<std::size_t> all_dimensions{0, 1};
@@ -1885,9 +1883,8 @@ void test_get_all_slab_topologies1D_2DView(
 template <bool is_R2C, std::size_t DIM>
 void test_get_all_slab_topologies1D(
     std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
-  using extents_type = std::array<std::size_t, DIM>;
-  using topo_type    = std::array<std::size_t, DIM>;
-  using axes_type    = std::array<std::size_t, 1>;
+  using topo_type = std::array<std::size_t, DIM>;
+  using axes_type = std::array<std::size_t, 1>;
 
   std::vector<std::size_t> all_dimensions(DIM);
   std::iota(all_dimensions.begin(), all_dimensions.end(), 0);
@@ -1966,7 +1963,6 @@ void test_get_all_slab_topologies1D(
 template <bool is_R2C>
 void test_get_all_slab_topologies2D_2DView(
     std::size_t nprocs, const std::array<std::size_t, 2>& gin_extents) {
-  using extents_type       = std::array<std::size_t, 2>;
   using topo_type          = std::array<std::size_t, 2>;
   using axes_type          = std::array<std::size_t, 2>;
   using topo_and_axes_type = std::array<std::size_t, 4>;
@@ -2083,9 +2079,8 @@ void test_get_all_slab_topologies2D_2DView(
 template <bool is_R2C, std::size_t DIM>
 void test_get_all_slab_topologies2D(
     std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
-  using extents_type = std::array<std::size_t, DIM>;
-  using topo_type    = std::array<std::size_t, DIM>;
-  using axes_type    = std::array<std::size_t, 2>;
+  using topo_type = std::array<std::size_t, DIM>;
+  using axes_type = std::array<std::size_t, 2>;
 
   std::vector<std::size_t> all_dimensions(DIM);
   std::iota(all_dimensions.begin(), all_dimensions.end(), 0);
@@ -2180,7 +2175,6 @@ void test_get_all_slab_topologies2D(
 template <bool is_R2C>
 void test_get_all_slab_topologies3D_3DView(
     std::size_t nprocs, const std::array<std::size_t, 3>& gin_extents) {
-  using extents_type       = std::array<std::size_t, 3>;
   using topo_type          = std::array<std::size_t, 3>;
   using axes_type          = std::array<std::size_t, 3>;
   using topo_and_axes_type = std::array<std::size_t, 5>;
@@ -2465,9 +2459,8 @@ void test_get_all_slab_topologies3D_3DView(
 template <bool is_R2C, std::size_t DIM>
 void test_get_all_slab_topologies3D(
     std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
-  using extents_type = std::array<std::size_t, DIM>;
-  using topo_type    = std::array<std::size_t, DIM>;
-  using axes_type    = std::array<std::size_t, 3>;
+  using topo_type = std::array<std::size_t, DIM>;
+  using axes_type = std::array<std::size_t, 3>;
 
   std::vector<std::size_t> all_dimensions(DIM);
   std::iota(all_dimensions.begin(), all_dimensions.end(), 0);
