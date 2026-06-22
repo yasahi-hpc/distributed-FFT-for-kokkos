@@ -2036,15 +2036,15 @@ void test_get_all_slab_topologies2D_2DView(
       }
       bool transpose_possible = true;
       for (const auto& ax : axes) {
-        bool tranpose_possible_for_ax = false;
+        bool transpose_possible_for_ax = false;
         for (std::size_t i = 0; i < 2; ++i) {
           if (i == ax) continue;
           if (gout_extents.at(i) >= nprocs) {
-            tranpose_possible_for_ax = true;
+            transpose_possible_for_ax = true;
             break;
           }
         }
-        if (!tranpose_possible_for_ax) {
+        if (!transpose_possible_for_ax) {
           transpose_possible = false;
           break;
         }
@@ -2127,15 +2127,15 @@ void test_get_all_slab_topologies2D(
             }
             bool transpose_possible = true;
             for (const auto& ax : axes) {
-              bool tranpose_possible_for_ax = false;
+              bool transpose_possible_for_ax = false;
               for (std::size_t i = 0; i < DIM; ++i) {
                 if (i == ax) continue;
                 if (gout_extents.at(i) >= nprocs) {
-                  tranpose_possible_for_ax = true;
+                  transpose_possible_for_ax = true;
                   break;
                 }
               }
-              if (!tranpose_possible_for_ax) {
+              if (!transpose_possible_for_ax) {
                 transpose_possible = false;
                 break;
               }
@@ -2418,15 +2418,15 @@ void test_get_all_slab_topologies3D_3DView(
       }
       bool transpose_possible = true;
       for (const auto& ax : axes) {
-        bool tranpose_possible_for_ax = false;
+        bool transpose_possible_for_ax = false;
         for (std::size_t i = 0; i < 3; ++i) {
           if (i == ax) continue;
           if (gout_extents.at(i) >= nprocs) {
-            tranpose_possible_for_ax = true;
+            transpose_possible_for_ax = true;
             break;
           }
         }
-        if (!tranpose_possible_for_ax) {
+        if (!transpose_possible_for_ax) {
           transpose_possible = false;
           break;
         }
@@ -2512,15 +2512,15 @@ void test_get_all_slab_topologies3D(
               }
               bool transpose_possible = true;
               for (const auto& ax : axes) {
-                bool tranpose_possible_for_ax = false;
+                bool transpose_possible_for_ax = false;
                 for (std::size_t i = 0; i < DIM; ++i) {
                   if (i == ax) continue;
                   if (gout_extents.at(i) >= nprocs) {
-                    tranpose_possible_for_ax = true;
+                    transpose_possible_for_ax = true;
                     break;
                   }
                 }
-                if (!tranpose_possible_for_ax) {
+                if (!transpose_possible_for_ax) {
                   transpose_possible = false;
                   break;
                 }
