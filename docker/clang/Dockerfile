@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y \
         bc \
         ccache \
         libfftw3-dev \
-        cmake \
         openmpi-bin \
         libopenmpi-dev \
         && \
@@ -32,11 +31,18 @@ RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 \
     && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100 \
     && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 100
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    g++ \
-    libstdc++-12-dev \
-    binutils \
- && rm -rf /var/lib/apt/lists/*
+# Install newer CMake manually
+ARG CMAKE_VERSION=3.23.2
+ARG build_dir=/tmp/build
+
+ENV CMAKE_DIR=/opt/cmake
+RUN CMAKE_SCRIPT=cmake-${CMAKE_VERSION}-linux-x86_64.sh && \
+    mkdir -p ${build_dir} && mkdir -p ${CMAKE_DIR} \
+    cd ${build_dir} && \
+    wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${CMAKE_SCRIPT} && \
+    sh ${CMAKE_SCRIPT} --skip-license --prefix=${CMAKE_DIR} && \
+    cd ${HOME} && rm -rf ${build_dir}
+ENV PATH=${CMAKE_DIR}/bin:$PATH
 
 WORKDIR /work
 CMD ["bash"]
