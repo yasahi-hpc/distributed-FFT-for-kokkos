@@ -9,8 +9,6 @@ RUN apt-get update && apt-get install -y \
         lsb-release \
         software-properties-common \
         git \
-        g++ \
-        gcc \
         bc \
         ccache \
         libfftw3-dev \
@@ -23,9 +21,6 @@ RUN apt-get update && apt-get install -y \
 
 RUN git config --global --add safe.directory "*"
 
-# Verify the installation
-RUN gcc --version && g++ --version
-
 # Install Clang++ version 20 and Clang-tidy version 20
 RUN apt-get update && apt-get install -y \
     clang-20 \
@@ -36,6 +31,12 @@ RUN apt-get update && apt-get install -y \
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 \
     && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100 \
     && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 100
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    libstdc++-12-dev \
+    binutils \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work
 CMD ["bash"]
