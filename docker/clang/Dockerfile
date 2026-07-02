@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
         bc \
         ccache \
         libfftw3-dev \
+        cmake \
         openmpi-bin \
         libopenmpi-dev \
         && \
