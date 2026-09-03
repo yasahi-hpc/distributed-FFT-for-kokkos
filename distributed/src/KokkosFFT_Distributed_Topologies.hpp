@@ -781,6 +781,8 @@ auto get_all_pencil_topologies(
   axes_type trans_axes;
   layouts_type layouts;
 
+  trans_axes.push_back(0);  // This value is unused, to make trans_axes same
+                            // size as topologies and layouts
   topologies.push_back(in_topology_tmp);
   layouts.push_back(get_layout(in_topology_tmp));
 
