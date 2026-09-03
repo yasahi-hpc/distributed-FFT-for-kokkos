@@ -303,7 +303,8 @@ void test_propose_transpose_block(std::size_t rank,
   // coordinates own one more element than the others.
   std::size_t coord0 = is_layout_right ? 0 : rank;
   std::size_t coord2 = is_layout_right ? rank : 0;
-  extents_type ref_local_extents{coord0 < 2 ? 17 : 16, 64, coord2 < 2 ? 5 : 4};
+  extents_type ref_local_extents{coord0 < 2 ? 17u : 16u, 64u,
+                                 coord2 < 2 ? 5u : 4u};
   auto ref_out_extents =
       KokkosFFT::Impl::compute_mapped_extents(ref_local_extents, ref_out_map);
 
@@ -348,7 +349,7 @@ void test_slab_analyses_1D() {
 
   axes_type axes{2};
   extents_type gin_extents{8, 12, 16};
-  extents_type gout_extents{8, 12, is_R2C ? 9 : 16};
+  extents_type gout_extents{8, 12, is_R2C ? 9u : 16u};
   extents_type in_topology{1, 1, 4}, out_topology{4, 1, 1};
 
   // Local extents of the input over the in topology
@@ -374,7 +375,7 @@ void test_slab_analyses_1D() {
   // FFT block: the input is the output of the transpose and the output is
   // shrunk along the FFT axis for R2C
   auto fft_out_extents = KokkosFFT::Impl::compute_mapped_extents(
-      extents_type{2, 12, is_R2C ? 9 : 16}, out_map);
+      extents_type{2, 12, is_R2C ? 9u : 16u}, out_map);
 
   std::vector<KokkosFFT::Distributed::Impl::BlockInfo<DIM>> ref_block_infos = {
       make_transpose_block(in_topology, out_topology, in_extents,
