@@ -303,7 +303,7 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
 
         std::vector<iType> next_axes =
             is_last ? std::vector<iType>{} : all_axes.at(block_idx + 1);
-        auto comm_axis       = all_trans_axes.at(nb_trans_blocks);
+        auto comm_axis       = all_trans_axes.at(nb_trans_blocks + 1);
         bool is_layout_right = all_layouts.at(nb_trans_blocks + 1);
         if (block_infos.empty()) {
           auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
