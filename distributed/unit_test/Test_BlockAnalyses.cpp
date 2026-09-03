@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <Kokkos_Core.hpp>
+#include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_BlockAnalyses.hpp"
 
 namespace {
@@ -68,21 +69,6 @@ struct TestBlockAnalyses : public ::testing::Test {
     }
   }
 };
-
-/// \brief Permute extents with a map, i.e. mapped[i] = extents[map[i]]
-/// \tparam DIM Number of dimensions
-/// \param[in] extents Extents to be permuted
-/// \param[in] map Permutation map
-/// \return The permuted extents
-template <std::size_t DIM>
-auto apply_map(const std::array<std::size_t, DIM>& extents,
-               const std::array<std::size_t, DIM>& map) {
-  std::array<std::size_t, DIM> mapped_extents{};
-  for (std::size_t i = 0; i < DIM; ++i) {
-    mapped_extents.at(i) = extents.at(map.at(i));
-  }
-  return mapped_extents;
-}
 
 /// \brief Check that a map is a permutation of (0, 1, ..., DIM-1)
 template <std::size_t DIM>
@@ -317,9 +303,9 @@ void test_propose_transpose_block(std::size_t rank,
   // coordinates own one more element than the others.
   std::size_t coord0 = is_layout_right ? 0 : rank;
   std::size_t coord2 = is_layout_right ? rank : 0;
-  extents_type ref_local_extents{coord0 < 2 ? 17u : 16u, 64,
-                                 coord2 < 2 ? 5u : 4u};
-  auto ref_out_extents = apply_map(ref_local_extents, ref_out_map);
+  extents_type ref_local_extents{coord0 < 2 ? 17 : 16, 64, coord2 < 2 ? 5 : 4};
+  auto ref_out_extents =
+      KokkosFFT::Impl::compute_mapped_extents(ref_local_extents, ref_out_map);
 
   // The buffer is shaped from the merged topology (4, 4, 4) and the number of
   // processes involved in the all2all (4)
@@ -349,7 +335,7 @@ void test_propose_transpose_block(std::size_t rank,
 /// \tparam ValueType Value type of the input data (real for R2C)
 /// \tparam LayoutType Layout of the Input/Output Views
 template <typename ValueType, typename LayoutType>
-void test_slab_analyses_1d() {
+void test_slab_analyses_1D() {
   constexpr std::size_t DIM = 3, FFT_DIM = 1;
   using extents_type        = std::array<std::size_t, DIM>;
   using buffer_extents_type = std::array<std::size_t, DIM + 1>;
@@ -362,7 +348,7 @@ void test_slab_analyses_1d() {
 
   axes_type axes{2};
   extents_type gin_extents{8, 12, 16};
-  extents_type gout_extents{8, 12, is_R2C ? 9u : 16u};
+  extents_type gout_extents{8, 12, is_R2C ? 9 : 16};
   extents_type in_topology{1, 1, 4}, out_topology{4, 1, 1};
 
   // Local extents of the input over the in topology
@@ -376,7 +362,8 @@ void test_slab_analyses_1d() {
   extents_type in_map{0, 1, 2};
   extents_type out_map =
       is_left ? extents_type{2, 0, 1} : extents_type{0, 1, 2};
-  auto trans_out_extents = apply_map(extents_type{2, 12, 16}, out_map);
+  auto trans_out_extents =
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{2, 12, 16}, out_map);
   buffer_extents_type buffer_extents = is_left
                                            ? buffer_extents_type{2, 12, 4, 4}
                                            : buffer_extents_type{4, 2, 12, 4};
@@ -386,8 +373,8 @@ void test_slab_analyses_1d() {
 
   // FFT block: the input is the output of the transpose and the output is
   // shrunk along the FFT axis for R2C
-  auto fft_out_extents =
-      apply_map(extents_type{2, 12, is_R2C ? 9u : 16u}, out_map);
+  auto fft_out_extents = KokkosFFT::Impl::compute_mapped_extents(
+      extents_type{2, 12, is_R2C ? 9 : 16}, out_map);
 
   std::vector<KokkosFFT::Distributed::Impl::BlockInfo<DIM>> ref_block_infos = {
       make_transpose_block(in_topology, out_topology, in_extents,
@@ -419,7 +406,7 @@ void test_slab_analyses_1d() {
 ///
 /// \tparam LayoutType Layout of the Input/Output Views
 template <typename LayoutType>
-void test_slab_analyses_3d() {
+void test_slab_analyses_3D() {
   constexpr std::size_t DIM = 3, FFT_DIM = 3;
   using value_type          = Kokkos::complex<double>;
   using extents_type        = std::array<std::size_t, DIM>;
@@ -442,13 +429,15 @@ void test_slab_analyses_3d() {
   // First transpose: the FFT over the axes (1, 2) follows
   extents_type map0{0, 1, 2};
   extents_type map1 = is_left ? extents_type{2, 1, 0} : extents_type{0, 1, 2};
-  auto extents1     = apply_map(extents_type{2, 12, 16}, map1);
+  auto extents1 =
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{2, 12, 16}, map1);
   buffer_extents_type buffer0 = is_left ? buffer_extents_type{2, 12, 4, 4}
                                         : buffer_extents_type{4, 2, 12, 4};
 
   // Second transpose: the FFT over the axis 0 follows
   extents_type map2 = is_left ? extents_type{0, 2, 1} : extents_type{1, 2, 0};
-  auto extents2     = apply_map(extents_type{8, 12, 4}, map2);
+  auto extents2 =
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{8, 12, 4}, map2);
   buffer_extents_type buffer1 = is_left ? buffer_extents_type{2, 12, 4, 4}
                                         : buffer_extents_type{4, 2, 12, 4};
 
@@ -514,9 +503,11 @@ void test_slab_analyses_without_transpose() {
   EXPECT_EQ(innermost, std::size_t(2));
 
   // The extents are the local extents permuted with the map of the block
-  EXPECT_EQ(block.m_in_extents, apply_map(in_extents, block.m_in_map));
+  EXPECT_EQ(block.m_in_extents, KokkosFFT::Impl::compute_mapped_extents(
+                                    in_extents, block.m_in_map));
   EXPECT_EQ(block.m_out_extents,
-            apply_map(extents_type{2, 12, is_R2C ? 9u : 16u}, block.m_out_map));
+            KokkosFFT::Impl::compute_mapped_extents(
+                extents_type{2, 12, is_R2C ? 9u : 16u}, block.m_out_map));
 
   // 2 * 12 * 16 (or 2 * 12 * 9 for R2C) complex numbers
   EXPECT_EQ(analyses.m_max_buffer_size,
@@ -535,7 +526,7 @@ void test_slab_analyses_without_transpose() {
 /// \tparam LayoutType Layout of the Input/Output Views
 /// \tparam TopologyLayoutType Layout of the pencil topologies
 template <typename LayoutType, typename TopologyLayoutType>
-void test_pencil_analyses_1d() {
+void test_pencil_analyses_1D() {
   constexpr std::size_t DIM = 3, FFT_DIM = 1;
   using value_type          = Kokkos::complex<double>;
   using extents_type        = std::array<std::size_t, DIM>;
@@ -564,13 +555,15 @@ void test_pencil_analyses_1d() {
   // First transpose: no FFT follows, so the out_axis 1 is brought innermost
   extents_type map0{0, 1, 2};
   extents_type map1 = is_left ? extents_type{1, 0, 2} : extents_type{0, 2, 1};
-  auto extents1     = apply_map(extents_type{4, 12, 4}, map1);
+  auto extents1 =
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{4, 12, 4}, map1);
   buffer_extents_type buffer0 = is_left ? buffer_extents_type{4, 6, 4, 2}
                                         : buffer_extents_type{2, 4, 6, 4};
 
   // Second transpose: the FFT over the axis 2 follows
   extents_type map2 = is_left ? extents_type{2, 1, 0} : extents_type{0, 1, 2};
-  auto extents2     = apply_map(extents_type{4, 3, 16}, map2);
+  auto extents2 =
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{4, 3, 16}, map2);
   buffer_extents_type buffer1 = is_left ? buffer_extents_type{4, 3, 4, 4}
                                         : buffer_extents_type{4, 4, 3, 4};
 
@@ -612,7 +605,7 @@ void test_pencil_analyses_1d() {
 /// \tparam LayoutType Layout of the Input/Output Views
 /// \tparam TopologyLayoutType Layout of the pencil topologies
 template <typename LayoutType, typename TopologyLayoutType>
-void test_pencil_analyses_2d() {
+void test_pencil_analyses_2D() {
   constexpr std::size_t DIM = 3, FFT_DIM = 2;
   using value_type          = Kokkos::complex<double>;
   using extents_type        = std::array<std::size_t, DIM>;
@@ -641,19 +634,22 @@ void test_pencil_analyses_2d() {
   // First transpose: the FFT over the axis 2 follows
   extents_type map0{0, 1, 2};
   extents_type map1 = is_left ? extents_type{2, 0, 1} : extents_type{0, 1, 2};
-  auto extents1     = apply_map(extents_type{2, 6, 16}, map1);
+  auto extents1 =
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{2, 6, 16}, map1);
   buffer_extents_type buffer0 = is_left ? buffer_extents_type{2, 6, 4, 4}
                                         : buffer_extents_type{4, 2, 6, 4};
 
   // Second transpose: the FFT over the axis 1 follows
   extents_type map2 = is_left ? extents_type{1, 2, 0} : extents_type{0, 2, 1};
-  auto extents2     = apply_map(extents_type{2, 12, 8}, map2);
+  auto extents2 =
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{2, 12, 8}, map2);
   buffer_extents_type buffer1 = is_left ? buffer_extents_type{2, 6, 8, 2}
                                         : buffer_extents_type{2, 2, 6, 8};
 
   // Third transpose: no FFT follows, so the out_axis 0 is brought innermost
   extents_type map3 = is_left ? extents_type{0, 1, 2} : extents_type{2, 1, 0};
-  auto extents3     = apply_map(extents_type{8, 3, 8}, map3);
+  auto extents3 =
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{8, 3, 8}, map3);
   buffer_extents_type buffer2 = is_left ? buffer_extents_type{2, 3, 8, 4}
                                         : buffer_extents_type{4, 2, 3, 8};
 
@@ -774,19 +770,19 @@ TYPED_TEST(TestProposeBlock, propose_transpose_block_empty_axes_not_last) {
 
 TYPED_TEST_SUITE(TestBlockAnalyses, layout_types);
 
-TYPED_TEST(TestBlockAnalyses, slab_analyses_1d_C2C) {
+TYPED_TEST(TestBlockAnalyses, slab_analyses_1D_C2C) {
   using layout_type = typename TestFixture::layout_type;
-  test_slab_analyses_1d<Kokkos::complex<double>, layout_type>();
+  test_slab_analyses_1D<Kokkos::complex<double>, layout_type>();
 }
 
-TYPED_TEST(TestBlockAnalyses, slab_analyses_1d_R2C) {
+TYPED_TEST(TestBlockAnalyses, slab_analyses_1D_R2C) {
   using layout_type = typename TestFixture::layout_type;
-  test_slab_analyses_1d<double, layout_type>();
+  test_slab_analyses_1D<double, layout_type>();
 }
 
-TYPED_TEST(TestBlockAnalyses, slab_analyses_3d_C2C) {
+TYPED_TEST(TestBlockAnalyses, slab_analyses_3D_C2C) {
   using layout_type = typename TestFixture::layout_type;
-  test_slab_analyses_3d<layout_type>();
+  test_slab_analyses_3D<layout_type>();
 }
 
 TYPED_TEST(TestBlockAnalyses, slab_analyses_without_transpose_C2C) {
@@ -799,16 +795,16 @@ TYPED_TEST(TestBlockAnalyses, slab_analyses_without_transpose_R2C) {
   test_slab_analyses_without_transpose<double, layout_type>();
 }
 
-TYPED_TEST(TestBlockAnalyses, pencil_analyses_1d_C2C) {
+TYPED_TEST(TestBlockAnalyses, pencil_analyses_1D_C2C) {
   using layout_type  = typename TestFixture::layout_type;
   using layout_type2 = typename TestFixture::layout_type2;
-  test_pencil_analyses_1d<layout_type, layout_type2>();
+  test_pencil_analyses_1D<layout_type, layout_type2>();
 }
 
-TYPED_TEST(TestBlockAnalyses, pencil_analyses_2d_C2C) {
+TYPED_TEST(TestBlockAnalyses, pencil_analyses_2D_C2C) {
   using layout_type  = typename TestFixture::layout_type;
   using layout_type2 = typename TestFixture::layout_type2;
-  test_pencil_analyses_2d<layout_type, layout_type2>();
+  test_pencil_analyses_2D<layout_type, layout_type2>();
 }
 
 TYPED_TEST(TestBlockAnalyses, analyses_invalid_topologies) {
