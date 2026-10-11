@@ -711,7 +711,6 @@ struct State {
   }
 
   bool is_layout_right() const { return m_p0_pos < m_p1_pos; }
-  auto positions() const { return std::make_pair(m_p0_pos, m_p1_pos); }
   auto sizes() const { return std::make_pair(m_p0, m_p1); }
 
   template <std::size_t DIM>
@@ -751,6 +750,43 @@ std::size_t update_condition(const std::array<std::size_t, N>& temp,
   return remaining;
 }
 
+/// \brief Find the minimal sequence of pencil topologies from the input to
+/// the output topology such that every FFT axis becomes undistributed (1) at
+/// some point along the way.
+///
+/// A pencil topology has exactly two non-one entries, p0 and p1 (assigned
+/// according to the input layout). Each step of the path moves either p0 or
+/// p1 to a position currently holding 1, which corresponds to a single
+/// transpose. The axes are processed from right to left: axes.back() must be
+/// undistributed first, then the one before it, and so on. The output
+/// topology can only be reached after all axes have been satisfied. A
+/// breadth-first search is used, so the returned path has the minimum number
+/// of transposes. A candidate topology is rejected if any extent would be
+/// smaller than the number of processes along that dimension.
+///
+/// Example: 3D case, LayoutRight
+/// In topology: (1, Px, Py)
+/// Out topology: (Px, Py, 1)
+/// axes: {0, 1, 2}
+/// Output: {(1, Px, Py), (Py, Px, 1), (Py, 1, Px), (1, Py, Px), (Px, Py, 1)}
+///   (1, Px, Py) -> (Py, Px, 1): axis 2 is undistributed
+///   (Py, Px, 1) -> (Py, 1, Px): axis 1 is undistributed
+///   (Py, 1, Px) -> (1, Py, Px): axis 0 is undistributed
+///   (1, Py, Px) -> (Px, Py, 1): move to the output topology
+///
+/// \tparam iType The integer type used for the axes.
+/// \tparam DIM The dimensionality of the topologies.
+/// \tparam InLayoutType The layout type of the input topology.
+/// \tparam OutLayoutType The layout type of the output topology.
+/// \param[in] extents The global extents of the multidimensional array.
+/// \param[in] in_topology The input pencil topology.
+/// \param[in] out_topology The output pencil topology.
+/// \param[in] axes The FFT axes, each of which must be undistributed at some
+/// point along the path (processed from right to left).
+/// \return A vector of states representing the minimal path from the input to
+/// the output topology, including both ends. If the input already equals the
+/// output and all axes are satisfied, a single state is returned.
+/// \throws std::runtime_error if no valid path satisfies the conditions
 template <typename iType, std::size_t DIM, typename InLayoutType,
           typename OutLayoutType>
 std::vector<State> find_minimal_path(
@@ -765,9 +801,7 @@ std::vector<State> find_minimal_path(
   const State in{in_topology, initial_remaining};
   const State out{out_topology, 0};
 
-  const auto [in_p0, in_p1]   = in.positions();
-  const auto [out_p0, out_p1] = out.positions();
-  const auto sizes            = in.sizes();
+  const auto sizes     = in.sizes();
   const std::size_t p0 = sizes.first, p1 = sizes.second;
 
   // Reconstruct the array represented by two positions.
@@ -841,8 +875,8 @@ std::vector<State> find_minimal_path(
     }
   }
 
-  if (!found)
-    throw std::runtime_error("No valid path satisfies the conditions");
+  KOKKOSFFT_THROW_IF(!found, "No valid path satisfies the conditions");
+
   // Reconstruct the shortest path.
   std::vector<State> states;
 
@@ -854,204 +888,6 @@ std::vector<State> find_minimal_path(
   std::reverse(states.begin(), states.end());
   return states;
 }
-
-/*
-/// \brief Get all pencil topologies for a given input and output topology
-///
-/// Example: 3D case
-/// In topology: (1, Px, Py)
-/// Out topology: (Px, Py, 1)
-/// axes: {0, 1, 2}
-/// Output: {(1, Px, Py), (Py, Px, 1), (Py, 1, Px), (Py, Px, 1), (1, Px, Py),}
-/// Operation:
-/// Transpose to Topology2 -> FFT ax = {2} -> Transpose to Topology4 -> FFT1 ax
-/// = {1} Transpose to Topology2 -> Transpose to Topology0 -> FFT1 ax = {0}
-/// Topology0: {1, Px, Py}, Topology2: {Py, Px, 1}, Topology4: {Py, 1, Px}
-///
-/// \tparam iType The index type used for the topology.
-/// \tparam DIM The dimensionality of the topology.
-/// \tparam FFT_DIM The dimensionality of the FFT axes.
-///
-/// \param[in] in_topology The input topology.
-/// \param[in] out_topology The output topology.
-/// \param[in] axes The axes along which the FFT is performed.
-/// \param[in] is_same_order If true, the in/out topologies are considered in
-/// the same order.
-/// \return A vector of all possible slab topologies that can be formed from the
-/// input and output topologies, considering the FFT axes.
-template <typename iType, std::size_t DIM, std::size_t FFT_DIM,
-          typename InLayoutType  = Kokkos::LayoutRight,
-          typename OutLayoutType = Kokkos::LayoutRight>
-auto get_all_pencil_topologies(
-    const Topology<std::size_t, DIM, InLayoutType>& in_topology,
-    const Topology<std::size_t, DIM, OutLayoutType>& out_topology,
-    const std::array<iType, FFT_DIM>& axes) {
-  static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
-  static_assert(DIM >= 3 && DIM >= FFT_DIM, "DIM >= 3 and DIM >= FFT_DIM");
-  static_assert(std::is_unsigned_v<iType>,
-                "get_all_pencil_topologies: axes must be unsigned");
-
-  using topology_type   = std::array<std::size_t, DIM>;
-  using topologies_type = std::vector<topology_type>;
-  using axes_type       = std::vector<std::size_t>;
-  using layouts_type    = std::vector<std::size_t>;
-
-  bool is_pencil =
-      are_specified_topologies(TopologyType::Pencil, in_topology, out_topology);
-  KOKKOSFFT_THROW_IF(!is_pencil,
-                     "Input and output topologies must be pencil topologies.");
-
-  auto axes_reversed             = KokkosFFT::Impl::to_vector(axes);
-  auto non_ones                  = extract_non_one_values(in_topology.array());
-  bool has_same_non_one_elements = has_identical_non_ones(non_ones);
-
-  auto in_topology_tmp  = in_topology.array();
-  auto out_topology_tmp = out_topology.array();
-
-  if (has_same_non_one_elements) {
-    // If the elements are the same, the following strategy does not work
-    // Thus, we replace the elements by dummies to manipulate
-    std::array<std::size_t, 2> dummies = {2, 3};
-    int count                          = 0;
-    for (std::size_t i = 0; i < DIM; i++) {
-      if (in_topology_tmp.at(i) > 1) {
-        in_topology_tmp.at(i) = dummies.at(count);
-        count++;
-      }
-    }
-    count = 0;
-    if (!std::is_same_v<InLayoutType, OutLayoutType>) {
-      std::reverse(dummies.begin(), dummies.end());
-    }
-    for (std::size_t i = 0; i < DIM; i++) {
-      if (out_topology_tmp.at(i) > 1) {
-        out_topology_tmp.at(i) = dummies.at(count);
-        count++;
-      }
-    }
-  }
-
-  // If LayoutRight, (1, px, py, 1): first_non_one is px
-  // If LayoutLeft, (1, py, px, 1): first_non_one is px
-  auto first_non_one = std::is_same_v<InLayoutType, Kokkos::LayoutRight>
-                           ? extract_non_one_values(in_topology_tmp).at(0)
-                           : extract_non_one_values(in_topology_tmp).at(1);
-
-  auto to_original_topologies = [&](const topologies_type& topologies,
-                                    const axes_type& trans_axes,
-                                    const layouts_type& layouts) {
-    if (has_same_non_one_elements) {
-      auto non_one             = non_ones.at(0);
-      auto original_topologies = topologies;
-      for (auto& topology : original_topologies) {
-        for (std::size_t i = 0; i < DIM; i++) {
-          if (topology.at(i) > 1) topology.at(i) = non_one;
-        }
-      }
-      return std::make_tuple(original_topologies, trans_axes, layouts);
-    } else {
-      return std::make_tuple(topologies, trans_axes, layouts);
-    }
-  };
-
-  auto get_layout = [&](const topology_type& topology) {
-    // If this condition is satisfied, it means layout right
-    std::size_t is_layout_right =
-        extract_non_one_values(topology).at(0) == first_non_one;
-    return is_layout_right;
-  };
-
-  topologies_type topologies;
-  axes_type trans_axes;
-  layouts_type layouts;
-
-  trans_axes.push_back(0);  // This value is unused, to make trans_axes same
-                            // size as topologies and layouts
-  topologies.push_back(in_topology_tmp);
-  layouts.push_back(get_layout(in_topology_tmp));
-
-  auto add_topology = [&](const topology_type& topo) {
-    if (topologies.back() != topo) {
-      trans_axes.push_back(
-          compute_trans_axis(topologies.back(), topo, first_non_one));
-      topologies.push_back(topo);
-      layouts.push_back(get_layout(topo));
-    }
-  };
-
-  auto try_add_mid_topology = [&]() {
-    try {
-      auto mid_topology =
-          propose_mid_array(topologies.back(), out_topology_tmp);
-      add_topology(mid_topology);
-    } catch (std::runtime_error& e) {
-    }
-  };
-
-  auto finalize = [&]() {
-    add_topology(out_topology_tmp);
-    return to_original_topologies(topologies, trans_axes, layouts);
-  };
-
-  auto is_topology_ready = [&](const std::array<std::size_t, DIM>& topo,
-                               const std::vector<iType>& current_axes) {
-    for (const auto& axis : current_axes) {
-      if (topo.at(axis) != 1) return false;
-    }
-    return true;
-  };
-
-  // Batched case
-  // If input or output is ready, we can skip the rest of the logic
-  if (is_topology_ready(in_topology_tmp, axes_reversed) ||
-      is_topology_ready(out_topology_tmp, axes_reversed)) {
-    try_add_mid_topology();
-    return finalize();
-  }
-
-  std::reverse(axes_reversed.begin(), axes_reversed.end());
-  std::array<std::size_t, DIM> shuffled_topology = in_topology_tmp;
-
-  auto last_axis  = axes_reversed.front();
-  auto first_axis = axes_reversed.back();
-  auto first_dim  = in_topology_tmp.at(last_axis);
-  auto last_dim   = out_topology_tmp.at(first_axis);
-  if (first_dim == 1) axes_reversed.erase(axes_reversed.begin());
-  if (last_dim == 1 && !axes_reversed.empty()) axes_reversed.pop_back();
-
-  for (const auto& axis : axes_reversed) {
-    std::size_t swap_idx = 0;
-
-    if (in_topology_tmp == out_topology_tmp) {
-      for (std::size_t idx = 0; idx < DIM; idx++) {
-        if (shuffled_topology.at(idx) == 1 && idx != axis) {
-          swap_idx = idx;
-          break;
-        }
-      }
-    } else {
-      auto diff_non_one_indices =
-          extract_non_one_indices(in_topology_tmp, out_topology_tmp);
-      for (auto diff_idx : diff_non_one_indices) {
-        if (shuffled_topology.at(diff_idx) == 1 && diff_idx != axis) {
-          swap_idx = diff_idx;
-          break;
-        }
-      }
-    }
-    shuffled_topology = swap_elements(shuffled_topology, axis, swap_idx);
-
-    add_topology(shuffled_topology);
-  }
-
-  if (topologies.back() == out_topology_tmp) {
-    return to_original_topologies(topologies, trans_axes, layouts);
-  }
-
-  try_add_mid_topology();
-  return finalize();
-}
-*/
 
 /// \brief Get all pencil topologies for a given input and output topology
 ///
