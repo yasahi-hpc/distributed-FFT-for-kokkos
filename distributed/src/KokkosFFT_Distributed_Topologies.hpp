@@ -764,6 +764,12 @@ std::size_t update_condition(const std::array<std::size_t, N>& temp,
 /// of transposes. A candidate topology is rejected if any extent would be
 /// smaller than the number of processes along that dimension.
 ///
+/// If the input does not already satisfy all axes, the first exchange must
+/// consume at least one axis, so that the first transpose is always
+/// followed by an FFT. For example, with axes = {2},
+///   OK: (1, Px, Py) -> (Py, Px, 1) -> (1, Px, Py) -> (Px, 1, Py)
+///   NG: (1, Px, Py) -> (Px, 1, Py) -> (Px, Py, 1) -> (Px, 1, Py)
+///
 /// Example: 3D case, LayoutRight
 /// In topology: (1, Px, Py)
 /// Out topology: (Px, Py, 1)
@@ -853,6 +859,12 @@ std::vector<State> find_minimal_path(
       // Conditions are processed whenever a new state is reached.
       const std::size_t next_remaining =
           update_condition(temp, axes, current.m_remaining);
+
+      // The first exchange from the input must consume at least one axis.
+      if (current == in && in.m_remaining > 0 &&
+          next_remaining == current.m_remaining)
+        return;
+
       const State next{next_p0, next_p1, p0, p1, next_remaining};
       if (visited.insert(next).second) {
         parent.emplace(next, current);
