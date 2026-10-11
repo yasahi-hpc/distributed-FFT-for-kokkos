@@ -2573,7 +2573,6 @@ template <bool is_R2C, std::size_t DIM, typename InLayoutType,
 void test_get_all_pencil_topologies1D_impl(
     std::size_t npx, std::size_t npy,
     const std::array<std::size_t, DIM>& gin_extents) {
-  using topo_type = std::array<std::size_t, DIM>;
   using axes_type = std::array<std::size_t, 1>;
 
   std::vector<std::size_t> all_dimensions(DIM);
@@ -2686,7 +2685,6 @@ template <bool is_R2C, std::size_t DIM, typename InLayoutType,
 void test_get_all_pencil_topologiesD_impl(
     std::size_t npx, std::size_t npy,
     const std::array<std::size_t, DIM>& gin_extents) {
-  using topo_type = std::array<std::size_t, DIM>;
   using axes_type = std::array<std::size_t, 2>;
 
   std::vector<std::size_t> all_dimensions(DIM);
@@ -2804,7 +2802,6 @@ template <bool is_R2C, std::size_t DIM, typename InLayoutType,
 void test_get_all_pencil_topologies3D_impl(
     std::size_t npx, std::size_t npy,
     const std::array<std::size_t, DIM>& gin_extents) {
-  using topo_type = std::array<std::size_t, DIM>;
   using axes_type = std::array<std::size_t, 3>;
 
   std::vector<std::size_t> all_dimensions(DIM);
