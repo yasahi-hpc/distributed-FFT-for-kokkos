@@ -3,10 +3,13 @@
 
 #include <algorithm>
 #include <array>
+#include <queue>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <Kokkos_Core.hpp>
@@ -453,15 +456,15 @@ void append_topology(std::vector<std::array<iType, DIM>>& topologies,
 /// \return A pair of vectors of (remaining axes, ready axes). The first vector
 /// contains the axes that are not ready for FFT. The second vector contains the
 /// axes that are ready for FFT. remaining axes can be empty
-template <typename iType, std::size_t DIM>
-auto decompose_fft_axes(const std::array<std::size_t, DIM>& topology,
-                        const std::vector<iType>& axes) {
-  auto reversed_axes                = KokkosFFT::Impl::reversed(axes);
-  std::vector<iType> remaining_axes = reversed_axes;
-  std::vector<iType> ready_axes;
+template <typename iType1, typename iType2, std::size_t DIM>
+auto decompose_fft_axes(const std::array<iType1, DIM>& topology,
+                        const std::vector<iType2>& axes) {
+  auto reversed_axes                 = KokkosFFT::Impl::reversed(axes);
+  std::vector<iType2> remaining_axes = reversed_axes;
+  std::vector<iType2> ready_axes;
 
   for (const auto axis : reversed_axes) {
-    if (topology.at(axis) > 1) break;
+    if (topology.at(axis) != 1) break;
     ready_axes.push_back(axis);
 
     auto it = std::find(remaining_axes.begin(), remaining_axes.end(), axis);
@@ -481,11 +484,11 @@ auto decompose_fft_axes(const std::array<std::size_t, DIM>& topology,
 /// \param[in] axes The axes along which the FFT is performed
 /// \return True if the topology is ready for FFT along the given axes, false
 /// otherwise
-template <typename iType, std::size_t DIM>
-bool is_fft_ready(const std::array<std::size_t, DIM>& topology,
-                  const std::vector<iType>& axes) {
-  return std::none_of(axes.begin(), axes.end(), [&topology](iType axis) {
-    return topology.at(axis) > 1;
+template <typename iType1, typename iType2, std::size_t DIM>
+bool is_fft_ready(const std::array<iType1, DIM>& topology,
+                  const std::vector<iType2>& axes) {
+  return std::all_of(axes.begin(), axes.end(), [&topology](iType2 axis) {
+    return topology.at(axis) == 1;
   });
 }
 
@@ -505,19 +508,18 @@ bool is_fft_ready(const std::array<std::size_t, DIM>& topology,
 /// \param[in] axes The axes along which the FFT is performed
 /// \return The transposed topology if it is a slab topology, std::nullopt
 /// otherwise
-template <typename iType, std::size_t DIM>
+template <typename iType1, typename iType2, std::size_t DIM>
 std::optional<std::array<std::size_t, DIM>> find_transposed_topology(
-    const std::array<std::size_t, DIM>& topology,
+    const std::array<iType1, DIM>& topology,
     const std::array<std::size_t, DIM>& fft_extents,
-    const std::vector<iType>& axes) {
+    const std::vector<iType2>& axes) {
   auto p = KokkosFFT::Impl::total_size(topology);
-  std::array<std::size_t, DIM> transposed_topology;
+  std::array<iType1, DIM> transposed_topology;
   transposed_topology.fill(1);
-  for (std::size_t axis = 0; axis < DIM; ++axis) {
+  for (iType2 axis = 0; axis < DIM; ++axis) {
     // Skip if the axis is already an FFT axis or if the topology is identical
     // to the original topology
-    if (KokkosFFT::Impl::is_found(axes, static_cast<iType>(axis)) ||
-        topology.at(axis) > 1)
+    if (KokkosFFT::Impl::is_found(axes, axis) || topology.at(axis) > 1)
       continue;
     if (fft_extents.at(axis) / p > 0) {
       transposed_topology.at(axis) = p;
@@ -672,6 +674,188 @@ auto get_all_slab_topologies(const std::array<std::size_t, DIM>& gin_extents,
   return all_topologies;
 }
 
+struct State {
+  std::size_t m_p0_pos;
+  std::size_t m_p1_pos;
+  std::size_t m_p0;
+  std::size_t m_p1;
+  std::size_t m_remaining;
+
+  State(std::size_t p0_pos, std::size_t p1_pos, std::size_t p0, std::size_t p1,
+        std::size_t remaining)
+      : m_p0_pos(p0_pos),
+        m_p1_pos(p1_pos),
+        m_p0(p0),
+        m_p1(p1),
+        m_remaining(remaining) {}
+
+  template <typename iType, std::size_t DIM, typename LayoutType>
+  explicit State(const Topology<iType, DIM, LayoutType>& topo,
+                 std::size_t remaining)
+      : m_remaining(remaining) {
+    std::vector<std::size_t> pos;
+    for (std::size_t i = 0; i < topo.size(); i++) {
+      if (topo.at(i) != 1) pos.push_back(i);
+    }
+    m_p0_pos =
+        std::is_same_v<LayoutType, Kokkos::LayoutRight> ? pos.at(0) : pos.at(1);
+    m_p1_pos =
+        std::is_same_v<LayoutType, Kokkos::LayoutRight> ? pos.at(1) : pos.at(0);
+    m_p0 = topo.at(m_p0_pos);
+    m_p1 = topo.at(m_p1_pos);
+  }
+
+  bool operator==(const State& other) const {
+    return m_p0_pos == other.m_p0_pos && m_p1_pos == other.m_p1_pos &&
+           m_remaining == other.m_remaining;
+  }
+
+  bool is_layout_right() const { return m_p0_pos < m_p1_pos; }
+  auto positions() const { return std::make_pair(m_p0_pos, m_p1_pos); }
+  auto sizes() const { return std::make_pair(m_p0, m_p1); }
+
+  template <std::size_t DIM>
+  auto topology() const {
+    std::array<std::size_t, DIM> temp;
+    temp.fill(std::size_t{1});
+    temp[m_p0_pos] = m_p0;
+    temp[m_p1_pos] = m_p1;
+    return temp;
+  }
+};
+
+struct StateHash {
+  std::size_t operator()(const State& s) const {
+    std::size_t h = std::hash<std::size_t>{}(s.m_p0_pos);
+    auto combine  = [&h](std::size_t value) {
+      h ^= std::hash<std::size_t>{}(value) +
+           static_cast<std::size_t>(0x9e3779b9) + (h << 6) + (h >> 2);
+    };
+
+    combine(s.m_p1_pos);
+    combine(s.m_remaining);
+    return h;
+  }
+};
+
+// Process conditions from right to left.
+// Return the number of conditions still unsatisfied.
+template <typename iType, std::size_t N>
+std::size_t update_condition(const std::array<std::size_t, N>& temp,
+                             const std::vector<iType>& conditions,
+                             std::size_t remaining) {
+  while (remaining > 0 && temp[conditions[remaining - 1]] == std::size_t{1}) {
+    --remaining;
+  }
+
+  return remaining;
+}
+
+template <typename iType, std::size_t DIM, typename InLayoutType,
+          typename OutLayoutType>
+std::vector<State> find_minimal_path(
+    const std::array<std::size_t, DIM>& extents,
+    const Topology<std::size_t, DIM, InLayoutType>& in_topology,
+    const Topology<std::size_t, DIM, OutLayoutType>& out_topology,
+    const std::vector<iType>& axes) {
+  // axes already satisfied by the input are removed first.
+  const std::size_t initial_remaining =
+      update_condition(in_topology.array(), axes, axes.size());
+
+  const State in{in_topology, initial_remaining};
+  const State out{out_topology, 0};
+
+  const auto [in_p0, in_p1]   = in.positions();
+  const auto [out_p0, out_p1] = out.positions();
+  const auto sizes            = in.sizes();
+  const std::size_t p0 = sizes.first, p1 = sizes.second;
+
+  // Reconstruct the array represented by two positions.
+  auto make_array = [&](std::size_t p0_pos, std::size_t p1_pos) {
+    std::array<iType, DIM> temp;
+    temp.fill(iType{1});
+    temp[p0_pos] = p0;
+    temp[p1_pos] = p1;
+    return temp;
+  };
+
+  // Every candidate arrangement must satisfy S[i] / temp[i] > 0.
+  auto valid = [&](std::size_t p0_pos, std::size_t p1_pos) {
+    for (std::size_t i = 0; i < DIM; ++i) {
+      const std::size_t value = (i == p0_pos)   ? p0
+                                : (i == p1_pos) ? p1
+                                                : std::size_t{1};
+
+      if (!(extents[i] / value > std::size_t{0})) return false;
+    }
+
+    return true;
+  };
+
+  if (in == out) return {in};
+
+  std::queue<State> queue;
+  std::unordered_set<State, StateHash> visited;
+  std::unordered_map<State, State, StateHash> parent;
+
+  queue.push(in);
+  visited.insert(in);
+
+  bool found = false;
+
+  while (!queue.empty()) {
+    const State current = queue.front();
+    queue.pop();
+    if (current == out) {
+      found = true;
+      break;
+    }
+
+    auto try_state = [&](std::size_t next_p0, std::size_t next_p1) {
+      if (!valid(next_p0, next_p1)) return;
+
+      const auto temp = make_array(next_p0, next_p1);
+
+      // Conditions are processed whenever a new state is reached.
+      const std::size_t next_remaining =
+          update_condition(temp, axes, current.m_remaining);
+      const State next{next_p0, next_p1, p0, p1, next_remaining};
+      if (visited.insert(next).second) {
+        parent.emplace(next, current);
+        queue.push(next);
+      }
+    };
+
+    // Move p0 to a position containing 1.
+    for (std::size_t pos = 0; pos < DIM; ++pos) {
+      if (pos == current.m_p0_pos || pos == current.m_p1_pos) continue;
+
+      try_state(pos, current.m_p1_pos);
+    }
+
+    // Move p1 to a position containing 1.
+    for (std::size_t pos = 0; pos < DIM; ++pos) {
+      if (pos == current.m_p0_pos || pos == current.m_p1_pos) continue;
+
+      try_state(current.m_p0_pos, pos);
+    }
+  }
+
+  if (!found)
+    throw std::runtime_error("No valid path satisfies the conditions");
+  // Reconstruct the shortest path.
+  std::vector<State> states;
+
+  for (State current = out;; current = parent.at(current)) {
+    states.push_back(current);
+    if (current == in) break;
+  }
+
+  std::reverse(states.begin(), states.end());
+  return states;
+}
+
+/*
 /// \brief Get all pencil topologies for a given input and output topology
 ///
 /// Example: 3D case
@@ -866,6 +1050,94 @@ auto get_all_pencil_topologies(
 
   try_add_mid_topology();
   return finalize();
+}
+*/
+
+/// \brief Get all pencil topologies for a given input and output topology
+///
+/// Example: 3D case
+/// In topology: (1, Px, Py)
+/// Out topology: (Px, Py, 1)
+/// axes: {0, 1, 2}
+/// Output: {(1, Px, Py), (Py, Px, 1), (Py, 1, Px), (Py, Px, 1), (1, Px, Py),}
+/// Operation:
+/// Transpose to Topology2 -> FFT ax = {2} -> Transpose to Topology4 -> FFT1 ax
+/// = {1} Transpose to Topology2 -> Transpose to Topology0 -> FFT1 ax = {0}
+/// Topology0: {1, Px, Py}, Topology2: {Py, Px, 1}, Topology4: {Py, 1, Px}
+///
+/// \tparam iType The index type used for the topology.
+/// \tparam DIM The dimensionality of the topology.
+/// \tparam FFT_DIM The dimensionality of the FFT axes.
+///
+/// \param[in] in_topology The input topology.
+/// \param[in] out_topology The output topology.
+/// \param[in] axes The axes along which the FFT is performed.
+/// \param[in] is_same_order If true, the in/out topologies are considered in
+/// the same order.
+/// \return A vector of all possible slab topologies that can be formed from the
+/// input and output topologies, considering the FFT axes.
+template <typename iType, std::size_t DIM, std::size_t FFT_DIM,
+          typename InLayoutType, typename OutLayoutType>
+auto get_all_pencil_topologies(
+    const std::array<std::size_t, DIM>& gin_extents,
+    const std::array<std::size_t, DIM>& gout_extents,
+    const Topology<std::size_t, DIM, InLayoutType>& in_topology,
+    const Topology<std::size_t, DIM, OutLayoutType>& out_topology,
+    const std::array<iType, FFT_DIM>& axes) {
+  static_assert(FFT_DIM >= 1 && FFT_DIM <= 3, "FFT_DIM must be in [1, 3]");
+  static_assert(DIM >= 3 && DIM >= FFT_DIM, "DIM >= 3 and DIM >= FFT_DIM");
+  static_assert(std::is_unsigned_v<iType>,
+                "get_all_pencil_topologies: axes must be unsigned");
+
+  using topology_type   = std::array<std::size_t, DIM>;
+  using topologies_type = std::vector<topology_type>;
+  using axes_type       = std::vector<std::size_t>;
+  using layouts_type    = std::vector<std::size_t>;
+
+  bool is_pencil =
+      are_specified_topologies(TopologyType::Pencil, in_topology, out_topology);
+  KOKKOSFFT_THROW_IF(!is_pencil,
+                     "Input and output topologies must be pencil topologies.");
+
+  KOKKOSFFT_THROW_IF(!is_pencil,
+                     "Input and output topologies must be pencil topologies.");
+
+  auto in_topology_size  = KokkosFFT::Impl::total_size(in_topology);
+  auto out_topology_size = KokkosFFT::Impl::total_size(out_topology);
+
+  KOKKOSFFT_THROW_IF(in_topology_size != out_topology_size,
+                     "Input and output topologies must have the same size.");
+
+  // Check if local input and output sizes are not zero
+  auto in_extents  = divide_by_topology(gin_extents, in_topology);
+  auto out_extents = divide_by_topology(gout_extents, out_topology);
+
+  auto in_size  = KokkosFFT::Impl::total_size(in_extents);
+  auto out_size = KokkosFFT::Impl::total_size(out_extents);
+
+  KOKKOSFFT_THROW_IF(in_size == 0 || out_size == 0,
+                     "Input and output extents must not include 0.");
+
+  auto current_axes = KokkosFFT::Impl::to_vector(axes);
+  auto all_states =
+      find_minimal_path(gout_extents, in_topology, out_topology, current_axes);
+
+  topologies_type all_topologies;
+  axes_type all_axes;
+  layouts_type all_layouts;
+  auto prev_state = all_states.at(0);
+  for (std::size_t i = 0; i < all_states.size(); i++) {
+    auto state             = all_states.at(i);
+    std::size_t trans_axis = 0;
+    if (i != 0) trans_axis = state.m_p0_pos == prev_state.m_p0_pos;
+
+    all_topologies.push_back(state.template topology<DIM>());
+    all_axes.push_back(trans_axis);
+    all_layouts.push_back(state.is_layout_right());
+    prev_state = state;
+  }
+
+  return std::make_tuple(all_topologies, all_axes, all_layouts);
 }
 
 }  // namespace Impl
