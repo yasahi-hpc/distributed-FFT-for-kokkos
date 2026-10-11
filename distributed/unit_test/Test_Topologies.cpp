@@ -2967,7 +2967,7 @@ void test_get_all_pencil_topologies1D(std::size_t npx, std::size_t npy) {
 /// global input extents for the transform.
 template <bool is_R2C, std::size_t DIM, typename InLayoutType,
           typename OutLayoutType>
-void test_get_all_pencil_topologiesD(std::size_t npx, std::size_t npy) {
+void test_get_all_pencil_topologies2D(std::size_t npx, std::size_t npy) {
   using extents_type = std::array<std::size_t, DIM>;
   extents_type gin_extents{};
   gin_extents.fill(7);
@@ -3273,7 +3273,7 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
   }
 }
 
-void test_get_all_pencil_topologiesD_3DView(std::size_t nprocs) {
+void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
   using topo_type     = std::array<std::size_t, 3>;
   using extents_type  = std::array<std::size_t, 3>;
   using axes_type     = std::array<std::size_t, 2>;
@@ -3649,7 +3649,7 @@ void test_get_all_pencil_topologiesD_3DView(std::size_t nprocs) {
   }
 }
 
-void test_get_all_pencil_topologiesD_4DView(std::size_t nprocs) {
+void test_get_all_pencil_topologies2D_4DView(std::size_t nprocs) {
   using topo_type     = std::array<std::size_t, 4>;
   using extents_type  = std::array<std::size_t, 4>;
   using axes_type     = std::array<std::size_t, 2>;
@@ -3688,8 +3688,8 @@ void test_get_all_pencil_topologiesD_4DView(std::size_t nprocs) {
             ref_topo2 = topo2.array(), ref_topo3 = topo3.array(),
             ref_topo4 = topo4.array(), ref_topo5 = topo5.array(),
             ref_topo6 = topo6.array(), ref_topo7 = topo7.array(),
-            ref_topo8 = topo8.array(), ref_topo9 = topo9.array(),
-            ref_topo10 = topo10.array(), ref_topo11 = topo11.array();
+            ref_topo9 = topo9.array(), ref_topo10 = topo10.array(),
+            ref_topo11 = topo11.array();
 
   axes_type axes01{0, 1}, axes02{0, 2}, axes10{1, 0}, axes12{1, 2},
       axes20{2, 0}, axes21{2, 1}, axes13{1, 3}, axes23{2, 3}, axes03{0, 3};
@@ -4894,7 +4894,6 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
 
 }  // namespace
 
-/*
 TEST_P(TopologyParamTests, GetTopologyType_std_array) {
   int n0 = GetParam();
   test_to_topology_type<true>(n0);
@@ -5451,7 +5450,6 @@ TEST_P(SlabParamTests, GetAllSlabTopologies3D_7DView_C2C) {
 
 INSTANTIATE_TEST_SUITE_P(SlabTests, SlabParamTests,
                          ::testing::Values(1, 2, 3, 4, 5, 6));
-*/
 
 // Hardcoded tests for 1D, 2D, and 3D pencil topologies
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_3DView) {
@@ -5461,12 +5459,12 @@ TEST_P(PencilParamTests, GetAllPencilTopologies1D_3DView) {
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_3DView) {
   int n0 = GetParam();
-  test_get_all_pencil_topologiesD_3DView(n0);
+  test_get_all_pencil_topologies2D_3DView(n0);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_4DView) {
   int n0 = GetParam();
-  test_get_all_pencil_topologiesD_4DView(n0);
+  test_get_all_pencil_topologies2D_4DView(n0);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_3DView) {
@@ -5479,135 +5477,132 @@ TEST_P(PencilParamTests, GetAllPencilTopologies3D_4DView) {
   test_get_all_pencil_topologies3D_4DView(n0);
 }
 
-/*
-
 // General tests
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_3DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies1D<true, 3, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_3DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies1D<false, 3, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_4DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies1D<true, 4, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_4DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies1D<false, 4, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_5DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies1D<true, 5, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_5DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies1D<false, 5, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_3DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologiesD<true, 3, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<true, 3, Kokkos::LayoutLeft,
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_3DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologiesD<false, 3, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<false, 3, Kokkos::LayoutLeft,
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_4DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologiesD<true, 4, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<true, 4, Kokkos::LayoutLeft,
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_4DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologiesD<false, 4, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<false, 4, Kokkos::LayoutLeft,
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_5DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologiesD<true, 5, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<true, 5, Kokkos::LayoutLeft,
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_5DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologiesD<false, 5, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<false, 5, Kokkos::LayoutLeft,
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_3DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies3D<true, 3, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_3DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies3D<false, 3, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_4DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies3D<true, 4, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_4DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies3D<false, 4, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_5DView_R2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies3D<true, 5, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_5DView_C2C) {
-  int nprocs = GetParam();
+  int nprocs   = GetParam();
   const int n0 = 4;
   test_get_all_pencil_topologies3D<false, 5, Kokkos::LayoutLeft,
-Kokkos::LayoutLeft>(n0, nprocs);
+                                   Kokkos::LayoutLeft>(n0, nprocs);
 }
-  */
 
 INSTANTIATE_TEST_SUITE_P(PencilTests, PencilParamTests,
                          ::testing::Values(1, 2, 3, 4, 5, 6));
