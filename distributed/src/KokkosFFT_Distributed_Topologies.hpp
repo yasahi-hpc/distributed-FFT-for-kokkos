@@ -434,144 +434,199 @@ auto divide_by_topology(const ExtentsType& extents,
   return result;
 }
 
-/// \brief Append a topology to the vector of topologies if it is not already
-/// present. No op if the topology is the same as the last topology in the
-/// vector. This is used to avoid duplicate topologies in the vector.
-/// \tparam iType The index type
-/// \tparam DIM The dimension
-/// \param[in,out] topologies The vector of topologies
-/// \param[in] topology The topology to append
-template <typename iType, std::size_t DIM>
-void append_topology(std::vector<std::array<iType, DIM>>& topologies,
-                     const std::array<iType, DIM>& topology) {
-  if (topologies.empty() || topologies.back() != topology) {
-    topologies.push_back(topology);
-  }
-}
-
-/// \brief Check if the axes are ready for FFT
-/// \tparam iType The index type
-/// \tparam DIM The dimension
-/// \param[in] topology The topology
-/// \param[in] axes The axes along which the FFT is performed
-/// \return A pair of vectors of (remaining axes, ready axes). The first vector
-/// contains the axes that are not ready for FFT. The second vector contains the
-/// axes that are ready for FFT. remaining axes can be empty
-template <typename iType1, typename iType2, std::size_t DIM>
-auto decompose_fft_axes(const std::array<iType1, DIM>& topology,
-                        const std::vector<iType2>& axes) {
-  auto reversed_axes                 = KokkosFFT::Impl::reversed(axes);
-  std::vector<iType2> remaining_axes = reversed_axes;
-  std::vector<iType2> ready_axes;
-
-  for (const auto axis : reversed_axes) {
-    if (topology.at(axis) != 1) break;
-    ready_axes.push_back(axis);
-
-    auto it = std::find(remaining_axes.begin(), remaining_axes.end(), axis);
-    if (it != remaining_axes.end()) {
-      remaining_axes.erase(it);
-    }
+// Process conditions from right to left.
+// Return the number of conditions still unsatisfied.
+template <typename iType, std::size_t N>
+std::size_t update_condition(const std::array<std::size_t, N>& temp,
+                             const std::vector<iType>& conditions,
+                             std::size_t remaining) {
+  while (remaining > 0 && temp[conditions[remaining - 1]] == std::size_t{1}) {
+    --remaining;
   }
 
-  return std::make_pair(KokkosFFT::Impl::reversed(remaining_axes),
-                        KokkosFFT::Impl::reversed(ready_axes));
+  return remaining;
 }
 
-/// \brief Check if the topology is ready for FFT along the given axes
-/// \tparam iType The index type
-/// \tparam DIM The dimension
-/// \param[in] topology The topology
-/// \param[in] axes The axes along which the FFT is performed
-/// \return True if the topology is ready for FFT along the given axes, false
-/// otherwise
-template <typename iType1, typename iType2, std::size_t DIM>
-bool is_fft_ready(const std::array<iType1, DIM>& topology,
-                  const std::vector<iType2>& axes) {
-  return std::all_of(axes.begin(), axes.end(), [&topology](iType2 axis) {
-    return topology.at(axis) == 1;
-  });
-}
+struct SlabState {
+  std::size_t m_pos;
+  std::size_t m_p;
+  std::size_t m_remaining;
 
-/// \brief Find the transposed topology for a given topology and FFT extents
-/// A new topology is distributed along an axis that is not an FFT axis and is
-/// not identical to the original topology
+  // FFT axes that become ready on reaching this state (in the original order).
+  // Not part of the identity of a state, i.e. ignored by == and SlabStateHash.
+  std::vector<std::size_t> m_consumed_axes;
+
+  SlabState(std::size_t pos, std::size_t p, std::size_t remaining,
+            std::vector<std::size_t> consumed_axes = {})
+      : m_pos(pos),
+        m_p(p),
+        m_remaining(remaining),
+        m_consumed_axes(std::move(consumed_axes)) {}
+
+  bool operator==(const SlabState& other) const {
+    return m_pos == other.m_pos && m_remaining == other.m_remaining;
+  }
+
+  template <std::size_t DIM>
+  auto topology() const {
+    std::array<std::size_t, DIM> temp;
+    temp.fill(std::size_t{1});
+    temp[m_pos] = m_p;
+    return temp;
+  }
+};
+
+struct SlabStateHash {
+  std::size_t operator()(const SlabState& s) const {
+    std::size_t h = std::hash<std::size_t>{}(s.m_pos);
+    h ^= std::hash<std::size_t>{}(s.m_remaining) +
+         static_cast<std::size_t>(0x9e3779b9) + (h << 6) + (h >> 2);
+    return h;
+  }
+};
+
+/// \brief Find the minimal sequence of slab topologies from the input to the
+/// output topology such that every FFT axis becomes undistributed (1) at some
+/// point along the way.
 ///
-/// Example
-/// topology: (1, P, 1), fft_extents: (N, M, K), axes: {1, 2}
-/// -> transposed_topology: (P, 1, 1)
-/// topology: (1, P, 1), fft_extents: (1, M, K), axes: {1, 2}
-/// -> transposed_topology: nullopt (no transposed topology found)
-/// \tparam iType The index type
-/// \tparam DIM The dimension
-/// \param[in] topology Input topology
-/// \param[in] fft_extents Global FFT extents
-/// \param[in] axes The axes along which the FFT is performed
-/// \return The transposed topology if it is a slab topology, std::nullopt
-/// otherwise
-template <typename iType1, typename iType2, std::size_t DIM>
-std::optional<std::array<std::size_t, DIM>> find_transposed_topology(
-    const std::array<iType1, DIM>& topology,
-    const std::array<std::size_t, DIM>& fft_extents,
-    const std::vector<iType2>& axes) {
-  auto p = KokkosFFT::Impl::total_size(topology);
-  std::array<iType1, DIM> transposed_topology;
-  transposed_topology.fill(1);
-  for (iType2 axis = 0; axis < DIM; ++axis) {
-    // Skip if the axis is already an FFT axis or if the topology is identical
-    // to the original topology
-    if (KokkosFFT::Impl::is_found(axes, axis) || topology.at(axis) > 1)
-      continue;
-    if (fft_extents.at(axis) / p > 0) {
-      transposed_topology.at(axis) = p;
-      break;
-    }
-  }
-
-  // If a candidate found, transposed topology is a slab geometry
-  bool is_slab =
-      are_specified_topologies(TopologyType::Slab, transposed_topology);
-  return is_slab ? std::optional(transposed_topology) : std::nullopt;
-}
-
-/// \brief Find the next slab topology for a given topology and FFT extents
-/// A new topology is distributed along an axis that is not an FFT axis and is
-/// not identical
-/// \tparam iType The index type
-/// \tparam DIM The dimension
-/// \param[in] topology Input topology
-/// \param[in] fft_extents Global FFT extents
-/// \param[in] axes The axes along which the FFT is performed
-/// \return The next slab topology
-/// \throws std::runtime_error if no valid next slab topology is found
+/// A slab topology has exactly one non-one entry P. Each step of the path
+/// moves P to another position, which corresponds to a single transpose. The
+/// axes are processed from right to left: axes.back() must be undistributed
+/// first, then the one before it, and so on. The output topology can only be
+/// reached after all axes have been satisfied. A breadth-first search is used,
+/// so the returned path has the minimum number of transposes. Among the next
+/// states, those consuming more axes are explored first, then those with a
+/// smaller position of P. An intermediate topology is rejected if the extent
+/// along P is smaller than P. The extents are gin_extents until the first axis
+/// is consumed, and gout_extents afterwards.
+///
+/// Example: 3D case
+/// In topology: (1, 1, P)
+/// Out topology: (1, 1, P)
+/// axes: {0, 1, 2}
+/// Output: {(1, 1, P), (P, 1, 1), (1, 1, P)}
+///   (1, 1, P) -> (P, 1, 1): axes 2 and 1 are undistributed
+///   (P, 1, 1) -> (1, 1, P): axis 0 is undistributed
+///
+/// \tparam iType The integer type used for the axes.
+/// \tparam DIM The dimensionality of the topologies.
+/// \param[in] gin_extents The global input extents.
+/// \param[in] gout_extents The global output extents.
+/// \param[in] in_topology The input slab topology.
+/// \param[in] out_topology The output slab topology.
+/// \param[in] axes The FFT axes, each of which must be undistributed at some
+/// point along the path (processed from right to left).
+/// \return A vector of states representing the minimal path from the input to
+/// the output topology, including both ends. If the input already equals the
+/// output and all axes are satisfied, a single state is returned.
+/// \throws std::runtime_error if no valid path satisfies the conditions
 template <typename iType, std::size_t DIM>
-auto find_next_slab_topology(const std::array<iType, DIM>& topology,
-                             const std::array<std::size_t, DIM>& fft_extents,
-                             const std::vector<iType>& axes) {
-  auto current_axes = axes;
-  std::array<iType, DIM> next_topology{};
+std::vector<SlabState> find_minimal_slab_path(
+    const std::array<std::size_t, DIM>& gin_extents,
+    const std::array<std::size_t, DIM>& gout_extents,
+    const std::array<std::size_t, DIM>& in_topology,
+    const std::array<std::size_t, DIM>& out_topology,
+    const std::vector<iType>& axes) {
+  // Axes in [remaining, prev_remaining) are consumed by a transition.
+  auto consumed_axes = [&](std::size_t prev_remaining, std::size_t remaining) {
+    return std::vector<std::size_t>(axes.begin() + remaining,
+                                    axes.begin() + prev_remaining);
+  };
 
-  while (true) {
-    auto transposed_topology =
-        find_transposed_topology(topology, fft_extents, current_axes);
-    if (transposed_topology.has_value()) {
-      next_topology = transposed_topology.value();
+  auto non_one_pos = [](const std::array<std::size_t, DIM>& topology) {
+    return static_cast<std::size_t>(
+        std::find_if(topology.begin(), topology.end(),
+                     [](std::size_t value) { return value != 1; }) -
+        topology.begin());
+  };
+
+  const std::size_t p = KokkosFFT::Impl::total_size(in_topology);
+
+  // Reconstruct the array represented by the position of p.
+  auto make_array = [&](std::size_t pos) {
+    std::array<std::size_t, DIM> temp;
+    temp.fill(std::size_t{1});
+    temp[pos] = p;
+    return temp;
+  };
+
+  // axes already satisfied by the input are removed first.
+  const std::size_t initial_remaining =
+      update_condition(in_topology, axes, axes.size());
+
+  const SlabState in{non_one_pos(in_topology), p, initial_remaining,
+                     consumed_axes(axes.size(), initial_remaining)};
+  const SlabState out{non_one_pos(out_topology), p, 0};
+
+  if (in == out) return {in};
+
+  std::queue<SlabState> queue;
+  std::unordered_set<SlabState, SlabStateHash> visited;
+  std::unordered_map<SlabState, SlabState, SlabStateHash> parent;
+
+  queue.push(in);
+  visited.insert(in);
+
+  bool found = false;
+
+  // The reached output state, which carries its consumed axes unlike out.
+  SlabState last = in;
+
+  while (!queue.empty()) {
+    const SlabState current = queue.front();
+    queue.pop();
+    if (current == out) {
+      found = true;
+      last  = current;
       break;
-    } else {
-      // We should have found a slab topology
-      if (current_axes.size() == 1) break;
+    }
 
-      // We cannot manipulate all_axes one time, make sub-axes by suppressing
-      // the first element
-      current_axes.erase(current_axes.begin());
+    // No FFT has been performed until the first axis is consumed.
+    const auto& extents =
+        current.m_remaining == axes.size() ? gin_extents : gout_extents;
+
+    std::vector<SlabState> candidates;
+    for (std::size_t pos = 0; pos < DIM; ++pos) {
+      if (pos == current.m_pos) continue;
+
+      const std::size_t next_remaining =
+          update_condition(make_array(pos), axes, current.m_remaining);
+      const SlabState next{pos, p, next_remaining,
+                           consumed_axes(current.m_remaining, next_remaining)};
+
+      // The output topology is already validated by the caller.
+      if (!(next == out) && extents[pos] / p == 0) continue;
+
+      candidates.push_back(next);
+    }
+
+    // Prefer the states consuming more axes. The order of positions is kept
+    // for the states consuming the same number of axes.
+    std::stable_sort(candidates.begin(), candidates.end(),
+                     [](const SlabState& a, const SlabState& b) {
+                       return a.m_remaining < b.m_remaining;
+                     });
+
+    for (const auto& next : candidates) {
+      if (visited.insert(next).second) {
+        parent.emplace(next, current);
+        queue.push(next);
+      }
     }
   }
 
-  KOKKOSFFT_THROW_IF(KokkosFFT::Impl::total_size(next_topology) == 0,
-                     "No valid next slab topology found. Check if the input "
-                     "topology is valid and if the FFT axes are correct.");
+  KOKKOSFFT_THROW_IF(!found, "No valid path satisfies the conditions");
 
-  return next_topology;
+  // Reconstruct the shortest path.
+  std::vector<SlabState> states;
+
+  for (SlabState current = last;; current = parent.at(current)) {
+    states.push_back(current);
+    if (current == in) break;
+  }
+
+  std::reverse(states.begin(), states.end());
+  return states;
 }
 
 /// \brief Get all slab topologies for a given input and output topology
@@ -593,14 +648,16 @@ auto find_next_slab_topology(const std::array<iType, DIM>& topology,
 /// \param[in] in_topology The input topology.
 /// \param[in] out_topology The output topology.
 /// \param[in] axes The axes along which the FFT is performed.
-/// \return A vector of all possible slab topologies that can be formed
-/// from the input and output topologies, considering the FFT axes.
+/// \return A tuple of (all_topologies, all_axes). all_topologies is the
+/// sequence of slab topologies from the input to the output topology. all_axes
+/// are the FFT axes that become ready on each topology, identical to
+/// decompose_axes(all_topologies, axes).
 /// \throws std::runtime_error
 /// 1. if the input and output topologies are not slab topologies
 /// 2. if the input and output topologies do not have the same size
 /// 3. if the input and output extents include 0
-/// 4. if valid next slab topology cannot be found for the given input topology
-/// and FFT axes
+/// 4. if no valid path of slab topologies is found for the given input
+/// topology and FFT axes
 template <typename iType, std::size_t DIM, std::size_t FFT_DIM>
 auto get_all_slab_topologies(const std::array<std::size_t, DIM>& gin_extents,
                              const std::array<std::size_t, DIM>& gout_extents,
@@ -635,47 +692,22 @@ auto get_all_slab_topologies(const std::array<std::size_t, DIM>& gin_extents,
   KOKKOSFFT_THROW_IF(in_size == 0 || out_size == 0,
                      "Input and output extents must not include 0.");
 
-  // Secondly, check if we can perform FFTs without transpose
-  auto current_axes     = KokkosFFT::Impl::to_vector(axes);
-  auto current_topology = in_topology;
+  auto all_states =
+      find_minimal_slab_path(gin_extents, gout_extents, in_topology,
+                             out_topology, KokkosFFT::Impl::to_vector(axes));
 
   std::vector<std::array<std::size_t, DIM>> all_topologies;
-  std::vector<std::vector<std::size_t>> all_axes;
-
-  auto [remaining_axes, ready_axes] =
-      decompose_fft_axes(current_topology, current_axes);
-
-  append_topology(all_topologies, current_topology);
-  all_axes.push_back(ready_axes);
-
-  while (!remaining_axes.empty()) {
-    // Check if we can perform FFT on output topology without transpose
-    if (is_fft_ready(out_topology, remaining_axes)) break;
-
-    // Remaining axes must require transpose
-    bool is_transpose_only = remaining_axes == current_axes;
-    auto fft_extents       = is_transpose_only ? gin_extents : gout_extents;
-    auto next_topology =
-        find_next_slab_topology(current_topology, fft_extents, remaining_axes);
-    auto [next_remaining_axes, next_ready_axes] =
-        decompose_fft_axes(next_topology, remaining_axes);
-
-    // Add new topology and axes
-    append_topology(all_topologies, next_topology);
-    all_axes.push_back(next_ready_axes);
-
-    current_topology = next_topology;
-    remaining_axes   = next_remaining_axes;
+  std::vector<std::vector<iType>> all_axes;
+  for (const auto& state : all_states) {
+    all_topologies.push_back(state.template topology<DIM>());
+    all_axes.emplace_back(state.m_consumed_axes.begin(),
+                          state.m_consumed_axes.end());
   }
 
-  append_topology(all_topologies, out_topology);
-  if (all_topologies.size() != all_axes.size()) {
-    all_axes.push_back({});
-  }
-  return all_topologies;
+  return std::make_tuple(all_topologies, all_axes);
 }
 
-struct State {
+struct PencilState {
   std::size_t m_p0_pos;
   std::size_t m_p1_pos;
   std::size_t m_p0;
@@ -683,11 +715,13 @@ struct State {
   std::size_t m_remaining;
 
   // FFT axes that become ready on reaching this state (in the original order).
-  // Not part of the identity of a state, i.e. ignored by == and StateHash.
+  // Not part of the identity of a state, i.e. ignored by == and
+  // PencilStateHash.
   std::vector<std::size_t> m_consumed_axes;
 
-  State(std::size_t p0_pos, std::size_t p1_pos, std::size_t p0, std::size_t p1,
-        std::size_t remaining, std::vector<std::size_t> consumed_axes = {})
+  PencilState(std::size_t p0_pos, std::size_t p1_pos, std::size_t p0,
+              std::size_t p1, std::size_t remaining,
+              std::vector<std::size_t> consumed_axes = {})
       : m_p0_pos(p0_pos),
         m_p1_pos(p1_pos),
         m_p0(p0),
@@ -696,9 +730,9 @@ struct State {
         m_consumed_axes(std::move(consumed_axes)) {}
 
   template <typename iType, std::size_t DIM, typename LayoutType>
-  explicit State(const Topology<iType, DIM, LayoutType>& topo,
-                 std::size_t remaining,
-                 std::vector<std::size_t> consumed_axes = {})
+  explicit PencilState(const Topology<iType, DIM, LayoutType>& topo,
+                       std::size_t remaining,
+                       std::vector<std::size_t> consumed_axes = {})
       : m_remaining(remaining), m_consumed_axes(std::move(consumed_axes)) {
     std::vector<std::size_t> pos;
     for (std::size_t i = 0; i < topo.size(); i++) {
@@ -712,7 +746,7 @@ struct State {
     m_p1 = topo.at(m_p1_pos);
   }
 
-  bool operator==(const State& other) const {
+  bool operator==(const PencilState& other) const {
     return m_p0_pos == other.m_p0_pos && m_p1_pos == other.m_p1_pos &&
            m_remaining == other.m_remaining;
   }
@@ -730,8 +764,8 @@ struct State {
   }
 };
 
-struct StateHash {
-  std::size_t operator()(const State& s) const {
+struct PencilStateHash {
+  std::size_t operator()(const PencilState& s) const {
     std::size_t h = std::hash<std::size_t>{}(s.m_p0_pos);
     auto combine  = [&h](std::size_t value) {
       h ^= std::hash<std::size_t>{}(value) +
@@ -743,19 +777,6 @@ struct StateHash {
     return h;
   }
 };
-
-// Process conditions from right to left.
-// Return the number of conditions still unsatisfied.
-template <typename iType, std::size_t N>
-std::size_t update_condition(const std::array<std::size_t, N>& temp,
-                             const std::vector<iType>& conditions,
-                             std::size_t remaining) {
-  while (remaining > 0 && temp[conditions[remaining - 1]] == std::size_t{1}) {
-    --remaining;
-  }
-
-  return remaining;
-}
 
 /// \brief Find the minimal sequence of pencil topologies from the input to
 /// the output topology such that every FFT axis becomes undistributed (1) at
@@ -802,7 +823,7 @@ std::size_t update_condition(const std::array<std::size_t, N>& temp,
 /// \throws std::runtime_error if no valid path satisfies the conditions
 template <typename iType, std::size_t DIM, typename InLayoutType,
           typename OutLayoutType>
-std::vector<State> find_minimal_path(
+std::vector<PencilState> find_minimal_path(
     const std::array<std::size_t, DIM>& extents,
     const Topology<std::size_t, DIM, InLayoutType>& in_topology,
     const Topology<std::size_t, DIM, OutLayoutType>& out_topology,
@@ -817,9 +838,9 @@ std::vector<State> find_minimal_path(
   const std::size_t initial_remaining =
       update_condition(in_topology.array(), axes, axes.size());
 
-  const State in{in_topology, initial_remaining,
-                 consumed_axes(axes.size(), initial_remaining)};
-  const State out{out_topology, 0};
+  const PencilState in{in_topology, initial_remaining,
+                       consumed_axes(axes.size(), initial_remaining)};
+  const PencilState out{out_topology, 0};
 
   const auto sizes     = in.sizes();
   const std::size_t p0 = sizes.first, p1 = sizes.second;
@@ -848,9 +869,9 @@ std::vector<State> find_minimal_path(
 
   if (in == out) return {in};
 
-  std::queue<State> queue;
-  std::unordered_set<State, StateHash> visited;
-  std::unordered_map<State, State, StateHash> parent;
+  std::queue<PencilState> queue;
+  std::unordered_set<PencilState, PencilStateHash> visited;
+  std::unordered_map<PencilState, PencilState, PencilStateHash> parent;
 
   queue.push(in);
   visited.insert(in);
@@ -858,10 +879,10 @@ std::vector<State> find_minimal_path(
   bool found = false;
 
   // The reached output state, which carries its consumed axes unlike out.
-  State last = in;
+  PencilState last = in;
 
   while (!queue.empty()) {
-    const State current = queue.front();
+    const PencilState current = queue.front();
     queue.pop();
     if (current == out) {
       found = true;
@@ -883,12 +904,13 @@ std::vector<State> find_minimal_path(
           next_remaining == current.m_remaining)
         return;
 
-      const State next{next_p0,
-                       next_p1,
-                       p0,
-                       p1,
-                       next_remaining,
-                       consumed_axes(current.m_remaining, next_remaining)};
+      const PencilState next{
+          next_p0,
+          next_p1,
+          p0,
+          p1,
+          next_remaining,
+          consumed_axes(current.m_remaining, next_remaining)};
       if (visited.insert(next).second) {
         parent.emplace(next, current);
         queue.push(next);
@@ -913,9 +935,9 @@ std::vector<State> find_minimal_path(
   KOKKOSFFT_THROW_IF(!found, "No valid path satisfies the conditions");
 
   // Reconstruct the shortest path.
-  std::vector<State> states;
+  std::vector<PencilState> states;
 
-  for (State current = last;; current = parent.at(current)) {
+  for (PencilState current = last;; current = parent.at(current)) {
     states.push_back(current);
     if (current == in) break;
   }
