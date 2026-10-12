@@ -289,65 +289,6 @@ std::vector<std::vector<iType>> decompose_axes(
   return all_axes;
 }
 
-/// \brief Compute the axis to transpose to convert one topology to another
-/// Example
-/// (1, Px, Py, 1) -> (Px, 1, Py, 1). Transpose axis is Px (0)
-/// (1, Px, Py, 1) -> (1, Px, 1, Py). Transpose axis is Py (1)
-///
-/// \tparam iType The index type
-/// \tparam DIM The dimension
-///
-/// \param[in] in_topology The input topology
-/// \param[in] out_topology The output topology
-/// \param[in] first_non_one The first non-one element in the input or output
-/// \return The axis to transpose (0 or 1)
-/// \throws std::runtime_error if the input and output topologies do not have
-/// exactly two non-one elements
-/// \throws std::runtime_error if the input and output topologies have identical
-/// non-one elements
-/// \throws std::runtime_error if the input and output topologies do not differ
-/// in exactly two positions
-template <typename iType, std::size_t DIM>
-auto compute_trans_axis(const std::array<iType, DIM>& in_topology,
-                        const std::array<iType, DIM>& out_topology,
-                        iType first_non_one) {
-  auto in_non_ones  = extract_non_one_values(in_topology);
-  auto out_non_ones = extract_non_one_values(out_topology);
-
-  auto error_msg = [&in_topology,
-                    &out_topology](std::string_view details) -> std::string {
-    std::string message(details);
-    message +=
-        KokkosFFT::Impl::container_to_string("in_topology: ", in_topology);
-    message += ", ";
-    message +=
-        KokkosFFT::Impl::container_to_string("out_topology: ", out_topology);
-    return message;
-  };
-
-  KOKKOSFFT_THROW_IF(in_non_ones.size() != 2 || out_non_ones.size() != 2,
-                     error_msg("Input and output topologies must have exactly "
-                               "two non-one elements."));
-  KOKKOSFFT_THROW_IF(has_identical_non_ones(in_non_ones) ||
-                         has_identical_non_ones(out_non_ones),
-                     error_msg("Input and output topologies must not have "
-                               "identical non-one elements."));
-  auto diff_indices = extract_different_indices(in_topology, out_topology);
-  KOKKOSFFT_THROW_IF(
-      diff_indices.size() != 2,
-      error_msg(
-          "Input and output topologies must differ exactly two positions"));
-  iType exchange_non_one = 0;
-  for (auto diff_idx : diff_indices) {
-    if (in_topology.at(diff_idx) > 1) {
-      exchange_non_one = in_topology.at(diff_idx);
-      break;
-    }
-  }
-  iType trans_axis = !(exchange_non_one == first_non_one);
-  return trans_axis;
-}
-
 /// \brief Divide the extents by the topology to get the local extents for each
 /// process This is not exactly same as the local extents, but is used to check
 /// whether the local extents include 0 or not.

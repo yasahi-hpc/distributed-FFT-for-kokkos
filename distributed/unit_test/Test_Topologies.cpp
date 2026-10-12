@@ -241,33 +241,6 @@ std::string error_decompose_axes(
   return msg;
 }
 
-/// \brief Generate error message for compute_trans_axis test failures.
-/// \tparam iType The index type
-/// \tparam DIM The dimension
-/// \param[in] in_topology The input topology
-/// \param[in] out_topology The output topology
-/// \param[in] first_non_one The first non-one element in the input or output
-/// \param[in] expected The expected transformation axis (0 or 1)
-/// \return Error message including the input topologies and the expected in/out
-/// axes.
-template <typename iType, std::size_t DIM>
-std::string error_trans_axis(const std::array<iType, DIM>& in_topology,
-                             const std::array<iType, DIM>& out_topology,
-                             iType first_non_one, iType expected) {
-  auto actual = KokkosFFT::Distributed::Impl::compute_trans_axis(
-      in_topology, out_topology, first_non_one);
-  std::string msg = "Input topologies: ";
-  msg += KokkosFFT::Impl::container_to_string("in_topology: ", in_topology);
-  msg += " and ";
-  msg += KokkosFFT::Impl::container_to_string("out_topology: ", out_topology);
-  msg += ", should have trans_axis: ";
-  msg += std::to_string(expected);
-  msg += ", but got: ";
-  msg += std::to_string(actual);
-  msg += ".";
-  return msg;
-}
-
 /// \brief Generate error message for get_all_slab_topologies and
 /// get_all_pencil_topologies test failures.
 /// \tparam iType The index type used for the topology.
@@ -1510,92 +1483,6 @@ void test_decompose_axes_pencil(std::size_t nprocs) {
       auto all_axes = KokkosFFT::Distributed::Impl::decompose_axes(topos, axes);
       EXPECT_EQ(all_axes, ref_axes)
           << error_decompose_axes(topos, axes, ref_axes);
-    }
-  }
-}
-
-void test_compute_trans_axis(std::size_t nprocs) {
-  using topo3D_type         = std::array<std::size_t, 3>;
-  using topo4D_type         = std::array<std::size_t, 4>;
-  using topo3D_and_ref_type = std::tuple<topo3D_type, topo3D_type, std::size_t>;
-  using topo4D_and_ref_type = std::tuple<topo4D_type, topo4D_type, std::size_t>;
-
-  std::size_t np0 = 4;
-
-  // 3D topologies
-  topo3D_type topo0{1, nprocs, np0}, topo1{nprocs, 1, np0},
-      topo2{np0, nprocs, 1};
-
-  // 4D topologies
-  topo4D_type topo3{1, 1, np0, nprocs}, topo4{1, np0, 1, nprocs};
-
-  if (nprocs == 1 || nprocs == np0) {
-    // Failure tests because these are not pencils for nprocs == 1 or they
-    // include identical non-one elements for nprocs == np0
-    std::vector<topo3D_and_ref_type> topo3D_failure_test_cases = {
-        {topo0, topo1, 0}, {topo0, topo2, 1}, {topo1, topo0, 0},
-        {topo1, topo2, 1}, {topo2, topo0, 1}, {topo2, topo1, 1}};
-
-    for ([[maybe_unused]] const auto& [topo_in, topo_out, ref_trans_axis] :
-         topo3D_failure_test_cases) {
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto trans_axis =
-                KokkosFFT::Distributed::Impl::compute_trans_axis(
-                    topo_in, topo_out, nprocs);
-          },
-          std::runtime_error);
-    }
-
-    std::vector<topo4D_and_ref_type> topo4D_failure_test_cases = {
-        {topo3, topo4, 0}, {topo4, topo3, 0}};
-    for ([[maybe_unused]] const auto& [topo_in, topo_out, ref_trans_axis] :
-         topo4D_failure_test_cases) {
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto trans_axis =
-                KokkosFFT::Distributed::Impl::compute_trans_axis(
-                    topo_in, topo_out, nprocs);
-          },
-          std::runtime_error);
-    }
-  } else {
-    // 3D case
-    std::vector<topo3D_and_ref_type> topo3D_test_cases = {{topo0, topo1, 0},
-                                                          {topo0, topo2, 1},
-                                                          {topo1, topo0, 0},
-                                                          {topo2, topo0, 1}};
-
-    for (const auto& [topo_in, topo_out, ref_trans_axis] : topo3D_test_cases) {
-      auto trans_axis = KokkosFFT::Distributed::Impl::compute_trans_axis(
-          topo_in, topo_out, nprocs);
-      EXPECT_EQ(trans_axis, ref_trans_axis)
-          << error_trans_axis(topo_in, topo_out, nprocs, ref_trans_axis);
-    }
-
-    std::vector<topo3D_and_ref_type> topo3D_failure_test_cases = {
-        {topo1, topo2, 0}, {topo2, topo1, 1}};
-
-    for ([[maybe_unused]] const auto& [topo_in, topo_out, ref_trans_axis] :
-         topo3D_failure_test_cases) {
-      EXPECT_THROW(
-          {
-            [[maybe_unused]] auto trans_axis =
-                KokkosFFT::Distributed::Impl::compute_trans_axis(
-                    topo_in, topo_out, nprocs);
-          },
-          std::runtime_error);
-    }
-
-    // 4D case
-    std::vector<topo4D_and_ref_type> topo4D_test_cases = {{topo3, topo4, 0},
-                                                          {topo4, topo3, 0}};
-
-    for (const auto& [topo_in, topo_out, ref_trans_axis] : topo4D_test_cases) {
-      auto trans_axis = KokkosFFT::Distributed::Impl::compute_trans_axis(
-          topo_in, topo_out, np0);
-      EXPECT_EQ(trans_axis, ref_trans_axis)
-          << error_trans_axis(topo_in, topo_out, np0, ref_trans_axis);
     }
   }
 }
@@ -4904,11 +4791,6 @@ TEST_P(TopologyParamTests, decompose_axes_slab) {
 TEST_P(TopologyParamTests, decompose_axes_pencil) {
   int n0 = GetParam();
   test_decompose_axes_pencil(n0);
-}
-
-TEST_P(TopologyParamTests, compute_trans_axis) {
-  int n0 = GetParam();
-  test_compute_trans_axis(n0);
 }
 
 TEST_P(TopologyParamTests, slab_in_out_axes_2D) {
