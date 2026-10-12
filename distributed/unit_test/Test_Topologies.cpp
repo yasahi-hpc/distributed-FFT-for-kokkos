@@ -379,7 +379,7 @@ std::string error_all_pencil_topologies(const Topology1Type& in_topology,
                                         const TopoAndAxesType& actual,
                                         const TopoAndAxesType& expected) {
   auto print_topo_and_axes = [](const TopoAndAxesType& t) {
-    auto [all_topologies, all_trans_axes, all_layouts] = t;
+    auto [all_topologies, all_trans_axes, all_layouts, all_axes] = t;
     std::string msg;
     msg += "topologies: (";
     for (std::size_t i = 0; i < all_topologies.size(); ++i) {
@@ -406,6 +406,13 @@ std::string error_all_pencil_topologies(const Topology1Type& in_topology,
     for (std::size_t i = 0; i < all_layouts.size(); ++i) {
       msg += std::to_string(all_layouts.at(i));
       if (i != all_layouts.size() - 1) {
+        msg += ", ";
+      }
+    }
+    msg += "), axes: (";
+    for (std::size_t i = 0; i < all_axes.size(); ++i) {
+      msg += KokkosFFT::Impl::container_to_string("", all_axes.at(i));
+      if (i != all_axes.size() - 1) {
         msg += ", ";
       }
     }
@@ -2658,9 +2665,14 @@ void test_get_all_pencil_topologies1D_impl(
                     std::runtime_error);
               } else {
                 // This must return length 1-3 vectors
-                auto [topos, trans_axes, layouts] =
+                auto [topos, trans_axes, layouts, all_axes] =
                     KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
                         gin_extents, gout_extents, topo_in, topo_out, axes);
+
+                // The FFT axes must be identical with decompose_axes
+                EXPECT_EQ(
+                    all_axes,
+                    KokkosFFT::Distributed::Impl::decompose_axes(topos, axes));
 
                 // In 1D, we can have at most 3 topologies
                 // (in, out, and 1 transpose)
@@ -2775,9 +2787,14 @@ void test_get_all_pencil_topologies2D_impl(
                       std::runtime_error);
                 } else {
                   // This must return length 1-3 vectors
-                  auto [topos, trans_axes, layouts] =
+                  auto [topos, trans_axes, layouts, all_axes] =
                       KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
                           gin_extents, gout_extents, topo_in, topo_out, axes);
+
+                  // The FFT axes must be identical with decompose_axes
+                  EXPECT_EQ(all_axes,
+                            KokkosFFT::Distributed::Impl::decompose_axes(topos,
+                                                                         axes));
 
                   // In 1D, we can have at most 3 topologies
                   // (in, out, and 1 transpose)
@@ -2897,9 +2914,14 @@ void test_get_all_pencil_topologies3D_impl(
                         std::runtime_error);
                   } else {
                     // This must return length 1-3 vectors
-                    auto [topos, trans_axes, layouts] =
+                    auto [topos, trans_axes, layouts, all_axes] =
                         KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
                             gin_extents, gout_extents, topo_in, topo_out, axes);
+
+                    // The FFT axes must be identical with decompose_axes
+                    EXPECT_EQ(all_axes,
+                              KokkosFFT::Distributed::Impl::decompose_axes(
+                                  topos, axes));
 
                     // In 1D, we can have at most 3 topologies
                     // (in, out, and 1 transpose)
@@ -3198,8 +3220,9 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3225,8 +3248,9 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3252,8 +3276,9 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3271,8 +3296,9 @@ void test_get_all_pencil_topologies1D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3515,8 +3541,9 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3561,8 +3588,9 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3607,8 +3635,9 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3651,8 +3680,9 @@ void test_get_all_pencil_topologies2D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3912,8 +3942,9 @@ void test_get_all_pencil_topologies2D_4DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3948,8 +3979,9 @@ void test_get_all_pencil_topologies2D_4DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -3984,8 +4016,9 @@ void test_get_all_pencil_topologies2D_4DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4020,8 +4053,9 @@ void test_get_all_pencil_topologies2D_4DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4297,8 +4331,9 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4350,8 +4385,9 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4382,8 +4418,9 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4435,8 +4472,9 @@ void test_get_all_pencil_topologies3D_3DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4772,8 +4810,9 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4833,8 +4872,9 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_r_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_r_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4871,8 +4911,9 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_r_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_r_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
@@ -4912,8 +4953,9 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
       auto topo_and_axes =
           KokkosFFT::Distributed::Impl::get_all_pencil_topologies(
               extents, extents, topo_l_in, topo_l_out, axes);
-      auto ref_topo_and_axes =
-          std::make_tuple(ref_topos, ref_axes, ref_layouts);
+      auto ref_topo_and_axes = std::make_tuple(
+          ref_topos, ref_axes, ref_layouts,
+          KokkosFFT::Distributed::Impl::decompose_axes(ref_topos, axes));
       EXPECT_EQ(topo_and_axes, ref_topo_and_axes)
           << error_all_pencil_topologies(topo_l_in, topo_l_out, axes,
                                          topo_and_axes, ref_topo_and_axes);
