@@ -1879,8 +1879,13 @@ void test_get_all_slab_topologies1D_2DView(
             },
             std::runtime_error);
       } else {
-        auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            gin_extents, gout_extents, topo_in, topo_out, axes);
+        auto [topos, all_axes] =
+            KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                gin_extents, gout_extents, topo_in, topo_out, axes);
+
+        // The FFT axes must be identical with decompose_axes
+        EXPECT_EQ(all_axes,
+                  KokkosFFT::Distributed::Impl::decompose_axes(topos, axes));
 
         EXPECT_EQ(topos, ref_topos)
             << error_all_topologies(gin_extents, gout_extents, topo_in,
@@ -1955,8 +1960,13 @@ void test_get_all_slab_topologies1D(
                 std::runtime_error);
           } else {
             // This must return length 1-3 vectors
-            auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-                gin_extents, gout_extents, topo_in, topo_out, axes);
+            auto [topos, all_axes] =
+                KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                    gin_extents, gout_extents, topo_in, topo_out, axes);
+
+            // The FFT axes must be identical with decompose_axes
+            EXPECT_EQ(all_axes, KokkosFFT::Distributed::Impl::decompose_axes(
+                                    topos, axes));
 
             // In 1D, we can have at most 3 topologies
             // (in, out, and 1 transpose)
@@ -2075,8 +2085,13 @@ void test_get_all_slab_topologies2D_2DView(
             },
             std::runtime_error);
       } else {
-        auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            gin_extents, gout_extents, topo_in, topo_out, axes);
+        auto [topos, all_axes] =
+            KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                gin_extents, gout_extents, topo_in, topo_out, axes);
+
+        // The FFT axes must be identical with decompose_axes
+        EXPECT_EQ(all_axes,
+                  KokkosFFT::Distributed::Impl::decompose_axes(topos, axes));
 
         EXPECT_EQ(topos, ref_topos)
             << error_all_topologies(gin_extents, gout_extents, topo_in,
@@ -2166,9 +2181,13 @@ void test_get_all_slab_topologies2D(
                   std::runtime_error);
             } else {
               // This must return length 1-3 vectors
-              auto topos =
+              auto [topos, all_axes] =
                   KokkosFFT::Distributed::Impl::get_all_slab_topologies(
                       gin_extents, gout_extents, topo_in, topo_out, axes);
+
+              // The FFT axes must be identical with decompose_axes
+              EXPECT_EQ(all_axes, KokkosFFT::Distributed::Impl::decompose_axes(
+                                      topos, axes));
               // In 2D, we can have at most 4 topologies
               // (in, out, and 2 transposes)
               std::size_t max_size = std::min(DIM, std::size_t(4));
@@ -2455,8 +2474,13 @@ void test_get_all_slab_topologies3D_3DView(
             },
             std::runtime_error);
       } else {
-        auto topos = KokkosFFT::Distributed::Impl::get_all_slab_topologies(
-            gin_extents, gout_extents, topo_in, topo_out, axes);
+        auto [topos, all_axes] =
+            KokkosFFT::Distributed::Impl::get_all_slab_topologies(
+                gin_extents, gout_extents, topo_in, topo_out, axes);
+
+        // The FFT axes must be identical with decompose_axes
+        EXPECT_EQ(all_axes,
+                  KokkosFFT::Distributed::Impl::decompose_axes(topos, axes));
 
         EXPECT_EQ(topos, ref_topos)
             << error_all_topologies(gin_extents, gout_extents, topo_in,
@@ -2550,9 +2574,14 @@ void test_get_all_slab_topologies3D(
                     std::runtime_error);
               } else {
                 // This must return length 1-3 vectors
-                auto topos =
+                auto [topos, all_axes] =
                     KokkosFFT::Distributed::Impl::get_all_slab_topologies(
                         gin_extents, gout_extents, topo_in, topo_out, axes);
+
+                // The FFT axes must be identical with decompose_axes
+                EXPECT_EQ(
+                    all_axes,
+                    KokkosFFT::Distributed::Impl::decompose_axes(topos, axes));
                 // In 3D, we can have at most 5 topologies
                 // (in, out, and 3 transposes)
                 std::size_t max_size = std::min(DIM, std::size_t(5));

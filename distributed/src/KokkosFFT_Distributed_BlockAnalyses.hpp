@@ -422,10 +422,9 @@ struct SlabBlockAnalysesInternal {
     auto [map, map_inv] = KokkosFFT::Impl::get_map_axes<Layout, DIM>(axes);
 
     // Get all relevant topologies
-    auto all_topologies = get_all_slab_topologies(
+    auto [all_topologies, all_axes] = get_all_slab_topologies(
         gin_extents, gout_extents, in_topology, out_topology, axes);
 
-    auto all_axes = decompose_axes(all_topologies, axes);
     int rank;
     MPI_Comm_rank(comm, &rank);
 
