@@ -212,73 +212,6 @@ auto pencil_in_out_axes(const std::array<iType, DIM>& in_topology,
   return std::make_tuple(in_axis, out_axis);
 }
 
-/// \brief Get an intermediate topology by swapping two non-one elements
-///        between input and output topologies. Used to propose intermediate
-///        topology for slab/pencil decompositions if direct conversion is not
-///        possible.
-///
-/// \tparam iType The index type used for the topology.
-/// \tparam DIM The dimensionality of the topology.
-///
-/// \param[in] in The input topology.
-/// \param[in] out The output topology.
-/// \return An intermediate topology obtained by swapping two non-one elements.
-/// \throws std::runtime_error if the input and output topologies do not differ
-/// exactly three positions
-template <typename iType, std::size_t DIM>
-std::array<iType, DIM> propose_mid_array(const std::array<iType, DIM>& in,
-                                         const std::array<iType, DIM>& out) {
-  auto diff_indices         = extract_different_indices(in, out);
-  auto diff_value_set       = extract_different_value_set(in, out);
-  auto diff_non_one_indices = extract_non_one_indices(in, out);
-
-  KOKKOSFFT_THROW_IF(diff_non_one_indices.size() < 3,
-                     "The total number of non-one elements either in Input and "
-                     "output topologies must be three.");
-  KOKKOSFFT_THROW_IF(
-      diff_indices.size() < 3 && diff_value_set.size() == 3,
-      "Input and output topologies must differ exactly three positions.");
-
-  // Only copy the exchangeable indices from original arrays in and out
-  std::array<iType, DIM> in_trimmed{}, out_trimmed{};
-  for (auto diff_idx : diff_indices) {
-    in_trimmed.at(diff_idx)  = in.at(diff_idx);
-    out_trimmed.at(diff_idx) = out.at(diff_idx);
-  }
-
-  iType idx_one_in  = KokkosFFT::Impl::get_index(in_trimmed, iType(1));
-  iType idx_one_out = KokkosFFT::Impl::get_index(out_trimmed, iType(1));
-
-  // Try all combinations of 2 indices for a single valid swap
-  for (std::size_t i = 0; i < diff_non_one_indices.size(); ++i) {
-    for (std::size_t j = i + 1; j < diff_non_one_indices.size(); ++j) {
-      iType idx_in  = diff_non_one_indices.at(i);
-      iType idx_out = diff_non_one_indices.at(j);
-
-      std::array<iType, DIM> mid = swap_elements(in, idx_in, idx_out);
-      iType idx_one_mid          = KokkosFFT::Impl::get_index(mid, iType(1));
-
-      auto mid_in_diff_indices  = extract_different_indices(mid, in);
-      auto mid_out_diff_indices = extract_different_indices(mid, out);
-      if ((mid_in_diff_indices.size() == 2) &&
-          (mid_out_diff_indices.size() == 2) &&
-          !(idx_one_mid == idx_one_in || idx_one_mid == idx_one_out)) {
-        // Do not allow exchange two non-one elements
-        auto mid_in_diff0  = mid.at(mid_in_diff_indices.at(0));
-        auto mid_in_diff1  = mid.at(mid_in_diff_indices.at(1));
-        auto mid_out_diff0 = mid.at(mid_out_diff_indices.at(0));
-        auto mid_out_diff1 = mid.at(mid_out_diff_indices.at(1));
-        if ((mid_in_diff0 == 1 || mid_in_diff1 == 1) &&
-            (mid_out_diff0 == 1 || mid_out_diff1 == 1)) {
-          return mid;
-        }
-      }
-    }
-  }
-
-  return out;
-}
-
 /// \brief Decompose the FFT axes into vectors
 ///        The first vector includes the axes for FFT without transpose
 ///        The second vector includes the axes for FFT after transpose
@@ -994,8 +927,6 @@ auto get_all_pencil_topologies(
 
   bool is_pencil =
       are_specified_topologies(TopologyType::Pencil, in_topology, out_topology);
-  KOKKOSFFT_THROW_IF(!is_pencil,
-                     "Input and output topologies must be pencil topologies.");
 
   KOKKOSFFT_THROW_IF(!is_pencil,
                      "Input and output topologies must be pencil topologies.");
