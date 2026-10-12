@@ -519,10 +519,17 @@ void test_slab_analyses_without_transpose() {
 /// View, which is distributed over 8 processes.
 ///
 /// in topology (1, 2, 4) -> out topology (2, 4, 1), axes (2)
-/// The FFT axis is only local on the output topology, which cannot be reached
-/// by a single all2all. Hence the plan is
-/// Transpose (1, 2, 4) -> (2, 1, 4) -> Transpose (2, 1, 4) -> (2, 4, 1)
-/// -> FFT over the axis 2
+/// The FFT axis is only local on the output topology. Since the first
+/// transpose must be followed by an FFT, the FFT is performed on an
+/// intermediate topology instead of the output one. Hence the plan is
+/// Transpose (1, 2, 4) -> (4, 2, 1) -> FFT over the axis 2
+/// followed by three transposes to the output topology. Both of the
+/// following paths are minimal, and the one found depends on the layout of
+/// the topology:
+/// LayoutRight: (4, 2, 1) -> (4, 1, 2) -> (1, 4, 2) -> (2, 4, 1)
+/// LayoutLeft:  (4, 2, 1) -> (1, 2, 4) -> (2, 1, 4) -> (2, 4, 1)
+/// The last transpose is the last block of the plan and thus restores the
+/// identity map.
 ///
 /// \tparam LayoutType Layout of the Input/Output Views
 /// \tparam TopologyLayoutType Layout of the pencil topologies
@@ -547,42 +554,97 @@ void test_pencil_analyses_1D() {
   axes_type axes{2};
   extents_type gin_extents{8, 12, 16}, gout_extents{8, 12, 16};
   topology_type in_topology{1, 2, 4}, out_topology{2, 4, 1};
-  extents_type mid_topology{2, 1, 4};
+  extents_type topology1{4, 2, 1};
   extents_type in_extents{8, 6, 4};
 
   AnalysesType analyses(in_extents, gin_extents, gout_extents, in_topology,
                         out_topology, axes, MPI_COMM_WORLD);
 
-  // First transpose: no FFT follows, so the out_axis 1 is brought innermost
+  // First transpose: the FFT over the axis 2 follows
   extents_type map0{0, 1, 2};
-  extents_type map1 = is_left ? extents_type{1, 0, 2} : extents_type{0, 2, 1};
+  extents_type map1 = is_left ? extents_type{2, 0, 1} : extents_type{0, 1, 2};
   auto extents1 =
-      KokkosFFT::Impl::compute_mapped_extents(extents_type{4, 12, 4}, map1);
-  buffer_extents_type buffer0 = is_left ? buffer_extents_type{4, 6, 4, 2}
-                                        : buffer_extents_type{2, 4, 6, 4};
-
-  // Second transpose: the FFT over the axis 2 follows
-  extents_type map2 = is_left ? extents_type{2, 1, 0} : extents_type{0, 1, 2};
-  auto extents2 =
-      KokkosFFT::Impl::compute_mapped_extents(extents_type{4, 3, 16}, map2);
-  buffer_extents_type buffer1 = is_left ? buffer_extents_type{4, 3, 4, 4}
-                                        : buffer_extents_type{4, 4, 3, 4};
+      KokkosFFT::Impl::compute_mapped_extents(extents_type{2, 6, 16}, map1);
+  buffer_extents_type buffer0 = is_left ? buffer_extents_type{2, 6, 4, 4}
+                                        : buffer_extents_type{4, 2, 6, 4};
 
   // The axis of the all2all is the axis of the topology which is exchanged.
   // It depends on the layout of the topology, since the first non-one element
   // of a LayoutRight topology is the second one of a LayoutLeft topology.
-  std::size_t comm_axis0 = is_topology_right ? 0 : 1;
-  std::size_t comm_axis1 = is_topology_right ? 1 : 0;
+  std::size_t comm_axis0 = is_topology_right ? 1 : 0;
 
   std::vector<KokkosFFT::Distributed::Impl::BlockInfo<DIM>> ref_block_infos = {
-      make_transpose_block(in_topology.array(), mid_topology, in_extents,
-                           extents1, buffer0, map0, map1, /*in_axis=*/0,
-                           /*out_axis=*/1, comm_axis0, /*block_idx=*/0),
-      make_transpose_block(mid_topology, out_topology.array(), extents1,
-                           extents2, buffer1, map1, map2, /*in_axis=*/1,
-                           /*out_axis=*/2, comm_axis1, /*block_idx=*/1),
-      make_fft_block(extents2, extents2, map2, /*fft_dim=*/1,
+      make_transpose_block(in_topology.array(), topology1, in_extents, extents1,
+                           buffer0, map0, map1, /*in_axis=*/0, /*out_axis=*/2,
+                           comm_axis0, /*block_idx=*/0),
+      make_fft_block(extents1, extents1, map1, /*fft_dim=*/1,
                      /*block_idx=*/0)};
+
+  // Last transpose: the map of the output View is the identity
+  extents_type map4{0, 1, 2};
+  extents_type extents4{4, 3, 16};
+
+  if constexpr (is_topology_right) {
+    extents_type topology2{4, 1, 2}, topology3{1, 4, 2};
+
+    // Second transpose: no FFT follows, so the out_axis 1 is brought innermost
+    extents_type map2 = is_left ? extents_type{1, 2, 0} : extents_type{0, 2, 1};
+    auto extents2 =
+        KokkosFFT::Impl::compute_mapped_extents(extents_type{2, 12, 8}, map2);
+    buffer_extents_type buffer1 = is_left ? buffer_extents_type{2, 6, 8, 2}
+                                          : buffer_extents_type{2, 2, 6, 8};
+
+    // Third transpose: no FFT follows, so the out_axis 0 is brought innermost
+    extents_type map3 = is_left ? extents_type{0, 1, 2} : extents_type{2, 1, 0};
+    auto extents3 =
+        KokkosFFT::Impl::compute_mapped_extents(extents_type{8, 3, 8}, map3);
+    buffer_extents_type buffer2 = is_left ? buffer_extents_type{2, 3, 8, 4}
+                                          : buffer_extents_type{4, 2, 3, 8};
+
+    buffer_extents_type buffer3 = is_left ? buffer_extents_type{4, 3, 8, 2}
+                                          : buffer_extents_type{2, 4, 3, 8};
+
+    ref_block_infos.push_back(make_transpose_block(
+        topology1, topology2, extents1, extents2, buffer1, map1, map2,
+        /*in_axis=*/2, /*out_axis=*/1, /*comm_axis=*/0, /*block_idx=*/1));
+    ref_block_infos.push_back(make_transpose_block(
+        topology2, topology3, extents2, extents3, buffer2, map2, map3,
+        /*in_axis=*/1, /*out_axis=*/0, /*comm_axis=*/1, /*block_idx=*/2));
+    ref_block_infos.push_back(make_transpose_block(
+        topology3, out_topology.array(), extents3, extents4, buffer3, map3,
+        map4, /*in_axis=*/0, /*out_axis=*/2, /*comm_axis=*/0,
+        /*block_idx=*/3));
+  } else {
+    extents_type topology2{1, 2, 4}, topology3{2, 1, 4};
+
+    // Second transpose: no FFT follows, so the out_axis 0 is brought innermost
+    extents_type map2 = is_left ? extents_type{0, 2, 1} : extents_type{1, 2, 0};
+    auto extents2 =
+        KokkosFFT::Impl::compute_mapped_extents(extents_type{8, 6, 4}, map2);
+    buffer_extents_type buffer1 = is_left ? buffer_extents_type{2, 6, 4, 4}
+                                          : buffer_extents_type{4, 2, 6, 4};
+
+    // Third transpose: no FFT follows, so the out_axis 1 is brought innermost
+    extents_type map3 = is_left ? extents_type{1, 0, 2} : extents_type{2, 0, 1};
+    auto extents3 =
+        KokkosFFT::Impl::compute_mapped_extents(extents_type{4, 12, 4}, map3);
+    buffer_extents_type buffer2 = is_left ? buffer_extents_type{4, 6, 4, 2}
+                                          : buffer_extents_type{2, 4, 6, 4};
+
+    buffer_extents_type buffer3 = is_left ? buffer_extents_type{4, 3, 4, 4}
+                                          : buffer_extents_type{4, 4, 3, 4};
+
+    ref_block_infos.push_back(make_transpose_block(
+        topology1, topology2, extents1, extents2, buffer1, map1, map2,
+        /*in_axis=*/2, /*out_axis=*/0, /*comm_axis=*/0, /*block_idx=*/1));
+    ref_block_infos.push_back(make_transpose_block(
+        topology2, topology3, extents2, extents3, buffer2, map2, map3,
+        /*in_axis=*/0, /*out_axis=*/1, /*comm_axis=*/1, /*block_idx=*/2));
+    ref_block_infos.push_back(make_transpose_block(
+        topology3, out_topology.array(), extents3, extents4, buffer3, map3,
+        map4, /*in_axis=*/1, /*out_axis=*/2, /*comm_axis=*/0,
+        /*block_idx=*/3));
+  }
 
   EXPECT_EQ(analyses.m_block_infos, ref_block_infos);
 
@@ -596,10 +658,16 @@ void test_pencil_analyses_1D() {
 /// in topology (1, 2, 4) -> out topology (2, 4, 1), axes (1, 2)
 /// None of the FFT axes is local on the input topology and the output topology
 /// cannot be reached directly from the topology where the last FFT is
-/// performed. Hence the plan is
+/// performed. Both of the following plans are minimal, and the one found
+/// depends on the layout of the topology:
+/// LayoutRight:
 /// Transpose (1, 2, 4) -> (4, 2, 1) -> FFT over the axis 2
 /// -> Transpose (4, 2, 1) -> (4, 1, 2) -> FFT over the axis 1
 /// -> Transpose (4, 1, 2) -> (1, 4, 2) -> Transpose (1, 4, 2) -> (2, 4, 1)
+/// LayoutLeft:
+/// Transpose (1, 2, 4) -> (4, 2, 1) -> FFT over the axis 2
+/// -> Transpose (4, 2, 1) -> (1, 2, 4) -> Transpose (1, 2, 4) -> (2, 1, 4)
+/// -> FFT over the axis 1 -> Transpose (2, 1, 4) -> (2, 4, 1)
 /// The last transpose is the last block of the plan and thus restores the
 /// identity map.
 ///
@@ -626,7 +694,7 @@ void test_pencil_analyses_2D() {
   axes_type axes{1, 2};
   extents_type gin_extents{8, 12, 16}, gout_extents{8, 12, 16};
   topology_type in_topology{1, 2, 4}, out_topology{2, 4, 1};
-  extents_type topology1{4, 2, 1}, topology2{4, 1, 2}, topology3{1, 4, 2};
+  extents_type topology1{4, 2, 1};
   extents_type in_extents{8, 6, 4};
 
   AnalysesType analyses(in_extents, gin_extents, gout_extents, in_topology,
@@ -640,46 +708,84 @@ void test_pencil_analyses_2D() {
   buffer_extents_type buffer0 = is_left ? buffer_extents_type{2, 6, 4, 4}
                                         : buffer_extents_type{4, 2, 6, 4};
 
-  // Second transpose: the FFT over the axis 1 follows
-  extents_type map2 = is_left ? extents_type{1, 2, 0} : extents_type{0, 2, 1};
-  auto extents2 =
-      KokkosFFT::Impl::compute_mapped_extents(extents_type{2, 12, 8}, map2);
-  buffer_extents_type buffer1 = is_left ? buffer_extents_type{2, 6, 8, 2}
-                                        : buffer_extents_type{2, 2, 6, 8};
-
-  // Third transpose: no FFT follows, so the out_axis 0 is brought innermost
-  extents_type map3 = is_left ? extents_type{0, 1, 2} : extents_type{2, 1, 0};
-  auto extents3 =
-      KokkosFFT::Impl::compute_mapped_extents(extents_type{8, 3, 8}, map3);
-  buffer_extents_type buffer2 = is_left ? buffer_extents_type{2, 3, 8, 4}
-                                        : buffer_extents_type{4, 2, 3, 8};
-
-  // Last transpose: the map of the output View is the identity
-  extents_type map4{0, 1, 2};
-  extents_type extents4{4, 3, 16};
-  buffer_extents_type buffer3 = is_left ? buffer_extents_type{4, 3, 8, 2}
-                                        : buffer_extents_type{2, 4, 3, 8};
-
   std::size_t comm_axis0 = is_topology_right ? 1 : 0;
-  std::size_t comm_axis1 = is_topology_right ? 0 : 1;
-  std::size_t comm_axis2 = is_topology_right ? 1 : 0;
-  std::size_t comm_axis3 = is_topology_right ? 0 : 1;
 
   std::vector<KokkosFFT::Distributed::Impl::BlockInfo<DIM>> ref_block_infos = {
       make_transpose_block(in_topology.array(), topology1, in_extents, extents1,
                            buffer0, map0, map1, /*in_axis=*/0, /*out_axis=*/2,
                            comm_axis0, /*block_idx=*/0),
-      make_fft_block(extents1, extents1, map1, /*fft_dim=*/1, /*block_idx=*/0),
-      make_transpose_block(topology1, topology2, extents1, extents2, buffer1,
-                           map1, map2, /*in_axis=*/2, /*out_axis=*/1,
-                           comm_axis1, /*block_idx=*/1),
-      make_fft_block(extents2, extents2, map2, /*fft_dim=*/1, /*block_idx=*/1),
-      make_transpose_block(topology2, topology3, extents2, extents3, buffer2,
-                           map2, map3, /*in_axis=*/1, /*out_axis=*/0,
-                           comm_axis2, /*block_idx=*/2),
-      make_transpose_block(topology3, out_topology.array(), extents3, extents4,
-                           buffer3, map3, map4, /*in_axis=*/0, /*out_axis=*/2,
-                           comm_axis3, /*block_idx=*/3)};
+      make_fft_block(extents1, extents1, map1, /*fft_dim=*/1,
+                     /*block_idx=*/0)};
+
+  // Last transpose: the map of the output View is the identity
+  extents_type map4{0, 1, 2};
+  extents_type extents4{4, 3, 16};
+
+  if constexpr (is_topology_right) {
+    extents_type topology2{4, 1, 2}, topology3{1, 4, 2};
+
+    // Second transpose: the FFT over the axis 1 follows
+    extents_type map2 = is_left ? extents_type{1, 2, 0} : extents_type{0, 2, 1};
+    auto extents2 =
+        KokkosFFT::Impl::compute_mapped_extents(extents_type{2, 12, 8}, map2);
+    buffer_extents_type buffer1 = is_left ? buffer_extents_type{2, 6, 8, 2}
+                                          : buffer_extents_type{2, 2, 6, 8};
+
+    // Third transpose: no FFT follows, so the out_axis 0 is brought innermost
+    extents_type map3 = is_left ? extents_type{0, 1, 2} : extents_type{2, 1, 0};
+    auto extents3 =
+        KokkosFFT::Impl::compute_mapped_extents(extents_type{8, 3, 8}, map3);
+    buffer_extents_type buffer2 = is_left ? buffer_extents_type{2, 3, 8, 4}
+                                          : buffer_extents_type{4, 2, 3, 8};
+
+    buffer_extents_type buffer3 = is_left ? buffer_extents_type{4, 3, 8, 2}
+                                          : buffer_extents_type{2, 4, 3, 8};
+
+    ref_block_infos.push_back(make_transpose_block(
+        topology1, topology2, extents1, extents2, buffer1, map1, map2,
+        /*in_axis=*/2, /*out_axis=*/1, /*comm_axis=*/0, /*block_idx=*/1));
+    ref_block_infos.push_back(make_fft_block(extents2, extents2, map2,
+                                             /*fft_dim=*/1, /*block_idx=*/1));
+    ref_block_infos.push_back(make_transpose_block(
+        topology2, topology3, extents2, extents3, buffer2, map2, map3,
+        /*in_axis=*/1, /*out_axis=*/0, /*comm_axis=*/1, /*block_idx=*/2));
+    ref_block_infos.push_back(make_transpose_block(
+        topology3, out_topology.array(), extents3, extents4, buffer3, map3,
+        map4, /*in_axis=*/0, /*out_axis=*/2, /*comm_axis=*/0,
+        /*block_idx=*/3));
+  } else {
+    extents_type topology2{1, 2, 4}, topology3{2, 1, 4};
+
+    // Second transpose: no FFT follows, so the out_axis 0 is brought innermost
+    extents_type map2 = is_left ? extents_type{0, 2, 1} : extents_type{1, 2, 0};
+    auto extents2 =
+        KokkosFFT::Impl::compute_mapped_extents(extents_type{8, 6, 4}, map2);
+    buffer_extents_type buffer1 = is_left ? buffer_extents_type{2, 6, 4, 4}
+                                          : buffer_extents_type{4, 2, 6, 4};
+
+    // Third transpose: the FFT over the axis 1 follows
+    extents_type map3 = is_left ? extents_type{1, 0, 2} : extents_type{2, 0, 1};
+    auto extents3 =
+        KokkosFFT::Impl::compute_mapped_extents(extents_type{4, 12, 4}, map3);
+    buffer_extents_type buffer2 = is_left ? buffer_extents_type{4, 6, 4, 2}
+                                          : buffer_extents_type{2, 4, 6, 4};
+
+    buffer_extents_type buffer3 = is_left ? buffer_extents_type{4, 3, 4, 4}
+                                          : buffer_extents_type{4, 4, 3, 4};
+
+    ref_block_infos.push_back(make_transpose_block(
+        topology1, topology2, extents1, extents2, buffer1, map1, map2,
+        /*in_axis=*/2, /*out_axis=*/0, /*comm_axis=*/0, /*block_idx=*/1));
+    ref_block_infos.push_back(make_transpose_block(
+        topology2, topology3, extents2, extents3, buffer2, map2, map3,
+        /*in_axis=*/0, /*out_axis=*/1, /*comm_axis=*/1, /*block_idx=*/2));
+    ref_block_infos.push_back(make_fft_block(extents3, extents3, map3,
+                                             /*fft_dim=*/1, /*block_idx=*/1));
+    ref_block_infos.push_back(make_transpose_block(
+        topology3, out_topology.array(), extents3, extents4, buffer3, map3,
+        map4, /*in_axis=*/1, /*out_axis=*/2, /*comm_axis=*/0,
+        /*block_idx=*/3));
+  }
 
   EXPECT_EQ(analyses.m_block_infos, ref_block_infos);
 

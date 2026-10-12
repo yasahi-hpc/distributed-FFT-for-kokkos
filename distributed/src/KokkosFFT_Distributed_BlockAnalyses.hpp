@@ -484,7 +484,8 @@ struct PencilBlockAnalysesInternal {
 
     // Get all relevant topologies
     auto [all_topologies, all_trans_axes, all_layouts] =
-        get_all_pencil_topologies(in_topology, out_topology, axes);
+        get_all_pencil_topologies(gin_extents, gout_extents, in_topology,
+                                  out_topology, axes);
     auto all_axes = decompose_axes(all_topologies, axes);
 
     int rank;
