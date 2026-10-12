@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <Kokkos_Core.hpp>
@@ -681,18 +682,24 @@ struct State {
   std::size_t m_p1;
   std::size_t m_remaining;
 
+  // FFT axes that become ready on reaching this state (in the original order).
+  // Not part of the identity of a state, i.e. ignored by == and StateHash.
+  std::vector<std::size_t> m_consumed_axes;
+
   State(std::size_t p0_pos, std::size_t p1_pos, std::size_t p0, std::size_t p1,
-        std::size_t remaining)
+        std::size_t remaining, std::vector<std::size_t> consumed_axes = {})
       : m_p0_pos(p0_pos),
         m_p1_pos(p1_pos),
         m_p0(p0),
         m_p1(p1),
-        m_remaining(remaining) {}
+        m_remaining(remaining),
+        m_consumed_axes(std::move(consumed_axes)) {}
 
   template <typename iType, std::size_t DIM, typename LayoutType>
   explicit State(const Topology<iType, DIM, LayoutType>& topo,
-                 std::size_t remaining)
-      : m_remaining(remaining) {
+                 std::size_t remaining,
+                 std::vector<std::size_t> consumed_axes = {})
+      : m_remaining(remaining), m_consumed_axes(std::move(consumed_axes)) {
     std::vector<std::size_t> pos;
     for (std::size_t i = 0; i < topo.size(); i++) {
       if (topo.at(i) != 1) pos.push_back(i);
@@ -800,11 +807,18 @@ std::vector<State> find_minimal_path(
     const Topology<std::size_t, DIM, InLayoutType>& in_topology,
     const Topology<std::size_t, DIM, OutLayoutType>& out_topology,
     const std::vector<iType>& axes) {
+  // Axes in [remaining, prev_remaining) are consumed by a transition.
+  auto consumed_axes = [&](std::size_t prev_remaining, std::size_t remaining) {
+    return std::vector<std::size_t>(axes.begin() + remaining,
+                                    axes.begin() + prev_remaining);
+  };
+
   // axes already satisfied by the input are removed first.
   const std::size_t initial_remaining =
       update_condition(in_topology.array(), axes, axes.size());
 
-  const State in{in_topology, initial_remaining};
+  const State in{in_topology, initial_remaining,
+                 consumed_axes(axes.size(), initial_remaining)};
   const State out{out_topology, 0};
 
   const auto sizes     = in.sizes();
@@ -843,11 +857,15 @@ std::vector<State> find_minimal_path(
 
   bool found = false;
 
+  // The reached output state, which carries its consumed axes unlike out.
+  State last = in;
+
   while (!queue.empty()) {
     const State current = queue.front();
     queue.pop();
     if (current == out) {
       found = true;
+      last  = current;
       break;
     }
 
@@ -865,7 +883,12 @@ std::vector<State> find_minimal_path(
           next_remaining == current.m_remaining)
         return;
 
-      const State next{next_p0, next_p1, p0, p1, next_remaining};
+      const State next{next_p0,
+                       next_p1,
+                       p0,
+                       p1,
+                       next_remaining,
+                       consumed_axes(current.m_remaining, next_remaining)};
       if (visited.insert(next).second) {
         parent.emplace(next, current);
         queue.push(next);
@@ -892,7 +915,7 @@ std::vector<State> find_minimal_path(
   // Reconstruct the shortest path.
   std::vector<State> states;
 
-  for (State current = out;; current = parent.at(current)) {
+  for (State current = last;; current = parent.at(current)) {
     states.push_back(current);
     if (current == in) break;
   }
@@ -922,8 +945,12 @@ std::vector<State> find_minimal_path(
 /// \param[in] axes The axes along which the FFT is performed.
 /// \param[in] is_same_order If true, the in/out topologies are considered in
 /// the same order.
-/// \return A vector of all possible slab topologies that can be formed from the
-/// input and output topologies, considering the FFT axes.
+/// \return A tuple of (all_topologies, all_trans_axes, all_layouts, all_axes).
+/// all_topologies is the sequence of pencil topologies from the input to the
+/// output topology. all_trans_axes and all_layouts are the transpose axis and
+/// the layout (1 for LayoutRight) of each topology. all_axes are the FFT axes
+/// that become ready on each topology, identical to
+/// decompose_axes(all_topologies, axes).
 template <typename iType, std::size_t DIM, std::size_t FFT_DIM,
           typename InLayoutType, typename OutLayoutType>
 auto get_all_pencil_topologies(
@@ -939,8 +966,9 @@ auto get_all_pencil_topologies(
 
   using topology_type   = std::array<std::size_t, DIM>;
   using topologies_type = std::vector<topology_type>;
-  using axes_type       = std::vector<std::size_t>;
+  using trans_axes_type = std::vector<std::size_t>;
   using layouts_type    = std::vector<std::size_t>;
+  using fft_axes_type   = std::vector<std::vector<iType>>;
 
   bool is_pencil =
       are_specified_topologies(TopologyType::Pencil, in_topology, out_topology);
@@ -971,8 +999,9 @@ auto get_all_pencil_topologies(
       find_minimal_path(gout_extents, in_topology, out_topology, current_axes);
 
   topologies_type all_topologies;
-  axes_type all_axes;
+  trans_axes_type all_trans_axes;
   layouts_type all_layouts;
+  fft_axes_type all_axes;
   auto prev_state = all_states.at(0);
   for (std::size_t i = 0; i < all_states.size(); i++) {
     auto state             = all_states.at(i);
@@ -980,12 +1009,14 @@ auto get_all_pencil_topologies(
     if (i != 0) trans_axis = state.m_p0_pos == prev_state.m_p0_pos;
 
     all_topologies.push_back(state.template topology<DIM>());
-    all_axes.push_back(trans_axis);
+    all_trans_axes.push_back(trans_axis);
     all_layouts.push_back(state.is_layout_right());
+    all_axes.emplace_back(state.m_consumed_axes.begin(),
+                          state.m_consumed_axes.end());
     prev_state = state;
   }
 
-  return std::make_tuple(all_topologies, all_axes, all_layouts);
+  return std::make_tuple(all_topologies, all_trans_axes, all_layouts, all_axes);
 }
 
 }  // namespace Impl
