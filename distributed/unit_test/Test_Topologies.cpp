@@ -1654,7 +1654,7 @@ void test_get_all_slab_topologies1D_2DView(
 /// to 6.
 /// \param[in] gin_extents The global input extents for the transform.
 template <bool is_R2C, std::size_t DIM>
-void test_get_all_slab_topologies1D(
+void test_get_all_slab_topologies1D_impl(
     std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
   using topo_type = std::array<std::size_t, DIM>;
   using axes_type = std::array<std::size_t, 1>;
@@ -1860,7 +1860,7 @@ void test_get_all_slab_topologies2D_2DView(
 /// to 6.
 /// \param[in] gin_extents The global input extents for the transform.
 template <bool is_R2C, std::size_t DIM>
-void test_get_all_slab_topologies2D(
+void test_get_all_slab_topologies2D_impl(
     std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
   using topo_type = std::array<std::size_t, DIM>;
   using axes_type = std::array<std::size_t, 2>;
@@ -2249,7 +2249,7 @@ void test_get_all_slab_topologies3D_3DView(
 /// to 6.
 /// \param[in] gin_extents The global input extents for the transform.
 template <bool is_R2C, std::size_t DIM>
-void test_get_all_slab_topologies3D(
+void test_get_all_slab_topologies3D_impl(
     std::size_t nprocs, const std::array<std::size_t, DIM>& gin_extents) {
   using topo_type = std::array<std::size_t, DIM>;
   using axes_type = std::array<std::size_t, 3>;
@@ -2346,14 +2346,82 @@ void test_get_all_slab_topologies3D(
   }
 }
 
+/// \brief Tests for get_all_slab_topologies for 1D FFT, which returns the list
+/// of all valid slab topologies for a given input topology, output topology,
+/// and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (3D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
+void test_get_all_slab_topologies1D(std::size_t nprocs) {
+  using extents_type = std::array<std::size_t, DIM>;
+  extents_type gin_extents{};
+  for (std::size_t i = 0; i < DIM; ++i) {
+    gin_extents.fill(2);
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies1D_impl<is_R2C, DIM>(nprocs, gin_extents);
+  }
+  gin_extents.fill(8);
+  test_get_all_slab_topologies1D_impl<is_R2C, DIM>(nprocs, gin_extents);
+}
+
+/// \brief Tests for get_all_slab_topologies for 2D FFT, which returns the list
+/// of all valid slab topologies for a given input topology, output topology,
+/// and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (3D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
+void test_get_all_slab_topologies2D(std::size_t nprocs) {
+  using extents_type = std::array<std::size_t, DIM>;
+  extents_type gin_extents{};
+  for (std::size_t i = 0; i < DIM; ++i) {
+    gin_extents.fill(2);
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies2D_impl<is_R2C, DIM>(nprocs, gin_extents);
+  }
+  gin_extents.fill(8);
+  test_get_all_slab_topologies2D_impl<is_R2C, DIM>(nprocs, gin_extents);
+}
+
+/// \brief Tests for get_all_slab_topologies for 3D FFT, which returns the list
+/// of all valid slab topologies for a given input topology, output topology,
+/// and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (4D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
+void test_get_all_slab_topologies3D(std::size_t nprocs) {
+  using extents_type = std::array<std::size_t, DIM>;
+  extents_type gin_extents{};
+  for (std::size_t i = 0; i < DIM; ++i) {
+    gin_extents.fill(2);
+    gin_extents.at(i) = 7;
+    test_get_all_slab_topologies3D_impl<is_R2C, DIM>(nprocs, gin_extents);
+  }
+  gin_extents.fill(8);
+  test_get_all_slab_topologies3D_impl<is_R2C, DIM>(nprocs, gin_extents);
+}
+
 /// \brief Tests for get_all_pencil_topologies for 1D FFT, which returns the
 /// list of all valid pencil topologies for a given input topology, output
 /// topology, and transform axes.
 /// \tparam is_R2C Whether the transform is real-to-complex (true) or
-/// complex-to-complex (false). \tparam DIM The dimensionality of the View
-/// (2D-7D). \tparam InLayoutType The layout type of the input View (e.g.,
-/// Kokkos::LayoutRight or Kokkos::LayoutLeft). \tparam OutLayoutType The layout
-/// type of the output View (e.g., Kokkos::LayoutRight or Kokkos::LayoutLeft).
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (2D-7D).
+/// \tparam InLayoutType The layout type of the input View (e.g.,
+/// Kokkos::LayoutRight or Kokkos::LayoutLeft).
+/// \tparam OutLayoutType The layout type of the output View (e.g.,
+/// Kokkos::LayoutRight or Kokkos::LayoutLeft).
 /// \param[in] npx The number of processes in the x-dimension.
 /// \param[in] npy The number of processes in the y-dimension.
 /// \param[in] gin_extents The global input extents for the transform.
@@ -2471,10 +2539,11 @@ void test_get_all_pencil_topologies1D_impl(
 /// list of all valid pencil topologies for a given input topology, output
 /// topology, and transform axes.
 /// \tparam is_R2C Whether the transform is real-to-complex (true) or
-/// complex-to-complex (false). \tparam DIM The dimensionality of the View
-/// (3D-7D). \param[in] nprocs The number of processes in the communicator
-/// ranges from 1 to 6. \param[in] gin_extents The global input extents for the
-/// transform.
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (3D-7D).
+/// \param[in] nprocs The number of processes in the communicator
+/// ranges from 1 to 6.
+/// \param[in] gin_extents The global input extents for the transform.
 template <bool is_R2C, std::size_t DIM, typename InLayoutType,
           typename OutLayoutType>
 void test_get_all_pencil_topologies2D_impl(
@@ -2594,10 +2663,11 @@ void test_get_all_pencil_topologies2D_impl(
 /// list of all valid pencil topologies for a given input topology, output
 /// topology, and transform axes.
 /// \tparam is_R2C Whether the transform is real-to-complex (true) or
-/// complex-to-complex (false). \tparam DIM The dimensionality of the View
-/// (3D-7D). \param[in] nprocs The number of processes in the communicator
-/// ranges from 1 to 6. \param[in] gin_extents The global input extents for the
-/// transform.
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (3D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
 template <bool is_R2C, std::size_t DIM, typename InLayoutType,
           typename OutLayoutType>
 void test_get_all_pencil_topologies3D_impl(
@@ -2720,129 +2790,132 @@ void test_get_all_pencil_topologies3D_impl(
 
 /// \brief Tests for get_all_pencil_topologies for 1D FFT, which returns the
 /// list of all valid pencil topologies for a given input topology, output
-/// topology, and transform axes. \tparam is_R2C Whether the transform is
-/// real-to-complex (true) or complex-to-complex (false). \tparam DIM The
-/// dimensionality of the View (2D-7D). \param[in] nprocs The number of
-/// processes in the communicator ranges from 1 to 6. \param[in] gin_extents The
-/// global input extents for the transform.
-template <bool is_R2C, std::size_t DIM, typename InLayoutType,
-          typename OutLayoutType>
+/// topology, and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (2D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
 void test_get_all_pencil_topologies1D(std::size_t npx, std::size_t npy) {
   using extents_type = std::array<std::size_t, DIM>;
   extents_type gin_extents{};
   gin_extents.fill(7);
   for (std::size_t i = 0; i < DIM; ++i) {
     gin_extents.at(i) = 2;
-    test_get_all_pencil_topologies1D_impl<true, DIM, Kokkos::LayoutLeft,
+    test_get_all_pencil_topologies1D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                           Kokkos::LayoutLeft>(npx, npy,
                                                               gin_extents);
-    test_get_all_pencil_topologies1D_impl<true, DIM, Kokkos::LayoutLeft,
+    test_get_all_pencil_topologies1D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                           Kokkos::LayoutRight>(npx, npy,
                                                                gin_extents);
-    test_get_all_pencil_topologies1D_impl<true, DIM, Kokkos::LayoutRight,
+    test_get_all_pencil_topologies1D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                           Kokkos::LayoutLeft>(npx, npy,
                                                               gin_extents);
-    test_get_all_pencil_topologies1D_impl<true, DIM, Kokkos::LayoutRight,
+    test_get_all_pencil_topologies1D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                           Kokkos::LayoutRight>(npx, npy,
                                                                gin_extents);
   }
   gin_extents.fill(8);
-  test_get_all_pencil_topologies1D_impl<true, DIM, Kokkos::LayoutLeft,
+  test_get_all_pencil_topologies1D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                         Kokkos::LayoutLeft>(npx, npy,
                                                             gin_extents);
-  test_get_all_pencil_topologies1D_impl<true, DIM, Kokkos::LayoutLeft,
+  test_get_all_pencil_topologies1D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                         Kokkos::LayoutRight>(npx, npy,
                                                              gin_extents);
-  test_get_all_pencil_topologies1D_impl<true, DIM, Kokkos::LayoutRight,
+  test_get_all_pencil_topologies1D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                         Kokkos::LayoutLeft>(npx, npy,
                                                             gin_extents);
-  test_get_all_pencil_topologies1D_impl<true, DIM, Kokkos::LayoutRight,
+  test_get_all_pencil_topologies1D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                         Kokkos::LayoutRight>(npx, npy,
                                                              gin_extents);
 }
 
 /// \brief Tests for get_all_pencil_topologies for 1D FFT, which returns the
 /// list of all valid pencil topologies for a given input topology, output
-/// topology, and transform axes. \tparam is_R2C Whether the transform is
-/// real-to-complex (true) or complex-to-complex (false). \tparam DIM The
-/// dimensionality of the View (2D-7D). \param[in] nprocs The number of
-/// processes in the communicator ranges from 1 to 6. \param[in] gin_extents The
-/// global input extents for the transform.
-template <bool is_R2C, std::size_t DIM, typename InLayoutType,
-          typename OutLayoutType>
+/// topology, and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (2D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
 void test_get_all_pencil_topologies2D(std::size_t npx, std::size_t npy) {
   using extents_type = std::array<std::size_t, DIM>;
   extents_type gin_extents{};
   gin_extents.fill(7);
   for (std::size_t i = 0; i < DIM; ++i) {
     gin_extents.at(i) = 2;
-    test_get_all_pencil_topologies2D_impl<true, DIM, Kokkos::LayoutLeft,
+    test_get_all_pencil_topologies2D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                           Kokkos::LayoutLeft>(npx, npy,
                                                               gin_extents);
-    test_get_all_pencil_topologies2D_impl<true, DIM, Kokkos::LayoutLeft,
+    test_get_all_pencil_topologies2D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                           Kokkos::LayoutRight>(npx, npy,
                                                                gin_extents);
-    test_get_all_pencil_topologies2D_impl<true, DIM, Kokkos::LayoutRight,
+    test_get_all_pencil_topologies2D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                           Kokkos::LayoutLeft>(npx, npy,
                                                               gin_extents);
-    test_get_all_pencil_topologies2D_impl<true, DIM, Kokkos::LayoutRight,
+    test_get_all_pencil_topologies2D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                           Kokkos::LayoutRight>(npx, npy,
                                                                gin_extents);
   }
   gin_extents.fill(8);
-  test_get_all_pencil_topologies2D_impl<true, DIM, Kokkos::LayoutLeft,
+  test_get_all_pencil_topologies2D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                         Kokkos::LayoutLeft>(npx, npy,
                                                             gin_extents);
-  test_get_all_pencil_topologies2D_impl<true, DIM, Kokkos::LayoutLeft,
+  test_get_all_pencil_topologies2D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                         Kokkos::LayoutRight>(npx, npy,
                                                              gin_extents);
-  test_get_all_pencil_topologies2D_impl<true, DIM, Kokkos::LayoutRight,
+  test_get_all_pencil_topologies2D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                         Kokkos::LayoutLeft>(npx, npy,
                                                             gin_extents);
-  test_get_all_pencil_topologies2D_impl<true, DIM, Kokkos::LayoutRight,
+  test_get_all_pencil_topologies2D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                         Kokkos::LayoutRight>(npx, npy,
                                                              gin_extents);
 }
 
 /// \brief Tests for get_all_pencil_topologies for 3D FFT, which returns the
 /// list of all valid pencil topologies for a given input topology, output
-/// topology, and transform axes. \tparam is_R2C Whether the transform is
-/// real-to-complex (true) or complex-to-complex (false). \tparam DIM The
-/// dimensionality of the View (3D-7D). \param[in] nprocs The number of
-/// processes in the communicator ranges from 1 to 6. \param[in] gin_extents The
-/// global input extents for the transform.
-template <bool is_R2C, std::size_t DIM, typename InLayoutType,
-          typename OutLayoutType>
+/// topology, and transform axes.
+/// \tparam is_R2C Whether the transform is real-to-complex (true) or
+/// complex-to-complex (false).
+/// \tparam DIM The dimensionality of the View (3D-7D).
+/// \param[in] nprocs The number of processes in the communicator ranges from 1
+/// to 6.
+/// \param[in] gin_extents The global input extents for the transform.
+template <bool is_R2C, std::size_t DIM>
 void test_get_all_pencil_topologies3D(std::size_t npx, std::size_t npy) {
   using extents_type = std::array<std::size_t, DIM>;
   extents_type gin_extents{};
   gin_extents.fill(7);
   for (std::size_t i = 0; i < DIM; ++i) {
     gin_extents.at(i) = 2;
-    test_get_all_pencil_topologies3D_impl<true, DIM, Kokkos::LayoutLeft,
+    test_get_all_pencil_topologies3D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                           Kokkos::LayoutLeft>(npx, npy,
                                                               gin_extents);
-    test_get_all_pencil_topologies3D_impl<true, DIM, Kokkos::LayoutLeft,
+    test_get_all_pencil_topologies3D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                           Kokkos::LayoutRight>(npx, npy,
                                                                gin_extents);
-    test_get_all_pencil_topologies3D_impl<true, DIM, Kokkos::LayoutRight,
+    test_get_all_pencil_topologies3D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                           Kokkos::LayoutLeft>(npx, npy,
                                                               gin_extents);
-    test_get_all_pencil_topologies3D_impl<true, DIM, Kokkos::LayoutRight,
+    test_get_all_pencil_topologies3D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                           Kokkos::LayoutRight>(npx, npy,
                                                                gin_extents);
   }
   gin_extents.fill(8);
-  test_get_all_pencil_topologies3D_impl<true, DIM, Kokkos::LayoutLeft,
+  test_get_all_pencil_topologies3D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                         Kokkos::LayoutLeft>(npx, npy,
                                                             gin_extents);
-  test_get_all_pencil_topologies3D_impl<true, DIM, Kokkos::LayoutLeft,
+  test_get_all_pencil_topologies3D_impl<is_R2C, DIM, Kokkos::LayoutLeft,
                                         Kokkos::LayoutRight>(npx, npy,
                                                              gin_extents);
-  test_get_all_pencil_topologies3D_impl<true, DIM, Kokkos::LayoutRight,
+  test_get_all_pencil_topologies3D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                         Kokkos::LayoutLeft>(npx, npy,
                                                             gin_extents);
-  test_get_all_pencil_topologies3D_impl<true, DIM, Kokkos::LayoutRight,
+  test_get_all_pencil_topologies3D_impl<is_R2C, DIM, Kokkos::LayoutRight,
                                         Kokkos::LayoutRight>(npx, npy,
                                                              gin_extents);
 }
@@ -4844,133 +4917,53 @@ TEST_P(SlabParamTests, GetAllSlabTopologies1D_2DView_C2C) {
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_3DView_R2C) {
-  using extents_type = std::array<std::size_t, 3>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 3; ++i) {
-    extents_type gin_extents{2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<true, 3>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_3DView_C2C) {
-  using extents_type = std::array<std::size_t, 3>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 3; ++i) {
-    extents_type gin_extents{2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<false, 3>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_4DView_R2C) {
-  using extents_type = std::array<std::size_t, 4>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 4; ++i) {
-    extents_type gin_extents{2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<true, 4>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_4DView_C2C) {
-  using extents_type = std::array<std::size_t, 4>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 4; ++i) {
-    extents_type gin_extents{2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<false, 4>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_5DView_R2C) {
-  using extents_type = std::array<std::size_t, 5>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 5; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<true, 5>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_5DView_C2C) {
-  using extents_type = std::array<std::size_t, 5>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 5; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<false, 5>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_6DView_R2C) {
-  using extents_type = std::array<std::size_t, 6>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 6; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<true, 6>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_6DView_C2C) {
-  using extents_type = std::array<std::size_t, 6>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 6; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<false, 6>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_7DView_R2C) {
-  using extents_type = std::array<std::size_t, 7>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 7; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<true, 7>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies1D_7DView_C2C) {
-  using extents_type = std::array<std::size_t, 7>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 7; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies1D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies1D<false, 7>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_2DView_R2C) {
@@ -5002,133 +4995,53 @@ TEST_P(SlabParamTests, GetAllSlabTopologies2D_2DView_C2C) {
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_3DView_R2C) {
-  using extents_type = std::array<std::size_t, 3>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 3; ++i) {
-    extents_type gin_extents{2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<true, 3>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_3DView_C2C) {
-  using extents_type = std::array<std::size_t, 3>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 3; ++i) {
-    extents_type gin_extents{2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<false, 3>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_4DView_R2C) {
-  using extents_type = std::array<std::size_t, 4>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 4; ++i) {
-    extents_type gin_extents{2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<true, 4>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_4DView_C2C) {
-  using extents_type = std::array<std::size_t, 4>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 4; ++i) {
-    extents_type gin_extents{2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<false, 4>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_5DView_R2C) {
-  using extents_type = std::array<std::size_t, 5>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 5; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<true, 5>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_5DView_C2C) {
-  using extents_type = std::array<std::size_t, 5>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 5; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<false, 5>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_6DView_R2C) {
-  using extents_type = std::array<std::size_t, 6>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 6; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<true, 6>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_6DView_C2C) {
-  using extents_type = std::array<std::size_t, 6>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 6; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<false, 6>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_7DView_R2C) {
-  using extents_type = std::array<std::size_t, 7>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 7; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<true, 7>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies2D_7DView_C2C) {
-  using extents_type = std::array<std::size_t, 7>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 7; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies2D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies2D<false, 7>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_3DView_R2C) {
@@ -5179,107 +5092,43 @@ TEST_P(SlabParamTests, GetAllSlabTopologies3D_3DView_C2C) {
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_4DView_R2C) {
-  using extents_type = std::array<std::size_t, 4>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 4; ++i) {
-    extents_type gin_extents{2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies3D<true, 4>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_4DView_C2C) {
-  using extents_type = std::array<std::size_t, 4>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 4; ++i) {
-    extents_type gin_extents{2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies3D<false, 4>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_5DView_R2C) {
-  using extents_type = std::array<std::size_t, 5>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 5; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies3D<true, 5>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_5DView_C2C) {
-  using extents_type = std::array<std::size_t, 5>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 5; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies3D<false, 5>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_6DView_R2C) {
-  using extents_type = std::array<std::size_t, 6>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 6; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies3D<true, 6>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_6DView_C2C) {
-  using extents_type = std::array<std::size_t, 6>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 6; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies3D<false, 6>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_7DView_R2C) {
-  using extents_type = std::array<std::size_t, 7>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 7; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies3D<true>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies3D<true, 7>(nprocs);
 }
 
 TEST_P(SlabParamTests, GetAllSlabTopologies3D_7DView_C2C) {
-  using extents_type = std::array<std::size_t, 7>;
-  int nprocs         = GetParam();
-  for (std::size_t i = 0; i < 7; ++i) {
-    extents_type gin_extents{2, 2, 2, 2, 2, 2, 2};
-    gin_extents.at(i) = 7;
-    test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
-  }
-  extents_type gin_extents{};
-  gin_extents.fill(8);
-  test_get_all_slab_topologies3D<false>(nprocs, gin_extents);
+  int nprocs = GetParam();
+  test_get_all_slab_topologies3D<false, 7>(nprocs);
 }
 
 INSTANTIATE_TEST_SUITE_P(SlabTests, SlabParamTests,
@@ -5315,127 +5164,109 @@ TEST_P(PencilParamTests, GetAllPencilTopologies3D_4DView) {
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_3DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies1D<true, 3, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies1D<true, 3>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_3DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies1D<false, 3, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies1D<false, 3>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_4DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies1D<true, 4, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies1D<true, 4>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_4DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies1D<false, 4, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies1D<false, 4>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_5DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies1D<true, 5, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies1D<true, 5>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies1D_5DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies1D<false, 5, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies1D<false, 5>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_3DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies2D<true, 3, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<true, 3>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_3DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies2D<false, 3, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<false, 3>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_4DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies2D<true, 4, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<true, 4>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_4DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies2D<false, 4, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<false, 4>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_5DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies2D<true, 5, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<true, 5>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies2D_5DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies2D<false, 5, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies2D<false, 5>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_3DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies3D<true, 3, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies3D<true, 3>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_3DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies3D<false, 3, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies3D<false, 3>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_4DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies3D<true, 4, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies3D<true, 4>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_4DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies3D<false, 4, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies3D<false, 4>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_5DView_R2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies3D<true, 5, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies3D<true, 5>(n0, nprocs);
 }
 
 TEST_P(PencilParamTests, GetAllPencilTopologies3D_5DView_C2C) {
   int nprocs   = GetParam();
   const int n0 = 4;
-  test_get_all_pencil_topologies3D<false, 5, Kokkos::LayoutLeft,
-                                   Kokkos::LayoutLeft>(n0, nprocs);
+  test_get_all_pencil_topologies3D<false, 5>(n0, nprocs);
 }
 
 INSTANTIATE_TEST_SUITE_P(PencilTests, PencilParamTests,
