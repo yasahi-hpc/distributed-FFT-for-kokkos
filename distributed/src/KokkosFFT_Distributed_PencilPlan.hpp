@@ -1324,12 +1324,12 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
         KokkosFFT::execute(*m_ifft_plan1, out, in,
                            KokkosFFT::Normalization::none);
       } else {
-        if (m_map_forward_out == int_map_type{}) {
+        if (m_map_backward_out == int_map_type{}) {
           KokkosFFT::execute(*m_ifft_plan1, out, in,
                              KokkosFFT::Normalization::none);
         } else {
           KokkosFFT::Impl::transpose(m_exec_space, out, m_fft_view0,
-                                     m_map_forward_out, true);
+                                     m_map_backward_out, true);
           KokkosFFT::execute(*m_ifft_plan1, m_fft_view0, in,
                              KokkosFFT::Normalization::none);
         }
