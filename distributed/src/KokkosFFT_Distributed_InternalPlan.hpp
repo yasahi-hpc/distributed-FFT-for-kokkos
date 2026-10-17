@@ -42,8 +42,8 @@ class FFTStage {
   ExecutionSpace m_exec_space;
 
   // Internal FFT plans
-  std::unique_ptr<ForwardPlanType> m_forward_plan;
-  std::unique_ptr<BackwardPlanType> m_backward_plan;
+  ForwardPlanType m_forward_plan;
+  BackwardPlanType m_backward_plan;
 
   // Mappings for local transpose. An empty map means no local transpose.
   int_map_type m_map_forward_in = {}, m_map_forward_out = {},
@@ -58,10 +58,10 @@ class FFTStage {
   explicit FFTStage(const ExecutionSpace& exec_space, const InViewType& in,
                     const OutViewType& out, std::size_t fft_dim)
       : m_exec_space(exec_space),
-        m_forward_plan(std::make_unique<ForwardPlanType>(
-            exec_space, in, out, KokkosFFT::Direction::forward, fft_dim)),
-        m_backward_plan(std::make_unique<BackwardPlanType>(
-            exec_space, out, in, KokkosFFT::Direction::backward, fft_dim)) {}
+        m_forward_plan(exec_space, in, out, KokkosFFT::Direction::forward,
+                       fft_dim),
+        m_backward_plan(exec_space, out, in, KokkosFFT::Direction::backward,
+                        fft_dim) {}
 
   /// \brief Set the local transpose of the input of the forward FFT.
   /// No op if the map is the identity.
@@ -102,7 +102,7 @@ class FFTStage {
       KokkosFFT::Impl::transpose(m_exec_space, in, in_T, m_map_forward_in,
                                  true);
     }
-    KokkosFFT::execute(*m_forward_plan, transpose_in ? in_T : in,
+    KokkosFFT::execute(m_forward_plan, transpose_in ? in_T : in,
                        transpose_out ? out_T : out,
                        KokkosFFT::Normalization::none);
     if (transpose_out) {
@@ -125,7 +125,7 @@ class FFTStage {
       KokkosFFT::Impl::transpose(m_exec_space, out, out_T, m_map_backward_in,
                                  true);
     }
-    KokkosFFT::execute(*m_backward_plan, transpose_in ? out_T : out,
+    KokkosFFT::execute(m_backward_plan, transpose_in ? out_T : out,
                        transpose_out ? in_T : in,
                        KokkosFFT::Normalization::none);
     if (transpose_out) {
@@ -140,15 +140,15 @@ class FFTStage {
   template <typename ScalarType>
   std::size_t workspace_size() const {
     return KokkosFFT::compute_required_workspace_size<ScalarType>(
-        *m_forward_plan, *m_backward_plan);
+        m_forward_plan, m_backward_plan);
   }
 
   /// \brief Set the workspace of the forward and backward FFTs
   /// \param[in] work Workspace view
   template <typename WorkViewType>
   void set_work_area(const WorkViewType& work) {
-    m_forward_plan->set_work_area(work);
-    m_backward_plan->set_work_area(work);
+    m_forward_plan.set_work_area(work);
+    m_backward_plan.set_work_area(work);
   }
 };
 
