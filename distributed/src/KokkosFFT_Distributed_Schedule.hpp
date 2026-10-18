@@ -109,8 +109,8 @@ struct BlockStep {
 ///
 /// \param[in] block_infos The blocks of the plan
 /// \return The schedule, one step per block
-/// \throws std::runtime_error if a step would read and write the same buffer
-/// where this is not allowed
+/// \throws std::runtime_error if there is no block or no FFT block, or if a
+/// step would read and write the same buffer where this is not allowed
 template <std::size_t DIM>
 std::vector<BlockStep<DIM>> build_schedule(
     const std::vector<BlockInfo<DIM>>& block_infos) {
@@ -127,6 +127,8 @@ std::vector<BlockStep<DIM>> build_schedule(
   bool fft_done        = false;
   std::size_t nb_trans = 0, nb_fft = 0;
   const std::size_t nb_blocks = block_infos.size();
+  KOKKOSFFT_THROW_IF(nb_blocks == 0,
+                     "build_schedule: the plan must include a block");
 
   for (std::size_t i = 0; i < nb_blocks; ++i) {
     const auto& block  = block_infos.at(i);
@@ -203,6 +205,9 @@ std::vector<BlockStep<DIM>> build_schedule(
     }
     steps.push_back(step);
   }
+
+  KOKKOSFFT_THROW_IF(nb_fft == 0,
+                     "build_schedule: the plan must include an FFT block");
 
   return steps;
 }

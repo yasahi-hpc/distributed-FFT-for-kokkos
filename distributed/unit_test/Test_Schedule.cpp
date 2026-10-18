@@ -1,5 +1,6 @@
 #include <array>
 #include <optional>
+#include <stdexcept>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -259,6 +260,24 @@ void test_schedule_trans_trans_fft() {
   EXPECT_EQ(steps, ref);
 }
 
+// A plan without any block or without any FFT block is invalid
+void test_schedule_invalid_blocks() {
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto steps =
+            KokkosFFT::Distributed::Impl::build_schedule<DIM>({});
+      },
+      std::runtime_error);
+
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] auto steps =
+            KokkosFFT::Distributed::Impl::build_schedule<DIM>(
+                {trans_block(e0, e1), trans_block(e1, e2)});
+      },
+      std::runtime_error);
+}
+
 }  // namespace
 
 TEST(TestSchedule, FFT) { test_schedule_fft(); }
@@ -279,3 +298,4 @@ TEST(TestSchedule, TransFFTTransFFTTrans) {
 TEST(TestSchedule, FFTTransTransFFT) { test_schedule_fft_trans_trans_fft(); }
 TEST(TestSchedule, ThreeFFTs) { test_schedule_three_ffts(); }
 TEST(TestSchedule, TransTransFFT) { test_schedule_trans_trans_fft(); }
+TEST(TestSchedule, InvalidBlocks) { test_schedule_invalid_blocks(); }
