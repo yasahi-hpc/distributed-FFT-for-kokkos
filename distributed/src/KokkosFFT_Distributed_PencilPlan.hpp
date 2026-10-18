@@ -46,8 +46,7 @@ using PencilInternalPlan = DistributedInternalPlan<
                                 OutLayoutType>,
     PencilComms<ExecutionSpace>,
     Topology<std::size_t, InViewType::rank(), InLayoutType>,
-    Topology<std::size_t, OutViewType::rank(), OutLayoutType>,
-    2 * FFT_DIM + 2>;
+    Topology<std::size_t, OutViewType::rank(), OutLayoutType>, 2 * FFT_DIM + 2>;
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,

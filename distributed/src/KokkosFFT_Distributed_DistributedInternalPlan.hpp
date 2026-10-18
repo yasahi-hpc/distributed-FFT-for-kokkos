@@ -88,9 +88,7 @@ class SlabComms {
       : m_comm(comm, exec_space) {}
 
   /// \brief The communicator of a transpose along a comm axis
-  const CommType& operator()(std::size_t /*comm_axis*/) const {
-    return m_comm;
-  }
+  const CommType& operator()(std::size_t /*comm_axis*/) const { return m_comm; }
 };
 
 /// \brief Communicators of a pencil decomposition: the row and column
@@ -199,9 +197,9 @@ class DistributedInternalPlan {
         non_negative_axes, comm);
 
     const std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
-    KOKKOSFFT_THROW_IF(!(nb_blocks >= 1 && nb_blocks <= MaxBlocks),
-                       "Number blocks must be in [1, " +
-                           std::to_string(MaxBlocks) + "]");
+    KOKKOSFFT_THROW_IF(
+        !(nb_blocks >= 1 && nb_blocks <= MaxBlocks),
+        "Number blocks must be in [1, " + std::to_string(MaxBlocks) + "]");
 
     m_executor = std::make_unique<BlockExecutorType>(
         m_exec_space, m_block_analyses->m_block_infos,
