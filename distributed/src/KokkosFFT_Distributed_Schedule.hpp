@@ -186,12 +186,12 @@ std::vector<BlockStep<DIM>> build_schedule(
         // The following FFTs are in-place
         KOKKOSFFT_THROW_IF(!is_buffer(current) && current != BufferId::UserOut,
                            "build_schedule: FFT must follow a transpose");
-        const BufferId dst = is_last ? BufferId::UserOut : current;
         KOKKOSFFT_THROW_IF(has_out_map && !is_buffer(current),
                            "build_schedule: FFT with out-map must not run on "
                            "the output View");
 
-        step.m_dst = {dst, block.m_out_extents, false};
+        step.m_dst = {is_last ? BufferId::UserOut : current,
+                      block.m_out_extents, false};
         if (has_out_map) {
           step.m_dst_T = ViewSpec<DIM>{current, block.m_out_extents, false};
         }
