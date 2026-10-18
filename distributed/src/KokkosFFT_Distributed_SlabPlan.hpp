@@ -14,6 +14,7 @@
 #include "KokkosFFT_Distributed_Topologies.hpp"
 #include "KokkosFFT_Distributed_BlockAnalyses.hpp"
 #include "KokkosFFT_Distributed_InternalPlan.hpp"
+#include "KokkosFFT_Distributed_BlockExecutor.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -49,14 +50,12 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
   using SlabBlockAnalysesType =
       SlabBlockAnalysesInternal<in_value_type, LayoutType, std::size_t, DIM, 1>;
 
-  using AllocationViewType =
-      Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
+  // Type for communicators
+  using CommType = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
 
-  // Type for transpose Block
-  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
-  using TransBlockType = TransBlock<ExecutionSpace, DIM>;
-
-  using FFTStageType = FFTStage<ExecutionSpace, InViewType, OutViewType>;
+  // Type for the block executor
+  using BlockExecutorType =
+      BlockExecutor<ExecutionSpace, InViewType, OutViewType>;
 
   execSpace m_exec_space;
   axes_type m_axes;
@@ -67,19 +66,8 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
 
-  // Buffer view types
-  InViewType m_in_T;
-  OutViewType m_out_T;
-
-  // Buffer Allocations
-  AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation;
-  std::vector<AllocationViewType> m_fft_buffer_allocations;
-
-  // Internal transpose blocks
-  std::vector<std::unique_ptr<TransBlockType>> m_trans_blocks;
-
-  // Internal FFT stage
-  std::unique_ptr<FFTStageType> m_fft_stage;
+  // Executes the blocks following the schedule
+  std::unique_ptr<BlockExecutorType> m_executor;
 
  public:
   explicit SlabInternalPlan(const ExecutionSpace& exec_space,
@@ -110,131 +98,24 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 1> {
                          m_block_analyses->m_block_infos.size() <= 3),
                        "Number blocks must be in [1, 3]");
 
-    // Allocate buffer views
-    std::size_t complex_alloc_size =
-        (m_block_analyses->m_max_buffer_size + 1) / 2;
-    m_send_buffer_allocation =
-        AllocationViewType("send_buffer_allocation", complex_alloc_size);
-    m_recv_buffer_allocation =
-        AllocationViewType("recv_buffer_allocation", complex_alloc_size);
-
-    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
-      set_block_impl(block_idx);
-    }
-
-    KOKKOSFFT_THROW_IF(m_in_T.size() == 0 || m_out_T.size() == 0,
-                       "Internal views are not set");
-
-    // Using aligned data
-    m_fft_buffer_allocations =
-        allocate_fft_work_areas<complex_type, AllocationViewType>(*m_fft_stage);
+    m_executor = std::make_unique<BlockExecutorType>(
+        m_exec_space, m_block_analyses->m_block_infos,
+        m_block_analyses->m_max_buffer_size);
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {
-    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
-      forward_impl(in, out, block_idx);
-    }
+    m_executor->forward(comms(), in, out);
   }
 
   void backward(const OutViewType& out, const InViewType& in) const {
-    int64_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (int64_t block_idx = nb_blocks - 1; block_idx >= 0; --block_idx) {
-      backward_impl(out, in, block_idx);
-    }
+    m_executor->backward(comms(), out, in);
   }
 
  private:
-  void set_block_impl(const std::size_t block_idx) {
-    auto block      = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type = block.m_block_type;
-
-    if (block_type == BlockType::FFT) {
-      m_in_T = InViewType(
-          reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-          KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
-      m_out_T = OutViewType(
-          m_recv_buffer_allocation.data(),
-          KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
-
-      m_fft_stage =
-          std::make_unique<FFTStageType>(m_exec_space, m_in_T, m_out_T, 1);
-
-      // Local transposes are needed only for the first and the last blocks
-      if (block_idx == 0) m_fft_stage->set_in_map(block.m_in_map);
-      if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-        m_fft_stage->set_out_map(block.m_out_map);
-      }
-    } else {
-      m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-          m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis));
-    }
-  }
-
-  template <typename InType, typename OutType>
-  void forward_impl(const InType& in, const OutType& out,
-                    const std::size_t block_idx) const {
-    auto block           = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type      = block.m_block_type;
-    InViewType in_view   = m_in_T;
-    OutViewType out_view = m_out_T, out_view_T = m_out_T;
-
-    if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-      out_view   = block_type == BlockType::FFT ? out : m_out_T;
-      out_view_T = out;
-    }
-
-    if (block_idx == 0) {
-      if (block_type == BlockType::FFT) {
-        m_fft_stage->forward(in, out_view, m_in_T, m_out_T);
-      } else if (block_type == BlockType::Transpose) {
-        (*m_trans_blocks.at(block.m_block_idx))(
-            m_comm, in, in_view, m_send_buffer_allocation,
-            m_recv_buffer_allocation, KokkosFFT::Direction::forward);
-      }
-    } else {
-      if (block_type == BlockType::FFT) {
-        m_fft_stage->forward(in_view, out_view, m_in_T, m_out_T);
-      } else if (block_type == BlockType::Transpose) {
-        (*m_trans_blocks.at(block.m_block_idx))(
-            m_comm, out_view, out_view_T, m_send_buffer_allocation,
-            m_recv_buffer_allocation, KokkosFFT::Direction::forward);
-      }
-    }
-  }
-
-  template <typename InType, typename OutType>
-  void backward_impl(const OutType& out, const InType& in,
-                     const std::size_t block_idx) const {
-    auto block         = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type    = block.m_block_type;
-    InViewType in_view = m_in_T, in_view_T = m_in_T;
-    OutViewType out_view = m_out_T;
-
-    if (block_idx == 0) {
-      in_view   = block_type == BlockType::FFT ? in : m_in_T;
-      in_view_T = in;
-    }
-
-    if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-      if (block_type == BlockType::FFT) {
-        m_fft_stage->backward(out, in_view, m_in_T, m_out_T);
-      } else if (block_type == BlockType::Transpose) {
-        (*m_trans_blocks.at(block.m_block_idx))(
-            m_comm, out, out_view, m_recv_buffer_allocation,
-            m_send_buffer_allocation, KokkosFFT::Direction::backward);
-      }
-    } else {
-      if (block_type == BlockType::FFT) {
-        m_fft_stage->backward(out_view, in_view, m_in_T, m_out_T);
-      } else if (block_type == BlockType::Transpose) {
-        (*m_trans_blocks.at(block.m_block_idx))(
-            m_comm, in_view, in_view_T, m_recv_buffer_allocation,
-            m_send_buffer_allocation, KokkosFFT::Direction::backward);
-      }
-    }
+  /// \brief The communicator of a transpose (a single one for slabs)
+  auto comms() const {
+    return
+        [this](std::size_t /*comm_axis*/) -> const CommType& { return m_comm; };
   }
 };
 
@@ -264,18 +145,12 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
   using SlabBlockAnalysesType =
       SlabBlockAnalysesInternal<in_value_type, LayoutType, std::size_t, DIM, 2>;
 
-  using AllocationViewType =
-      Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
+  // Type for communicators
+  using CommType = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
 
-  // Type for transpose Block
-  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
-  using TransBlockType = TransBlock<ExecutionSpace, DIM>;
-
-  // First FFT to perform can be Real to Complex
-  using FFTStageType0 = FFTStage<ExecutionSpace, InViewType, OutViewType>;
-
-  // Following FFTs to perform must be Complex to Complex
-  using FFTStageType1 = FFTStage<ExecutionSpace, OutViewType, OutViewType>;
+  // Type for the block executor
+  using BlockExecutorType =
+      BlockExecutor<ExecutionSpace, InViewType, OutViewType>;
 
   execSpace m_exec_space;
   axes_type m_axes;
@@ -285,22 +160,9 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
-  std::array<std::size_t, 1> m_fft_dims = {};
 
-  // Buffer view types
-  InViewType m_in_T;
-  OutViewType m_out_T, m_out_T2;
-
-  // Buffer Allocations
-  AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation;
-  std::vector<AllocationViewType> m_fft_buffer_allocations;
-
-  // Internal transpose blocks
-  std::vector<std::unique_ptr<TransBlockType>> m_trans_blocks;
-
-  // Internal FFT stages
-  std::unique_ptr<FFTStageType0> m_fft_stage0;
-  std::vector<std::unique_ptr<FFTStageType1>> m_fft_stages;
+  // Executes the blocks following the schedule
+  std::unique_ptr<BlockExecutorType> m_executor;
 
  public:
   explicit SlabInternalPlan(const ExecutionSpace& exec_space,
@@ -330,213 +192,24 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
     KOKKOSFFT_THROW_IF(m_block_analyses->m_block_infos.size() > 5,
                        "Maximum five blocks are expected");
 
-    // Allocate buffer views
-    std::size_t complex_alloc_size =
-        (m_block_analyses->m_max_buffer_size + 1) / 2;
-    m_send_buffer_allocation =
-        AllocationViewType("send_buffer_allocation", complex_alloc_size);
-    m_recv_buffer_allocation =
-        AllocationViewType("recv_buffer_allocation", complex_alloc_size);
-
-    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
-      set_block_impl(block_idx);
-    }
-
-    KOKKOSFFT_THROW_IF(m_in_T.size() == 0 || m_out_T.size() == 0,
-                       "Internal views are not set");
-
-    // Using aligned data
-    m_fft_buffer_allocations =
-        allocate_fft_work_areas<complex_type, AllocationViewType>(*m_fft_stage0,
-                                                                  m_fft_stages);
+    m_executor = std::make_unique<BlockExecutorType>(
+        m_exec_space, m_block_analyses->m_block_infos,
+        m_block_analyses->m_max_buffer_size);
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {
-    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
-      forward_impl(in, out, block_idx);
-    }
+    m_executor->forward(comms(), in, out);
   }
 
   void backward(const OutViewType& out, const InViewType& in) const {
-    int64_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (int64_t block_idx = nb_blocks - 1; block_idx >= 0; --block_idx) {
-      backward_impl(out, in, block_idx);
-    }
+    m_executor->backward(comms(), out, in);
   }
 
  private:
-  /// \brief Whether the output of the last FFT stage is locally transposed
-  bool has_out_map() const {
-    return m_fft_stages.empty() ? m_fft_stage0->has_out_map()
-                                : m_fft_stages.back()->has_out_map();
-  }
-
-  void set_block_impl(const std::size_t block_idx) {
-    auto block      = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type = block.m_block_type;
-
-    if (block_type == BlockType::FFT) {
-      // Local transposes are needed only for the first and the last blocks
-      auto set_maps = [&](auto& stage) {
-        if (block_idx == 0) stage.set_in_map(block.m_in_map);
-        if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          stage.set_out_map(block.m_out_map);
-        }
-      };
-
-      if (block.m_block_idx == 0) {
-        m_fft_dims.at(0) = block.m_fft_dim;
-        m_in_T           = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
-
-        m_fft_stage0 = std::make_unique<FFTStageType0>(
-            m_exec_space, m_in_T, m_out_T, block.m_fft_dim);
-        set_maps(*m_fft_stage0);
-      } else {
-        m_out_T2 = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
-        m_fft_stages.push_back(std::make_unique<FFTStageType1>(
-            m_exec_space, m_out_T2, m_out_T2, block.m_fft_dim));
-        set_maps(*m_fft_stages.back());
-      }
-    } else {
-      m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-          m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis));
-    }
-  }
-
-  template <typename InType, typename OutType>
-  void forward_impl(const InType& in, const OutType& out,
-                    const std::size_t block_idx) const {
-    auto block      = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type = block.m_block_type;
-
-    if (block_idx == 0) {
-      if (block_type == BlockType::FFT) {
-        OutViewType out_view =
-            block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                    : m_out_T;
-        m_fft_stage0->forward(in, out_view, m_in_T, m_out_T);
-      } else if (block_type == BlockType::Transpose) {
-        (*m_trans_blocks.at(block.m_block_idx))(
-            m_comm, in, m_in_T, m_send_buffer_allocation,
-            m_recv_buffer_allocation, KokkosFFT::Direction::forward);
-      }
-    } else {
-      if (block_type == BlockType::FFT) {
-        if (block.m_block_idx == 0) {
-          OutViewType out_view =
-              block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                      : m_out_T;
-          m_fft_stage0->forward(m_in_T, out_view, m_in_T, m_out_T);
-        } else {
-          OutViewType cin_view = m_out_T2, cout_view = m_out_T2;
-          if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-            cout_view = out;
-            cin_view  = !has_out_map() ? out : m_out_T2;
-          }
-          m_fft_stages.at(block.m_block_idx - 1)
-              ->forward(cin_view, cout_view, m_out_T2, m_out_T2);
-        }
-      } else if (block_type == BlockType::Transpose) {
-        OutViewType out_view  = m_out_T;
-        OutViewType out_view2 = !has_out_map() ? out : m_out_T2;
-
-        if (m_block_analyses->m_block_infos.back().m_block_type ==
-            BlockType::Transpose) {
-          out_view2 = m_out_T2;
-        }
-
-        if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          out_view  = m_fft_dims.at(0) == 1 ? m_out_T2 : m_out_T;
-          out_view2 = out;
-        }
-
-        AllocationViewType send_buffer = m_send_buffer_allocation,
-                           recv_buffer = m_recv_buffer_allocation;
-
-        if (KokkosFFT::Impl::are_aliasing(out_view.data(),
-                                          send_buffer.data())) {
-          send_buffer = m_recv_buffer_allocation;
-          recv_buffer = m_send_buffer_allocation;
-        }
-
-        (*m_trans_blocks.at(block.m_block_idx))(m_comm, out_view, out_view2,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::forward);
-      }
-    }
-  }
-
-  template <typename InType, typename OutType>
-  void backward_impl(const OutType& out, const InType& in,
-                     const std::size_t block_idx) const {
-    auto block      = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type = block.m_block_type;
-
-    if (block_idx == 0) {
-      if (block_type == BlockType::FFT) {
-        OutViewType out_view =
-            block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                    : m_out_T;
-        m_fft_stage0->backward(out_view, in, m_in_T, m_out_T);
-      } else if (block_type == BlockType::Transpose) {
-        (*m_trans_blocks.at(block.m_block_idx))(
-            m_comm, m_in_T, in, m_recv_buffer_allocation,
-            m_send_buffer_allocation, KokkosFFT::Direction::backward);
-      }
-    } else {
-      if (block_type == BlockType::FFT) {
-        if (block.m_block_idx == 0) {
-          OutViewType out_view =
-              block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                      : m_out_T;
-          m_fft_stage0->backward(out_view, m_in_T, m_in_T, m_out_T);
-        } else {
-          OutViewType cin_view = m_out_T2, cout_view = m_out_T2;
-          if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-            cout_view = out;
-            cin_view  = !has_out_map() ? out : m_out_T2;
-          }
-          m_fft_stages.at(block.m_block_idx - 1)
-              ->backward(cout_view, cin_view, m_out_T2, m_out_T2);
-        }
-      } else if (block_type == BlockType::Transpose) {
-        OutViewType out_view  = m_out_T;
-        OutViewType out_view2 = !has_out_map() ? out : m_out_T2;
-
-        if (m_block_analyses->m_block_infos.back().m_block_type ==
-            BlockType::Transpose) {
-          out_view2 = m_out_T2;
-        }
-
-        if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          out_view  = m_fft_dims.at(0) == 1 ? m_out_T2 : m_out_T;
-          out_view2 = out;
-        }
-
-        AllocationViewType send_buffer = m_send_buffer_allocation,
-                           recv_buffer = m_recv_buffer_allocation;
-
-        if (KokkosFFT::Impl::are_aliasing(out_view.data(),
-                                          recv_buffer.data())) {
-          send_buffer = m_recv_buffer_allocation;
-          recv_buffer = m_send_buffer_allocation;
-        }
-
-        (*m_trans_blocks.at(block.m_block_idx))(m_comm, out_view2, out_view,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::backward);
-      }
-    }
+  /// \brief The communicator of a transpose (a single one for slabs)
+  auto comms() const {
+    return
+        [this](std::size_t /*comm_axis*/) -> const CommType& { return m_comm; };
   }
 };
 
@@ -568,18 +241,12 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
   using SlabBlockAnalysesType =
       SlabBlockAnalysesInternal<in_value_type, LayoutType, std::size_t, DIM, 3>;
 
-  using AllocationViewType =
-      Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
+  // Type for communicators
+  using CommType = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
 
-  // Type for transpose Block
-  using CommType       = KokkosFFT::Distributed::Impl::TplComm<ExecutionSpace>;
-  using TransBlockType = TransBlock<ExecutionSpace, DIM>;
-
-  // First FFT to perform can be Real to Complex
-  using FFTStageType0 = FFTStage<ExecutionSpace, InViewType, OutViewType>;
-
-  // Following FFTs to perform must be Complex to Complex
-  using FFTStageType1 = FFTStage<ExecutionSpace, OutViewType, OutViewType>;
+  // Type for the block executor
+  using BlockExecutorType =
+      BlockExecutor<ExecutionSpace, InViewType, OutViewType>;
 
   execSpace m_exec_space;
   axes_type m_axes;
@@ -589,22 +256,9 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
 
   // Analyse topology
   std::unique_ptr<SlabBlockAnalysesType> m_block_analyses;
-  std::array<std::size_t, 1> m_fft_dims = {};
 
-  // Buffer view types
-  InViewType m_in_T;
-  OutViewType m_out_T, m_out_T2;
-
-  // Buffer Allocations
-  AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation;
-  std::vector<AllocationViewType> m_fft_buffer_allocations;
-
-  // Internal transpose blocks
-  std::vector<std::unique_ptr<TransBlockType>> m_trans_blocks;
-
-  // Internal FFT stages
-  std::unique_ptr<FFTStageType0> m_fft_stage0;
-  std::vector<std::unique_ptr<FFTStageType1>> m_fft_stages;
+  // Executes the blocks following the schedule
+  std::unique_ptr<BlockExecutorType> m_executor;
 
  public:
   explicit SlabInternalPlan(const ExecutionSpace& exec_space,
@@ -635,212 +289,24 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 3> {
                          m_block_analyses->m_block_infos.size() <= 5),
                        "Number blocks must be in [1, 5]");
 
-    // Allocate buffer views
-    std::size_t complex_alloc_size =
-        (m_block_analyses->m_max_buffer_size + 1) / 2;
-    m_send_buffer_allocation =
-        AllocationViewType("send_buffer_allocation", complex_alloc_size);
-    m_recv_buffer_allocation =
-        AllocationViewType("recv_buffer_allocation", complex_alloc_size);
-
-    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
-      set_block_impl(block_idx);
-    }
-
-    KOKKOSFFT_THROW_IF(m_in_T.size() == 0 || m_out_T.size() == 0,
-                       "Internal views are not set");
-
-    m_fft_buffer_allocations =
-        allocate_fft_work_areas<complex_type, AllocationViewType>(*m_fft_stage0,
-                                                                  m_fft_stages);
+    m_executor = std::make_unique<BlockExecutorType>(
+        m_exec_space, m_block_analyses->m_block_infos,
+        m_block_analyses->m_max_buffer_size);
   }
 
   void forward(const InViewType& in, const OutViewType& out) const {
-    std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (std::size_t block_idx = 0; block_idx < nb_blocks; ++block_idx) {
-      forward_impl(in, out, block_idx);
-    }
+    m_executor->forward(comms(), in, out);
   }
 
   void backward(const OutViewType& out, const InViewType& in) const {
-    int64_t nb_blocks = m_block_analyses->m_block_infos.size();
-    for (int64_t block_idx = nb_blocks - 1; block_idx >= 0; --block_idx) {
-      backward_impl(out, in, block_idx);
-    }
+    m_executor->backward(comms(), out, in);
   }
 
  private:
-  /// \brief Whether the output of the last FFT stage is locally transposed
-  bool has_out_map() const {
-    return m_fft_stages.empty() ? m_fft_stage0->has_out_map()
-                                : m_fft_stages.back()->has_out_map();
-  }
-
-  void set_block_impl(const std::size_t block_idx) {
-    auto block      = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type = block.m_block_type;
-
-    if (block_type == BlockType::FFT) {
-      // Local transposes are needed only for the first and the last blocks
-      auto set_maps = [&](auto& stage) {
-        if (block_idx == 0) stage.set_in_map(block.m_in_map);
-        if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          stage.set_out_map(block.m_out_map);
-        }
-      };
-
-      if (block.m_block_idx == 0) {
-        m_fft_dims.at(0) = block.m_fft_dim;
-        m_in_T           = InViewType(
-            reinterpret_cast<in_value_type*>(m_send_buffer_allocation.data()),
-            KokkosFFT::Impl::create_layout<LayoutType>(block.m_in_extents));
-        m_out_T = OutViewType(
-            m_recv_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
-
-        m_fft_stage0 = std::make_unique<FFTStageType0>(
-            m_exec_space, m_in_T, m_out_T, block.m_fft_dim);
-        set_maps(*m_fft_stage0);
-      } else {
-        m_out_T2 = OutViewType(
-            m_send_buffer_allocation.data(),
-            KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
-        m_fft_stages.push_back(std::make_unique<FFTStageType1>(
-            m_exec_space, m_out_T2, m_out_T2, block.m_fft_dim));
-        set_maps(*m_fft_stages.back());
-      }
-    } else {
-      m_trans_blocks.push_back(std::make_unique<TransBlockType>(
-          m_exec_space, block.m_buffer_extents, block.m_in_map, block.m_in_axis,
-          block.m_out_map, block.m_out_axis));
-    }
-  }
-
-  template <typename InType, typename OutType>
-  void forward_impl(const InType& in, const OutType& out,
-                    const std::size_t block_idx) const {
-    auto block      = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type = block.m_block_type;
-
-    if (block_idx == 0) {
-      if (block_type == BlockType::FFT) {
-        OutViewType out_view =
-            block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                    : m_out_T;
-        m_fft_stage0->forward(in, out_view, m_in_T, m_out_T);
-      } else if (block_type == BlockType::Transpose) {
-        (*m_trans_blocks.at(block.m_block_idx))(
-            m_comm, in, m_in_T, m_send_buffer_allocation,
-            m_recv_buffer_allocation, KokkosFFT::Direction::forward);
-      }
-    } else {
-      if (block_type == BlockType::FFT) {
-        if (block.m_block_idx == 0) {
-          OutViewType out_view =
-              block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                      : m_out_T;
-          m_fft_stage0->forward(m_in_T, out_view, m_in_T, m_out_T);
-        } else {
-          OutViewType cin_view = m_out_T2, cout_view = m_out_T2;
-          if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-            cout_view = out;
-            cin_view  = !has_out_map() ? out : m_out_T2;
-          }
-          m_fft_stages.at(block.m_block_idx - 1)
-              ->forward(cin_view, cout_view, m_out_T2, m_out_T2);
-        }
-      } else if (block_type == BlockType::Transpose) {
-        OutViewType out_view  = m_out_T;
-        OutViewType out_view2 = !has_out_map() ? out : m_out_T2;
-
-        if (m_block_analyses->m_block_infos.back().m_block_type ==
-            BlockType::Transpose) {
-          out_view2 = m_out_T2;
-        }
-
-        if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          out_view  = m_fft_dims.at(0) == 3 ? m_out_T : m_out_T2;
-          out_view2 = out;
-        }
-
-        AllocationViewType send_buffer = m_send_buffer_allocation,
-                           recv_buffer = m_recv_buffer_allocation;
-
-        if (KokkosFFT::Impl::are_aliasing(out_view.data(),
-                                          send_buffer.data())) {
-          send_buffer = m_recv_buffer_allocation;
-          recv_buffer = m_send_buffer_allocation;
-        }
-
-        (*m_trans_blocks.at(block.m_block_idx))(m_comm, out_view, out_view2,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::forward);
-      }
-    }
-  }
-
-  template <typename InType, typename OutType>
-  void backward_impl(const OutType& out, const InType& in,
-                     const std::size_t block_idx) const {
-    auto block      = m_block_analyses->m_block_infos.at(block_idx);
-    auto block_type = block.m_block_type;
-
-    if (block_idx == 0) {
-      if (block_type == BlockType::FFT) {
-        OutViewType out_view =
-            block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                    : m_out_T;
-        m_fft_stage0->backward(out_view, in, m_in_T, m_out_T);
-      } else if (block_type == BlockType::Transpose) {
-        (*m_trans_blocks.at(block.m_block_idx))(
-            m_comm, m_in_T, in, m_recv_buffer_allocation,
-            m_send_buffer_allocation, KokkosFFT::Direction::backward);
-      }
-    } else {
-      if (block_type == BlockType::FFT) {
-        if (block.m_block_idx == 0) {
-          OutViewType out_view =
-              block_idx == m_block_analyses->m_block_infos.size() - 1 ? out
-                                                                      : m_out_T;
-          m_fft_stage0->backward(out_view, m_in_T, m_in_T, m_out_T);
-        } else {
-          OutViewType cin_view = m_out_T2, cout_view = m_out_T2;
-          if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-            cout_view = out;
-            cin_view  = !has_out_map() ? out : m_out_T2;
-          }
-          m_fft_stages.at(block.m_block_idx - 1)
-              ->backward(cout_view, cin_view, m_out_T2, m_out_T2);
-        }
-      } else if (block_type == BlockType::Transpose) {
-        OutViewType out_view  = m_out_T;
-        OutViewType out_view2 = !has_out_map() ? out : m_out_T2;
-
-        if (m_block_analyses->m_block_infos.back().m_block_type ==
-            BlockType::Transpose) {
-          out_view2 = m_out_T2;
-        }
-
-        if (block_idx == m_block_analyses->m_block_infos.size() - 1) {
-          out_view  = m_fft_dims.at(0) == 3 ? m_out_T : m_out_T2;
-          out_view2 = out;
-        }
-
-        AllocationViewType send_buffer = m_send_buffer_allocation,
-                           recv_buffer = m_recv_buffer_allocation;
-
-        if (KokkosFFT::Impl::are_aliasing(out_view.data(),
-                                          recv_buffer.data())) {
-          send_buffer = m_recv_buffer_allocation;
-          recv_buffer = m_send_buffer_allocation;
-        }
-
-        (*m_trans_blocks.at(block.m_block_idx))(m_comm, out_view2, out_view,
-                                                send_buffer, recv_buffer,
-                                                KokkosFFT::Direction::backward);
-      }
-    }
+  /// \brief The communicator of a transpose (a single one for slabs)
+  auto comms() const {
+    return
+        [this](std::size_t /*comm_axis*/) -> const CommType& { return m_comm; };
   }
 };
 
