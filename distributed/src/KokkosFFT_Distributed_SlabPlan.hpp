@@ -403,7 +403,7 @@ struct SlabInternalPlan<ExecutionSpace, InViewType, OutViewType, 2> {
             m_send_buffer_allocation.data(),
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
         m_fft_stages.push_back(std::make_unique<FFTStageType1>(
-            m_exec_space, m_out_T2, m_out_T2, 1));
+            m_exec_space, m_out_T2, m_out_T2, block.m_fft_dim));
         set_maps(*m_fft_stages.back());
       }
     } else {

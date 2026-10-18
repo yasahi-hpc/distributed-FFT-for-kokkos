@@ -546,7 +546,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 2,
             last_ptr,
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
         m_fft_stages.push_back(std::make_unique<FFTStageType1>(
-            m_exec_space, m_fft_view, m_fft_view, 1));
+            m_exec_space, m_fft_view, m_fft_view, block.m_fft_dim));
         set_maps(*m_fft_stages.back());
         m_in_out_ptr.push_back(
             ptr_pair_type{m_fft_view.data(), m_fft_view.data()});
@@ -930,7 +930,7 @@ struct PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, 3,
             last_ptr,
             KokkosFFT::Impl::create_layout<LayoutType>(block.m_out_extents));
         m_fft_stages.push_back(std::make_unique<FFTStageType1>(
-            m_exec_space, m_fft_view1, m_fft_view1, 1));
+            m_exec_space, m_fft_view1, m_fft_view1, block.m_fft_dim));
         set_maps(*m_fft_stages.back());
         m_in_out_ptr.push_back(
             ptr_pair_type{m_fft_view1.data(), m_fft_view1.data()});
