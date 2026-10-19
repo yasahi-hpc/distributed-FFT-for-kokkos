@@ -145,9 +145,6 @@ class BlockExecutor {
       }
     }
 
-    KOKKOSFFT_THROW_IF(m_fft_stage0 == nullptr,
-                       "BlockExecutor: the plan must include an FFT block");
-
     // Using aligned data
     m_fft_buffer_allocations =
         allocate_fft_work_areas<complex_type, AllocationViewType>(*m_fft_stage0,

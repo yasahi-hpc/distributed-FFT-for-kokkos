@@ -52,7 +52,7 @@ using SlabInternalPlan = DistributedInternalPlan<
                               typename InViewType::array_layout, std::size_t,
                               InViewType::rank(), FFT_DIM>,
     SlabComms<ExecutionSpace>, KokkosFFT::shape_type<InViewType::rank()>,
-    KokkosFFT::shape_type<InViewType::rank()>, (FFT_DIM == 1 ? 3 : 5)>;
+    KokkosFFT::shape_type<InViewType::rank()>>;
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,

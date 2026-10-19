@@ -10,6 +10,7 @@
 #include "KokkosFFT_Asserts.hpp"
 #include "KokkosFFT_Distributed_All2All.hpp"
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
+#include "KokkosFFT_Distributed_BlockAnalyses.hpp"
 #include "KokkosFFT_Distributed_BlockExecutor.hpp"
 
 namespace KokkosFFT {
@@ -150,11 +151,9 @@ class PencilComms {
 /// PencilComms)
 /// \tparam InTopologyType Type of the input topology
 /// \tparam OutTopologyType Type of the output topology
-/// \tparam MaxBlocks Largest number of blocks the analyses may produce
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t FFT_DIM, typename BlockAnalysesType, typename CommsType,
-          typename InTopologyType, typename OutTopologyType,
-          std::size_t MaxBlocks>
+          typename InTopologyType, typename OutTopologyType>
 class DistributedInternalPlan {
   static constexpr std::size_t DIM = InViewType::rank();
 
@@ -196,10 +195,14 @@ class DistributedInternalPlan {
         in_extents, gin_extents, gout_extents, in_topology, out_topology,
         non_negative_axes, comm);
 
-    const std::size_t nb_blocks = m_block_analyses->m_block_infos.size();
-    KOKKOSFFT_THROW_IF(
-        !(nb_blocks >= 1 && nb_blocks <= MaxBlocks),
-        "Number blocks must be in [1, " + std::to_string(MaxBlocks) + "]");
+    // Every FFT axis must be transformed exactly once. The number of blocks
+    // is not limited: build_schedule validates the sequence of blocks.
+    const std::size_t nb_fft_dims =
+        count_fft_dims(m_block_analyses->m_block_infos);
+    KOKKOSFFT_THROW_IF(nb_fft_dims != FFT_DIM,
+                       "The FFT blocks must transform " +
+                           std::to_string(FFT_DIM) + " axes, but transform " +
+                           std::to_string(nb_fft_dims));
 
     m_executor = std::make_unique<BlockExecutorType>(
         m_exec_space, m_block_analyses->m_block_infos,
