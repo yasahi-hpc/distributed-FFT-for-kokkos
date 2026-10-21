@@ -4814,6 +4814,95 @@ void test_get_all_pencil_topologies3D_4DView(std::size_t nprocs) {
   }
 }
 
+// A minimal state of a path, for FFTAxesProgress::consumed_along
+struct RemainingState {
+  std::size_t m_remaining;
+};
+
+void test_fft_axes_progress() {
+  using axes_type     = std::vector<std::size_t>;
+  using topology_type = std::array<std::size_t, 3>;
+  axes_type axes{0, 1, 2};
+  KokkosFFT::Distributed::Impl::FFTAxesProgress<std::size_t> progress(axes);
+
+  // The axes are consumed from right to left, up to the first distributed one
+  EXPECT_EQ(progress.initial(topology_type{1, 1, 4}), 3u);
+  EXPECT_EQ(progress.initial(topology_type{1, 4, 1}), 2u);
+  EXPECT_EQ(progress.initial(topology_type{4, 1, 1}), 1u);
+  EXPECT_EQ(progress.initial(topology_type{1, 1, 1}), 0u);
+  EXPECT_EQ(progress.advance(topology_type{4, 1, 1}, 2), 1u);
+
+  // Consumed axes are never reconsidered
+  EXPECT_EQ(progress.advance(topology_type{1, 1, 4}, 1), 0u);
+
+  EXPECT_TRUE(progress.none_consumed(3));
+  EXPECT_FALSE(progress.none_consumed(2));
+
+  // The first state consumes the axes local on the input topology
+  std::vector<RemainingState> path{{2}, {2}, {0}};
+  std::vector<axes_type> ref_axes{{2}, {}, {0, 1}};
+  EXPECT_EQ(progress.consumed_along(path), ref_axes);
+}
+
+/// \brief Check that the axes consumed along a path cover every FFT axis
+/// exactly once and that the path ends with all the axes consumed
+template <typename StateType>
+void check_consumed_axes(const std::vector<StateType>& states,
+                         const std::vector<std::size_t>& axes) {
+  KokkosFFT::Distributed::Impl::FFTAxesProgress<std::size_t> progress(axes);
+  auto all_axes = progress.consumed_along(states);
+  ASSERT_EQ(all_axes.size(), states.size());
+
+  std::vector<std::size_t> consumed;
+  for (const auto& state_axes : all_axes) {
+    consumed.insert(consumed.end(), state_axes.begin(), state_axes.end());
+  }
+  std::sort(consumed.begin(), consumed.end());
+  auto ref_axes = axes;
+  std::sort(ref_axes.begin(), ref_axes.end());
+  EXPECT_EQ(consumed, ref_axes);
+  EXPECT_EQ(states.back().m_remaining, 0u);
+}
+
+void test_consumed_axes_along_paths() {
+  using topology_type = std::array<std::size_t, 3>;
+  using topology_r_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  const topology_type extents{8, 8, 8};
+  const std::vector<std::vector<std::size_t>> all_axes = {
+      {0},       {1},       {2},       {0, 1},    {0, 2},
+      {1, 0},    {1, 2},    {2, 0},    {2, 1},    {0, 1, 2},
+      {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}};
+
+  // Slab topologies: P on each of the three axes
+  for (std::size_t in_pos = 0; in_pos < 3; ++in_pos) {
+    for (std::size_t out_pos = 0; out_pos < 3; ++out_pos) {
+      topology_type in_topology{1, 1, 1}, out_topology{1, 1, 1};
+      in_topology.at(in_pos)   = 4;
+      out_topology.at(out_pos) = 4;
+      for (const auto& axes : all_axes) {
+        auto states = KokkosFFT::Distributed::Impl::find_minimal_slab_path(
+            extents, extents, in_topology, out_topology, axes);
+        check_consumed_axes(states, axes);
+      }
+    }
+  }
+
+  // Pencil topologies: x-, y- and z-pencils
+  const std::vector<topology_r_type> pencils = {topology_r_type{1, 2, 4},
+                                                topology_r_type{2, 1, 4},
+                                                topology_r_type{2, 4, 1}};
+  for (const auto& in_topology : pencils) {
+    for (const auto& out_topology : pencils) {
+      for (const auto& axes : all_axes) {
+        auto states = KokkosFFT::Distributed::Impl::find_minimal_path(
+            extents, in_topology, out_topology, axes);
+        check_consumed_axes(states, axes);
+      }
+    }
+  }
+}
+
 }  // namespace
 
 TEST_P(TopologyParamTests, GetTopologyType_std_array) {
@@ -5271,3 +5360,9 @@ TEST_P(PencilParamTests, GetAllPencilTopologies3D_5DView_C2C) {
 
 INSTANTIATE_TEST_SUITE_P(PencilTests, PencilParamTests,
                          ::testing::Values(1, 2, 3, 4, 5, 6));
+
+TEST(TestTopologies, FFTAxesProgress) { test_fft_axes_progress(); }
+
+TEST(TestTopologies, ConsumedAxesAlongPaths) {
+  test_consumed_axes_along_paths();
+}
