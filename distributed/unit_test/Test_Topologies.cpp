@@ -4844,32 +4844,15 @@ void test_fft_axes_progress() {
   EXPECT_EQ(progress.consumed_along(path), ref_axes);
 }
 
-/// \brief Check that the axes consumed along a path cover every FFT axis
-/// exactly once and that the path ends with all the axes consumed
-template <typename StateType>
-void check_consumed_axes(const std::vector<StateType>& states,
-                         const std::vector<std::size_t>& axes) {
-  KokkosFFT::Distributed::Impl::FFTAxesProgress<std::size_t> progress(axes);
-  auto all_axes = progress.consumed_along(states);
-  ASSERT_EQ(all_axes.size(), states.size());
-
-  std::vector<std::size_t> consumed;
-  for (const auto& state_axes : all_axes) {
-    consumed.insert(consumed.end(), state_axes.begin(), state_axes.end());
-  }
-  std::sort(consumed.begin(), consumed.end());
-  auto ref_axes = axes;
-  std::sort(ref_axes.begin(), ref_axes.end());
-  EXPECT_EQ(consumed, ref_axes);
-  EXPECT_EQ(states.back().m_remaining, 0u);
-}
-
+/// \brief The axes consumed along the paths of both searches must cover every
+/// FFT axis exactly once, and every path must end with all the axes consumed
 void test_consumed_axes_along_paths() {
   using topology_type = std::array<std::size_t, 3>;
   using topology_r_type =
       KokkosFFT::Distributed::Topology<std::size_t, 3, Kokkos::LayoutRight>;
+  using axes_type = std::vector<std::size_t>;
   const topology_type extents{8, 8, 8};
-  const std::vector<std::vector<std::size_t>> all_axes = {
+  const std::vector<axes_type> all_axes = {
       {0},       {1},       {2},       {0, 1},    {0, 2},
       {1, 0},    {1, 2},    {2, 0},    {2, 1},    {0, 1, 2},
       {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}};
@@ -4881,9 +4864,27 @@ void test_consumed_axes_along_paths() {
       in_topology.at(in_pos)   = 4;
       out_topology.at(out_pos) = 4;
       for (const auto& axes : all_axes) {
+        const std::string case_name =
+            "slab: in_pos=" + std::to_string(in_pos) +
+            ", out_pos=" + std::to_string(out_pos) +
+            KokkosFFT::Impl::container_to_string(", axes=", axes);
+
         auto states = KokkosFFT::Distributed::Impl::find_minimal_slab_path(
             extents, extents, in_topology, out_topology, axes);
-        check_consumed_axes(states, axes);
+        auto consumed_axes =
+            KokkosFFT::Distributed::Impl::FFTAxesProgress<std::size_t>(axes)
+                .consumed_along(states);
+        ASSERT_EQ(consumed_axes.size(), states.size()) << case_name;
+
+        axes_type consumed;
+        for (const auto& state_axes : consumed_axes) {
+          consumed.insert(consumed.end(), state_axes.begin(), state_axes.end());
+        }
+        std::sort(consumed.begin(), consumed.end());
+        auto ref_axes = axes;
+        std::sort(ref_axes.begin(), ref_axes.end());
+        EXPECT_EQ(consumed, ref_axes) << case_name;
+        EXPECT_EQ(states.back().m_remaining, 0u) << case_name;
       }
     }
   }
@@ -4892,12 +4893,30 @@ void test_consumed_axes_along_paths() {
   const std::vector<topology_r_type> pencils = {topology_r_type{1, 2, 4},
                                                 topology_r_type{2, 1, 4},
                                                 topology_r_type{2, 4, 1}};
-  for (const auto& in_topology : pencils) {
-    for (const auto& out_topology : pencils) {
+  for (std::size_t in_idx = 0; in_idx < pencils.size(); ++in_idx) {
+    for (std::size_t out_idx = 0; out_idx < pencils.size(); ++out_idx) {
       for (const auto& axes : all_axes) {
+        const std::string case_name =
+            "pencil: in_topology=" + std::to_string(in_idx) +
+            ", out_topology=" + std::to_string(out_idx) +
+            KokkosFFT::Impl::container_to_string(", axes=", axes);
+
         auto states = KokkosFFT::Distributed::Impl::find_minimal_path(
-            extents, in_topology, out_topology, axes);
-        check_consumed_axes(states, axes);
+            extents, pencils.at(in_idx), pencils.at(out_idx), axes);
+        auto consumed_axes =
+            KokkosFFT::Distributed::Impl::FFTAxesProgress<std::size_t>(axes)
+                .consumed_along(states);
+        ASSERT_EQ(consumed_axes.size(), states.size()) << case_name;
+
+        axes_type consumed;
+        for (const auto& state_axes : consumed_axes) {
+          consumed.insert(consumed.end(), state_axes.begin(), state_axes.end());
+        }
+        std::sort(consumed.begin(), consumed.end());
+        auto ref_axes = axes;
+        std::sort(ref_axes.begin(), ref_axes.end());
+        EXPECT_EQ(consumed, ref_axes) << case_name;
+        EXPECT_EQ(states.back().m_remaining, 0u) << case_name;
       }
     }
   }
