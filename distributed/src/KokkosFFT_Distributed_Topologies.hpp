@@ -688,13 +688,13 @@ struct PencilStateHash {
 /// topology can only be reached after all axes have been satisfied. A
 /// breadth-first search is used, so the returned path has the minimum number
 /// of transposes. A candidate topology is rejected if any extent would be
-/// smaller than the number of processes along that dimension.
+/// smaller than the number of processes along that dimension. The extents are
+/// gin_extents until the first axis is consumed, and gout_extents afterwards.
 ///
-/// If the input does not already satisfy all axes, the first exchange must
-/// consume at least one axis, so that the first transpose is always
-/// followed by an FFT. For example, with axes = {2},
-///   OK: (1, Px, Py) -> (Py, Px, 1) -> (1, Px, Py) -> (Px, 1, Py)
-///   NG: (1, Px, Py) -> (Px, 1, Py) -> (Px, Py, 1) -> (Px, 1, Py)
+/// Several transposes may precede the first FFT. For example, with
+/// axes = {2}, the minimal path from (1, Px, Py) to (Px, Py, 1) is
+///   (1, Px, Py) -> (Px, 1, Py) -> (Px, Py, 1)
+/// and the FFT is performed on the output topology after two transposes.
 ///
 /// Example: 3D case, LayoutRight
 /// In topology: (1, Px, Py)
@@ -710,7 +710,8 @@ struct PencilStateHash {
 /// \tparam DIM The dimensionality of the topologies.
 /// \tparam InLayoutType The layout type of the input topology.
 /// \tparam OutLayoutType The layout type of the output topology.
-/// \param[in] extents The global extents of the multidimensional array.
+/// \param[in] gin_extents The global input extents.
+/// \param[in] gout_extents The global output extents.
 /// \param[in] in_topology The input pencil topology.
 /// \param[in] out_topology The output pencil topology.
 /// \param[in] axes The FFT axes, each of which must be undistributed at some
@@ -722,7 +723,8 @@ struct PencilStateHash {
 template <typename iType, std::size_t DIM, typename InLayoutType,
           typename OutLayoutType>
 std::vector<PencilState> find_minimal_path(
-    const std::array<std::size_t, DIM>& extents,
+    const std::array<std::size_t, DIM>& gin_extents,
+    const std::array<std::size_t, DIM>& gout_extents,
     const Topology<std::size_t, DIM, InLayoutType>& in_topology,
     const Topology<std::size_t, DIM, OutLayoutType>& out_topology,
     const std::vector<iType>& axes) {
@@ -745,7 +747,8 @@ std::vector<PencilState> find_minimal_path(
   };
 
   // Every candidate arrangement must satisfy S[i] / temp[i] > 0.
-  auto valid = [&](std::size_t p0_pos, std::size_t p1_pos) {
+  auto valid = [&](const std::array<std::size_t, DIM>& extents,
+                   std::size_t p0_pos, std::size_t p1_pos) {
     for (std::size_t i = 0; i < DIM; ++i) {
       const std::size_t value = (i == p0_pos)   ? p0
                                 : (i == p1_pos) ? p1
@@ -776,19 +779,19 @@ std::vector<PencilState> find_minimal_path(
       break;
     }
 
+    // No FFT has been performed until the first axis is consumed.
+    const auto& extents = progress.none_consumed(current.m_remaining)
+                              ? gin_extents
+                              : gout_extents;
+
     auto try_state = [&](std::size_t next_p0, std::size_t next_p1) {
-      if (!valid(next_p0, next_p1)) return;
+      if (!valid(extents, next_p0, next_p1)) return;
 
       const auto temp = make_array(next_p0, next_p1);
 
       // Conditions are processed whenever a new state is reached.
       const std::size_t next_remaining =
           progress.advance(temp, current.m_remaining);
-
-      // The first exchange from the input must consume at least one axis.
-      if (current == in && in.m_remaining > 0 &&
-          next_remaining == current.m_remaining)
-        return;
 
       const PencilState next{next_p0, next_p1, p0, p1, next_remaining};
       if (visited.insert(next).second) {
@@ -895,8 +898,8 @@ auto get_all_pencil_topologies(
                      "Input and output extents must not include 0.");
 
   auto current_axes = KokkosFFT::Impl::to_vector(axes);
-  auto all_states =
-      find_minimal_path(gout_extents, in_topology, out_topology, current_axes);
+  auto all_states   = find_minimal_path(gin_extents, gout_extents, in_topology,
+                                        out_topology, current_axes);
 
   topologies_type all_topologies;
   trans_axes_type all_trans_axes;

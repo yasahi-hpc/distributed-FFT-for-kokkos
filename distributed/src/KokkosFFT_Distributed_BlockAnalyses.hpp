@@ -179,21 +179,29 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
             is_last ? std::vector<iType>{} : all_axes.at(block_idx + 1);
         if (block_infos.empty()) {
           auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-          // If the transpose is the first block, the fft block must follow it.
+          // If the transpose is the first block, an fft block must follow it.
           return propose_transpose_block<BlockInfoType, LayoutType>(
               src_map, current_topology, next_topology, in_extents, gin_extents,
               next_axes, rank, true, false, in_axis, out_axis, 0, 0,
               size_factor);
-        } else {
-          auto in_map     = block_infos.back().m_out_map;
-          auto in_extents = block_infos.back().m_out_extents;
-
-          // There must be FFT block before this, so the data must be in complex
-          return propose_transpose_block<BlockInfoType, LayoutType>(
-              in_map, current_topology, next_topology, in_extents, gout_extents,
-              next_axes, rank, true, is_last, in_axis, out_axis, 0,
-              nb_trans_blocks, 2);
         }
+
+        auto in_map     = block_infos.back().m_out_map;
+        auto in_extents = block_infos.back().m_out_extents;
+        if (count_blocks(block_infos, BlockType::FFT) == 0) {
+          // No FFT has been performed yet: the data still has the input
+          // extents and value type, and an fft block must follow.
+          return propose_transpose_block<BlockInfoType, LayoutType>(
+              in_map, current_topology, next_topology, in_extents, gin_extents,
+              next_axes, rank, true, false, in_axis, out_axis, 0,
+              nb_trans_blocks, size_factor);
+        }
+
+        // There is an FFT block before this, so the data must be in complex
+        return propose_transpose_block<BlockInfoType, LayoutType>(
+            in_map, current_topology, next_topology, in_extents, gout_extents,
+            next_axes, rank, true, is_last, in_axis, out_axis, 0,
+            nb_trans_blocks, 2);
       };
 
   using BlockVectorType = std::vector<std::tuple<BlockInfoType, std::size_t>>;
@@ -307,21 +315,29 @@ auto propose_block(const std::array<std::size_t, DIM>& in_extents,
         bool is_layout_right = all_layouts.at(nb_trans_blocks + 1);
         if (block_infos.empty()) {
           auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-          // If the transpose is the first block, the fft block must follow it.
+          // If the transpose is the first block, an fft block must follow it.
           return propose_transpose_block<BlockInfoType, LayoutType>(
               src_map, current_topology, next_topology, in_extents, gin_extents,
               next_axes, rank, is_layout_right, false, in_axis, out_axis,
               comm_axis, 0, size_factor);
-        } else {
-          auto in_map     = block_infos.back().m_out_map;
-          auto in_extents = block_infos.back().m_out_extents;
-
-          // There must be FFT block before this, so the data must be in complex
-          return propose_transpose_block<BlockInfoType, LayoutType>(
-              in_map, current_topology, next_topology, in_extents, gout_extents,
-              next_axes, rank, is_layout_right, is_last, in_axis, out_axis,
-              comm_axis, nb_trans_blocks, 2);
         }
+
+        auto in_map     = block_infos.back().m_out_map;
+        auto in_extents = block_infos.back().m_out_extents;
+        if (count_blocks(block_infos, BlockType::FFT) == 0) {
+          // No FFT has been performed yet: the data still has the input
+          // extents and value type, and an fft block must follow.
+          return propose_transpose_block<BlockInfoType, LayoutType>(
+              in_map, current_topology, next_topology, in_extents, gin_extents,
+              next_axes, rank, is_layout_right, false, in_axis, out_axis,
+              comm_axis, nb_trans_blocks, size_factor);
+        }
+
+        // There is an FFT block before this, so the data must be in complex
+        return propose_transpose_block<BlockInfoType, LayoutType>(
+            in_map, current_topology, next_topology, in_extents, gout_extents,
+            next_axes, rank, is_layout_right, is_last, in_axis, out_axis,
+            comm_axis, nb_trans_blocks, 2);
       };
 
   using BlockVectorType = std::vector<std::tuple<BlockInfoType, std::size_t>>;
