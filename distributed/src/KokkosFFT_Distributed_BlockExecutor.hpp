@@ -152,7 +152,9 @@ class BlockExecutor {
   }
 
   /// \brief Forward FFT
-  /// \tparam CommsType Callable returning the communicator for a comm axis
+  /// \tparam CommsType Communicators of the transposes (SlabComms,
+  /// PencilComms or SharedComms): a callable returning the communicator for a
+  /// comm axis, with a static has_communication flag
   /// \param[in] comms The communicators of the transposes
   /// \param[in] in Input view
   /// \param[out] out Output view
@@ -165,7 +167,9 @@ class BlockExecutor {
   }
 
   /// \brief Backward FFT
-  /// \tparam CommsType Callable returning the communicator for a comm axis
+  /// \tparam CommsType Communicators of the transposes (SlabComms,
+  /// PencilComms or SharedComms): a callable returning the communicator for a
+  /// comm axis, with a static has_communication flag
   /// \param[in] comms The communicators of the transposes
   /// \param[in] out Input view of the backward FFT
   /// \param[out] in Output view of the backward FFT
@@ -263,10 +267,18 @@ class BlockExecutor {
                KokkosFFT::Direction direction) const {
     const bool is_forward = direction == KokkosFFT::Direction::forward;
     if (step.m_type == BlockType::Transpose) {
-      if (step.m_src.m_is_input_type) {
-        transpose<InViewType>(step, comms, in, out, direction);
+      // Communicators without communication (SharedComms) cannot run a
+      // transpose, and the transpose path is not even compiled for them.
+      if constexpr (CommsType::has_communication) {
+        if (step.m_src.m_is_input_type) {
+          transpose<InViewType>(step, comms, in, out, direction);
+        } else {
+          transpose<OutViewType>(step, comms, in, out, direction);
+        }
       } else {
-        transpose<OutViewType>(step, comms, in, out, direction);
+        KOKKOSFFT_THROW_IF(true,
+                           "BlockExecutor: a transpose block cannot be "
+                           "executed without communication");
       }
     } else if (step.m_sub_idx == 0) {
       auto src   = get_view<InViewType>(step.m_src, in, out);

@@ -1,4 +1,5 @@
 #include <array>
+#include <mpi.h>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -8,6 +9,8 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Schedule.hpp"
+#include "KokkosFFT_Distributed_BlockExecutor.hpp"
+#include "KokkosFFT_Distributed_DistributedInternalPlan.hpp"
 
 namespace {
 constexpr std::size_t DIM = 3;
@@ -278,6 +281,34 @@ void test_schedule_invalid_blocks() {
       std::runtime_error);
 }
 
+// A plan without communication (SharedComms) must never execute a transpose:
+// BlockExecutor throws instead of compiling the transpose path for it
+void test_transpose_without_communication() {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using ViewType = Kokkos::View<Kokkos::complex<double>***, Kokkos::LayoutRight,
+                                execution_space>;
+  using ExecutorType =
+      KokkosFFT::Distributed::Impl::BlockExecutor<execution_space, ViewType,
+                                                  ViewType>;
+  using CommsType = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
+
+  BlockInfoType transpose    = trans_block(e0, e0);
+  transpose.m_buffer_extents = {1, 8, 6, 4};
+  transpose.m_in_map         = identity_map;
+  transpose.m_out_map        = identity_map;
+  BlockInfoType fft          = fft_block(e0, e0);
+  fft.m_fft_dim              = 1;
+
+  execution_space exec;
+  const std::size_t max_buffer_size = 8 * 6 * 4 * 2;
+  ExecutorType executor(exec, {transpose, fft}, max_buffer_size);
+  CommsType comms(exec, extents_type{1, 1, 1}, MPI_COMM_WORLD);
+
+  ViewType in("in", 8, 6, 4), out("out", 8, 6, 4);
+  EXPECT_THROW({ executor.forward(comms, in, out); }, std::runtime_error);
+  EXPECT_THROW({ executor.backward(comms, out, in); }, std::runtime_error);
+}
+
 }  // namespace
 
 TEST(TestSchedule, FFT) { test_schedule_fft(); }
@@ -299,3 +330,7 @@ TEST(TestSchedule, FFTTransTransFFT) { test_schedule_fft_trans_trans_fft(); }
 TEST(TestSchedule, ThreeFFTs) { test_schedule_three_ffts(); }
 TEST(TestSchedule, TransTransFFT) { test_schedule_trans_trans_fft(); }
 TEST(TestSchedule, InvalidBlocks) { test_schedule_invalid_blocks(); }
+
+TEST(TestBlockExecutor, TransposeWithoutCommunication) {
+  test_transpose_without_communication();
+}

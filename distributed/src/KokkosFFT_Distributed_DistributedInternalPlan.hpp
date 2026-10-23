@@ -76,6 +76,9 @@ class SlabComms {
  public:
   using CommType = TplComm<ExecutionSpace>;
 
+  //! The transposes of a slab plan communicate
+  static constexpr bool has_communication = true;
+
  private:
   CommType m_comm;
 
@@ -100,6 +103,9 @@ template <typename ExecutionSpace>
 class PencilComms {
  public:
   using CommType = TplComm<ExecutionSpace>;
+
+  //! The transposes of a pencil plan communicate
+  static constexpr bool has_communication = true;
 
  private:
   MPI_Comm m_cart_comm;
@@ -136,6 +142,25 @@ class PencilComms {
   }
 };
 
+/// \brief Communicators of a plan without communication. Every FFT axis is
+/// local, so the plan has no transpose block and never exchanges data between
+/// ranks. It holds no MPI communicator, and BlockExecutor does not compile the
+/// transpose path for it (has_communication is false).
+/// \tparam ExecutionSpace Kokkos execution space type
+template <typename ExecutionSpace>
+class SharedComms {
+ public:
+  //! No transpose block may be executed with these communicators
+  static constexpr bool has_communication = false;
+
+  /// \param[in] exec_space Kokkos execution space (unused)
+  /// \param[in] topology The input topology (unused)
+  /// \param[in] comm MPI communicator (unused)
+  template <typename TopologyType>
+  SharedComms(const ExecutionSpace& /*exec_space*/,
+              const TopologyType& /*topology*/, const MPI_Comm& /*comm*/) {}
+};
+
 /// \brief Internal plan of a distributed FFT: analyses the topologies into
 /// blocks and runs them with a BlockExecutor. Slab and pencil
 /// decompositions differ only in the block analyses, the communicators and
@@ -147,8 +172,8 @@ class PencilComms {
 /// \tparam OutViewType Output Kokkos view type
 /// \tparam FFT_DIM Number of FFT dimensions
 /// \tparam BlockAnalysesType Type of the block analyses (slab or pencil)
-/// \tparam CommsType Communicators of the transposes (SlabComms or
-/// PencilComms)
+/// \tparam CommsType Communicators of the transposes (SlabComms, PencilComms
+/// or SharedComms)
 /// \tparam InTopologyType Type of the input topology
 /// \tparam OutTopologyType Type of the output topology
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
