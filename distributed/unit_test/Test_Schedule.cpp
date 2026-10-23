@@ -7,10 +7,12 @@
 #include <gtest/gtest.h>
 
 #include <Kokkos_Core.hpp>
+#include <Kokkos_Random.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Schedule.hpp"
 #include "KokkosFFT_Distributed_BlockExecutor.hpp"
 #include "KokkosFFT_Distributed_DistributedInternalPlan.hpp"
+#include "Test_Utils.hpp"
 
 namespace {
 constexpr std::size_t DIM = 3;
@@ -300,13 +302,58 @@ void test_transpose_without_communication() {
   fft.m_fft_dim              = 1;
 
   execution_space exec;
+  ViewType in("in", 8, 6, 4), out("out", 8, 6, 4);
   const std::size_t max_buffer_size = 8 * 6 * 4 * 2;
-  ExecutorType executor(exec, {transpose, fft}, max_buffer_size);
+  ExecutorType executor(exec, in, out, {transpose, fft}, max_buffer_size);
   CommsType comms(exec, extents_type{1, 1, 1}, MPI_COMM_WORLD);
 
-  ViewType in("in", 8, 6, 4), out("out", 8, 6, 4);
   EXPECT_THROW({ executor.forward(comms, in, out); }, std::runtime_error);
   EXPECT_THROW({ executor.backward(comms, out, in); }, std::runtime_error);
+}
+
+// A single FFT block without local transposes uses neither the send nor the
+// receive buffer: they are not allocated, and the FFT plans are made on the
+// input and output Views. With a local transpose (permuted map), the buffers
+// are allocated for the scratch views.
+void test_executor_without_buffers() {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using ViewType = Kokkos::View<Kokkos::complex<double>***, Kokkos::LayoutRight,
+                                execution_space>;
+  using ExecutorType =
+      KokkosFFT::Distributed::Impl::BlockExecutor<execution_space, ViewType,
+                                                  ViewType>;
+  using CommsType = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
+
+  execution_space exec;
+  CommsType comms(exec, extents_type{1, 1, 1}, MPI_COMM_WORLD);
+  const std::size_t max_buffer_size = 8 * 6 * 4 * 2;
+
+  // FFT over the last axis of a LayoutRight View: no local transpose
+  BlockInfoType fft = fft_block(e0, e0);
+  fft.m_fft_dim     = 1;
+
+  ViewType in("in", 8, 6, 4), out("out", 8, 6, 4), ref("ref", 8, 6, 4),
+      inv("inv", 8, 6, 4);
+  Kokkos::Random_XorShift64_Pool<> random_pool(12345);
+  Kokkos::fill_random(in, random_pool, Kokkos::complex<double>(1.0, 1.0));
+
+  ExecutorType executor(exec, in, out, {fft}, max_buffer_size);
+  EXPECT_EQ(executor.buffer_size(), std::size_t(0));
+
+  executor.forward(comms, in, out);
+  KokkosFFT::fft(exec, in, ref, KokkosFFT::Normalization::none, -1);
+  EXPECT_TRUE(allclose(exec, out, ref));
+
+  executor.backward(comms, out, inv);
+  KokkosFFT::ifft(exec, out, ref, KokkosFFT::Normalization::none, -1);
+  EXPECT_TRUE(allclose(exec, inv, ref));
+
+  // With a local transpose, the buffers are needed as scratch
+  BlockInfoType fft_permuted = fft_block(e0, e0, permuted_map);
+  fft_permuted.m_fft_dim     = 1;
+  ExecutorType executor_permuted(exec, in, out, {fft_permuted},
+                                 max_buffer_size);
+  EXPECT_EQ(executor_permuted.buffer_size(), max_buffer_size / 2);
 }
 
 }  // namespace
@@ -334,3 +381,5 @@ TEST(TestSchedule, InvalidBlocks) { test_schedule_invalid_blocks(); }
 TEST(TestBlockExecutor, TransposeWithoutCommunication) {
   test_transpose_without_communication();
 }
+
+TEST(TestBlockExecutor, WithoutBuffers) { test_executor_without_buffers(); }

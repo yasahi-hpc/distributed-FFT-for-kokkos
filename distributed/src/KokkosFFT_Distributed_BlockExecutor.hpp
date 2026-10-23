@@ -89,15 +89,23 @@ class BlockExecutor {
  public:
   /// \brief BlockExecutor constructor
   /// \param[in] exec_space Kokkos execution space
+  /// \param[in] in Input view of the plan
+  /// \param[in] out Output view of the plan
   /// \param[in] block_infos The blocks of the plan
   /// \param[in] max_buffer_size The size of the send and receive buffers in
-  /// the number of real values
-  explicit BlockExecutor(const ExecutionSpace& exec_space,
+  /// the number of real values. The buffers are only allocated if the
+  /// schedule uses them.
+  explicit BlockExecutor(const ExecutionSpace& exec_space, const InViewType& in,
+                         const OutViewType& out,
                          const std::vector<BlockInfoType>& block_infos,
                          std::size_t max_buffer_size)
       : m_exec_space(exec_space), m_schedule(build_schedule(block_infos)) {
-    // Allocate buffer views
-    std::size_t complex_alloc_size = (max_buffer_size + 1) / 2;
+    // Allocate buffer views. A plan made of a single FFT block without
+    // local transposes, e.g. a SharedPlan whose FFT axes are already the
+    // last ones, uses neither buffer.
+    const bool uses_buffers = schedule_uses_buffers();
+    std::size_t complex_alloc_size =
+        uses_buffers ? (max_buffer_size + 1) / 2 : 0;
     m_send_buffer_allocation =
         AllocationViewType("send_buffer_allocation", complex_alloc_size);
     m_recv_buffer_allocation =
@@ -124,13 +132,25 @@ class BlockExecutor {
       };
 
       if (step.m_sub_idx == 0) {
-        // The first FFT is out-of-place
-        auto in_T = buffer_view<InViewType>(
-            ViewSpecType{BufferId::Send, block.m_in_extents, true});
-        auto out_T = buffer_view<OutViewType>(
-            ViewSpecType{BufferId::Recv, block.m_out_extents, false});
-        m_fft_stage0 = std::make_unique<FFTStageType0>(m_exec_space, in_T,
-                                                       out_T, block.m_fft_dim);
+        // The first FFT is out-of-place. Its plans are made on views on the
+        // buffers, or, if the buffers are not allocated, on the input and
+        // output Views, which then have the extents of the block.
+        if (uses_buffers) {
+          auto in_T = buffer_view<InViewType>(
+              ViewSpecType{BufferId::Send, block.m_in_extents, true});
+          auto out_T = buffer_view<OutViewType>(
+              ViewSpecType{BufferId::Recv, block.m_out_extents, false});
+          m_fft_stage0 = std::make_unique<FFTStageType0>(
+              m_exec_space, in_T, out_T, block.m_fft_dim);
+        } else {
+          KOKKOSFFT_THROW_IF(
+              KokkosFFT::Impl::extract_extents(in) != block.m_in_extents ||
+                  KokkosFFT::Impl::extract_extents(out) != block.m_out_extents,
+              "BlockExecutor: without buffers, the FFT block must have the "
+              "extents of the input and output Views");
+          m_fft_stage0 = std::make_unique<FFTStageType0>(m_exec_space, in, out,
+                                                         block.m_fft_dim);
+        }
         set_maps(*m_fft_stage0);
       } else {
         // The following FFTs are in-place. If the FFT runs on the output
@@ -181,9 +201,26 @@ class BlockExecutor {
     }
   }
 
+  /// \brief The size of each of the send and receive buffers, in complex
+  /// values. 0 if the schedule does not use them.
+  std::size_t buffer_size() const { return m_send_buffer_allocation.size(); }
+
  private:
   static bool is_buffer(BufferId id) {
     return id == BufferId::Send || id == BufferId::Recv;
+  }
+
+  /// \brief Whether a view or a scratch view of the schedule lives in the
+  /// send or receive buffer
+  bool schedule_uses_buffers() const {
+    for (const auto& step : m_schedule) {
+      if (is_buffer(step.m_src.m_id) || is_buffer(step.m_dst.m_id)) {
+        return true;
+      }
+      if (step.m_src_T && is_buffer(step.m_src_T->m_id)) return true;
+      if (step.m_dst_T && is_buffer(step.m_dst_T->m_id)) return true;
+    }
+    return false;
   }
 
   /// \brief Check that the views of a step fit into the buffers

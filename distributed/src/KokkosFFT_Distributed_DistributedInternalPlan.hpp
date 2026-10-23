@@ -230,7 +230,7 @@ class DistributedInternalPlan {
                            std::to_string(nb_fft_dims));
 
     m_executor = std::make_unique<BlockExecutorType>(
-        m_exec_space, m_block_analyses->m_block_infos,
+        m_exec_space, in, out, m_block_analyses->m_block_infos,
         m_block_analyses->m_max_buffer_size);
   }
 
