@@ -515,6 +515,125 @@ void test_slab_analyses_without_transpose() {
             (is_R2C ? std::size_t(216) : std::size_t(384)) * 2);
 }
 
+/// \brief Test SharedBlockAnalysesInternal, where every FFT axis is local and
+/// no data is exchanged between the ranks.
+///
+/// 1. Shared topology (1, 1, 1), axes (2): a single FFT block on the global
+///    extents, whose extents are permuted with the map bringing the FFT axis
+///    innermost.
+/// 2. Batch-distributed topology (4, 1, 1), axes (2): the same single FFT
+///    block as proposed by SlabBlockAnalysesInternal, which has no transpose
+///    either for these topologies.
+///
+/// \tparam ValueType Value type of the input data (real for R2C)
+/// \tparam LayoutType Layout of the Input/Output Views
+template <typename ValueType, typename LayoutType>
+void test_shared_analyses() {
+  constexpr std::size_t DIM = 3, FFT_DIM = 1;
+  using extents_type = std::array<std::size_t, DIM>;
+  using axes_type    = std::array<std::size_t, FFT_DIM>;
+  using SharedAnalysesType =
+      KokkosFFT::Distributed::Impl::SharedBlockAnalysesInternal<
+          ValueType, LayoutType, std::size_t, DIM, FFT_DIM>;
+  using SlabAnalysesType =
+      KokkosFFT::Distributed::Impl::SlabBlockAnalysesInternal<
+          ValueType, LayoutType, std::size_t, DIM, FFT_DIM>;
+
+  constexpr bool is_left = std::is_same_v<LayoutType, Kokkos::LayoutLeft>;
+  constexpr bool is_R2C  = KokkosFFT::Impl::is_real_v<ValueType>;
+
+  axes_type axes{2};
+  extents_type gin_extents{8, 12, 16};
+  extents_type gout_extents{8, 12, is_R2C ? 9u : 16u};
+
+  // 1. Shared topology: the local extents are the global extents. This
+  // topology describes a single rank (as chosen by the plan factory), so the
+  // case is only run with one rank. The condition is the same on all ranks,
+  // which keeps the MPI collectives of the case 2 matched.
+  int nprocs;
+  ::MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  if (nprocs == 1) {
+    extents_type shared_topology{1, 1, 1};
+    SharedAnalysesType analyses(gin_extents, gin_extents, gout_extents,
+                                shared_topology, shared_topology, axes,
+                                MPI_COMM_WORLD);
+
+    EXPECT_EQ(analyses.m_block_infos.size(), std::size_t(1));
+    auto block = analyses.m_block_infos.at(0);
+
+    EXPECT_EQ(block.m_block_type, KokkosFFT::Distributed::Impl::BlockType::FFT);
+    EXPECT_EQ(block.m_fft_dim, std::size_t(1));
+    EXPECT_EQ(block.m_block_idx, std::size_t(0));
+    EXPECT_EQ(block.m_in_map, block.m_out_map);
+    EXPECT_TRUE(is_permutation(block.m_in_map));
+
+    // The map must bring the FFT axis to the innermost position
+    std::size_t innermost =
+        is_left ? block.m_in_map.front() : block.m_in_map.back();
+    EXPECT_EQ(innermost, std::size_t(2));
+
+    // The extents are the global extents permuted with the map of the block
+    EXPECT_EQ(block.m_in_extents, KokkosFFT::Impl::compute_mapped_extents(
+                                      gin_extents, block.m_in_map));
+    EXPECT_EQ(block.m_out_extents, KokkosFFT::Impl::compute_mapped_extents(
+                                       gout_extents, block.m_out_map));
+
+    // 8 * 12 * 16 (or 8 * 12 * 9 for R2C) complex numbers
+    EXPECT_EQ(analyses.m_max_buffer_size,
+              (is_R2C ? std::size_t(864) : std::size_t(1536)) * 2);
+  }
+
+  // 2. Batch-distributed topology: same block as the slab analyses
+  extents_type batch_topology{4, 1, 1};
+  extents_type in_extents{2, 12, 16};
+  SharedAnalysesType batch_analyses(in_extents, gin_extents, gout_extents,
+                                    batch_topology, batch_topology, axes,
+                                    MPI_COMM_WORLD);
+  SlabAnalysesType slab_analyses(in_extents, gin_extents, gout_extents,
+                                 batch_topology, batch_topology, axes,
+                                 MPI_COMM_WORLD);
+
+  EXPECT_EQ(batch_analyses.m_block_infos, slab_analyses.m_block_infos);
+  EXPECT_EQ(batch_analyses.m_max_buffer_size, slab_analyses.m_max_buffer_size);
+}
+
+/// \brief SharedBlockAnalysesInternal must fail if the input and output
+/// topologies differ or if they are distributed along an FFT axis.
+/// \tparam LayoutType Layout of the Input/Output Views
+template <typename LayoutType>
+void test_shared_analyses_invalid_topologies() {
+  constexpr std::size_t DIM = 3, FFT_DIM = 1;
+  using value_type   = Kokkos::complex<double>;
+  using extents_type = std::array<std::size_t, DIM>;
+  using axes_type    = std::array<std::size_t, FFT_DIM>;
+  using AnalysesType =
+      KokkosFFT::Distributed::Impl::SharedBlockAnalysesInternal<
+          value_type, LayoutType, std::size_t, DIM, FFT_DIM>;
+
+  axes_type axes{2};
+  extents_type gin_extents{8, 12, 16}, gout_extents{8, 12, 16};
+
+  // The input and output topologies differ
+  extents_type topology0{4, 1, 1}, topology1{1, 4, 1};
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] AnalysesType analyses(
+            extents_type{2, 12, 16}, gin_extents, gout_extents, topology0,
+            topology1, axes, MPI_COMM_WORLD);
+      },
+      std::runtime_error);
+
+  // The topologies are distributed along the FFT axis
+  extents_type topology2{1, 1, 4};
+  EXPECT_THROW(
+      {
+        [[maybe_unused]] AnalysesType analyses(
+            extents_type{8, 12, 4}, gin_extents, gout_extents, topology2,
+            topology2, axes, MPI_COMM_WORLD);
+      },
+      std::runtime_error);
+}
+
 /// \brief Test PencilBlockAnalysesInternal for a 1D FFT over the axis 2 of a 3D
 /// View, which is distributed over 8 processes.
 ///
@@ -877,6 +996,21 @@ TYPED_TEST(TestBlockAnalyses, pencil_analyses_2D_C2C) {
   using layout_type  = typename TestFixture::layout_type;
   using layout_type2 = typename TestFixture::layout_type2;
   test_pencil_analyses_2D<layout_type, layout_type2>();
+}
+
+TYPED_TEST(TestBlockAnalyses, shared_analyses_C2C) {
+  using layout_type = typename TestFixture::layout_type;
+  test_shared_analyses<Kokkos::complex<double>, layout_type>();
+}
+
+TYPED_TEST(TestBlockAnalyses, shared_analyses_R2C) {
+  using layout_type = typename TestFixture::layout_type;
+  test_shared_analyses<double, layout_type>();
+}
+
+TYPED_TEST(TestBlockAnalyses, shared_analyses_invalid_topologies) {
+  using layout_type = typename TestFixture::layout_type;
+  test_shared_analyses_invalid_topologies<layout_type>();
 }
 
 TYPED_TEST(TestBlockAnalyses, analyses_invalid_topologies) {
