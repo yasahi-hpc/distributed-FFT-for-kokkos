@@ -164,7 +164,7 @@ class SharedComms {
 /// \brief Internal plan of a distributed FFT: analyses the topologies into
 /// blocks and runs them with a BlockExecutor. Slab and pencil
 /// decompositions differ only in the block analyses, the communicators and
-/// the topology types; SlabInternalPlan and PencilInternalPlan are aliases of
+/// the topology types; SlabPlanExecutor and PencilPlanExecutor are aliases of
 /// this class.
 ///
 /// \tparam ExecutionSpace Kokkos execution space type
@@ -179,7 +179,7 @@ class SharedComms {
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t FFT_DIM, typename BlockAnalysesType, typename CommsType,
           typename InTopologyType, typename OutTopologyType>
-class DistributedInternalPlan {
+class BasePlanExecutor {
   static constexpr std::size_t DIM = InViewType::rank();
 
   using axes_type = KokkosFFT::axis_type<FFT_DIM>;
@@ -200,12 +200,12 @@ class DistributedInternalPlan {
   std::unique_ptr<BlockExecutorType> m_executor;
 
  public:
-  explicit DistributedInternalPlan(const ExecutionSpace& exec_space,
-                                   const InViewType& in, const OutViewType& out,
-                                   const axes_type& axes,
-                                   const InTopologyType& in_topology,
-                                   const OutTopologyType& out_topology,
-                                   const MPI_Comm& comm)
+  explicit BasePlanExecutor(const ExecutionSpace& exec_space,
+                            const InViewType& in, const OutViewType& out,
+                            const axes_type& axes,
+                            const InTopologyType& in_topology,
+                            const OutTopologyType& out_topology,
+                            const MPI_Comm& comm)
       : m_exec_space(exec_space), m_comms(exec_space, in_topology, comm) {
     // First get global shape to define buffer and next shape
     auto in_extents   = KokkosFFT::Impl::extract_extents(in);

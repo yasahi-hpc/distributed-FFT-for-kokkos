@@ -206,7 +206,7 @@ std::vector<AllocationViewType> allocate_fft_work_areas(
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-class InternalPlan {
+class BasePlan {
   using axes_type        = KokkosFFT::axis_type<DIM>;
   using extents_type     = KokkosFFT::shape_type<InViewType::rank()>;
   using fft_extents_type = KokkosFFT::shape_type<DIM>;
@@ -227,7 +227,7 @@ class InternalPlan {
   fft_extents_type m_fft_extents;
 
  public:
-  /// \brief InternalPlan constructor
+  /// \brief BasePlan constructor
   /// \param[in] exec_space Kokkos execution space
   /// \param[in] in Input Kokkos view
   /// \param[in] out Output Kokkos view
@@ -235,15 +235,15 @@ class InternalPlan {
   /// \param[in] in_topology Input topology in std::array
   /// \param[in] out_topology Output topology in std::array
   /// \param[in] comm MPI communicator
-  explicit InternalPlan(const ExecutionSpace& exec_space, const InViewType& in,
-                        const OutViewType& out, const axes_type& axes,
-                        const extents_type& in_topology,
-                        const extents_type& out_topology, const MPI_Comm& comm,
-                        KokkosFFT::Normalization norm)
-      : InternalPlan(exec_space, in, out, axes, in_topology, out_topology, comm,
-                     norm) {}
+  explicit BasePlan(const ExecutionSpace& exec_space, const InViewType& in,
+                    const OutViewType& out, const axes_type& axes,
+                    const extents_type& in_topology,
+                    const extents_type& out_topology, const MPI_Comm& comm,
+                    KokkosFFT::Normalization norm)
+      : BasePlan(exec_space, in, out, axes, in_topology, out_topology, comm,
+                 norm) {}
 
-  /// \brief InternalPlan constructor
+  /// \brief BasePlan constructor
   /// \param[in] exec_space Kokkos execution space
   /// \param[in] in Input Kokkos view
   /// \param[in] out Output Kokkos view
@@ -251,12 +251,11 @@ class InternalPlan {
   /// \param[in] in_topology Input topology
   /// \param[in] out_topology Output topology
   /// \param[in] comm MPI communicator
-  explicit InternalPlan(const ExecutionSpace& /*exec_space*/,
-                        const InViewType& in, const OutViewType& out,
-                        const axes_type& axes,
-                        const in_topology_type& in_topology,
-                        const out_topology_type& out_topology,
-                        const MPI_Comm& comm, KokkosFFT::Normalization norm)
+  explicit BasePlan(const ExecutionSpace& /*exec_space*/, const InViewType& in,
+                    const OutViewType& out, const axes_type& axes,
+                    const in_topology_type& in_topology,
+                    const out_topology_type& out_topology, const MPI_Comm& comm,
+                    KokkosFFT::Normalization norm)
       : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)),
         m_norm(norm) {
@@ -270,7 +269,7 @@ class InternalPlan {
         compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
   }
 
-  virtual ~InternalPlan() = default;
+  virtual ~BasePlan() = default;
 
   /// \brief Forward FFT operation
   /// \param[in] Input view

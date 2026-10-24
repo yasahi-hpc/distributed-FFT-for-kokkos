@@ -26,7 +26,7 @@ namespace Impl {
 /// \tparam FFT_DIM Number of FFT dimensions
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t FFT_DIM>
-using SharedInternalPlan = DistributedInternalPlan<
+using SharedPlanExecutor = BasePlanExecutor<
     ExecutionSpace, InViewType, OutViewType, FFT_DIM,
     SharedBlockAnalysesInternal<typename InViewType::non_const_value_type,
                                 typename InViewType::array_layout, std::size_t,
@@ -51,10 +51,10 @@ using SharedInternalPlan = DistributedInternalPlan<
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-class SharedPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
-                                       DIM, InLayoutType, OutLayoutType> {
+class SharedPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                                   InLayoutType, OutLayoutType> {
   using InternalPlanType =
-      SharedInternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
+      SharedPlanExecutor<ExecutionSpace, InViewType, OutViewType, DIM>;
   using extents_type = std::array<std::size_t, InViewType::rank()>;
   using in_topology_type =
       Topology<std::size_t, InViewType::rank(), InLayoutType>;
@@ -72,12 +72,12 @@ class SharedPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   InternalPlanType m_internal_plan;
 
   //! aliases to parents methods
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>::good;
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>::get_norm;
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>::get_fft_extents;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                 OutLayoutType>::good;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                 OutLayoutType>::get_norm;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                 OutLayoutType>::get_fft_extents;
 
  public:
   explicit SharedPlan(
@@ -100,9 +100,9 @@ class SharedPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       const in_topology_type& in_topology,
       const out_topology_type& out_topology, const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
-      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>(exec_space, in, out, axes, in_topology,
-                                    out_topology, comm, norm),
+      : BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                 OutLayoutType>(exec_space, in, out, axes, in_topology,
+                                out_topology, comm, norm),
         m_exec_space(exec_space),
         m_internal_plan(exec_space, in, out, axes, in_topology.array(),
                         out_topology.array(), comm) {}

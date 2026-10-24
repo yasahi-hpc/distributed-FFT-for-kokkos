@@ -38,7 +38,7 @@ namespace Impl {
 /// \tparam OutLayoutType Layout of the output topology
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t FFT_DIM, typename InLayoutType, typename OutLayoutType>
-using PencilInternalPlan = DistributedInternalPlan<
+using PencilPlanExecutor = BasePlanExecutor<
     ExecutionSpace, InViewType, OutViewType, FFT_DIM,
     PencilBlockAnalysesInternal<typename InViewType::non_const_value_type,
                                 typename InViewType::array_layout, std::size_t,
@@ -51,10 +51,10 @@ using PencilInternalPlan = DistributedInternalPlan<
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-class PencilPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
-                                       DIM, InLayoutType, OutLayoutType> {
+class PencilPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                                   InLayoutType, OutLayoutType> {
   using InternalPlanType =
-      PencilInternalPlan<ExecutionSpace, InViewType, OutViewType, DIM,
+      PencilPlanExecutor<ExecutionSpace, InViewType, OutViewType, DIM,
                          InLayoutType, OutLayoutType>;
   using extents_type = std::array<std::size_t, InViewType::rank()>;
   using in_topology_type =
@@ -78,12 +78,12 @@ class PencilPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   ///@}
 
   //! aliases to parents methods
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>::good;
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>::get_norm;
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>::get_fft_extents;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                 OutLayoutType>::good;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                 OutLayoutType>::get_norm;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                 OutLayoutType>::get_fft_extents;
 
  public:
   explicit PencilPlan(
@@ -103,9 +103,9 @@ class PencilPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       const in_topology_type& in_topology,
       const out_topology_type& out_topology, const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
-      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
-                     OutLayoutType>(exec_space, in, out, axes, in_topology,
-                                    out_topology, comm, norm),
+      : BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                 OutLayoutType>(exec_space, in, out, axes, in_topology,
+                                out_topology, comm, norm),
         m_exec_space(exec_space),
         m_internal_plan(exec_space, in, out, axes, in_topology, out_topology,
                         comm),

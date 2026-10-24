@@ -46,8 +46,8 @@ namespace Impl {
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-static std::unique_ptr<InternalPlan<ExecutionSpace, InViewType, OutViewType,
-                                    DIM, InLayoutType, OutLayoutType>>
+static std::unique_ptr<BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                                InLayoutType, OutLayoutType>>
 internal_plan_factory(
     const ExecutionSpace& exec_space, const InViewType& in,
     const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
@@ -126,7 +126,7 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           typename OutLayoutType = Kokkos::LayoutRight>
 class Plan {
   using InternalPlanType =
-      Impl::InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
+      Impl::BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>;
   using axes_type = KokkosFFT::axis_type<DIM>;
   using in_topology_type =
       Topology<std::size_t, InViewType::rank(), InLayoutType>;
