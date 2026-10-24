@@ -59,7 +59,7 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           typename OutLayoutType = Kokkos::LayoutRight>
 class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
                                  InLayoutType, OutLayoutType> {
-  using InternalPlanType =
+  using PlanExecutorType =
       SlabPlanExecutor<ExecutionSpace, InViewType, OutViewType, DIM>;
   using extents_type = std::array<std::size_t, InViewType::rank()>;
   using in_topology_type =
@@ -75,7 +75,7 @@ class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   ExecutionSpace m_exec_space;
 
   //! Internal plan
-  InternalPlanType m_internal_plan;
+  PlanExecutorType m_plan_executor;
 
   ///@{
   //! extents of in/out views
@@ -112,7 +112,7 @@ class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
                  OutLayoutType>(exec_space, in, out, axes, in_topology,
                                 out_topology, comm, norm),
         m_exec_space(exec_space),
-        m_internal_plan(exec_space, in, out, axes, in_topology.array(),
+        m_plan_executor(exec_space, in, out, axes, in_topology.array(),
                         out_topology.array(), comm),
         m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
@@ -130,7 +130,7 @@ class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
 
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
-    m_internal_plan.forward(in, out);
+    m_plan_executor.forward(in, out);
     KokkosFFT::Impl::normalize<normalization_float_type>(
         m_exec_space, out, KokkosFFT::Direction::forward, get_norm(),
         get_fft_extents());
@@ -138,7 +138,7 @@ class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
 
   void backward(const OutViewType& out, const InViewType& in) const override {
     good(in, out);
-    m_internal_plan.backward(out, in);
+    m_plan_executor.backward(out, in);
     KokkosFFT::Impl::normalize<normalization_float_type>(
         m_exec_space, in, KokkosFFT::Direction::backward, get_norm(),
         get_fft_extents());
