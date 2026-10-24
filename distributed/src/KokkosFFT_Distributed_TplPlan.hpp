@@ -1,6 +1,7 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_TPL_PLAN_HPP
 #define KOKKOSFFT_DISTRIBUTED_TPL_PLAN_HPP
 
+#include <memory>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Extents.hpp"

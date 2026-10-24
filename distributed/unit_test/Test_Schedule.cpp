@@ -11,7 +11,7 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Schedule.hpp"
 #include "KokkosFFT_Distributed_BlockExecutor.hpp"
-#include "KokkosFFT_Distributed_PlanExecutor.hpp"
+#include "KokkosFFT_Distributed_PlanComms.hpp"
 #include "Test_Utils.hpp"
 
 namespace {
