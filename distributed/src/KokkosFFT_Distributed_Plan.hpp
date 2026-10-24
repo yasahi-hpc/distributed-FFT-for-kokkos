@@ -8,7 +8,7 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
-#include "KokkosFFT_Distributed_InternalPlan.hpp"
+#include "KokkosFFT_Distributed_BasePlan.hpp"
 #include "KokkosFFT_Distributed_SharedPlan.hpp"
 #include "KokkosFFT_Distributed_SlabPlan.hpp"
 #include "KokkosFFT_Distributed_PencilPlan.hpp"
@@ -46,9 +46,9 @@ namespace Impl {
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-static std::unique_ptr<InternalPlan<ExecutionSpace, InViewType, OutViewType,
-                                    DIM, InLayoutType, OutLayoutType>>
-internal_plan_factory(
+static std::unique_ptr<BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                                InLayoutType, OutLayoutType>>
+plan_factory(
     const ExecutionSpace& exec_space, const InViewType& in,
     const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
     const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
@@ -125,8 +125,8 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 class Plan {
-  using InternalPlanType =
-      Impl::InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>;
+  using BasePlanType =
+      Impl::BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>;
   using axes_type = KokkosFFT::axis_type<DIM>;
   using in_topology_type =
       Topology<std::size_t, InViewType::rank(), InLayoutType>;
@@ -140,7 +140,7 @@ class Plan {
                 "Plan: the output type must be complex, while the input type "
                 "can be either real or complex");
 
-  std::unique_ptr<InternalPlanType> m_internal_plan;
+  std::unique_ptr<BasePlanType> m_plan;
 
  public:
   /// \brief Distributed FFT Plan constructor
@@ -176,27 +176,27 @@ class Plan {
       const in_topology_type& in_topology,
       const out_topology_type& out_topology, const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward) {
-    m_internal_plan = Impl::internal_plan_factory(
-        exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+    m_plan = Impl::plan_factory(exec_space, in, out, axes, in_topology,
+                                out_topology, comm, norm);
   }
 
   /// \brief Distributed FFT forward operation
   /// \param[in] in Input Kokkos view
   /// \param[out] out Output Kokkos view
   void forward_impl(const InViewType& in, const OutViewType& out) const {
-    m_internal_plan->forward(in, out);
+    m_plan->forward(in, out);
   }
 
   /// \brief Distributed FFT backward operation
   /// \param[in] out Output Kokkos view
   /// \param[out] in Input Kokkos view
   void backward_impl(const OutViewType& out, const InViewType& in) const {
-    m_internal_plan->backward(out, in);
+    m_plan->backward(out, in);
   }
 
   /// \brief Get the name of the plan implementation
   /// \return Name of the plan implementation
-  std::string name() const { return m_internal_plan->name(); }
+  std::string name() const { return m_plan->name(); }
 };
 
 /// \brief Distributed FFT execute function

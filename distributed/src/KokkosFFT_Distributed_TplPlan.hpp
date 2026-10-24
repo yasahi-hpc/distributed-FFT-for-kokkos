@@ -1,10 +1,11 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_TPL_PLAN_HPP
 #define KOKKOSFFT_DISTRIBUTED_TPL_PLAN_HPP
 
+#include <memory>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Extents.hpp"
-#include "KokkosFFT_Distributed_InternalPlan.hpp"
+#include "KokkosFFT_Distributed_BasePlan.hpp"
 
 #if defined(ENABLE_TPL_CUFFT_MP)
 #include "cuFFTMp/KokkosFFT_Distributed_CufftMp_Types.hpp"
@@ -25,8 +26,8 @@ namespace Impl {
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
-                                    DIM, InLayoutType, OutLayoutType> {
+class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                                InLayoutType, OutLayoutType> {
  private:
   using in_value_type  = typename InViewType::non_const_value_type;
   using out_value_type = typename OutViewType::non_const_value_type;
@@ -66,10 +67,9 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
   extents_type m_in_mapped_extents, m_out_mapped_extents;
   ///@}
 
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>::get_norm;
-  using InternalPlan<ExecutionSpace, InViewType, OutViewType,
-                     DIM>::get_fft_extents;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>::get_norm;
+  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>::get_fft_extents;
 
  public:
   explicit TplPlan(
@@ -89,7 +89,7 @@ class TplPlan : public InternalPlan<ExecutionSpace, InViewType, OutViewType,
       const in_topology_type& in_topology,
       const out_topology_type& out_topology, const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
-      : InternalPlan<ExecutionSpace, InViewType, OutViewType, DIM>(
+      : BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>(
             exec_space, in, out, axes, in_topology, out_topology, comm, norm),
         m_exec_space(exec_space),
         m_in_extents(KokkosFFT::Impl::extract_extents(in)),
