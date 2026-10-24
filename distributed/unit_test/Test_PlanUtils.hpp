@@ -259,6 +259,26 @@ void run_plan_case(const ExecutionSpace& exec, const InViewType& gu,
   ops.check(plan);
 }
 
+/// \brief Plan operations (see run_plan_cases) shared by the internal plans
+/// (SharedPlan, SlabPlan, PencilPlan), which are executed with their forward
+/// and backward member functions. Derived classes provide create.
+struct InternalPlanOps {
+  template <typename PlanType, typename InViewType, typename OutViewType>
+  void forward(const PlanType& plan, const InViewType& in,
+               const OutViewType& out) const {
+    plan.forward(in, out);
+  }
+
+  template <typename PlanType, typename InViewType, typename OutViewType>
+  void backward(const PlanType& plan, const OutViewType& out,
+                const InViewType& in) const {
+    plan.backward(out, in);
+  }
+
+  template <typename PlanType>
+  void check(const PlanType& /*plan*/) const {}
+};
+
 /// \brief Run the plan cases of a test.
 ///
 /// PlanOps provides:
