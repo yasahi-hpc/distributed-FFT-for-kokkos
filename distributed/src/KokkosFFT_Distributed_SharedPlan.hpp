@@ -13,7 +13,7 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief Internal plan without communication: every FFT axis is local
+/// \brief Plan executor without communication: every FFT axis is local
 ///
 /// The plan is a single FFT block without any transpose. The topologies may be
 /// distributed along the other (batch) axes, but no data is exchanged between
@@ -68,7 +68,7 @@ class SharedPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   //! Execution space
   ExecutionSpace m_exec_space;
 
-  //! Internal plan
+  //! Plan executor
   PlanExecutorType m_plan_executor;
 
   //! aliases to parents methods

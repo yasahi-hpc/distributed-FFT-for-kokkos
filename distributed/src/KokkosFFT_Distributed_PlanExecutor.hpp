@@ -161,11 +161,11 @@ class SharedComms {
               const TopologyType& /*topology*/, const MPI_Comm& /*comm*/) {}
 };
 
-/// \brief Internal plan of a distributed FFT: analyses the topologies into
+/// \brief Executor of a distributed FFT plan: analyses the topologies into
 /// blocks and runs them with a BlockExecutor. Slab and pencil
 /// decompositions differ only in the block analyses, the communicators and
-/// the topology types; SlabPlanExecutor and PencilPlanExecutor are aliases of
-/// this class.
+/// the topology types; SlabPlanExecutor, PencilPlanExecutor and
+/// SharedPlanExecutor are aliases of this class.
 ///
 /// \tparam ExecutionSpace Kokkos execution space type
 /// \tparam InViewType Input Kokkos view type

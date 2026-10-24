@@ -196,7 +196,7 @@ std::vector<AllocationViewType> allocate_fft_work_areas(
   return allocations;
 }
 
-/// \brief Internal plan class for distributed FFTs
+/// \brief Base class of the distributed FFT plans
 /// \tparam ExecutionSpace Kokkos execution space
 /// \tparam InViewType Input Kokkos view type
 /// \tparam OutViewType Output Kokkos view type

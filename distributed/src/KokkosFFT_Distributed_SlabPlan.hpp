@@ -20,7 +20,7 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief Internal plan with slab decomposition
+/// \brief Plan executor with slab decomposition
 ///
 /// FFT_DIM = 1:
 /// 1. 1D FFT
@@ -74,7 +74,7 @@ class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   //! Execution space
   ExecutionSpace m_exec_space;
 
-  //! Internal plan
+  //! Plan executor
   PlanExecutorType m_plan_executor;
 
   ///@{

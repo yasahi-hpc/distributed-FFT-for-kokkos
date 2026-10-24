@@ -20,7 +20,7 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief Internal plan with pencil decomposition
+/// \brief Plan executor with pencil decomposition
 ///
 /// FFT_DIM = 1:
 /// 1. 1D FFT
@@ -69,7 +69,7 @@ class PencilPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   //! Execution space
   ExecutionSpace m_exec_space;
 
-  //! Internal plan
+  //! Plan executor
   PlanExecutorType m_plan_executor;
 
   ///@{
