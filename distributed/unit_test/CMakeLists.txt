@@ -18,6 +18,7 @@ elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
         Test_SharedPlan.cpp
         Test_Plan.cpp
         Test_BlockAnalyses.cpp
+        Test_BlockAnalysesHelpers.cpp
         Test_Schedule.cpp
         Test_SlabPlan.cpp
         Test_PencilPlan.cpp
@@ -41,6 +42,7 @@ else()
         Test_SharedPlan.cpp
         Test_Plan.cpp
         Test_BlockAnalyses.cpp
+        Test_BlockAnalysesHelpers.cpp
         Test_Schedule.cpp
         Test_SlabPlan.cpp
         Test_PencilPlan.cpp
