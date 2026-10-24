@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <iostream>
 #include <mpi.h>
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
@@ -50,6 +52,24 @@ int main(int argc, char* argv[]) {
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
   if (provided != MPI_THREAD_MULTIPLE) {
     throw std::runtime_error("MPI_THREAD_MULTIPLE is needed");
+  }
+#endif
+
+#if defined(KOKKOSFFT_SERIAL_UNIT_TESTS)
+  // These tests do not use MPI. Running them with several processes would
+  // only repeat the same work on every process.
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  if (nprocs != 1) {
+    int world_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    if (world_rank == 0) {
+      std::cerr << "These tests do not use MPI and must be run with one "
+                   "process, but "
+                << nprocs << " processes are used" << std::endl;
+    }
+    MPI_Finalize();
+    return EXIT_FAILURE;
   }
 #endif
 
