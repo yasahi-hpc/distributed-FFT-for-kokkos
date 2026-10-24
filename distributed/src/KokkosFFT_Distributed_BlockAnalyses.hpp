@@ -520,6 +520,81 @@ struct PencilBlockAnalysesInternal {
   }
 };
 
+/// \brief SharedBlockAnalysesInternal struct
+/// For topologies where every FFT axis is local, the distributed FFT is a
+/// single FFT block without any transpose: no data is exchanged between the
+/// ranks. The input and output topologies must be identical and must not be
+/// distributed along any FFT axis. They may be distributed along the other
+/// (batch) axes.
+/// The FFT block is proposed by the slab propose_block, which handles an FFT
+/// on the input topology without transpose. Its maps make the FFT axes
+/// contiguous, so that the FFT stage can run a DynPlan on them.
+/// \tparam ValueType Value type for the FFT
+/// \tparam Layout Layout type for the Input/Output Views
+/// \tparam iType Integer type for axes
+/// \tparam DIM Dimension of the Input/Output Views
+/// \tparam FFT_DIM Number of FFT dimensions
+template <typename ValueType, typename Layout, typename iType, std::size_t DIM,
+          std::size_t FFT_DIM>
+struct SharedBlockAnalysesInternal {
+  using BlockInfoType = BlockInfo<DIM>;
+  using extents_type  = std::array<std::size_t, DIM>;
+  std::vector<BlockInfoType> m_block_infos;
+  std::size_t m_max_buffer_size;
+
+  /// \brief Constructor for SharedBlockAnalysesInternal
+  /// \param[in] in_extents Input extents
+  /// \param[in] gin_extents Global input extents
+  /// \param[in] gout_extents Global output extents
+  /// \param[in] in_topology Input topology
+  /// \param[in] out_topology Output topology
+  /// \param[in] axes Axes of the FFT
+  /// \param[in] comm MPI communicator (only used for the rank)
+  /// \throws std::runtime_error if the input and output topologies differ or
+  /// if they are distributed along an FFT axis
+  SharedBlockAnalysesInternal(const extents_type& in_extents,
+                              const extents_type& gin_extents,
+                              const extents_type& gout_extents,
+                              const extents_type& in_topology,
+                              const extents_type& out_topology,
+                              const std::array<iType, FFT_DIM>& axes,
+                              MPI_Comm comm) {
+    // Checked before any block is proposed: propose_block does not check
+    // that the FFT axes are local
+    KOKKOSFFT_THROW_IF(in_topology != out_topology,
+                       "in_topology must be identical to out_topology.");
+    for (auto axis : axes) {
+      KOKKOSFFT_THROW_IF(
+          in_topology.at(axis) != 1,
+          "in/out_topology must not be distributed along an FFT axis.");
+    }
+
+    auto [map, map_inv] = KokkosFFT::Impl::get_map_axes<Layout, DIM>(axes);
+
+    // A single topology, on which all the FFT axes are ready
+    std::vector<extents_type> all_topologies = {in_topology};
+    std::vector<std::vector<iType>> all_axes = {
+        KokkosFFT::Impl::to_vector(axes)};
+
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    auto blocks = propose_block<BlockInfoType, ValueType, Layout, FFT_DIM>(
+        in_extents, gin_extents, gout_extents, m_block_infos, all_topologies,
+        all_axes, map, rank, /*block_idx=*/0);
+    KOKKOSFFT_THROW_IF(blocks.size() != 1,
+                       "SharedBlockAnalysesInternal: a single FFT block is "
+                       "expected");
+
+    auto [block, max_buffer_size] = blocks.at(0);
+    m_block_infos.push_back(block);
+
+    // The buffers are only local scratch for the local transposes and are
+    // never exchanged, so the local maximum is enough (no MPI reduction)
+    m_max_buffer_size = max_buffer_size;
+  }
+};
+
 }  // namespace Impl
 }  // namespace Distributed
 }  // namespace KokkosFFT
