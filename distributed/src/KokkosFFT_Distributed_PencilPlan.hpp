@@ -13,8 +13,8 @@
 #include "KokkosFFT_Distributed_Extents.hpp"
 #include "KokkosFFT_Distributed_Topologies.hpp"
 #include "KokkosFFT_Distributed_BlockAnalyses.hpp"
-#include "KokkosFFT_Distributed_InternalPlan.hpp"
-#include "KokkosFFT_Distributed_DistributedInternalPlan.hpp"
+#include "KokkosFFT_Distributed_BasePlan.hpp"
+#include "KokkosFFT_Distributed_PlanExecutor.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {

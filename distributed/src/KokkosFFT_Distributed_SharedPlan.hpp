@@ -6,8 +6,8 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Types.hpp"
 #include "KokkosFFT_Distributed_BlockAnalyses.hpp"
-#include "KokkosFFT_Distributed_InternalPlan.hpp"
-#include "KokkosFFT_Distributed_DistributedInternalPlan.hpp"
+#include "KokkosFFT_Distributed_BasePlan.hpp"
+#include "KokkosFFT_Distributed_PlanExecutor.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {

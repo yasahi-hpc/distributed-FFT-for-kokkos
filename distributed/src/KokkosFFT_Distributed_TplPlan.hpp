@@ -4,7 +4,7 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Extents.hpp"
-#include "KokkosFFT_Distributed_InternalPlan.hpp"
+#include "KokkosFFT_Distributed_BasePlan.hpp"
 
 #if defined(ENABLE_TPL_CUFFT_MP)
 #include "cuFFTMp/KokkosFFT_Distributed_CufftMp_Types.hpp"

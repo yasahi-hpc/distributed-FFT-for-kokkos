@@ -8,7 +8,7 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
-#include "KokkosFFT_Distributed_InternalPlan.hpp"
+#include "KokkosFFT_Distributed_BasePlan.hpp"
 #include "KokkosFFT_Distributed_SharedPlan.hpp"
 #include "KokkosFFT_Distributed_SlabPlan.hpp"
 #include "KokkosFFT_Distributed_PencilPlan.hpp"

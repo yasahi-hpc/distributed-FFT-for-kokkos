@@ -12,7 +12,7 @@
 #include "KokkosFFT_Distributed_Types.hpp"
 #include "KokkosFFT_Distributed_Schedule.hpp"
 #include "KokkosFFT_Distributed_TransBlock.hpp"
-#include "KokkosFFT_Distributed_InternalPlan.hpp"
+#include "KokkosFFT_Distributed_BasePlan.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
