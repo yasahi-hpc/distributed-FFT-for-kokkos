@@ -15,48 +15,23 @@ using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutRight>>;
 
-// Basically the same fixtures, used for labeling tests
 template <typename T>
-struct TestShared1D : public ::testing::Test {
+struct TestSharedPlan : public ::testing::Test {
   using float_type  = typename T::first_type;
   using layout_type = typename T::second_type;
 
-  int m_rank   = 0;
   int m_nprocs = 1;
 
-  virtual void SetUp() {
-    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
-    ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
-  }
+  virtual void SetUp() { ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs); }
 };
 
+// The same fixture, used for labeling tests
 template <typename T>
-struct TestShared2D : public ::testing::Test {
-  using float_type  = typename T::first_type;
-  using layout_type = typename T::second_type;
-
-  int m_rank   = 0;
-  int m_nprocs = 1;
-
-  virtual void SetUp() {
-    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
-    ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
-  }
-};
-
+struct TestShared1D : public TestSharedPlan<T> {};
 template <typename T>
-struct TestShared3D : public ::testing::Test {
-  using float_type  = typename T::first_type;
-  using layout_type = typename T::second_type;
-
-  int m_rank   = 0;
-  int m_nprocs = 1;
-
-  virtual void SetUp() {
-    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
-    ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
-  }
-};
+struct TestShared2D : public TestSharedPlan<T> {};
+template <typename T>
+struct TestShared3D : public TestSharedPlan<T> {};
 
 /// \brief Plan operations (see run_plan_cases) for SharedPlan
 struct SharedPlanOps : public InternalPlanOps {

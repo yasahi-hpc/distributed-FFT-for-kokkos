@@ -16,18 +16,15 @@ using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutRight>>;
 
-//  Basically the same fixtures, used for labeling tests
 template <typename T>
-struct TestPencil1D : public ::testing::Test {
+struct TestPencilPlan : public ::testing::Test {
   using float_type  = typename T::first_type;
   using layout_type = typename T::second_type;
 
-  int m_rank   = 0;
   int m_nprocs = 1;
   int m_npx    = 1;
 
   virtual void SetUp() {
-    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
     ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
 
     m_npx = std::sqrt(m_nprocs);
@@ -38,47 +35,13 @@ struct TestPencil1D : public ::testing::Test {
   }
 };
 
+// The same fixture, used for labeling tests
 template <typename T>
-struct TestPencil2D : public ::testing::Test {
-  using float_type  = typename T::first_type;
-  using layout_type = typename T::second_type;
-
-  int m_rank   = 0;
-  int m_nprocs = 1;
-  int m_npx    = 1;
-
-  virtual void SetUp() {
-    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
-    ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
-
-    m_npx = std::sqrt(m_nprocs);
-    if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
-      GTEST_SKIP() << "The number of MPI processes should be a perfect square "
-                      "for this test";
-    }
-  }
-};
-
+struct TestPencil1D : public TestPencilPlan<T> {};
 template <typename T>
-struct TestPencil3D : public ::testing::Test {
-  using float_type  = typename T::first_type;
-  using layout_type = typename T::second_type;
-
-  int m_rank   = 0;
-  int m_nprocs = 1;
-  int m_npx    = 1;
-
-  virtual void SetUp() {
-    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
-    ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
-
-    m_npx = std::sqrt(m_nprocs);
-    if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
-      GTEST_SKIP() << "The number of MPI processes should be a perfect square "
-                      "for this test";
-    }
-  }
-};
+struct TestPencil2D : public TestPencilPlan<T> {};
+template <typename T>
+struct TestPencil3D : public TestPencilPlan<T> {};
 
 /// \brief Plan operations (see run_plan_cases) for PencilPlan
 struct PencilPlanOps : public InternalPlanOps {

@@ -15,19 +15,14 @@ using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutRight>>;
 
-//  Basically the same fixtures, used for labeling tests
 template <typename T>
 struct TestPlan1D : public ::testing::Test {
   using float_type  = typename T::first_type;
   using layout_type = typename T::second_type;
 
-  int m_rank   = 0;
   int m_nprocs = 1;
 
-  virtual void SetUp() {
-    ::MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
-    ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs);
-  }
+  virtual void SetUp() { ::MPI_Comm_size(MPI_COMM_WORLD, &m_nprocs); }
 };
 
 /// \brief Plan operations (see run_plan_cases) for the public
