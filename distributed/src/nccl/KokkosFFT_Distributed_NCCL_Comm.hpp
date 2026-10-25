@@ -16,9 +16,9 @@ struct ScopedNCCLComm {
  private:
   using ExecutionSpace = Kokkos::DefaultExecutionSpace;
   ExecutionSpace m_exec_space;
-  ncclComm_t m_comm;
-  int m_rank = 0;
-  int m_size = 1;
+  ncclComm_t m_comm = nullptr;
+  int m_rank        = 0;
+  int m_size        = 1;
 
  public:
   explicit ScopedNCCLComm(MPI_Comm comm, const ExecutionSpace &exec_space)
@@ -55,8 +55,9 @@ struct ScopedNCCLComm {
   ScopedNCCLComm &operator=(ScopedNCCLComm &&other) noexcept {
     if (this != &other) {
       if (m_comm) {
+        // This function is noexcept: abort instead of throwing
         ncclResult_t res = ncclCommDestroy(m_comm);
-        KOKKOSFFT_THROW_IF(res != ncclSuccess, "ncclCommDestroy failed");
+        if (res != ncclSuccess) Kokkos::abort("ncclCommDestroy failed");
         m_comm = nullptr;
       }
       m_exec_space = other.m_exec_space;
@@ -69,9 +70,12 @@ struct ScopedNCCLComm {
   }
 
   ~ScopedNCCLComm() {
-    ncclResult_t res = ncclCommDestroy(m_comm);
-    if (res != ncclSuccess) Kokkos::abort("ncclCommDestroy failed");
-    m_comm = nullptr;
+    // A moved-from object does not own a communicator
+    if (m_comm) {
+      ncclResult_t res = ncclCommDestroy(m_comm);
+      if (res != ncclSuccess) Kokkos::abort("ncclCommDestroy failed");
+      m_comm = nullptr;
+    }
   }
 
   ncclComm_t comm() const { return m_comm; }

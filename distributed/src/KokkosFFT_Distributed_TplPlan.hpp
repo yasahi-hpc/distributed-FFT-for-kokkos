@@ -39,6 +39,10 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
       Topology<std::size_t, OutViewType::rank(), OutLayoutType>;
   using map_type = KokkosFFT::axis_type<InViewType::rank()>;
 
+  //! The base class, with the layouts of the topologies
+  using base_type = BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                             InLayoutType, OutLayoutType>;
+
   //! The type of fft plan
   using fft_plan_type =
       typename InternalTplPlanType<ExecutionSpace, in_value_type,
@@ -67,9 +71,9 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   extents_type m_in_mapped_extents, m_out_mapped_extents;
   ///@}
 
-  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>::good;
-  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>::get_norm;
-  using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>::get_fft_extents;
+  using base_type::get_fft_extents;
+  using base_type::get_norm;
+  using base_type::good;
 
  public:
   explicit TplPlan(
@@ -89,8 +93,8 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
       const in_topology_type& in_topology,
       const out_topology_type& out_topology, const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
-      : BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>(
-            exec_space, in, out, axes, in_topology, out_topology, comm, norm),
+      : base_type(exec_space, in, out, axes, in_topology, out_topology, comm,
+                  norm),
         m_exec_space(exec_space),
         m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)) {

@@ -65,6 +65,10 @@ struct ScopedRocfftMPIPlan {
                                      : rocfft_precision_double;
   rocfft_plan m_plan;
   rocfft_plan_description m_description;
+
+  //! The plan description keeps the address of this member
+  //! (rocfft_plan_description_set_comm), so this class must not be copied or
+  //! moved. It is held through std::unique_ptr in TplPlan.
   MPI_Comm m_comm;
 
  public:

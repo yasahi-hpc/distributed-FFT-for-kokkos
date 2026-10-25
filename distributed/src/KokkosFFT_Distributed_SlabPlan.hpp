@@ -77,11 +77,6 @@ class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   //! Plan executor
   PlanExecutorType m_plan_executor;
 
-  ///@{
-  //! extents of in/out views
-  extents_type m_in_extents, m_out_extents;
-  ///@}
-
   //! aliases to parents methods
   using BasePlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
                  OutLayoutType>::good;
@@ -113,9 +108,7 @@ class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
                                 out_topology, comm, norm),
         m_exec_space(exec_space),
         m_plan_executor(exec_space, in, out, axes, in_topology.array(),
-                        out_topology.array(), comm),
-        m_in_extents(KokkosFFT::Impl::extract_extents(in)),
-        m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
+                        out_topology.array(), comm) {
     auto in_size  = KokkosFFT::Impl::total_size(in_topology);
     auto out_size = KokkosFFT::Impl::total_size(out_topology);
 
