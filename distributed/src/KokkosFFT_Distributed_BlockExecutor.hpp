@@ -171,6 +171,15 @@ class BlockExecutor {
                                                                   m_fft_stages);
   }
 
+  // Not copyable, not movable: its FFT stages were planned on views of
+  // its own buffers.
+  BlockExecutor()                                = delete;
+  BlockExecutor(const BlockExecutor&)            = delete;
+  BlockExecutor& operator=(const BlockExecutor&) = delete;
+  BlockExecutor(BlockExecutor&&)                 = delete;
+  BlockExecutor& operator=(BlockExecutor&&)      = delete;
+  ~BlockExecutor()                               = default;
+
   /// \brief Forward FFT
   /// \tparam CommsType Communicators of the transposes (SlabComms,
   /// PencilComms or SharedComms): a callable returning the communicator for a

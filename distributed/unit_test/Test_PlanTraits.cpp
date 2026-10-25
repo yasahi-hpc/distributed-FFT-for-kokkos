@@ -51,6 +51,13 @@ inline constexpr bool is_non_copyable_v =
     !std::is_default_constructible_v<T> && !std::is_copy_constructible_v<T> &&
     !std::is_copy_assignable_v<T>;
 
+/// \brief Constructible only from its arguments: neither default
+/// constructible, nor copyable, nor movable
+template <typename T>
+inline constexpr bool is_pinned_v =
+    is_non_copyable_v<T> && !std::is_move_constructible_v<T> &&
+    !std::is_move_assignable_v<T>;
+
 // Public plan: movable, not copyable, not default constructible.
 // The move only moves the std::unique_ptr to the internal plan, so it is
 // noexcept, which std::vector<Plan> needs to move its elements.
@@ -58,42 +65,22 @@ static_assert(is_non_copyable_v<PlanType>);
 static_assert(std::is_nothrow_move_constructible_v<PlanType>);
 static_assert(std::is_nothrow_move_assignable_v<PlanType>);
 
-// Internal classes: not copyable, not default constructible
-static_assert(is_non_copyable_v<SharedPlanType>);
-static_assert(is_non_copyable_v<SlabPlanType>);
-static_assert(is_non_copyable_v<PencilPlanType>);
-static_assert(is_non_copyable_v<SharedPlanExecutorType>);
-static_assert(is_non_copyable_v<SlabPlanExecutorType>);
-static_assert(is_non_copyable_v<PencilPlanExecutorType>);
-static_assert(is_non_copyable_v<BlockExecutorType>);
-static_assert(is_non_copyable_v<FFTStageType>);
-static_assert(is_non_copyable_v<PencilCommsType>);
+// Internal classes: constructible only from their arguments. They own
+// communicators, FFT library plans and buffers that must not move.
+static_assert(is_pinned_v<SharedPlanType>);
+static_assert(is_pinned_v<SlabPlanType>);
+static_assert(is_pinned_v<PencilPlanType>);
+static_assert(is_pinned_v<SharedPlanExecutorType>);
+static_assert(is_pinned_v<SlabPlanExecutorType>);
+static_assert(is_pinned_v<PencilPlanExecutorType>);
+static_assert(is_pinned_v<BlockExecutorType>);
+static_assert(is_pinned_v<FFTStageType>);
+static_assert(is_pinned_v<PencilCommsType>);
 
 // BasePlan is abstract, so it is never constructible; only its assignments
 // can be checked
 static_assert(std::is_abstract_v<BasePlanType>);
 static_assert(!std::is_copy_assignable_v<BasePlanType>);
-
-// Move semantics of the internal classes today (refactor-classes.md §1.1).
-// Step 2 deletes all their moves and replaces this block.
-static_assert(std::is_move_constructible_v<SharedPlanType>);
-static_assert(!std::is_move_assignable_v<SharedPlanType>);
-static_assert(std::is_move_constructible_v<SlabPlanType>);
-static_assert(!std::is_move_assignable_v<SlabPlanType>);
-static_assert(!std::is_move_constructible_v<PencilPlanType>);
-static_assert(!std::is_move_assignable_v<PencilPlanType>);
-static_assert(std::is_move_constructible_v<SharedPlanExecutorType>);
-static_assert(std::is_move_assignable_v<SharedPlanExecutorType>);
-static_assert(std::is_move_constructible_v<SlabPlanExecutorType>);
-static_assert(std::is_move_assignable_v<SlabPlanExecutorType>);
-static_assert(!std::is_move_constructible_v<PencilPlanExecutorType>);
-static_assert(!std::is_move_assignable_v<PencilPlanExecutorType>);
-static_assert(std::is_move_constructible_v<BlockExecutorType>);
-static_assert(std::is_move_assignable_v<BlockExecutorType>);
-static_assert(!std::is_move_constructible_v<FFTStageType>);
-static_assert(!std::is_move_assignable_v<FFTStageType>);
-static_assert(!std::is_move_constructible_v<PencilCommsType>);
-static_assert(!std::is_move_assignable_v<PencilCommsType>);
 static_assert(!std::is_move_assignable_v<BasePlanType>);
 
 }  // namespace

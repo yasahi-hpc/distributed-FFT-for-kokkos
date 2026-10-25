@@ -107,6 +107,15 @@ class SharedPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
         m_plan_executor(exec_space, in, out, axes, in_topology.array(),
                         out_topology.array(), comm) {}
 
+  // Built in place and never copied or moved. Plan holds it through
+  // std::unique_ptr, so moving a Plan does not move it.
+  SharedPlan()                             = delete;
+  SharedPlan(const SharedPlan&)            = delete;
+  SharedPlan& operator=(const SharedPlan&) = delete;
+  SharedPlan(SharedPlan&&)                 = delete;
+  SharedPlan& operator=(SharedPlan&&)      = delete;
+  ~SharedPlan() override                   = default;
+
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
     m_plan_executor.forward(in, out);

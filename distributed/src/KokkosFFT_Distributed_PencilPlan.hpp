@@ -116,7 +116,15 @@ class PencilPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
         !is_pencil, "Input and output topologies must be pencil topologies.");
   }
 
-  PencilPlan(const PencilPlan&) = default;
+  // Built in place and never copied or moved. Plan holds it through
+  // std::unique_ptr, so moving a Plan does not move it.
+  PencilPlan()                             = delete;
+  PencilPlan(const PencilPlan&)            = delete;
+  PencilPlan& operator=(const PencilPlan&) = delete;
+  PencilPlan(PencilPlan&&)                 = delete;
+  PencilPlan& operator=(PencilPlan&&)      = delete;
+  ~PencilPlan() override                   = default;
+
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
     m_plan_executor.forward(in, out);

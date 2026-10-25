@@ -90,6 +90,15 @@ class BasePlanExecutor {
         m_block_analyses->m_max_buffer_size);
   }
 
+  // Not copyable, not movable: it owns the communicators, the block
+  // analyses and the BlockExecutor.
+  BasePlanExecutor()                                   = delete;
+  BasePlanExecutor(const BasePlanExecutor&)            = delete;
+  BasePlanExecutor& operator=(const BasePlanExecutor&) = delete;
+  BasePlanExecutor(BasePlanExecutor&&)                 = delete;
+  BasePlanExecutor& operator=(BasePlanExecutor&&)      = delete;
+  ~BasePlanExecutor()                                  = default;
+
   void forward(const InViewType& in, const OutViewType& out) const {
     m_executor->forward(m_comms, in, out);
   }

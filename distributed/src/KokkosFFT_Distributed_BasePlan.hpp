@@ -86,7 +86,14 @@ class BasePlan {
         compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
   }
 
-  virtual ~BasePlan() = default;
+  // Not copyable, not movable: the derived plans are built in place and
+  // held through std::unique_ptr<BasePlan> in Plan.
+  BasePlan()                           = delete;
+  BasePlan(const BasePlan&)            = delete;
+  BasePlan& operator=(const BasePlan&) = delete;
+  BasePlan(BasePlan&&)                 = delete;
+  BasePlan& operator=(BasePlan&&)      = delete;
+  virtual ~BasePlan()                  = default;
 
   /// \brief Forward FFT operation
   /// \param[in] Input view
