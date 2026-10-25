@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 #include <iostream>
+#include <type_traits>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
@@ -14,6 +15,18 @@ using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
                                     std::pair<float, Kokkos::LayoutRight>,
                                     std::pair<double, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutRight>>;
+
+// TplPlan is constructible only from its arguments: not default
+// constructible, not copyable, not movable (refactor-classes.md). It is held
+// through std::unique_ptr in Plan.
+using TplPlanType = KokkosFFT::Distributed::Impl::TplPlan<
+    execution_space, Kokkos::View<double***, execution_space>,
+    Kokkos::View<Kokkos::complex<double>***, execution_space>, 3>;
+static_assert(!std::is_default_constructible_v<TplPlanType>);
+static_assert(!std::is_copy_constructible_v<TplPlanType>);
+static_assert(!std::is_copy_assignable_v<TplPlanType>);
+static_assert(!std::is_move_constructible_v<TplPlanType>);
+static_assert(!std::is_move_assignable_v<TplPlanType>);
 
 //  Basically the same fixtures, used for labeling tests
 template <typename T>
