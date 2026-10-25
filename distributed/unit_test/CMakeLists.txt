@@ -22,6 +22,7 @@ set(MPI_SOURCES
     Test_All2All.cpp
     Test_MPI_Extents.cpp
     Test_TransBlock.cpp
+    Test_BasePlan.cpp
     Test_BlockAnalyses.cpp
     Test_SharedPlan.cpp
     Test_Plan.cpp

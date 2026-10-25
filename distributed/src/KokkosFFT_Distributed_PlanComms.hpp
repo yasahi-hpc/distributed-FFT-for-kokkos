@@ -103,7 +103,7 @@ class PencilComms {
   static constexpr bool has_communication = true;
 
  private:
-  MPI_Comm m_cart_comm;
+  MPI_Comm m_cart_comm = MPI_COMM_NULL;
   std::vector<MPI_Comm> m_cart_comms;
   std::vector<std::unique_ptr<CommType>> m_cart_tpl_comms;
 
@@ -122,13 +122,13 @@ class PencilComms {
   PencilComms& operator=(const PencilComms&) = delete;
 
   ~PencilComms() {
-    // Free sub communicators
+    // Free sub communicators. Null communicators were never created.
     for (auto& comm : m_cart_comms) {
-      ::MPI_Comm_free(&comm);
+      if (comm != MPI_COMM_NULL) ::MPI_Comm_free(&comm);
     }
 
     // Then free cart communicator
-    ::MPI_Comm_free(&m_cart_comm);
+    if (m_cart_comm != MPI_COMM_NULL) ::MPI_Comm_free(&m_cart_comm);
   }
 
   /// \brief The communicator of a transpose along a comm axis

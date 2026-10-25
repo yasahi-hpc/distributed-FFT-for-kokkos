@@ -57,8 +57,8 @@ class BasePlan {
                     const extents_type& in_topology,
                     const extents_type& out_topology, const MPI_Comm& comm,
                     KokkosFFT::Normalization norm)
-      : BasePlan(exec_space, in, out, axes, in_topology, out_topology, comm,
-                 norm) {}
+      : BasePlan(exec_space, in, out, axes, in_topology_type(in_topology),
+                 out_topology_type(out_topology), comm, norm) {}
 
   /// \brief BasePlan constructor
   /// \param[in] exec_space Kokkos execution space
