@@ -121,6 +121,15 @@ class SlabPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
                        "Input and output topologies must be slab topologies.");
   }
 
+  // Built in place and never copied or moved. Plan holds it through
+  // std::unique_ptr, so moving a Plan does not move it.
+  SlabPlan()                           = delete;
+  SlabPlan(const SlabPlan&)            = delete;
+  SlabPlan& operator=(const SlabPlan&) = delete;
+  SlabPlan(SlabPlan&&)                 = delete;
+  SlabPlan& operator=(SlabPlan&&)      = delete;
+  ~SlabPlan() override                 = default;
+
   void forward(const InViewType& in, const OutViewType& out) const override {
     good(in, out);
     m_plan_executor.forward(in, out);

@@ -61,6 +61,14 @@ class FFTStage {
         m_backward_plan(exec_space, out, in, KokkosFFT::Direction::backward,
                         fft_dim) {}
 
+  // Not copyable, not movable, as the KokkosFFT::DynPlan it holds.
+  FFTStage()                           = delete;
+  FFTStage(const FFTStage&)            = delete;
+  FFTStage& operator=(const FFTStage&) = delete;
+  FFTStage(FFTStage&&)                 = delete;
+  FFTStage& operator=(FFTStage&&)      = delete;
+  ~FFTStage()                          = default;
+
   /// \brief Set the local transpose of the input of the forward FFT.
   /// No op if the map is the identity.
   /// \param[in] map Mapping of the input of the FFT block

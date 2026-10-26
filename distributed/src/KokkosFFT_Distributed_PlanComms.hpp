@@ -118,8 +118,13 @@ class PencilComms {
                                 m_cart_comms, m_cart_tpl_comms);
   }
 
+  // Not copyable, not movable: it owns the MPI communicators and frees
+  // them (collective) in its destructor.
+  PencilComms()                              = delete;
   PencilComms(const PencilComms&)            = delete;
   PencilComms& operator=(const PencilComms&) = delete;
+  PencilComms(PencilComms&&)                 = delete;
+  PencilComms& operator=(PencilComms&&)      = delete;
 
   ~PencilComms() {
     // Free sub communicators. Null communicators were never created.

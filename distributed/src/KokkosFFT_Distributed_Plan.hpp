@@ -115,6 +115,20 @@ plan_factory(
 }  // namespace Impl
 
 /// \brief Distributed FFT Plan class
+///
+/// A Plan is movable but not copyable, and has no default constructor. It
+/// owns its implementation (SharedPlan, SlabPlan, PencilPlan or TplPlan)
+/// through a std::unique_ptr: moving a Plan moves that pointer, never the
+/// implementation, whose communicators, FFT library plans and buffers keep
+/// their addresses. A moved-from Plan may only be destroyed or assigned to;
+/// executing it, or asking for its name, throws std::runtime_error.
+///
+/// MPI: moving a Plan does not communicate. Destroying a Plan, and move
+/// assigning to a Plan that holds an implementation, release that
+/// implementation, which may be collective (e.g. MPI_Comm_free of the
+/// communicators of a PencilPlan). As for construction, all the ranks must
+/// destroy and assign their plans in the same order.
+///
 /// \tparam ExecutionSpace Kokkos execution space
 /// \tparam InViewType Input Kokkos view type
 /// \tparam OutViewType Output Kokkos view type
@@ -141,6 +155,16 @@ class Plan {
                 "can be either real or complex");
 
   std::unique_ptr<BasePlanType> m_plan;
+
+  /// \brief The implementation of the plan
+  /// \throws std::runtime_error if this Plan was moved from: it no longer
+  /// owns an implementation (the implementation itself never moves)
+  const BasePlanType& get_plan() const {
+    KOKKOSFFT_THROW_IF(
+        !m_plan,
+        "Plan: this Plan was moved from and no longer owns an implementation");
+    return *m_plan;
+  }
 
  public:
   /// \brief Distributed FFT Plan constructor
@@ -180,23 +204,30 @@ class Plan {
                                 out_topology, comm, norm);
   }
 
+  Plan()                           = delete;
+  Plan(const Plan&)                = delete;
+  Plan& operator=(const Plan&)     = delete;
+  Plan(Plan&&) noexcept            = default;
+  Plan& operator=(Plan&&) noexcept = default;
+  ~Plan()                          = default;
+
   /// \brief Distributed FFT forward operation
   /// \param[in] in Input Kokkos view
   /// \param[out] out Output Kokkos view
   void forward_impl(const InViewType& in, const OutViewType& out) const {
-    m_plan->forward(in, out);
+    get_plan().forward(in, out);
   }
 
   /// \brief Distributed FFT backward operation
   /// \param[in] out Output Kokkos view
   /// \param[out] in Input Kokkos view
   void backward_impl(const OutViewType& out, const InViewType& in) const {
-    m_plan->backward(out, in);
+    get_plan().backward(out, in);
   }
 
   /// \brief Get the name of the plan implementation
   /// \return Name of the plan implementation
-  std::string name() const { return m_plan->name(); }
+  std::string name() const { return get_plan().name(); }
 };
 
 /// \brief Distributed FFT execute function

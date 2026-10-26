@@ -14,6 +14,7 @@ set(SERIAL_SOURCES
     Test_Topologies.cpp
     Test_BlockAnalysesHelpers.cpp
     Test_Schedule.cpp
+    Test_PlanTraits.cpp
 )
 
 # Tests that use MPI: run with several numbers of processes
