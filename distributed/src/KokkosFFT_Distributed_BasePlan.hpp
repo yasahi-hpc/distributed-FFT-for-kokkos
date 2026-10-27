@@ -14,6 +14,13 @@ namespace Distributed {
 namespace Impl {
 
 /// \brief Base class of the distributed FFT plans
+///
+/// In-place transforms: a plan is in-place when its input and output Views
+/// point to the same data (in.data() == out.data()), as in KokkosFFT. Each
+/// View keeps the extents of the out-of-place transform and is read or
+/// written densely in them. The input and output Views must either start at
+/// the same address or not overlap at all; a partial overlap throws. A plan
+/// must be executed in the placement it was created for.
 /// \tparam ExecutionSpace Kokkos execution space
 /// \tparam InViewType Input Kokkos view type
 /// \tparam OutViewType Output Kokkos view type
@@ -35,6 +42,9 @@ class BasePlan {
                                        OutLayoutType>;
 
   const extents_type m_in_extents, m_out_extents;
+
+  //! Whether the input and output Views point to the same data
+  const bool m_is_inplace;
 
  protected:
   //! Normalization
@@ -75,6 +85,7 @@ class BasePlan {
                     KokkosFFT::Normalization norm)
       : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)),
+        m_is_inplace(check_placement(in, out)),
         m_norm(norm) {
     auto gin_extents  = compute_global_extents(in, in_topology, comm);
     auto gout_extents = compute_global_extents(out, out_topology, comm);
@@ -109,11 +120,38 @@ class BasePlan {
   /// \return Name of the plan implementation
   virtual std::string name() const = 0;
 
+  /// \brief Whether the plan is in-place: its input and output Views point
+  /// to the same data
+  bool is_inplace() const { return m_is_inplace; }
+
  protected:
   KokkosFFT::Normalization get_norm() const { return m_norm; }
   auto get_fft_extents() const { return m_fft_extents; }
 
+  /// \brief Whether the input and output Views point to the same data. Views
+  /// without data (empty) never do.
+  /// \throws std::runtime_error if the Views overlap partially, i.e. they
+  /// overlap but do not start at the same address
+  static bool check_placement(const InViewType& in, const OutViewType& out) {
+    const bool is_aliasing =
+        in.data() != nullptr &&
+        KokkosFFT::Impl::are_aliasing(in.data(), out.data());
+    KOKKOSFFT_THROW_IF(!is_aliasing && are_overlapping(in, out),
+                       "the input and output Views overlap partially: they "
+                       "must either point to the same data (in-place) or not "
+                       "overlap (out-of-place)");
+    return is_aliasing;
+  }
+
   void good(const InViewType& in, const OutViewType& out) const {
+    const bool is_inplace = check_placement(in, out);
+    KOKKOSFFT_THROW_IF(
+        is_inplace != m_is_inplace,
+        m_is_inplace ? "the plan is in-place: the input and output Views "
+                       "must point to the same data"
+                     : "the plan is out-of-place: the input and output Views "
+                       "must not point to the same data");
+
     auto in_extents  = KokkosFFT::Impl::extract_extents(in);
     auto out_extents = KokkosFFT::Impl::extract_extents(out);
 

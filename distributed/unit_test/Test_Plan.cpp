@@ -252,6 +252,74 @@ void test_plan1D_view2D_move_assign(std::size_t nprocs) {
   // NOLINTEND(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
 }
 
+/// \brief In-place detection and validation through the public Plan: a C2C
+/// plan built on Views that point to the same data is in-place, and executing
+/// a plan in the other placement throws before any communication. Partially
+/// overlapping Views throw at construction.
+template <typename T, typename LayoutType>
+void test_plan1D_view2D_placement(std::size_t nprocs) {
+  using ComplexView2DType =
+      Kokkos::View<Kokkos::complex<T>**, LayoutType, execution_space>;
+  using BufferType = Kokkos::View<Kokkos::complex<T>*, execution_space>;
+  using PlanType =
+      KokkosFFT::Distributed::Plan<execution_space, ComplexView2DType,
+                                   ComplexView2DType, 1>;
+  using topology_type = std::array<std::size_t, 2>;
+  using axes_type     = KokkosFFT::axis_type<1>;
+
+  // topo0 -> topo1 with ax = {1}
+  const topology_type topology0{1, nprocs}, topology1{nprocs, 1};
+  const axes_type axes{1};
+  const std::array<std::size_t, 2> global_extents{8, 7};
+
+  auto [in_extents, in_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_extents, topology0, MPI_COMM_WORLD);
+  auto [out_extents, out_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_extents, topology1, MPI_COMM_WORLD);
+  const auto in_layout = KokkosFFT::Impl::create_layout<LayoutType>(in_extents);
+  const auto out_layout =
+      KokkosFFT::Impl::create_layout<LayoutType>(out_extents);
+
+  ComplexView2DType u("u", in_layout), u_hat("u_hat", out_layout);
+
+  const std::size_t size =
+      KokkosFFT::Distributed::compute_inplace_allocation_size<
+          Kokkos::complex<T>, Kokkos::complex<T>>(in_extents, out_extents);
+  BufferType buffer("buffer", size + 1);
+  ComplexView2DType u_inplace(buffer.data(), in_layout),
+      u_hat_inplace(buffer.data(), out_layout),
+      u_hat_partial(buffer.data() + 1, out_layout);
+
+  const execution_space exec;
+  PlanType plan(exec, u, u_hat, axes, topology0, topology1, MPI_COMM_WORLD);
+  PlanType plan_inplace(exec, u_inplace, u_hat_inplace, axes, topology0,
+                        topology1, MPI_COMM_WORLD);
+  EXPECT_FALSE(plan.is_inplace());
+  EXPECT_TRUE(plan_inplace.is_inplace());
+
+  // Executing in the other placement throws, in both directions
+  EXPECT_THROW(
+      execute(plan, u_inplace, u_hat_inplace, KokkosFFT::Direction::forward),
+      std::runtime_error);
+  EXPECT_THROW(
+      execute(plan, u_hat_inplace, u_inplace, KokkosFFT::Direction::backward),
+      std::runtime_error);
+  EXPECT_THROW(execute(plan_inplace, u, u_hat, KokkosFFT::Direction::forward),
+               std::runtime_error);
+  EXPECT_THROW(execute(plan_inplace, u_hat, u, KokkosFFT::Direction::backward),
+               std::runtime_error);
+
+  // Partially overlapping Views throw at construction
+  EXPECT_THROW(
+      {
+        PlanType plan_partial(exec, u_inplace, u_hat_partial, axes, topology0,
+                              topology1, MPI_COMM_WORLD);
+      },
+      std::runtime_error);
+}
+
 /// \brief Plans stored in a std::vector, which moves them when it grows
 template <typename T, typename LayoutType>
 void test_plan1D_view2D_vector(std::size_t nprocs) {
@@ -381,6 +449,13 @@ TYPED_TEST(TestPlan1D, View2D_move_assign) {
   using layout_type = typename TestFixture::layout_type;
 
   test_plan1D_view2D_move_assign<float_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestPlan1D, View2D_placement) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+
+  test_plan1D_view2D_placement<float_type, layout_type>(this->m_nprocs);
 }
 
 TYPED_TEST(TestPlan1D, View2D_vector) {

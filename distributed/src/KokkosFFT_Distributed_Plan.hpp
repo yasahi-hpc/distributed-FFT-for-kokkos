@@ -228,6 +228,10 @@ class Plan {
   /// \brief Get the name of the plan implementation
   /// \return Name of the plan implementation
   std::string name() const { return get_plan().name(); }
+
+  /// \brief Whether the plan is in-place: its input and output Views point
+  /// to the same data
+  bool is_inplace() const { return get_plan().is_inplace(); }
 };
 
 /// \brief Distributed FFT execute function
