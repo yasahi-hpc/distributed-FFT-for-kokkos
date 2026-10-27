@@ -47,8 +47,9 @@ class FFTStage {
   int_map_type m_map_forward_in = {}, m_map_forward_out = {},
                m_map_backward_in = {}, m_map_backward_out = {};
 
-  // Whether the input of the forward FFT (output of the backward FFT) is
-  // copied through in_T although its map is the identity
+  // Whether the input of the forward FFT (and the output of the backward FFT)
+  // goes through in_T although there is no local transpose: see
+  // set_in_staging
   bool m_stage_in = false;
 
  public:
@@ -95,10 +96,15 @@ class FFTStage {
     }
   }
 
-  /// \brief Copy the input of the forward FFT into in_T before the FFT, and
-  /// the output of the backward FFT from in_T after it, although the map is
-  /// the identity. Used by in-place R2C/C2R plans, so that the FFT does not
-  /// run on the shared data of the input and output Views.
+  /// \brief Run the FFT on in_T even without local transpose of the input:
+  /// forward copies the input into in_T and runs the FFT from in_T, backward
+  /// runs the FFT into in_T and copies in_T into the output.
+  ///
+  /// Used when the input and output Views share their data and the input is
+  /// real (an in-place R2C/C2R plan). Run directly on the Views, the FFT
+  /// library would be in-place and read or write the real data with the
+  /// innermost FFT extent padded to 2*(n/2+1), not in the dense layout of the
+  /// input View. With the copy, the FFT is out-of-place.
   void set_in_staging() { m_stage_in = true; }
 
   /// \brief Whether the output of the forward FFT is locally transposed

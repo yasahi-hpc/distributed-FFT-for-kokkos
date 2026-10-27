@@ -102,24 +102,32 @@ class BlockExecutor {
                          const std::vector<BlockInfoType>& block_infos,
                          std::size_t max_buffer_size)
       : m_exec_space(exec_space),
-        m_schedule(build_schedule(block_infos, stage_user_views(in, out))) {
-    // Allocate the buffers the schedule uses. The transposes use both of
-    // them, as send and receive buffers, with the size given by the block
-    // analyses. Without transposes (a single FFT block), each buffer only
-    // holds the scratch views of the block, and is sized to them: a block
-    // without local transpose and without staging uses neither buffer.
+        // An in-place R2C/C2R plan (the input and output Views share their
+        // data, and the input is real) copies its input into the send buffer
+        // before an FFT that would read the input View and write the output
+        // View directly. See build_schedule.
+        m_schedule(build_schedule(block_infos,
+                                  KokkosFFT::Impl::is_real_v<in_value_type> &&
+                                      check_inplace(in, out))) {
+    // Allocate the buffers the schedule uses. A transpose uses both buffers,
+    // one to send and one to receive, with the size given by the block
+    // analyses. A plan without transpose is a single FFT block: each buffer
+    // then only holds the scratch views of its local transposes or input
+    // copy, and is sized to them. Without any, no buffer is allocated.
     const bool has_transpose = std::any_of(
         m_schedule.begin(), m_schedule.end(),
         [](const auto& step) { return step.m_type == BlockType::Transpose; });
-    const std::size_t transpose_alloc_size = (max_buffer_size + 1) / 2;
-    m_send_buffer_allocation               = AllocationViewType(
-        "send_buffer_allocation", has_transpose
-                                                    ? transpose_alloc_size
-                                                    : required_buffer_size(BufferId::Send));
-    m_recv_buffer_allocation = AllocationViewType(
-        "recv_buffer_allocation", has_transpose
-                                      ? transpose_alloc_size
-                                      : required_buffer_size(BufferId::Recv));
+    const std::size_t transpose_buffer_size = (max_buffer_size + 1) / 2;
+    const std::size_t send_buffer_size =
+        has_transpose ? transpose_buffer_size
+                      : required_buffer_size(BufferId::Send);
+    const std::size_t recv_buffer_size =
+        has_transpose ? transpose_buffer_size
+                      : required_buffer_size(BufferId::Recv);
+    m_send_buffer_allocation =
+        AllocationViewType("send_buffer_allocation", send_buffer_size);
+    m_recv_buffer_allocation =
+        AllocationViewType("recv_buffer_allocation", recv_buffer_size);
 
     const std::size_t last_block_idx = block_infos.size() - 1;
     for (std::size_t block_idx = 0; block_idx < block_infos.size();
@@ -159,7 +167,9 @@ class BlockExecutor {
             "of the first FFT block");
         m_fft_stage0 = std::make_unique<FFTStageType0>(
             m_exec_space, plan_in, plan_out, block.m_fft_dim);
-        if (step.m_src_T && block.m_in_map == identity_map()) {
+        if (step.m_src_T &&
+            block.m_in_map ==
+                KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>()) {
           m_fft_stage0->set_in_staging();
         }
         set_maps(*m_fft_stage0);
@@ -232,31 +242,18 @@ class BlockExecutor {
   }
 
  private:
-  static bool is_buffer(BufferId id) {
-    return id == BufferId::Send || id == BufferId::Recv;
-  }
-
-  /// \brief Whether the schedule must stage the input and output Views:
-  /// an in-place plan with a real input (build_schedule, rule 5)
-  static bool stage_user_views(const InViewType& in, const OutViewType& out) {
-    return KokkosFFT::Impl::is_real_v<in_value_type> && check_inplace(in, out);
-  }
-
-  static auto identity_map() {
-    return KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
-  }
-
-  /// \brief The size of a view of the schedule, in complex values. Views of
-  /// the input type may be real and take half the space.
-  static std::size_t complex_size(const ViewSpecType& spec) {
+  /// \brief The number of complex values a view of the schedule takes in a
+  /// buffer. The buffers hold complex values; a view of the input type is
+  /// real for R2C plans and takes half as many.
+  std::size_t complex_size(const ViewSpecType& spec) const {
     const bool is_real =
         spec.m_is_input_type && KokkosFFT::Impl::is_real_v<in_value_type>;
     std::size_t size = KokkosFFT::Impl::total_size(spec.m_extents);
     return is_real ? (size + 1) / 2 : size;
   }
 
-  /// \brief The largest view of the schedule in a buffer, in complex values.
-  /// 0 if no view lives in it.
+  /// \brief The size a buffer needs for the views the schedule places in it,
+  /// in complex values: the size of the largest one, or 0 if there is none.
   std::size_t required_buffer_size(BufferId id) const {
     std::size_t size = 0;
     auto update      = [&](const ViewSpecType& spec) {

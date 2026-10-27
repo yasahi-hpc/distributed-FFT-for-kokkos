@@ -28,6 +28,11 @@ enum class BufferId {
   Recv,
 };
 
+/// \brief Whether a view lives in the send or the receive buffer
+inline bool is_buffer(BufferId id) {
+  return id == BufferId::Send || id == BufferId::Recv;
+}
+
 /// \brief Description of a view used by a block: the buffer it lives in, its
 /// extents and its value type. The view itself is created from the buffer
 /// allocation when the block is executed.
@@ -104,32 +109,32 @@ struct BlockStep {
 /// 4. The last block writes into UserOut. If the last block is an FFT without
 ///    out-map, the transpose just before it already writes into UserOut and
 ///    the FFT runs in-place on UserOut.
-/// 5. In-place R2C/C2R plans (UserIn and UserOut share their data): an FFT
-///    that would read UserIn and write UserOut directly, i.e. a single FFT
-///    block without in-map and out-map, stages its input through Send (an
-///    identity copy, m_src_T). Otherwise the FFT library would read and write
-///    the real data in its padded in-place layout instead of the dense layout
-///    of the Views. Every other step already reads UserIn before anything
-///    writes UserOut.
+/// 5. If stage_input is true, an FFT that would read UserIn and write UserOut
+///    directly (a single FFT block without in-map and out-map) first copies
+///    its input into Send (m_src_T), and runs from there.
+///
+/// stage_input is meant for in-place R2C/C2R plans, whose UserIn and UserOut
+/// share their data. Each View is dense in its own extents, whereas an FFT
+/// library that runs a real-to-complex transform in place reads and writes
+/// the real data with the innermost FFT extent padded to 2*(n/2+1). Copying
+/// the input first makes the FFT out-of-place, so the dense layout is kept.
+/// No other step needs this: every other first step copies UserIn into a
+/// buffer, or writes a buffer, before anything writes UserOut.
 ///
 /// \tparam DIM The rank of the views
 ///
 /// \param[in] block_infos The blocks of the plan
-/// \param[in] stage_user_views Whether the plan is in-place with a real input
-/// (rule 5)
+/// \param[in] stage_input Whether an FFT that reads UserIn and writes UserOut
+/// directly first copies its input into Send
 /// \return The schedule, one step per block
 /// \throws std::runtime_error if there is no block or no FFT block, or if a
 /// step would read and write the same buffer where this is not allowed
 template <std::size_t DIM>
 std::vector<BlockStep<DIM>> build_schedule(
-    const std::vector<BlockInfo<DIM>>& block_infos,
-    bool stage_user_views = false) {
+    const std::vector<BlockInfo<DIM>>& block_infos, bool stage_input = false) {
   const auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
   auto other         = [](BufferId id) {
     return id == BufferId::Send ? BufferId::Recv : BufferId::Send;
-  };
-  auto is_buffer = [](BufferId id) {
-    return id == BufferId::Send || id == BufferId::Recv;
   };
 
   std::vector<BlockStep<DIM>> steps;
@@ -174,7 +179,7 @@ std::vector<BlockStep<DIM>> build_schedule(
     } else {
       const bool has_in_map  = i == 0 && block.m_in_map != src_map;
       const bool has_out_map = is_last && block.m_out_map != src_map;
-      const bool stage_in = stage_user_views && current == BufferId::UserIn &&
+      const bool stage_in    = stage_input && current == BufferId::UserIn &&
                             is_last && !has_in_map && !has_out_map;
 
       step.m_sub_idx = nb_fft;

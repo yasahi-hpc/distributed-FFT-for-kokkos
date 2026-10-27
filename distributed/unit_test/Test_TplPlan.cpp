@@ -17,8 +17,8 @@ using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutRight>>;
 
 // TplPlan is constructible only from its arguments: not default
-// constructible, not copyable, not movable (refactor-classes.md). It is held
-// through std::unique_ptr in Plan.
+// constructible, not copyable, not movable, like the other internal plans.
+// Plan holds it through std::unique_ptr, so moving a Plan does not move it.
 using TplPlanType = KokkosFFT::Distributed::Impl::TplPlan<
     execution_space, Kokkos::View<double***, execution_space>,
     Kokkos::View<Kokkos::complex<double>***, execution_space>, 3>;

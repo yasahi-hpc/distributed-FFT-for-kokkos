@@ -46,8 +46,8 @@ namespace Impl {
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-static std::unique_ptr<BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
-                                InLayoutType, OutLayoutType>>
+std::unique_ptr<BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                         InLayoutType, OutLayoutType>>
 plan_factory(
     const ExecutionSpace& exec_space, const InViewType& in,
     const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,

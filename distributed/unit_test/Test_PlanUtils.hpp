@@ -80,8 +80,10 @@ std::string to_string(const PlanCase<FFT_DIM>& plan_case) {
   return oss.str();
 }
 
-/// \brief Print the plan case on rank 0 if KOKKOSFFT_PRINT_PLAN_CASES is set.
-/// Used to compare the cases run with tests-baseline/plan_cases_before_np*.txt
+/// \brief Print the plan case on rank 0 if KOKKOSFFT_PRINT_PLAN_CASES is set:
+/// one line per case run, "PLAN_CASE <name> <case> | <tolerances>", or
+/// "PLAN_CASE[inplace] ..." for in-place runs. The output lists every case a
+/// test runs, so it can be compared with an expected list of cases.
 template <std::size_t FFT_DIM>
 void print_plan_case(const std::string& name,
                      const PlanCase<FFT_DIM>& plan_case, Placement placement) {

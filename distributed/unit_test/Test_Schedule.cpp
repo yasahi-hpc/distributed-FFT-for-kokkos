@@ -250,8 +250,10 @@ void test_schedule_three_ffts() {
   EXPECT_EQ(steps, ref);
 }
 
-// Transpose + Transpose + FFT (not produced by the block analyses today, see
-// issue_topology.md): both transposes keep the input value type
+// Transpose + Transpose + FFT: both transposes keep the input value type.
+// The block analyses do not produce this sequence today, since their first
+// transpose always makes an FFT axis local and is followed by an FFT, but
+// build_schedule must handle it.
 void test_schedule_trans_trans_fft() {
   auto steps = KokkosFFT::Distributed::Impl::build_schedule<DIM>(
       {trans_block(e0, e1), trans_block(e1, e6), fft_block(e6, e5)});
@@ -356,9 +358,11 @@ void test_executor_without_buffers() {
   EXPECT_EQ(executor_permuted.buffer_size(), max_buffer_size / 2);
 }
 
-// In-place R2C/C2R (rule 5): a single FFT block that reads UserIn and writes
-// UserOut directly stages its input through Send. Every other schedule is
-// unchanged.
+// build_schedule with stage_input (in-place R2C/C2R plans): an FFT that reads
+// UserIn and writes UserOut directly, i.e. a single FFT block without in-map
+// and out-map, first copies its input into Send (m_src_T). Every other
+// schedule is the same as without stage_input, since its first step already
+// copies UserIn into a buffer or writes a buffer.
 void test_schedule_staging() {
   using KokkosFFT::Distributed::Impl::build_schedule;
   const bool stage = true;
