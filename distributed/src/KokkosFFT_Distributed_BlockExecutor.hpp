@@ -1,6 +1,7 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_BLOCK_EXECUTOR_HPP
 #define KOKKOSFFT_DISTRIBUTED_BLOCK_EXECUTOR_HPP
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <type_traits>
@@ -10,6 +11,7 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Asserts.hpp"
 #include "KokkosFFT_Distributed_Types.hpp"
+#include "KokkosFFT_Distributed_Extents.hpp"
 #include "KokkosFFT_Distributed_Schedule.hpp"
 #include "KokkosFFT_Distributed_TransBlock.hpp"
 #include "KokkosFFT_Distributed_FFTStage.hpp"
@@ -99,17 +101,25 @@ class BlockExecutor {
                          const OutViewType& out,
                          const std::vector<BlockInfoType>& block_infos,
                          std::size_t max_buffer_size)
-      : m_exec_space(exec_space), m_schedule(build_schedule(block_infos)) {
-    // Allocate buffer views. A plan made of a single FFT block without
-    // local transposes, e.g. a SharedPlan whose FFT axes are already the
-    // last ones, uses neither buffer.
-    const bool uses_buffers = schedule_uses_buffers();
-    std::size_t complex_alloc_size =
-        uses_buffers ? (max_buffer_size + 1) / 2 : 0;
-    m_send_buffer_allocation =
-        AllocationViewType("send_buffer_allocation", complex_alloc_size);
-    m_recv_buffer_allocation =
-        AllocationViewType("recv_buffer_allocation", complex_alloc_size);
+      : m_exec_space(exec_space),
+        m_schedule(build_schedule(block_infos, stage_user_views(in, out))) {
+    // Allocate the buffers the schedule uses. The transposes use both of
+    // them, as send and receive buffers, with the size given by the block
+    // analyses. Without transposes (a single FFT block), each buffer only
+    // holds the scratch views of the block, and is sized to them: a block
+    // without local transpose and without staging uses neither buffer.
+    const bool has_transpose = std::any_of(
+        m_schedule.begin(), m_schedule.end(),
+        [](const auto& step) { return step.m_type == BlockType::Transpose; });
+    const std::size_t transpose_alloc_size = (max_buffer_size + 1) / 2;
+    m_send_buffer_allocation               = AllocationViewType(
+        "send_buffer_allocation", has_transpose
+                                                    ? transpose_alloc_size
+                                                    : required_buffer_size(BufferId::Send));
+    m_recv_buffer_allocation = AllocationViewType(
+        "recv_buffer_allocation", has_transpose
+                                      ? transpose_alloc_size
+                                      : required_buffer_size(BufferId::Recv));
 
     const std::size_t last_block_idx = block_infos.size() - 1;
     for (std::size_t block_idx = 0; block_idx < block_infos.size();
@@ -132,24 +142,25 @@ class BlockExecutor {
       };
 
       if (step.m_sub_idx == 0) {
-        // The first FFT is out-of-place. Its plans are made on views on the
-        // buffers, or, if the buffers are not allocated, on the input and
-        // output Views, which then have the extents of the block.
-        if (uses_buffers) {
-          auto in_T = buffer_view<InViewType>(
-              ViewSpecType{BufferId::Send, block.m_in_extents, true});
-          auto out_T = buffer_view<OutViewType>(
-              ViewSpecType{BufferId::Recv, block.m_out_extents, false});
-          m_fft_stage0 = std::make_unique<FFTStageType0>(
-              m_exec_space, in_T, out_T, block.m_fft_dim);
-        } else {
-          KOKKOSFFT_THROW_IF(
-              KokkosFFT::Impl::extract_extents(in) != block.m_in_extents ||
-                  KokkosFFT::Impl::extract_extents(out) != block.m_out_extents,
-              "BlockExecutor: without buffers, the FFT block must have the "
-              "extents of the input and output Views");
-          m_fft_stage0 = std::make_unique<FFTStageType0>(m_exec_space, in, out,
-                                                         block.m_fft_dim);
+        // The first FFT is planned on the views it runs on: the scratch views
+        // of its local transposes or staging copy if any, else the views of
+        // the block. They are out-of-place, except for an in-place C2C plan
+        // made of a single block without local transposes, whose FFT then
+        // runs in-place on the shared data of the input and output Views.
+        const auto& in_spec  = step.m_src_T ? *step.m_src_T : step.m_src;
+        const auto& out_spec = step.m_dst_T ? *step.m_dst_T : step.m_dst;
+        auto plan_in         = get_view<InViewType>(in_spec, in, out);
+        auto plan_out        = get_view<OutViewType>(out_spec, in, out);
+        KOKKOSFFT_THROW_IF(
+            KokkosFFT::Impl::extract_extents(plan_in) != in_spec.m_extents ||
+                KokkosFFT::Impl::extract_extents(plan_out) !=
+                    out_spec.m_extents,
+            "BlockExecutor: the input and output Views must have the extents "
+            "of the first FFT block");
+        m_fft_stage0 = std::make_unique<FFTStageType0>(
+            m_exec_space, plan_in, plan_out, block.m_fft_dim);
+        if (step.m_src_T && block.m_in_map == identity_map()) {
+          m_fft_stage0->set_in_staging();
         }
         set_maps(*m_fft_stage0);
       } else {
@@ -210,38 +221,64 @@ class BlockExecutor {
     }
   }
 
-  /// \brief The size of each of the send and receive buffers, in complex
-  /// values. 0 if the schedule does not use them.
+  /// \brief The size of the send buffer, in complex values. 0 if the
+  /// schedule does not use it.
   std::size_t buffer_size() const { return m_send_buffer_allocation.size(); }
+
+  /// \brief The size of the receive buffer, in complex values. 0 if the
+  /// schedule does not use it.
+  std::size_t recv_buffer_size() const {
+    return m_recv_buffer_allocation.size();
+  }
 
  private:
   static bool is_buffer(BufferId id) {
     return id == BufferId::Send || id == BufferId::Recv;
   }
 
-  /// \brief Whether a view or a scratch view of the schedule lives in the
-  /// send or receive buffer
-  bool schedule_uses_buffers() const {
-    for (const auto& step : m_schedule) {
-      if (is_buffer(step.m_src.m_id) || is_buffer(step.m_dst.m_id)) {
-        return true;
-      }
-      if (step.m_src_T && is_buffer(step.m_src_T->m_id)) return true;
-      if (step.m_dst_T && is_buffer(step.m_dst_T->m_id)) return true;
-    }
-    return false;
+  /// \brief Whether the schedule must stage the input and output Views:
+  /// an in-place plan with a real input (build_schedule, rule 5)
+  static bool stage_user_views(const InViewType& in, const OutViewType& out) {
+    return KokkosFFT::Impl::is_real_v<in_value_type> && check_inplace(in, out);
   }
 
-  /// \brief Check that the views of a step fit into the buffers
+  static auto identity_map() {
+    return KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
+  }
+
+  /// \brief The size of a view of the schedule, in complex values. Views of
+  /// the input type may be real and take half the space.
+  static std::size_t complex_size(const ViewSpecType& spec) {
+    const bool is_real =
+        spec.m_is_input_type && KokkosFFT::Impl::is_real_v<in_value_type>;
+    std::size_t size = KokkosFFT::Impl::total_size(spec.m_extents);
+    return is_real ? (size + 1) / 2 : size;
+  }
+
+  /// \brief The largest view of the schedule in a buffer, in complex values.
+  /// 0 if no view lives in it.
+  std::size_t required_buffer_size(BufferId id) const {
+    std::size_t size = 0;
+    auto update      = [&](const ViewSpecType& spec) {
+      if (spec.m_id == id) size = std::max(size, complex_size(spec));
+    };
+    for (const auto& step : m_schedule) {
+      update(step.m_src);
+      update(step.m_dst);
+      if (step.m_src_T) update(*step.m_src_T);
+      if (step.m_dst_T) update(*step.m_dst_T);
+    }
+    return size;
+  }
+
+  /// \brief Check that the views of a step fit into their buffers
   void check_buffer_size(const BlockStepType& step) const {
     auto check = [&](const ViewSpecType& spec) {
       if (!is_buffer(spec.m_id)) return;
-      // Views of the input type may be real and take half the space
-      const bool is_real =
-          spec.m_is_input_type && KokkosFFT::Impl::is_real_v<in_value_type>;
-      std::size_t size = KokkosFFT::Impl::total_size(spec.m_extents);
-      if (is_real) size = (size + 1) / 2;
-      KOKKOSFFT_THROW_IF(size > m_send_buffer_allocation.size(),
+      const auto& allocation = spec.m_id == BufferId::Send
+                                   ? m_send_buffer_allocation
+                                   : m_recv_buffer_allocation;
+      KOKKOSFFT_THROW_IF(complex_size(spec) > allocation.size(),
                          "BlockExecutor: a view does not fit into the buffer");
     };
     check(step.m_src);

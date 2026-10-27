@@ -163,6 +163,29 @@ bool are_overlapping(const AViewType &a, const BViewType &b) {
   return a_begin < b_begin + b_bytes && b_begin < a_begin + a_bytes;
 }
 
+/// \brief Whether the input and output Views of a plan point to the same data,
+/// i.e. whether the transform is in-place. Views without data (empty) never
+/// do.
+///
+/// \tparam InViewType The type of the input View
+/// \tparam OutViewType The type of the output View
+///
+/// \param[in] in The input View
+/// \param[in] out The output View
+/// \return True if in and out start at the same address
+/// \throws std::runtime_error if the Views overlap partially, i.e. they
+/// overlap but do not start at the same address
+template <typename InViewType, typename OutViewType>
+bool check_inplace(const InViewType &in, const OutViewType &out) {
+  const bool is_aliasing = in.data() != nullptr &&
+                           KokkosFFT::Impl::are_aliasing(in.data(), out.data());
+  KOKKOSFFT_THROW_IF(!is_aliasing && are_overlapping(in, out),
+                     "the input and output Views overlap partially: they "
+                     "must either point to the same data (in-place) or not "
+                     "overlap (out-of-place)");
+  return is_aliasing;
+}
+
 }  // namespace Impl
 
 /// \brief Size of the allocation shared by the input and the output Views of

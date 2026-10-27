@@ -85,7 +85,7 @@ class BasePlan {
                     KokkosFFT::Normalization norm)
       : m_in_extents(KokkosFFT::Impl::extract_extents(in)),
         m_out_extents(KokkosFFT::Impl::extract_extents(out)),
-        m_is_inplace(check_placement(in, out)),
+        m_is_inplace(check_inplace(in, out)),
         m_norm(norm) {
     auto gin_extents  = compute_global_extents(in, in_topology, comm);
     auto gout_extents = compute_global_extents(out, out_topology, comm);
@@ -128,23 +128,8 @@ class BasePlan {
   KokkosFFT::Normalization get_norm() const { return m_norm; }
   auto get_fft_extents() const { return m_fft_extents; }
 
-  /// \brief Whether the input and output Views point to the same data. Views
-  /// without data (empty) never do.
-  /// \throws std::runtime_error if the Views overlap partially, i.e. they
-  /// overlap but do not start at the same address
-  static bool check_placement(const InViewType& in, const OutViewType& out) {
-    const bool is_aliasing =
-        in.data() != nullptr &&
-        KokkosFFT::Impl::are_aliasing(in.data(), out.data());
-    KOKKOSFFT_THROW_IF(!is_aliasing && are_overlapping(in, out),
-                       "the input and output Views overlap partially: they "
-                       "must either point to the same data (in-place) or not "
-                       "overlap (out-of-place)");
-    return is_aliasing;
-  }
-
   void good(const InViewType& in, const OutViewType& out) const {
-    const bool is_inplace = check_placement(in, out);
+    const bool is_inplace = check_inplace(in, out);
     KOKKOSFFT_THROW_IF(
         is_inplace != m_is_inplace,
         m_is_inplace ? "the plan is in-place: the input and output Views "

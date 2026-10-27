@@ -104,16 +104,26 @@ struct BlockStep {
 /// 4. The last block writes into UserOut. If the last block is an FFT without
 ///    out-map, the transpose just before it already writes into UserOut and
 ///    the FFT runs in-place on UserOut.
+/// 5. In-place R2C/C2R plans (UserIn and UserOut share their data): an FFT
+///    that would read UserIn and write UserOut directly, i.e. a single FFT
+///    block without in-map and out-map, stages its input through Send (an
+///    identity copy, m_src_T). Otherwise the FFT library would read and write
+///    the real data in its padded in-place layout instead of the dense layout
+///    of the Views. Every other step already reads UserIn before anything
+///    writes UserOut.
 ///
 /// \tparam DIM The rank of the views
 ///
 /// \param[in] block_infos The blocks of the plan
+/// \param[in] stage_user_views Whether the plan is in-place with a real input
+/// (rule 5)
 /// \return The schedule, one step per block
 /// \throws std::runtime_error if there is no block or no FFT block, or if a
 /// step would read and write the same buffer where this is not allowed
 template <std::size_t DIM>
 std::vector<BlockStep<DIM>> build_schedule(
-    const std::vector<BlockInfo<DIM>>& block_infos) {
+    const std::vector<BlockInfo<DIM>>& block_infos,
+    bool stage_user_views = false) {
   const auto src_map = KokkosFFT::Impl::index_sequence<std::size_t, DIM, 0>();
   auto other         = [](BufferId id) {
     return id == BufferId::Send ? BufferId::Recv : BufferId::Send;
@@ -164,6 +174,8 @@ std::vector<BlockStep<DIM>> build_schedule(
     } else {
       const bool has_in_map  = i == 0 && block.m_in_map != src_map;
       const bool has_out_map = is_last && block.m_out_map != src_map;
+      const bool stage_in = stage_user_views && current == BufferId::UserIn &&
+                            is_last && !has_in_map && !has_out_map;
 
       step.m_sub_idx = nb_fft;
       step.m_src     = {current, block.m_in_extents, !fft_done};
@@ -177,7 +189,7 @@ std::vector<BlockStep<DIM>> build_schedule(
                            "build_schedule: first FFT must not be in-place");
 
         step.m_dst = {dst, block.m_out_extents, false};
-        if (has_in_map) {
+        if (has_in_map || stage_in) {
           step.m_src_T =
               ViewSpec<DIM>{BufferId::Send, block.m_in_extents, true};
         }
