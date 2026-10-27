@@ -105,8 +105,8 @@ void test_slab1D_view2D(std::size_t nprocs) {
 
   const std::string name = "Test_SlabPlan.cpp test_slab1D_view2D";
   const auto& cases      = nprocs == 1 ? failure_cases : success_cases;
-  run_plan_cases<ComplexView2DType>(name, execution_space(), gu, topologies,
-                                    cases, SlabPlanOps{});
+  run_plan_cases_all_placements<ComplexView2DType>(
+      name, execution_space(), gu, topologies, cases, SlabPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -191,8 +191,8 @@ void test_slab1D_view3D(std::size_t nprocs) {
 
   const std::string name = "Test_SlabPlan.cpp test_slab1D_view3D";
   const auto& cases      = nprocs == 1 ? failure_cases : success_cases;
-  run_plan_cases<ComplexView3DType>(name, execution_space(), gu, topologies,
-                                    cases, SlabPlanOps{});
+  run_plan_cases_all_placements<ComplexView3DType>(
+      name, execution_space(), gu, topologies, cases, SlabPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -258,8 +258,8 @@ void test_slab2D_view2D(std::size_t nprocs) {
 
   const std::string name = "Test_SlabPlan.cpp test_slab2D_view2D";
   const auto& cases      = nprocs == 1 ? failure_cases : success_cases;
-  run_plan_cases<ComplexView2DType>(name, execution_space(), gu, topologies,
-                                    cases, SlabPlanOps{});
+  run_plan_cases_all_placements<ComplexView2DType>(
+      name, execution_space(), gu, topologies, cases, SlabPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -537,8 +537,8 @@ void test_slab2D_view3D(std::size_t nprocs) {
 
   const std::string name = "Test_SlabPlan.cpp test_slab2D_view3D";
   const auto& cases      = nprocs == 1 ? failure_cases : success_cases;
-  run_plan_cases<ComplexView3DType>(name, execution_space(), gu, topologies,
-                                    cases, SlabPlanOps{});
+  run_plan_cases_all_placements<ComplexView3DType>(
+      name, execution_space(), gu, topologies, cases, SlabPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -678,8 +678,8 @@ void test_slab3D_view3D(std::size_t nprocs) {
 
   const std::string name = "Test_SlabPlan.cpp test_slab3D_view3D";
   const auto& cases      = nprocs == 1 ? failure_cases : success_cases;
-  run_plan_cases<ComplexView3DType>(name, execution_space(), gu, topologies,
-                                    cases, SlabPlanOps{});
+  run_plan_cases_all_placements<ComplexView3DType>(
+      name, execution_space(), gu, topologies, cases, SlabPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -772,8 +772,8 @@ void test_slab3D_view4D(std::size_t nprocs) {
 
   const std::string name = "Test_SlabPlan.cpp test_slab3D_view4D";
   const auto& cases      = nprocs == 1 ? failure_cases : success_cases;
-  run_plan_cases<ComplexView4DType>(name, execution_space(), gu, topologies,
-                                    cases, SlabPlanOps{});
+  run_plan_cases_all_placements<ComplexView4DType>(
+      name, execution_space(), gu, topologies, cases, SlabPlanOps{});
 }
 
 }  // namespace

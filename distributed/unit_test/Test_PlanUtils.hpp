@@ -16,6 +16,7 @@
 #include <Kokkos_Random.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
+#include "KokkosFFT_Distributed_Extents.hpp"
 #include "Test_Utils.hpp"
 
 /// \brief Expected result of a plan case
@@ -25,6 +26,16 @@ enum class Expect {
 
   //! The constructor of the plan throws std::runtime_error
   Throw,
+};
+
+/// \brief Placement of the input and output Views of a plan case
+enum class Placement {
+  //! Separate allocations
+  OutOfPlace,
+
+  //! Unmanaged Views of the same extents on one allocation, large enough for
+  //! both on each rank (compute_inplace_allocation_size)
+  InPlace,
 };
 
 /// \brief Tolerances of allclose
@@ -73,14 +84,16 @@ std::string to_string(const PlanCase<FFT_DIM>& plan_case) {
 /// Used to compare the cases run with tests-baseline/plan_cases_before_np*.txt
 template <std::size_t FFT_DIM>
 void print_plan_case(const std::string& name,
-                     const PlanCase<FFT_DIM>& plan_case) {
+                     const PlanCase<FFT_DIM>& plan_case, Placement placement) {
   if (std::getenv("KOKKOSFFT_PRINT_PLAN_CASES") == nullptr) return;
   int rank;
   ::MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank != 0) return;
 
   std::ostringstream oss;
-  oss << "PLAN_CASE " << name << " " << to_string(plan_case);
+  oss << (placement == Placement::InPlace ? "PLAN_CASE[inplace] "
+                                          : "PLAN_CASE ")
+      << name << " " << to_string(plan_case);
   if (plan_case.m_expect == Expect::Success) {
     oss << " | fwd=(" << plan_case.m_tol_fwd.m_rtol << ","
         << plan_case.m_tol_fwd.m_atol << ") bwd=(" << plan_case.m_tol_bwd.m_rtol
@@ -213,13 +226,15 @@ void visit_topology(const Tuple& topologies, std::size_t idx, F&& f) {
 /// \param[in] out_topology Output topology
 /// \param[in] plan_case Plan case
 /// \param[in] ops Plan operations, see run_plan_cases
+/// \param[in] placement Placement of the input and output Views
 template <typename OutViewType, typename ExecutionSpace, typename InViewType,
           typename InTopologyType, typename OutTopologyType,
           std::size_t FFT_DIM, typename PlanOps>
 void run_plan_case(const ExecutionSpace& exec, const InViewType& gu,
                    const InTopologyType& in_topology,
                    const OutTopologyType& out_topology,
-                   const PlanCase<FFT_DIM>& plan_case, const PlanOps& ops) {
+                   const PlanCase<FFT_DIM>& plan_case, const PlanOps& ops,
+                   Placement placement) {
   using InLayoutType  = typename InViewType::array_layout;
   using OutLayoutType = typename OutViewType::array_layout;
   MPI_Comm comm       = MPI_COMM_WORLD;
@@ -229,28 +244,55 @@ void run_plan_case(const ExecutionSpace& exec, const InViewType& gu,
   auto ref_u_inv = extract_local(gu, in_topology, comm);
   auto ref_u_hat = extract_local(gu_hat, out_topology, comm);
 
-  InViewType u_inv("u_inv", KokkosFFT::Impl::create_layout<InLayoutType>(
-                                KokkosFFT::Impl::extract_extents(u)));
-  OutViewType u_hat("u_hat", KokkosFFT::Impl::create_layout<OutLayoutType>(
-                                 KokkosFFT::Impl::extract_extents(ref_u_hat)));
+  using in_value_type  = typename InViewType::non_const_value_type;
+  using out_value_type = typename OutViewType::non_const_value_type;
+  using BufferType =
+      Kokkos::View<out_value_type*, typename OutViewType::execution_space>;
+  const auto in_extents  = KokkosFFT::Impl::extract_extents(u);
+  const auto out_extents = KokkosFFT::Impl::extract_extents(ref_u_hat);
+  const auto in_layout =
+      KokkosFFT::Impl::create_layout<InLayoutType>(in_extents);
+  const auto out_layout =
+      KokkosFFT::Impl::create_layout<OutLayoutType>(out_extents);
+
+  // Out-of-place: u is the input, and u_hat and u_inv are separate Views.
+  // In-place: the input, u_hat and u_inv are Views of the same extents on one
+  // allocation; the input is copied from u, and backward writes into it.
+  const bool is_inplace = placement == Placement::InPlace;
+  BufferType buffer;
+  if (is_inplace) {
+    buffer = BufferType(
+        "buffer", KokkosFFT::Distributed::compute_inplace_allocation_size<
+                      in_value_type, out_value_type>(in_extents, out_extents));
+  }
+  InViewType u_in =
+      is_inplace ? InViewType(reinterpret_cast<in_value_type*>(buffer.data()),
+                              in_layout)
+                 : u;
+  OutViewType u_hat = is_inplace ? OutViewType(buffer.data(), out_layout)
+                                 : OutViewType("u_hat", out_layout);
+  InViewType u_inv  = is_inplace ? u_in : InViewType("u_inv", in_layout);
+  if (is_inplace) Kokkos::deep_copy(u_in, u);
 
   if (plan_case.m_expect == Expect::Throw) {
     EXPECT_THROW(
         {
           [[maybe_unused]] auto plan =
-              ops.create(exec, u, u_hat, plan_case.m_axes, in_topology,
+              ops.create(exec, u_in, u_hat, plan_case.m_axes, in_topology,
                          out_topology, comm);
         },
         std::runtime_error);
     return;
   }
 
-  auto plan = ops.create(exec, u, u_hat, plan_case.m_axes, in_topology,
+  auto plan = ops.create(exec, u_in, u_hat, plan_case.m_axes, in_topology,
                          out_topology, comm);
+  // Empty Views (no data on this rank) are never in-place
+  EXPECT_EQ(plan.is_inplace(), is_inplace && u_in.data() != nullptr);
   const auto& tol_fwd = plan_case.m_tol_fwd;
   const auto& tol_bwd = plan_case.m_tol_bwd;
 
-  ops.forward(plan, u, u_hat);
+  ops.forward(plan, u_in, u_hat);
   EXPECT_TRUE(allclose(exec, u_hat, ref_u_hat, tol_fwd.m_rtol, tol_fwd.m_atol));
 
   ops.backward(plan, u_hat, u_inv);
@@ -294,22 +336,41 @@ struct InternalPlanOps {
 /// \param[in] topologies Topologies of the test, indexed by the cases
 /// \param[in] cases Plan cases
 /// \param[in] ops Plan operations
+/// \param[in] placement Placement of the input and output Views
 template <typename OutViewType, typename ExecutionSpace, typename InViewType,
           typename TopologiesType, std::size_t FFT_DIM, typename PlanOps>
 void run_plan_cases(const std::string& name, const ExecutionSpace& exec,
                     const InViewType& gu, const TopologiesType& topologies,
                     const std::vector<PlanCase<FFT_DIM>>& cases,
-                    const PlanOps& ops) {
+                    const PlanOps& ops,
+                    Placement placement = Placement::OutOfPlace) {
+  const std::string tag =
+      placement == Placement::InPlace ? " [in-place]: " : ": ";
   for (const auto& plan_case : cases) {
-    SCOPED_TRACE(name + ": " + to_string(plan_case));
-    print_plan_case(name, plan_case);
+    SCOPED_TRACE(name + tag + to_string(plan_case));
+    print_plan_case(name, plan_case, placement);
     visit_topology(topologies, plan_case.m_in_topo, [&](const auto& in_topo) {
       visit_topology(topologies, plan_case.m_out_topo,
                      [&](const auto& out_topo) {
                        run_plan_case<OutViewType>(exec, gu, in_topo, out_topo,
-                                                  plan_case, ops);
+                                                  plan_case, ops, placement);
                      });
     });
+  }
+}
+
+/// \brief Run the plan cases of a test out-of-place and in-place
+template <typename OutViewType, typename ExecutionSpace, typename InViewType,
+          typename TopologiesType, std::size_t FFT_DIM, typename PlanOps>
+void run_plan_cases_all_placements(const std::string& name,
+                                   const ExecutionSpace& exec,
+                                   const InViewType& gu,
+                                   const TopologiesType& topologies,
+                                   const std::vector<PlanCase<FFT_DIM>>& cases,
+                                   const PlanOps& ops) {
+  for (auto placement : {Placement::OutOfPlace, Placement::InPlace}) {
+    run_plan_cases<OutViewType>(name, exec, gu, topologies, cases, ops,
+                                placement);
   }
 }
 

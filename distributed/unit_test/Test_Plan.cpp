@@ -151,9 +151,9 @@ void test_plan1D_view2D(std::size_t nprocs) {
   // the same cases of the baseline
   const PlanOps plan_ops{ref_plan_name(nprocs)};
   using OpsType = std::conditional_t<IsMoved, MovedPlanOps<PlanOps>, PlanOps>;
-  run_plan_cases<ComplexView2DType>("Test_Plan.cpp test_plan1D_view2D",
-                                    execution_space(), gu, topologies, cases,
-                                    OpsType{plan_ops});
+  run_plan_cases_all_placements<ComplexView2DType>(
+      "Test_Plan.cpp test_plan1D_view2D", execution_space(), gu, topologies,
+      cases, OpsType{plan_ops});
 }
 
 /// \brief Local views of one case: the input, the output, the inverse and
