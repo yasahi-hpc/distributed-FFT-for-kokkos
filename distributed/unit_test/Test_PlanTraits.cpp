@@ -3,10 +3,12 @@
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_Plan.hpp"
 
-// Copy and move semantics of the plan classes (refactor-classes.md).
-// Only the public Plan is movable. The internal classes are constructible
-// only from their arguments: they are built in place (std::make_unique in
-// plan_factory), and never copied or moved.
+// Copy and move semantics of the plan classes.
+// Only the public Plan is movable: it holds its implementation through a
+// std::unique_ptr, so moving a Plan moves that pointer. The internal classes
+// are constructible only from their arguments: they are built in place
+// (std::make_unique in plan_factory) and never copied or moved, so the
+// communicators, FFT library plans and buffers they own keep their addresses.
 //
 // The checks are compile-time only. The traits do not depend on the value
 // type, the layouts or DIM, so one instantiation per class is enough.

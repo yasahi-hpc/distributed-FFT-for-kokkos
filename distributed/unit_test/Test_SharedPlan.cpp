@@ -99,11 +99,12 @@ void test_shared1D_view2D(std::size_t nprocs) {
 
   const std::string name = "Test_SharedPlan.cpp test_shared1D_view2D";
   if (nprocs != 1) {
-    run_plan_cases<ComplexView2DType>(name, execution_space(), gu, topologies,
-                                      failure_cases, SharedPlanOps{});
+    run_plan_cases_all_placements<ComplexView2DType>(
+        name, execution_space(), gu, topologies, failure_cases,
+        SharedPlanOps{});
   }
-  run_plan_cases<ComplexView2DType>(name, execution_space(), gu, topologies,
-                                    success_cases, SharedPlanOps{});
+  run_plan_cases_all_placements<ComplexView2DType>(
+      name, execution_space(), gu, topologies, success_cases, SharedPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -169,11 +170,12 @@ void test_shared2D_view3D(std::size_t nprocs) {
 
   const std::string name = "Test_SharedPlan.cpp test_shared2D_view3D";
   if (nprocs != 1) {
-    run_plan_cases<ComplexView3DType>(name, execution_space(), gu, topologies,
-                                      failure_cases, SharedPlanOps{});
+    run_plan_cases_all_placements<ComplexView3DType>(
+        name, execution_space(), gu, topologies, failure_cases,
+        SharedPlanOps{});
   }
-  run_plan_cases<ComplexView3DType>(name, execution_space(), gu, topologies,
-                                    success_cases, SharedPlanOps{});
+  run_plan_cases_all_placements<ComplexView3DType>(
+      name, execution_space(), gu, topologies, success_cases, SharedPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -261,11 +263,12 @@ void test_shared3D_view4D(std::size_t nprocs) {
 
   const std::string name = "Test_SharedPlan.cpp test_shared3D_view4D";
   if (nprocs != 1) {
-    run_plan_cases<ComplexView4DType>(name, execution_space(), gu, topologies,
-                                      failure_cases, SharedPlanOps{});
+    run_plan_cases_all_placements<ComplexView4DType>(
+        name, execution_space(), gu, topologies, failure_cases,
+        SharedPlanOps{});
   }
-  run_plan_cases<ComplexView4DType>(name, execution_space(), gu, topologies,
-                                    success_cases, SharedPlanOps{});
+  run_plan_cases_all_placements<ComplexView4DType>(
+      name, execution_space(), gu, topologies, success_cases, SharedPlanOps{});
 }
 
 }  // namespace

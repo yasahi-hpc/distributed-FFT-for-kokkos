@@ -151,9 +151,9 @@ void test_pencil1D_view3D(std::size_t npx, std::size_t npy) {
 
   const std::string name = "Test_PencilPlan.cpp test_pencil1D_view3D";
   const bool is_failure  = npx == 1 || npy == 1;
-  run_plan_cases<ComplexView3DType>(name, execution_space(), gu, topologies,
-                                    is_failure ? failure_cases : success_cases,
-                                    PencilPlanOps{});
+  run_plan_cases_all_placements<ComplexView3DType>(
+      name, execution_space(), gu, topologies,
+      is_failure ? failure_cases : success_cases, PencilPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -534,9 +534,9 @@ void test_pencil2D_view3D(std::size_t npx, std::size_t npy) {
 
   const std::string name = "Test_PencilPlan.cpp test_pencil2D_view3D";
   const bool is_failure  = npx == 1 || npy == 1;
-  run_plan_cases<ComplexView3DType>(name, execution_space(), gu, topologies,
-                                    is_failure ? failure_cases : success_cases,
-                                    PencilPlanOps{});
+  run_plan_cases_all_placements<ComplexView3DType>(
+      name, execution_space(), gu, topologies,
+      is_failure ? failure_cases : success_cases, PencilPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -600,9 +600,9 @@ void test_pencil2D_view4D(std::size_t npx, std::size_t npy) {
 
   const std::string name = "Test_PencilPlan.cpp test_pencil2D_view4D";
   const bool is_failure  = npx == 1 || npy == 1;
-  run_plan_cases<ComplexView4DType>(name, execution_space(), gu, topologies,
-                                    is_failure ? failure_cases : success_cases,
-                                    PencilPlanOps{});
+  run_plan_cases_all_placements<ComplexView4DType>(
+      name, execution_space(), gu, topologies,
+      is_failure ? failure_cases : success_cases, PencilPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -950,9 +950,9 @@ void test_pencil3D_view3D(std::size_t npx, std::size_t npy) {
 
   const std::string name = "Test_PencilPlan.cpp test_pencil3D_view3D";
   const bool is_failure  = npx == 1 || npy == 1;
-  run_plan_cases<ComplexView3DType>(name, execution_space(), gu, topologies,
-                                    is_failure ? failure_cases : success_cases,
-                                    PencilPlanOps{});
+  run_plan_cases_all_placements<ComplexView3DType>(
+      name, execution_space(), gu, topologies,
+      is_failure ? failure_cases : success_cases, PencilPlanOps{});
 }
 
 template <typename T, typename LayoutType>
@@ -1043,9 +1043,9 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
 
   const std::string name = "Test_PencilPlan.cpp test_pencil3D_view4D";
   const bool is_failure  = npx == 1 || npy == 1;
-  run_plan_cases<ComplexView4DType>(name, execution_space(), gu, topologies,
-                                    is_failure ? failure_cases : success_cases,
-                                    PencilPlanOps{});
+  run_plan_cases_all_placements<ComplexView4DType>(
+      name, execution_space(), gu, topologies,
+      is_failure ? failure_cases : success_cases, PencilPlanOps{});
 }
 
 }  // namespace

@@ -47,6 +47,11 @@ class FFTStage {
   int_map_type m_map_forward_in = {}, m_map_forward_out = {},
                m_map_backward_in = {}, m_map_backward_out = {};
 
+  // Whether the input of the forward FFT (and the output of the backward FFT)
+  // goes through in_T although there is no local transpose: see
+  // set_in_staging
+  bool m_stage_in = false;
+
  public:
   /// \brief FFTStage constructor
   /// \param[in] exec_space Kokkos execution space
@@ -91,6 +96,17 @@ class FFTStage {
     }
   }
 
+  /// \brief Run the FFT on in_T even without local transpose of the input:
+  /// forward copies the input into in_T and runs the FFT from in_T, backward
+  /// runs the FFT into in_T and copies in_T into the output.
+  ///
+  /// Used when the input and output Views share their data and the input is
+  /// real (an in-place R2C/C2R plan). Run directly on the Views, the FFT
+  /// library would be in-place and read or write the real data with the
+  /// innermost FFT extent padded to 2*(n/2+1), not in the dense layout of the
+  /// input View. With the copy, the FFT is out-of-place.
+  void set_in_staging() { m_stage_in = true; }
+
   /// \brief Whether the output of the forward FFT is locally transposed
   bool has_out_map() const { return m_map_forward_out != int_map_type{}; }
 
@@ -103,12 +119,15 @@ class FFTStage {
                const InViewType& in_T, const OutViewType& out_T) const {
     const bool transpose_in  = m_map_forward_in != int_map_type{};
     const bool transpose_out = m_map_forward_out != int_map_type{};
+    const bool use_in_T      = transpose_in || m_stage_in;
 
     if (transpose_in) {
       KokkosFFT::Impl::transpose(m_exec_space, in, in_T, m_map_forward_in,
                                  true);
+    } else if (m_stage_in) {
+      Kokkos::deep_copy(m_exec_space, in_T, in);
     }
-    KokkosFFT::execute(m_forward_plan, transpose_in ? in_T : in,
+    KokkosFFT::execute(m_forward_plan, use_in_T ? in_T : in,
                        transpose_out ? out_T : out,
                        KokkosFFT::Normalization::none);
     if (transpose_out) {
@@ -126,17 +145,19 @@ class FFTStage {
                 const InViewType& in_T, const OutViewType& out_T) const {
     const bool transpose_in  = m_map_backward_in != int_map_type{};
     const bool transpose_out = m_map_backward_out != int_map_type{};
+    const bool use_in_T      = transpose_out || m_stage_in;
 
     if (transpose_in) {
       KokkosFFT::Impl::transpose(m_exec_space, out, out_T, m_map_backward_in,
                                  true);
     }
     KokkosFFT::execute(m_backward_plan, transpose_in ? out_T : out,
-                       transpose_out ? in_T : in,
-                       KokkosFFT::Normalization::none);
+                       use_in_T ? in_T : in, KokkosFFT::Normalization::none);
     if (transpose_out) {
       KokkosFFT::Impl::transpose(m_exec_space, in_T, in, m_map_backward_out,
                                  true);
+    } else if (m_stage_in) {
+      Kokkos::deep_copy(m_exec_space, in, in_T);
     }
   }
 

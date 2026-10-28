@@ -46,8 +46,8 @@ namespace Impl {
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
-static std::unique_ptr<BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
-                                InLayoutType, OutLayoutType>>
+std::unique_ptr<BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
+                         InLayoutType, OutLayoutType>>
 plan_factory(
     const ExecutionSpace& exec_space, const InViewType& in,
     const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
@@ -228,6 +228,10 @@ class Plan {
   /// \brief Get the name of the plan implementation
   /// \return Name of the plan implementation
   std::string name() const { return get_plan().name(); }
+
+  /// \brief Whether the plan is in-place: its input and output Views point
+  /// to the same data
+  bool is_inplace() const { return get_plan().is_inplace(); }
 };
 
 /// \brief Distributed FFT execute function

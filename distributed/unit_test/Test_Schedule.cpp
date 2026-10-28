@@ -250,8 +250,10 @@ void test_schedule_three_ffts() {
   EXPECT_EQ(steps, ref);
 }
 
-// Transpose + Transpose + FFT (not produced by the block analyses today, see
-// issue_topology.md): both transposes keep the input value type
+// Transpose + Transpose + FFT: both transposes keep the input value type.
+// The block analyses do not produce this sequence today, since their first
+// transpose always makes an FFT axis local and is followed by an FFT, but
+// build_schedule must handle it.
 void test_schedule_trans_trans_fft() {
   auto steps = KokkosFFT::Distributed::Impl::build_schedule<DIM>(
       {trans_block(e0, e1), trans_block(e1, e6), fft_block(e6, e5)});
@@ -356,6 +358,125 @@ void test_executor_without_buffers() {
   EXPECT_EQ(executor_permuted.buffer_size(), max_buffer_size / 2);
 }
 
+// build_schedule with stage_input (in-place R2C/C2R plans): an FFT that reads
+// UserIn and writes UserOut directly, i.e. a single FFT block without in-map
+// and out-map, first copies its input into Send (m_src_T). Every other
+// schedule is the same as without stage_input, since its first step already
+// copies UserIn into a buffer or writes a buffer.
+void test_schedule_staging() {
+  using KokkosFFT::Distributed::Impl::build_schedule;
+  const bool stage = true;
+
+  // Single FFT block without maps: staged
+  auto steps = build_schedule<DIM>({fft_block(e0, e1)}, stage);
+  std::vector<BlockStepType> ref = {
+      ref_step(FFT, 0, in_spec(BufferId::UserIn, e0),
+               out_spec(BufferId::UserOut, e1), in_spec(BufferId::Send, e0))};
+  EXPECT_EQ(steps, ref);
+
+  // Single FFT block with maps: the local transposes already copy the data
+  // out of the user Views
+  EXPECT_EQ(build_schedule<DIM>({fft_block(e0, e1, permuted_map)}, stage),
+            build_schedule<DIM>({fft_block(e0, e1, permuted_map)}));
+
+  // Single FFT block with an out-map only: the FFT writes into Recv
+  BlockInfoType fft_out_map = fft_block(e0, e1);
+  fft_out_map.m_out_map     = permuted_map;
+  steps                     = build_schedule<DIM>({fft_out_map}, stage);
+  ref                       = {ref_step(FFT, 0, in_spec(BufferId::UserIn, e0),
+                                        out_spec(BufferId::UserOut, e1), std::nullopt,
+                                        out_spec(BufferId::Recv, e1))};
+  EXPECT_EQ(steps, ref);
+
+  // Several blocks: UserIn is read before anything writes UserOut
+  const std::vector<std::vector<BlockInfoType>> plans = {
+      {trans_block(e0, e1, 1), fft_block(e1, e2)},
+      {fft_block(e0, e1), trans_block(e1, e2)},
+      {trans_block(e0, e1), fft_block(e1, e2), trans_block(e2, e3)},
+      {fft_block(e0, e1), trans_block(e1, e2), fft_block(e2, e3)}};
+  for (const auto& blocks : plans) {
+    EXPECT_EQ(build_schedule<DIM>(blocks, stage), build_schedule<DIM>(blocks));
+  }
+}
+
+// In-place R2C/C2R single block: the input is staged through the send buffer,
+// sized to the real input, and the receive buffer is not allocated. The
+// results are those of the out-of-place KokkosFFT transforms. Out-of-place,
+// and in-place C2C, use no buffer.
+void test_executor_inplace() {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using RealViewType =
+      Kokkos::View<double***, Kokkos::LayoutRight, execution_space>;
+  using ComplexViewType = Kokkos::View<Kokkos::complex<double>***,
+                                       Kokkos::LayoutRight, execution_space>;
+  using BufferType = Kokkos::View<Kokkos::complex<double>*, execution_space>;
+  using R2CExecutorType =
+      KokkosFFT::Distributed::Impl::BlockExecutor<execution_space, RealViewType,
+                                                  ComplexViewType>;
+  using C2CExecutorType = KokkosFFT::Distributed::Impl::BlockExecutor<
+      execution_space, ComplexViewType, ComplexViewType>;
+  using CommsType = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
+
+  execution_space exec;
+  CommsType comms(exec, extents_type{1, 1, 1}, MPI_COMM_WORLD);
+  const std::size_t max_buffer_size = 8 * 6 * 4 * 2;
+
+  // R2C over the last axis of a LayoutRight View: no local transpose
+  const extents_type real_extents = {8, 6, 4}, complex_extents = {8, 6, 3};
+  BlockInfoType fft = fft_block(real_extents, complex_extents);
+  fft.m_fft_dim     = 1;
+
+  // In-place: both Views on one allocation
+  const std::size_t size =
+      KokkosFFT::Distributed::compute_inplace_allocation_size<
+          double, Kokkos::complex<double>>(real_extents, complex_extents);
+  BufferType buffer("buffer", size);
+  RealViewType u(reinterpret_cast<double*>(buffer.data()), 8, 6, 4);
+  ComplexViewType u_hat(buffer.data(), 8, 6, 3);
+
+  RealViewType u_ref("u_ref", 8, 6, 4), u_inv_ref("u_inv_ref", 8, 6, 4);
+  ComplexViewType u_hat_ref("u_hat_ref", 8, 6, 3);
+  Kokkos::Random_XorShift64_Pool<> random_pool(12345);
+  Kokkos::fill_random(u_ref, random_pool, 1.0);
+  Kokkos::deep_copy(u, u_ref);
+
+  R2CExecutorType executor(exec, u, u_hat, {fft}, max_buffer_size);
+  EXPECT_EQ(executor.buffer_size(), std::size_t(8 * 6 * 4 / 2));
+  EXPECT_EQ(executor.recv_buffer_size(), std::size_t(0));
+
+  executor.forward(comms, u, u_hat);
+  KokkosFFT::rfft(exec, u_ref, u_hat_ref, KokkosFFT::Normalization::none, -1);
+  EXPECT_TRUE(allclose(exec, u_hat, u_hat_ref));
+
+  executor.backward(comms, u_hat, u);
+  KokkosFFT::irfft(exec, u_hat_ref, u_inv_ref, KokkosFFT::Normalization::none,
+                   -1);
+  EXPECT_TRUE(allclose(exec, u, u_inv_ref));
+
+  // Out-of-place: no buffer
+  RealViewType v("v", 8, 6, 4);
+  ComplexViewType v_hat("v_hat", 8, 6, 3);
+  R2CExecutorType executor_out_of_place(exec, v, v_hat, {fft}, max_buffer_size);
+  EXPECT_EQ(executor_out_of_place.buffer_size(), std::size_t(0));
+  EXPECT_EQ(executor_out_of_place.recv_buffer_size(), std::size_t(0));
+
+  // In-place C2C: the FFT runs in-place on the shared data, without buffer
+  BlockInfoType fft_c2c = fft_block(real_extents, real_extents);
+  fft_c2c.m_fft_dim     = 1;
+  ComplexViewType w("w", 8, 6, 4), w_ref("w_ref", 8, 6, 4),
+      w_hat_ref("w_hat_ref", 8, 6, 4);
+  Kokkos::fill_random(w_ref, random_pool, Kokkos::complex<double>(1.0, 1.0));
+  Kokkos::deep_copy(w, w_ref);
+
+  C2CExecutorType executor_c2c(exec, w, w, {fft_c2c}, max_buffer_size);
+  EXPECT_EQ(executor_c2c.buffer_size(), std::size_t(0));
+  EXPECT_EQ(executor_c2c.recv_buffer_size(), std::size_t(0));
+
+  executor_c2c.forward(comms, w, w);
+  KokkosFFT::fft(exec, w_ref, w_hat_ref, KokkosFFT::Normalization::none, -1);
+  EXPECT_TRUE(allclose(exec, w, w_hat_ref));
+}
+
 }  // namespace
 
 TEST(TestSchedule, FFT) { test_schedule_fft(); }
@@ -377,9 +498,12 @@ TEST(TestSchedule, FFTTransTransFFT) { test_schedule_fft_trans_trans_fft(); }
 TEST(TestSchedule, ThreeFFTs) { test_schedule_three_ffts(); }
 TEST(TestSchedule, TransTransFFT) { test_schedule_trans_trans_fft(); }
 TEST(TestSchedule, InvalidBlocks) { test_schedule_invalid_blocks(); }
+TEST(TestSchedule, Staging) { test_schedule_staging(); }
 
 TEST(TestBlockExecutor, TransposeWithoutCommunication) {
   test_transpose_without_communication();
 }
 
 TEST(TestBlockExecutor, WithoutBuffers) { test_executor_without_buffers(); }
+
+TEST(TestBlockExecutor, InPlace) { test_executor_inplace(); }

@@ -1,3 +1,4 @@
+#include <array>
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_Extents.hpp"
@@ -101,7 +102,81 @@ void test_compute_fft_extents(iType nprocs) {
   EXPECT_EQ(fft_extents210, ref_fft_extents210);
 }
 
+/// \brief compute_inplace_allocation_size: the larger of the input and the
+/// output in bytes, in elements of the output type, rounded up
+void test_compute_inplace_allocation_size() {
+  using KokkosFFT::Distributed::compute_inplace_allocation_size;
+  using extents_type = std::array<std::size_t, 2>;
+
+  // R2C (8, 7) -> (8, 4): 56 doubles = 448 bytes, 32 complex = 512 bytes
+  EXPECT_EQ((compute_inplace_allocation_size<double, Kokkos::complex<double>>(
+                extents_type{8, 7}, extents_type{8, 4})),
+            std::size_t(32));
+
+  // C2C: the input and the output have the same size
+  EXPECT_EQ((compute_inplace_allocation_size<Kokkos::complex<float>,
+                                             Kokkos::complex<float>>(
+                extents_type{8, 7}, extents_type{7, 8})),
+            std::size_t(56));
+
+  // Uneven distribution, where the input is the larger one: input (8, 2),
+  // 16 doubles = 128 bytes, output (1, 7), 7 complex = 112 bytes. 8 complex
+  // are needed, more than the 7 of the output.
+  EXPECT_EQ((compute_inplace_allocation_size<double, Kokkos::complex<double>>(
+                extents_type{8, 2}, extents_type{1, 7})),
+            std::size_t(8));
+
+  // Rounded up: input (1, 5), 5 floats = 20 bytes, output (1, 1), one
+  // complex<double> = 16 bytes. 2 complex<double> are needed.
+  EXPECT_EQ((compute_inplace_allocation_size<float, Kokkos::complex<double>>(
+                extents_type{1, 5}, extents_type{1, 1})),
+            std::size_t(2));
+
+  // Empty local extents on this rank
+  EXPECT_EQ((compute_inplace_allocation_size<double, Kokkos::complex<double>>(
+                extents_type{0, 7}, extents_type{0, 4})),
+            std::size_t(0));
+}
+
+/// \brief are_overlapping compares byte ranges, without accessing the data
+void test_are_overlapping() {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using RealViewType    = Kokkos::View<double*, execution_space>;
+  using ComplexViewType =
+      Kokkos::View<Kokkos::complex<double>*, execution_space>;
+  using KokkosFFT::Distributed::Impl::are_overlapping;
+
+  RealViewType buffer("buffer", 16), other("other", 16);
+  double* ptr = buffer.data();
+
+  RealViewType a(ptr, 8);
+  RealViewType a_same(ptr, 4);          // same start, shorter
+  RealViewType b_partial(ptr + 4, 8);   // starts inside a
+  RealViewType c_adjacent(ptr + 8, 8);  // starts right after a
+  ComplexViewType a_complex(reinterpret_cast<Kokkos::complex<double>*>(ptr),
+                            4);  // a seen as complex
+  RealViewType empty(ptr, 0);
+
+  EXPECT_TRUE(are_overlapping(a, a));
+  EXPECT_TRUE(are_overlapping(a, a_same));
+  EXPECT_TRUE(are_overlapping(a, b_partial));
+  EXPECT_TRUE(are_overlapping(b_partial, a));
+  EXPECT_FALSE(are_overlapping(a, c_adjacent));
+  EXPECT_FALSE(are_overlapping(c_adjacent, a));
+  EXPECT_TRUE(are_overlapping(a, a_complex));
+  EXPECT_FALSE(are_overlapping(a_complex, c_adjacent));  // 64 bytes
+  EXPECT_FALSE(are_overlapping(a, empty));
+  EXPECT_FALSE(are_overlapping(empty, a));
+  EXPECT_FALSE(are_overlapping(buffer, other));
+}
+
 }  // namespace
+
+TEST(TestInplaceHelpers, compute_inplace_allocation_size) {
+  test_compute_inplace_allocation_size();
+}
+
+TEST(TestInplaceHelpers, are_overlapping) { test_are_overlapping(); }
 
 TYPED_TEST_SUITE(TestExtents, test_types);
 

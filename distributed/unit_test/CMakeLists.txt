@@ -60,7 +60,7 @@ endfunction()
 
 add_mpi_unit_tests(unit-tests NPROCS 1 TIMEOUT 600)
 add_mpi_unit_tests(unit-tests-mpi NPROCS 1 2 TIMEOUT 600)
-add_mpi_unit_tests(unit-tests-mpi NPROCS 4 TIMEOUT 1800)
+add_mpi_unit_tests(unit-tests-mpi NPROCS 4 TIMEOUT 2400)
 
 if(ENABLE_NCCL AND (Kokkos_ENABLE_CUDA OR Kokkos_ENABLE_HIP))
   set(NCCL_SOURCES Test_Main.cpp nccl/Test_NCCL_Types.cpp)
