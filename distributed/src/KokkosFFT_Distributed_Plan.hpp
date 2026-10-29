@@ -129,6 +129,16 @@ plan_factory(
 /// communicators of a PencilPlan). As for construction, all the ranks must
 /// destroy and assign their plans in the same order.
 ///
+/// In-place: the plan is in-place when the input and output Views start at
+/// the same address (see is_inplace()). Views that overlap partially throw.
+/// Each View keeps the shape it has out-of-place and is dense in its own
+/// local extents: unlike single-node KokkosFFT, a real View is not padded.
+/// On every rank, the allocation behind the two Views must hold the larger
+/// of the local input and the local output; compute_inplace_allocation_size
+/// returns that size. An in-place plan must be executed with Views that
+/// point to the same data, an out-of-place plan with Views that do not. See
+/// examples/inplace_FFT.
+///
 /// \tparam ExecutionSpace Kokkos execution space
 /// \tparam InViewType Input Kokkos view type
 /// \tparam OutViewType Output Kokkos view type
