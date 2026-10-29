@@ -26,6 +26,12 @@ if(ENABLE_ONECCL AND Kokkos_ENABLE_SYCL)
   target_link_libraries(distributed INTERFACE oneCCL::oneCCL)
 endif()
 
+if(ENABLE_NVSHMEM AND Kokkos_ENABLE_CUDA)
+  find_package(NVSHMEM REQUIRED)
+  target_compile_definitions(distributed INTERFACE ENABLE_TPL_NVSHMEM)
+  target_link_libraries(distributed INTERFACE NVSHMEM::NVSHMEM)
+endif()
+
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
   find_package(cuFFTMp REQUIRED)
   find_package(NVSHMEM REQUIRED)

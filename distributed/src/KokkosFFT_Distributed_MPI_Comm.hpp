@@ -86,6 +86,28 @@ struct ScopedMPIComm {
   int size() const { return m_size; }
 };
 
+/// \brief Prepare the backend of a communicator wrapper type for a plan on
+/// comm, before the plan constructs its wrappers from comm or from
+/// sub-communicators of it. It does nothing by default. A backend that must
+/// be initialized with the communicator of the plan (NVSHMEM) specializes it.
+///
+/// \tparam CommType Type of the communicator wrapper (TplComm)
+template <typename CommType>
+struct TplCommSetup {
+  /// \param[in] comm MPI communicator of the plan
+  static void setup(MPI_Comm /*comm*/) {}
+};
+
+/// \brief Run TplCommSetup for a plan communicator
+/// \tparam CommType Type of the communicator wrapper (TplComm)
+/// \param[in] comm MPI communicator of the plan
+/// \return comm, so that it can be called in a member initializer list
+template <typename CommType>
+const MPI_Comm &setup_tpl_comm(const MPI_Comm &comm) {
+  TplCommSetup<CommType>::setup(comm);
+  return comm;
+}
+
 }  // namespace Impl
 }  // namespace Distributed
 }  // namespace KokkosFFT

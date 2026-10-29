@@ -89,7 +89,7 @@ class SlabComms {
   template <typename TopologyType>
   SlabComms(const ExecutionSpace& exec_space, const TopologyType& /*topology*/,
             const MPI_Comm& comm)
-      : m_comm(comm, exec_space) {}
+      : m_comm(setup_tpl_comm<CommType>(comm), exec_space) {}
 
   /// \brief The communicator of a transpose along a comm axis
   const CommType& operator()(std::size_t /*comm_axis*/) const { return m_comm; }
@@ -124,6 +124,8 @@ class PencilComms {
   template <typename TopologyType>
   PencilComms(const ExecutionSpace& exec_space, const TopologyType& topology,
               const MPI_Comm& comm) {
+    // The wrappers are made from sub-communicators of comm
+    setup_tpl_comm<CommType>(comm);
     create_pencil_communicators(exec_space, topology, comm, m_cart_comm,
                                 m_cart_comms, m_cart_tpl_comms);
   }
