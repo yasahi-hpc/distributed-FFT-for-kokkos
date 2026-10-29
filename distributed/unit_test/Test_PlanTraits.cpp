@@ -41,11 +41,14 @@ using SlabPlanExecutorType =
 using PencilPlanExecutorType =
     Impl::PencilPlanExecutor<execution_space, RealViewType, ComplexViewType, 1,
                              Kokkos::LayoutRight, Kokkos::LayoutLeft>;
-using BlockExecutorType =
-    Impl::BlockExecutor<execution_space, RealViewType, ComplexViewType>;
+using PencilCommsType   = Impl::PencilComms<execution_space>;
+using BlockExecutorType = Impl::BlockExecutor<execution_space, RealViewType,
+                                              ComplexViewType, PencilCommsType>;
 using FFTStageType =
     Impl::FFTStage<execution_space, RealViewType, ComplexViewType>;
-using PencilCommsType = Impl::PencilComms<execution_space>;
+using CommBufferType =
+    Impl::CommBuffer<Impl::TplComm<execution_space>, execution_space,
+                     Kokkos::complex<double>>;
 
 /// \brief Neither default constructible, nor copyable
 template <typename T>
@@ -78,6 +81,7 @@ static_assert(is_pinned_v<PencilPlanExecutorType>);
 static_assert(is_pinned_v<BlockExecutorType>);
 static_assert(is_pinned_v<FFTStageType>);
 static_assert(is_pinned_v<PencilCommsType>);
+static_assert(is_pinned_v<CommBufferType>);
 
 // BasePlan is abstract, so it is never constructible; only its assignments
 // can be checked

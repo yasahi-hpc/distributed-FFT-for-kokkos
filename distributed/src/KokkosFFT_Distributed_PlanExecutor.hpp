@@ -42,7 +42,7 @@ class BasePlanExecutor {
 
   // Type for the block executor
   using BlockExecutorType =
-      BlockExecutor<ExecutionSpace, InViewType, OutViewType>;
+      BlockExecutor<ExecutionSpace, InViewType, OutViewType, CommsType>;
 
   ExecutionSpace m_exec_space;
 

@@ -291,10 +291,10 @@ void test_transpose_without_communication() {
   using execution_space = Kokkos::DefaultExecutionSpace;
   using ViewType = Kokkos::View<Kokkos::complex<double>***, Kokkos::LayoutRight,
                                 execution_space>;
+  using CommsType = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
   using ExecutorType =
       KokkosFFT::Distributed::Impl::BlockExecutor<execution_space, ViewType,
-                                                  ViewType>;
-  using CommsType = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
+                                                  ViewType, CommsType>;
 
   BlockInfoType transpose    = trans_block(e0, e0);
   transpose.m_buffer_extents = {1, 8, 6, 4};
@@ -321,10 +321,10 @@ void test_executor_without_buffers() {
   using execution_space = Kokkos::DefaultExecutionSpace;
   using ViewType = Kokkos::View<Kokkos::complex<double>***, Kokkos::LayoutRight,
                                 execution_space>;
+  using CommsType = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
   using ExecutorType =
       KokkosFFT::Distributed::Impl::BlockExecutor<execution_space, ViewType,
-                                                  ViewType>;
-  using CommsType = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
+                                                  ViewType, CommsType>;
 
   execution_space exec;
   CommsType comms(exec, extents_type{1, 1, 1}, MPI_COMM_WORLD);
@@ -410,12 +410,12 @@ void test_executor_inplace() {
   using ComplexViewType = Kokkos::View<Kokkos::complex<double>***,
                                        Kokkos::LayoutRight, execution_space>;
   using BufferType = Kokkos::View<Kokkos::complex<double>*, execution_space>;
+  using CommsType  = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
   using R2CExecutorType =
       KokkosFFT::Distributed::Impl::BlockExecutor<execution_space, RealViewType,
-                                                  ComplexViewType>;
+                                                  ComplexViewType, CommsType>;
   using C2CExecutorType = KokkosFFT::Distributed::Impl::BlockExecutor<
-      execution_space, ComplexViewType, ComplexViewType>;
-  using CommsType = KokkosFFT::Distributed::Impl::SharedComms<execution_space>;
+      execution_space, ComplexViewType, ComplexViewType, CommsType>;
 
   execution_space exec;
   CommsType comms(exec, extents_type{1, 1, 1}, MPI_COMM_WORLD);

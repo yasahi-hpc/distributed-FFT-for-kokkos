@@ -7,6 +7,7 @@
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_All2All.hpp"
+#include "KokkosFFT_Distributed_CommBuffer.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -74,6 +75,10 @@ class SlabComms {
   //! The transposes of a slab plan communicate
   static constexpr bool has_communication = true;
 
+  //! The send and receive buffers of the transposes
+  template <typename T>
+  using buffer_type = CommBuffer<CommType, ExecutionSpace, T>;
+
  private:
   CommType m_comm;
 
@@ -101,6 +106,11 @@ class PencilComms {
 
   //! The transposes of a pencil plan communicate
   static constexpr bool has_communication = true;
+
+  //! The send and receive buffers of the transposes. The row and column
+  //! communicators have the same wrapper type, and share the buffers.
+  template <typename T>
+  using buffer_type = CommBuffer<CommType, ExecutionSpace, T>;
 
  private:
   MPI_Comm m_cart_comm = MPI_COMM_NULL;
@@ -152,6 +162,10 @@ class SharedComms {
  public:
   //! No transpose block may be executed with these communicators
   static constexpr bool has_communication = false;
+
+  //! The buffers only hold local scratch: a managed View
+  template <typename T>
+  using buffer_type = CommBuffer<SharedComms, ExecutionSpace, T>;
 
   /// \param[in] exec_space Kokkos execution space (unused)
   /// \param[in] topology The input topology (unused)

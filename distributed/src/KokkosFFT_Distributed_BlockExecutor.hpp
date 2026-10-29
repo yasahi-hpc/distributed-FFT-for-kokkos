@@ -50,7 +50,12 @@ ViewType make_view(const ViewSpec<DIM>& spec, const AllocationViewType& send,
 /// \tparam ExecutionSpace Kokkos execution space
 /// \tparam InViewType Input Kokkos view type of the plan
 /// \tparam OutViewType Output Kokkos view type of the plan
-template <typename ExecutionSpace, typename InViewType, typename OutViewType>
+/// \tparam CommsType Communicators of the transposes (SlabComms,
+/// PencilComms or SharedComms): a callable returning the communicator for a
+/// comm axis, with a static has_communication flag. Its buffer_type is the
+/// type of the send and receive buffers.
+template <typename ExecutionSpace, typename InViewType, typename OutViewType,
+          typename CommsType>
 class BlockExecutor {
   static constexpr std::size_t DIM = InViewType::rank();
 
@@ -61,6 +66,9 @@ class BlockExecutor {
 
   using AllocationViewType =
       Kokkos::View<complex_type*, LayoutType, ExecutionSpace>;
+  using CommBufferType = typename CommsType::template buffer_type<complex_type>;
+  using BufferViewType = Kokkos::View<complex_type*, LayoutType, ExecutionSpace,
+                                      Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
   using BlockInfoType  = BlockInfo<DIM>;
   using BlockStepType  = BlockStep<DIM>;
   using ViewSpecType   = ViewSpec<DIM>;
@@ -77,8 +85,14 @@ class BlockExecutor {
   // Which buffer every block reads and writes
   std::vector<BlockStepType> m_schedule;
 
-  // Buffer Allocations
-  AllocationViewType m_send_buffer_allocation, m_recv_buffer_allocation;
+  // Whether the schedule has a transpose block
+  bool m_has_transpose;
+
+  // Send and receive buffers, allocated by the communicators' buffer type
+  CommBufferType m_send_buffer, m_recv_buffer;
+
+  // Views on the send and receive buffers
+  BufferViewType m_send_buffer_allocation, m_recv_buffer_allocation;
   std::vector<AllocationViewType> m_fft_buffer_allocations;
 
   // Internal transpose blocks
@@ -108,27 +122,22 @@ class BlockExecutor {
         // View directly. See build_schedule.
         m_schedule(build_schedule(block_infos,
                                   KokkosFFT::Impl::is_real_v<in_value_type> &&
-                                      check_inplace(in, out))) {
-    // Allocate the buffers the schedule uses. A transpose uses both buffers,
-    // one to send and one to receive, with the size given by the block
-    // analyses. A plan without transpose is a single FFT block: each buffer
-    // then only holds the scratch views of its local transposes or input
-    // copy, and is sized to them. Without any, no buffer is allocated.
-    const bool has_transpose = std::any_of(
-        m_schedule.begin(), m_schedule.end(),
-        [](const auto& step) { return step.m_type == BlockType::Transpose; });
-    const std::size_t transpose_buffer_size = (max_buffer_size + 1) / 2;
-    const std::size_t send_buffer_size =
-        has_transpose ? transpose_buffer_size
-                      : required_buffer_size(BufferId::Send);
-    const std::size_t recv_buffer_size =
-        has_transpose ? transpose_buffer_size
-                      : required_buffer_size(BufferId::Recv);
-    m_send_buffer_allocation =
-        AllocationViewType("send_buffer_allocation", send_buffer_size);
-    m_recv_buffer_allocation =
-        AllocationViewType("recv_buffer_allocation", recv_buffer_size);
-
+                                      check_inplace(in, out))),
+        m_has_transpose(std::any_of(m_schedule.begin(), m_schedule.end(),
+                                    [](const auto& step) {
+                                      return step.m_type ==
+                                             BlockType::Transpose;
+                                    })),
+        // Allocate the buffers the schedule uses. They are exchanged between
+        // ranks only if the schedule has a transpose.
+        m_send_buffer("send_buffer_allocation",
+                      allocation_size(BufferId::Send, max_buffer_size),
+                      m_has_transpose),
+        m_recv_buffer("recv_buffer_allocation",
+                      allocation_size(BufferId::Recv, max_buffer_size),
+                      m_has_transpose),
+        m_send_buffer_allocation(m_send_buffer.data(), m_send_buffer.size()),
+        m_recv_buffer_allocation(m_recv_buffer.data(), m_recv_buffer.size()) {
     const std::size_t last_block_idx = block_infos.size() - 1;
     for (std::size_t block_idx = 0; block_idx < block_infos.size();
          ++block_idx) {
@@ -202,13 +211,9 @@ class BlockExecutor {
   ~BlockExecutor()                               = default;
 
   /// \brief Forward FFT
-  /// \tparam CommsType Communicators of the transposes (SlabComms,
-  /// PencilComms or SharedComms): a callable returning the communicator for a
-  /// comm axis, with a static has_communication flag
   /// \param[in] comms The communicators of the transposes
   /// \param[in] in Input view
   /// \param[out] out Output view
-  template <typename CommsType>
   void forward(const CommsType& comms, const InViewType& in,
                const OutViewType& out) const {
     for (const auto& step : m_schedule) {
@@ -217,13 +222,9 @@ class BlockExecutor {
   }
 
   /// \brief Backward FFT
-  /// \tparam CommsType Communicators of the transposes (SlabComms,
-  /// PencilComms or SharedComms): a callable returning the communicator for a
-  /// comm axis, with a static has_communication flag
   /// \param[in] comms The communicators of the transposes
   /// \param[in] out Input view of the backward FFT
   /// \param[out] in Output view of the backward FFT
-  template <typename CommsType>
   void backward(const CommsType& comms, const OutViewType& out,
                 const InViewType& in) const {
     for (auto it = m_schedule.rbegin(); it != m_schedule.rend(); ++it) {
@@ -250,6 +251,20 @@ class BlockExecutor {
         spec.m_is_input_type && KokkosFFT::Impl::is_real_v<in_value_type>;
     std::size_t size = KokkosFFT::Impl::total_size(spec.m_extents);
     return is_real ? (size + 1) / 2 : size;
+  }
+
+  /// \brief The size to allocate for a buffer, in complex values. A
+  /// transpose uses both buffers, one to send and one to receive, with the
+  /// size given by the block analyses. A plan without transpose is a single
+  /// FFT block: each buffer then only holds the scratch views of its local
+  /// transposes or input copy, and is sized to them. Without any, the size
+  /// is 0.
+  /// \param[in] id The buffer (Send or Recv)
+  /// \param[in] max_buffer_size The size of the send and receive buffers of
+  /// a transpose in the number of real values
+  std::size_t allocation_size(BufferId id, std::size_t max_buffer_size) const {
+    return m_has_transpose ? (max_buffer_size + 1) / 2
+                           : required_buffer_size(id);
   }
 
   /// \brief The size a buffer needs for the views the schedule places in it,
@@ -320,7 +335,7 @@ class BlockExecutor {
 
   /// \brief Execute a transpose block. The send buffer must not alias the
   /// input and the receive buffer must not alias the output (TransBlock).
-  template <typename ViewType, typename CommsType>
+  template <typename ViewType>
   void transpose(const BlockStepType& step, const CommsType& comms,
                  const InViewType& in, const OutViewType& out,
                  KokkosFFT::Direction direction) const {
@@ -341,7 +356,6 @@ class BlockExecutor {
                                          send, recv, direction);
   }
 
-  template <typename CommsType>
   void execute(const BlockStepType& step, const CommsType& comms,
                const InViewType& in, const OutViewType& out,
                KokkosFFT::Direction direction) const {
