@@ -6,6 +6,7 @@
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
 #include "KokkosFFT_Distributed_Topologies.hpp"
 #include "KokkosFFT_Distributed_Extents.hpp"
+#include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Init.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -89,31 +90,16 @@ bool is_tpl_available(
       Topology<std::size_t, OutViewType::rank()>(out_topology));
 }
 
+/// \brief Initialize NVSHMEM for cuFFTMp (once per process)
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam T Base floating point type
+///
+/// \param[in] comm MPI communicator
 template <typename ExecutionSpace, typename T,
           std::enable_if_t<std::is_same_v<ExecutionSpace, Kokkos::Cuda>,
                            std::nullptr_t> = nullptr>
 void setup(MPI_Comm comm) {
-  static bool once = [comm] {
-    if (!(Kokkos::is_initialized() || Kokkos::is_finalized())) {
-      Kokkos::abort(
-          "Error: KokkosFFT APIs must not be called before initializing "
-          "Kokkos.\n");
-    }
-    if (Kokkos::is_finalized()) {
-      Kokkos::abort(
-          "Error: KokkosFFT APIs must not be called after finalizing "
-          "Kokkos.\n");
-    }
-
-    nvshmemx_init_attr_t attr;
-    attr.mpi_comm = (void*)&comm;
-    nvshmemx_init_attr(NVSHMEMX_INIT_WITH_MPI_COMM, &attr);
-
-    // Register cleanup function as a hook in Kokkos::finalize
-    Kokkos::push_finalize_hook([]() { nvshmem_finalize(); });
-
-    return true;
-  }();
+  nvshmem_setup(comm);
 }
 
 /// \brief General interface to create a cuFFTMp plan for distributed FFT
