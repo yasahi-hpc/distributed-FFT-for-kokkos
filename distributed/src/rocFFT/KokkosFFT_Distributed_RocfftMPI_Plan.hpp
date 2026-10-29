@@ -17,7 +17,7 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           typename OutLayoutType = Kokkos::LayoutRight>
 bool is_tpl_available(
     const ExecutionSpace& /*exec_space*/, const InViewType& in,
-    const OutViewType& /*out*/, const KokkosFFT::axis_type<DIM>& axes,
+    const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
     const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
     const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
         out_topology) {
@@ -28,6 +28,12 @@ bool is_tpl_available(
                 !std::is_same_v<OutLayout, Kokkos::LayoutRight>) {
     return false;
   }
+
+  // The rocFFT plan is created out-of-place (rocfft_placement_notinplace)
+  // and, without transpose, executed directly on the input and output Views.
+  // It must not be given Views that share their data: in-place transforms
+  // use the internal plans.
+  if (check_inplace(in, out)) return false;
 
   [[maybe_unused]] auto [map, map_inv] =
       KokkosFFT::Impl::get_map_axes(in, axes);

@@ -137,6 +137,16 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
     m_out_mapped_extents =
         KokkosFFT::Impl::compute_mapped_extents(out_extents, m_in_map);
 
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+    // The rocFFT plan is created out-of-place (rocfft_placement_notinplace)
+    // and, without transpose, executed directly on the input and output
+    // Views, which must then not share their data. plan_factory uses the
+    // internal plans for in-place transforms instead (is_tpl_available).
+    KOKKOSFFT_THROW_IF(this->is_inplace(),
+                       "TplPlan: in-place transforms are not supported with "
+                       "rocFFT");
+#endif
+
     // Calling setup function
     using float_type = KokkosFFT::Impl::base_floating_point_type<in_value_type>;
     setup<ExecutionSpace, float_type>(comm);

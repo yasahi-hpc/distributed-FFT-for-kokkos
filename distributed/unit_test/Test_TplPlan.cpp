@@ -8,6 +8,7 @@
 #include "KokkosFFT_Distributed_TplPlan.hpp"
 #include "KokkosFFT_Distributed_Helper.hpp"
 #include "Test_Utils.hpp"
+#include "Test_PlanUtils.hpp"
 
 namespace {
 using execution_space = Kokkos::DefaultExecutionSpace;
@@ -2649,6 +2650,68 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy,
   }
 }
 
+/// \brief Plan operations (see run_plan_cases) for TplPlan
+struct TplPlanOps : public InternalPlanOps {
+  template <typename ExecutionSpace, typename InViewType, typename OutViewType,
+            typename AxesType, typename InTopologyType,
+            typename OutTopologyType>
+  auto create(const ExecutionSpace& exec, const InViewType& in,
+              const OutViewType& out, const AxesType& axes,
+              const InTopologyType& in_topology,
+              const OutTopologyType& out_topology, MPI_Comm comm) const {
+    return KokkosFFT::Distributed::Impl::TplPlan<
+        ExecutionSpace, InViewType, OutViewType, std::tuple_size_v<AxesType>>(
+        exec, in, out, axes, in_topology, out_topology, comm);
+  }
+};
+
+/// \brief In-place 2D FFT of 2D Views with TplPlan (slab decomposition).
+/// cuFFTMp copies the input into its own buffer before writing the output,
+/// so it runs in-place and out-of-place, against the same references. The
+/// rocFFT plan is out-of-place and does not support in-place: it runs
+/// out-of-place only, and in-place construction must throw.
+template <typename T, typename LayoutType>
+void test_tpl2D_inplace_View2D(std::size_t nprocs) {
+  using View2DType = Kokkos::View<T**, LayoutType, execution_space>;
+  using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
+  using ComplexView2DType =
+      Kokkos::View<Kokkos::complex<float_type>**, LayoutType, execution_space>;
+  using topology_type = std::array<std::size_t, 2>;
+
+  const auto topologies =
+      std::make_tuple(topology_type{1, nprocs}, topology_type{nprocs, 1});
+
+  // Two cases of test_tpl2D_execute_View2D
+  const Tolerance tol_bwd{1.0e-5, 1.0e-6};
+  const std::vector<PlanCase<2>> cases = {
+      // topo0 -> topo1 with ax = {0, 1}
+      {0, 1, {0, 1}, Expect::Success, {}, tol_bwd},
+      // topo1 -> topo0 with ax = {1, 0}
+      {1, 0, {1, 0}, Expect::Success, {}, tol_bwd},
+  };
+
+  const std::array<std::size_t, 2> global_extents{8, 7};
+  auto gu = make_global_input<View2DType>(global_extents);
+
+  const std::string name = "Test_TplPlan.cpp test_tpl2D_inplace_View2D";
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+  run_plan_cases<ComplexView2DType>(name, execution_space(), gu, topologies,
+                                    cases, TplPlanOps{});
+
+  // In-place construction throws
+  const std::vector<PlanCase<2>> inplace_cases = {
+      {0, 1, {0, 1}, Expect::Throw},
+      {1, 0, {1, 0}, Expect::Throw},
+  };
+  run_plan_cases<ComplexView2DType>(name, execution_space(), gu, topologies,
+                                    inplace_cases, TplPlanOps{},
+                                    Placement::InPlace);
+#else
+  run_plan_cases_all_placements<ComplexView2DType>(
+      name, execution_space(), gu, topologies, cases, TplPlanOps{});
+#endif
+}
+
 }  // namespace
 
 TYPED_TEST_SUITE(TestTplPlan1D, test_types);
@@ -2827,4 +2890,23 @@ TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_C2C) {
       this->m_npx, this->m_npx, n0_odd, n1_odd, n2_even);
   test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
       this->m_npx, this->m_npx, n0_odd, n1_odd, n2_odd);
+}
+
+TYPED_TEST(TestTplPlan2D, InPlaceView2D_R2C) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "TplPlan needs a slab decomposition (2 processes or more)";
+  }
+  test_tpl2D_inplace_View2D<float_type, layout_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestTplPlan2D, InPlaceView2D_C2C) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "TplPlan needs a slab decomposition (2 processes or more)";
+  }
+  test_tpl2D_inplace_View2D<complex_type, layout_type>(this->m_nprocs);
 }
