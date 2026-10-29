@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_All2All.hpp"
-#include "KokkosFFT_Distributed_CommBuffer.hpp"
+#include "Test_CommBuffers.hpp"
 #include "Test_Utils.hpp"
 
 namespace {
@@ -27,47 +27,6 @@ struct TestAll2All : public ::testing::Test {
     m_npx = std::sqrt(m_nprocs);
   }
 };
-
-/// \brief Send and receive Views on the buffers that the transposes of a plan
-/// allocate for the communicator wrapper CommType (CommBuffer). The all2all
-/// of the wrappers is tested on them, as a plan calls it. Not copyable, not
-/// movable.
-/// \tparam ViewType Type of the send and receive Views
-/// \tparam CommType Type of the communicator wrapper
-template <typename ViewType, typename CommType>
-struct CommBuffers {
-  using value_type = typename ViewType::non_const_value_type;
-  using BufferType =
-      KokkosFFT::Distributed::Impl::CommBuffer<CommType, execution_space,
-                                               value_type>;
-
-  BufferType m_send_buffer, m_recv_buffer;
-  ViewType m_send, m_recv;
-
-  explicit CommBuffers(const typename ViewType::array_layout& layout)
-      : m_send_buffer("send_buffer", size(layout), true),
-        m_recv_buffer("recv_buffer", size(layout), true),
-        m_send(m_send_buffer.data(), layout),
-        m_recv(m_recv_buffer.data(), layout) {}
-
-  static std::size_t size(const typename ViewType::array_layout& layout) {
-    std::size_t n = 1;
-    for (std::size_t r = 0; r < ViewType::rank(); ++r) n *= layout.dimension[r];
-    return n;
-  }
-};
-
-/// \brief Make the send and receive Views on CommBuffers for a communicator
-/// wrapper, with the layout of view
-/// \tparam CommType Type of the communicator wrapper
-/// \tparam ViewType Type of the send and receive Views
-/// \param[in] comm The communicator wrapper (selects the allocation)
-/// \param[in] view A View with the extents of the buffers
-template <typename CommType, typename ViewType>
-CommBuffers<ViewType, CommType> make_comm_buffers(const CommType& /*comm*/,
-                                                  const ViewType& view) {
-  return CommBuffers<ViewType, CommType>(view.layout());
-}
 
 /// \brief Run the all2all of a communicator wrapper on CommBuffers: copy send
 /// into the send buffer, and the receive buffer into recv
@@ -283,6 +242,37 @@ void test_all2all_view2D_incorrect_proc_size(int nprocs, bool use_tpl_wrapper) {
         std::runtime_error);
   }
 }
+
+#if defined(ENABLE_TPL_NVSHMEM)
+/// \brief The NVSHMEM all2all needs buffers on the symmetric heap: plain
+/// Views throw
+template <typename T, typename LayoutType>
+void test_all2all_view2D_not_symmetric(int nprocs) {
+  using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using CommType   = KokkosFFT::Distributed::Impl::TplComm<execution_space>;
+  static_assert(
+      std::is_same_v<CommType,
+                     KokkosFFT::Distributed::Impl::ScopedNVSHMEMComm>);
+
+  auto layout = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
+                    ? KokkosFFT::Impl::create_layout<LayoutType>(
+                          std::array<int, 3>{4, 3, nprocs})
+                    : KokkosFFT::Impl::create_layout<LayoutType>(
+                          std::array<int, 3>{nprocs, 4, 3});
+  View3DType send("send", layout), recv("recv", layout);
+
+  execution_space exec;
+  CommType comm(MPI_COMM_WORLD, exec);
+  EXPECT_THROW(KokkosFFT::Distributed::Impl::all2all(send, recv, comm),
+               std::runtime_error);
+
+  // The same Views on CommBuffers are accepted
+  auto buffers = make_comm_buffers<View3DType>(comm, layout);
+  EXPECT_NO_THROW(KokkosFFT::Distributed::Impl::all2all(buffers.m_send,
+                                                        buffers.m_recv, comm));
+  exec.fence();
+}
+#endif
 
 /// \brief Test all2all communication for 2D Views
 /// For 8x8 matrix.
@@ -698,6 +688,14 @@ TYPED_TEST(TestAll2All, View2D_incorrect_proc_size_with_wrapper) {
   test_all2all_view2D_incorrect_proc_size<float_type, layout_type>(
       this->m_nprocs, true);
 }
+
+#if defined(ENABLE_TPL_NVSHMEM)
+TYPED_TEST(TestAll2All, View2D_not_symmetric_with_wrapper) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+  test_all2all_view2D_not_symmetric<float_type, layout_type>(this->m_nprocs);
+}
+#endif
 
 TYPED_TEST(TestAll2All, RView2D_row) {
   using float_type  = typename TestFixture::float_type;

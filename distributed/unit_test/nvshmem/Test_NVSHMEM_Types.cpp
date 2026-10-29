@@ -6,6 +6,8 @@
 #include <Kokkos_Core.hpp>
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Types.hpp"
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Comm.hpp"
+#include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Buffer.hpp"
+#include "nvshmem/KokkosFFT_Distributed_NVSHMEM_All2All.hpp"
 
 namespace {
 using CommType = KokkosFFT::Distributed::Impl::ScopedNVSHMEMComm;
@@ -201,7 +203,103 @@ void test_move(int rank) {
   ::MPI_Comm_free(&half);
 }
 
+/// \brief An exchanged CommBuffer is on the symmetric heap, with the same size
+/// on every rank (the maximum of the requested sizes). A local one is a
+/// plain View.
+void test_comm_buffer(int rank, int nprocs) {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using BufferType =
+      KokkosFFT::Distributed::Impl::CommBuffer<CommType, execution_space,
+                                               Kokkos::complex<double>>;
+  using KokkosFFT::Distributed::Impl::is_nvshmem_symmetric;
+
+  static_assert(!std::is_default_constructible_v<BufferType>);
+  static_assert(!std::is_copy_constructible_v<BufferType>);
+  static_assert(!std::is_move_constructible_v<BufferType>);
+
+  CommType comm(MPI_COMM_WORLD);
+  const std::size_t n = 10 + rank;
+
+  {
+    BufferType exchanged("exchanged", n, true);
+    EXPECT_EQ(exchanged.size(), std::size_t(10 + nprocs - 1));
+    EXPECT_TRUE(exchanged.is_symmetric());
+    EXPECT_TRUE(is_nvshmem_symmetric(exchanged.data()));
+
+    BufferType local("local", n, false);
+    EXPECT_EQ(local.size(), n);
+    EXPECT_FALSE(local.is_symmetric());
+    EXPECT_NE(local.data(), nullptr);
+    EXPECT_FALSE(is_nvshmem_symmetric(local.data()));
+  }
+
+  // Nothing to allocate on any rank
+  {
+    BufferType empty("empty", 0, true);
+    EXPECT_EQ(empty.size(), std::size_t(0));
+    EXPECT_EQ(empty.data(), nullptr);
+  }
+
+  // The symmetric allocations are freed with the buffers
+  for (int i = 0; i < 64; ++i) {
+    BufferType exchanged("exchanged", std::size_t(1) << 20, true);
+    EXPECT_TRUE(exchanged.is_symmetric());
+  }
+}
+
+/// \brief The all2all of the wrapper on a sub-communicator (strided team),
+/// with symmetric buffers: rank r of the team receives value s * size + r
+/// from rank s
+void test_all2all_team(int rank) {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using ViewType = Kokkos::View<double**, Kokkos::LayoutRight, execution_space>;
+  using BufferType =
+      KokkosFFT::Distributed::Impl::CommBuffer<CommType, execution_space,
+                                               double>;
+
+  MPI_Comm half;
+  ::MPI_Comm_split(MPI_COMM_WORLD, rank % 2, rank, &half);
+  {
+    CommType comm(half);
+    const int size = comm.size(), me = comm.rank();
+    const std::size_t count = 5;
+    BufferType send_buffer("send", size * count, true),
+        recv_buffer("recv", size * count, true);
+    ViewType send(send_buffer.data(), size, count),
+        recv(recv_buffer.data(), size, count);
+
+    auto h_send = Kokkos::create_mirror_view(send);
+    for (int p = 0; p < size; ++p) {
+      for (std::size_t i = 0; i < count; ++i) {
+        h_send(p, i) = (me * size + p) * 100.0 + i;
+      }
+    }
+    Kokkos::deep_copy(send, h_send);
+
+    // Twice, with the buffers swapped, as consecutive transposes do
+    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
+    KokkosFFT::Distributed::Impl::all2all(recv, send, comm);
+    auto h_back =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), send);
+    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
+    auto h_recv =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), recv);
+
+    for (int p = 0; p < size; ++p) {
+      for (std::size_t i = 0; i < count; ++i) {
+        EXPECT_EQ(h_recv(p, i), (p * size + me) * 100.0 + i);
+        EXPECT_EQ(h_back(p, i), h_send(p, i));
+      }
+    }
+  }
+  ::MPI_Comm_free(&half);
+}
+
 }  // namespace
+
+TEST_F(TestNVSHMEMComm, comm_buffer) { test_comm_buffer(m_rank, m_nprocs); }
+
+TEST_F(TestNVSHMEMComm, all2all_team) { test_all2all_team(m_rank); }
 
 TEST_F(TestNVSHMEMComm, setup) { test_setup(m_rank, m_nprocs); }
 

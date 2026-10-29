@@ -35,6 +35,11 @@ set(MPI_SOURCES
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
   set(SERIAL_SOURCES Test_Main.cpp Test_Types.cpp)
   set(MPI_SOURCES Test_Main.cpp Test_TplPlan.cpp)
+  if(ENABLE_NVSHMEM)
+    # The NVSHMEM transposes: the internal plans are constructed directly,
+    # so they do not depend on PRIORITIZE_TPL_PLAN_IF_AVAILABLE
+    list(APPEND MPI_SOURCES Test_All2All.cpp Test_TransBlock.cpp Test_SlabPlan.cpp Test_PencilPlan.cpp)
+  endif()
 elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
   list(APPEND MPI_SOURCES Test_TplPlan.cpp)
 endif()

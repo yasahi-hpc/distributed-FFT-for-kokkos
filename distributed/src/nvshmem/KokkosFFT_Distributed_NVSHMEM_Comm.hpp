@@ -2,6 +2,7 @@
 #define KOKKOSFFT_DISTRIBUTED_NVSHMEM_COMM_HPP
 
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
@@ -174,6 +175,12 @@ template <>
 struct TplCommSetup<ScopedNVSHMEMComm> {
   static void setup(MPI_Comm comm) { nvshmem_setup(comm); }
 };
+
+// Host execution spaces keep MPI
+template <typename ExecutionSpace>
+using TplComm =
+    std::conditional_t<std::is_same_v<ExecutionSpace, Kokkos::Cuda>,
+                       ScopedNVSHMEMComm, ScopedMPIComm<ExecutionSpace>>;
 
 }  // namespace Impl
 }  // namespace Distributed
