@@ -117,9 +117,9 @@ void test_count_fft_dims() {
 /// The map is not the identity to make sure that it is stored as it is for
 /// both the input and the output.
 void test_propose_fft_block() {
-  constexpr std::size_t DIM = 3;
-  using BlockInfoType       = KokkosFFT::Distributed::Impl::BlockInfo<DIM>;
-  using extents_type        = std::array<std::size_t, DIM>;
+  [[maybe_unused]] constexpr std::size_t DIM = 3;
+  using BlockInfoType = KokkosFFT::Distributed::Impl::BlockInfo<DIM>;
+  using extents_type  = std::array<std::size_t, DIM>;
 
   extents_type map{2, 0, 1};
   extents_type in_extents{16, 16, 16}, out_extents{9, 16, 16};
@@ -170,7 +170,7 @@ template <typename LayoutType>
 void test_propose_transpose_block(std::size_t rank,
                                   std::vector<std::size_t> axes,
                                   bool is_layout_right, bool is_last) {
-  constexpr std::size_t DIM = 3;
+  [[maybe_unused]] constexpr std::size_t DIM = 3;
   using BlockInfoType       = KokkosFFT::Distributed::Impl::BlockInfo<DIM>;
   using extents_type        = std::array<std::size_t, DIM>;
   using buffer_extents_type = std::array<std::size_t, DIM + 1>;

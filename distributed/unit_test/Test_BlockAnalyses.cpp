@@ -56,7 +56,7 @@ struct TestBlockAnalyses : public ::testing::Test {
 /// \tparam LayoutType Layout of the Input/Output Views
 template <typename ValueType, typename LayoutType>
 void test_slab_analyses_1D() {
-  constexpr std::size_t DIM = 3, FFT_DIM = 1;
+  [[maybe_unused]] constexpr std::size_t DIM = 3, FFT_DIM = 1;
   using extents_type        = std::array<std::size_t, DIM>;
   using buffer_extents_type = std::array<std::size_t, DIM + 1>;
   using axes_type           = std::array<std::size_t, FFT_DIM>;
@@ -127,7 +127,7 @@ void test_slab_analyses_1D() {
 /// \tparam LayoutType Layout of the Input/Output Views
 template <typename LayoutType>
 void test_slab_analyses_3D() {
-  constexpr std::size_t DIM = 3, FFT_DIM = 3;
+  [[maybe_unused]] constexpr std::size_t DIM = 3, FFT_DIM = 3;
   using value_type          = Kokkos::complex<double>;
   using extents_type        = std::array<std::size_t, DIM>;
   using buffer_extents_type = std::array<std::size_t, DIM + 1>;
@@ -190,7 +190,7 @@ void test_slab_analyses_3D() {
 /// \tparam LayoutType Layout of the Input/Output Views
 template <typename ValueType, typename LayoutType>
 void test_slab_analyses_without_transpose() {
-  constexpr std::size_t DIM = 3, FFT_DIM = 1;
+  [[maybe_unused]] constexpr std::size_t DIM = 3, FFT_DIM = 1;
   using extents_type = std::array<std::size_t, DIM>;
   using axes_type    = std::array<std::size_t, FFT_DIM>;
   using AnalysesType = KokkosFFT::Distributed::Impl::SlabBlockAnalysesInternal<
@@ -248,7 +248,7 @@ void test_slab_analyses_without_transpose() {
 /// \tparam LayoutType Layout of the Input/Output Views
 template <typename ValueType, typename LayoutType>
 void test_shared_analyses() {
-  constexpr std::size_t DIM = 3, FFT_DIM = 1;
+  [[maybe_unused]] constexpr std::size_t DIM = 3, FFT_DIM = 1;
   using extents_type = std::array<std::size_t, DIM>;
   using axes_type    = std::array<std::size_t, FFT_DIM>;
   using SharedAnalysesType =
@@ -321,7 +321,7 @@ void test_shared_analyses() {
 /// \tparam LayoutType Layout of the Input/Output Views
 template <typename LayoutType>
 void test_shared_analyses_invalid_topologies() {
-  constexpr std::size_t DIM = 3, FFT_DIM = 1;
+  [[maybe_unused]] constexpr std::size_t DIM = 3, FFT_DIM = 1;
   using value_type   = Kokkos::complex<double>;
   using extents_type = std::array<std::size_t, DIM>;
   using axes_type    = std::array<std::size_t, FFT_DIM>;
@@ -370,7 +370,7 @@ void test_shared_analyses_invalid_topologies() {
 /// \tparam TopologyLayoutType Layout of the pencil topologies
 template <typename T, typename LayoutType, typename TopologyLayoutType>
 void test_pencil_analyses_1D() {
-  constexpr std::size_t DIM = 3, FFT_DIM = 1;
+  [[maybe_unused]] constexpr std::size_t DIM = 3, FFT_DIM = 1;
   using value_type          = T;
   using extents_type        = std::array<std::size_t, DIM>;
   using buffer_extents_type = std::array<std::size_t, DIM + 1>;
@@ -463,7 +463,7 @@ void test_pencil_analyses_1D() {
 /// \tparam TopologyLayoutType Layout of the pencil topologies
 template <typename LayoutType, typename TopologyLayoutType>
 void test_pencil_analyses_2D() {
-  constexpr std::size_t DIM = 3, FFT_DIM = 2;
+  [[maybe_unused]] constexpr std::size_t DIM = 3, FFT_DIM = 2;
   using value_type          = Kokkos::complex<double>;
   using extents_type        = std::array<std::size_t, DIM>;
   using buffer_extents_type = std::array<std::size_t, DIM + 1>;
@@ -596,7 +596,7 @@ void test_pencil_analyses_2D() {
 /// \tparam TopologyLayoutType Layout of the pencil topologies
 template <typename LayoutType, typename TopologyLayoutType>
 void test_analyses_invalid_topologies() {
-  constexpr std::size_t DIM = 3, FFT_DIM = 1;
+  [[maybe_unused]] constexpr std::size_t DIM = 3, FFT_DIM = 1;
   using value_type   = Kokkos::complex<double>;
   using extents_type = std::array<std::size_t, DIM>;
   using axes_type    = std::array<std::size_t, FFT_DIM>;
