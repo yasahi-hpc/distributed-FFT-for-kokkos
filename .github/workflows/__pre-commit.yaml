@@ -1,43 +1,34 @@
-name: pre-commit
+# This job runs the hooks of .pre-commit-config.yaml (clang-format,
+# cmake-format, typos and basic file checks) on the files changed by the PR.
+# If a hook fails or modifies a file, the job fails and the differences are
+# displayed in the job log.
+# See https://github.com/pre-commit/action for more details.
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+name: pre-commit
 
 on:
   workflow_call:
 
-jobs:
-  pre-commit-push:
-    name: Pre-commit on Push
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.13"
-      # We run pre-commit on all files instead of only the push commit changes so linting errors persist.
-      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
+permissions:
+  contents: read
 
-  pre-commit-pr:
+jobs:
+  pre-commit:
     name: Pre-commit on PR
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' }}
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          # Checkout the PR head instead of the base.
+          # Checkout the PR head instead of the merge commit, and fetch the
+          # history so that the merge base with the PR base is available.
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: "3.13"
-      # We only lint on the changed files in the PR.
-      - id: changed-files
-        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 #v47.0.6
-      - id: run-pre-commit
-        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
+      # We only lint the files changed between the merge base and the PR head.
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd  # v3.0.1
         with:
-          extra_args: --files ${{ steps.changed-files.outputs.all_changed_files }}
+          extra_args: >-
+            --from-ref ${{ github.event.pull_request.base.sha }}
+            --to-ref ${{ github.event.pull_request.head.sha }}
