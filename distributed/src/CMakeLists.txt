@@ -30,7 +30,9 @@ endif()
 if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
   # rocSHMEM 3.3 or later (checked at compile time): its CMake package
   # provides roc::rocshmem, which adds -fgpu-rdc to the compile and link
-  # options of its users
+  # options of its users. Its CMake package does not find its dependencies:
+  # roc::rocshmem links to Threads::Threads, which must be found beforehand
+  find_package(Threads REQUIRED)
   find_package(rocshmem CONFIG REQUIRED)
   if(NOT Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE)
     message(WARNING "rocSHMEM is compiled with -fgpu-rdc: Kokkos should be "
