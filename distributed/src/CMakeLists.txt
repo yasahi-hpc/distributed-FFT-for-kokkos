@@ -32,6 +32,19 @@ if(ENABLE_NVSHMEM AND Kokkos_ENABLE_CUDA)
   target_link_libraries(distributed INTERFACE NVSHMEM::NVSHMEM)
 endif()
 
+if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
+  # rocSHMEM 3.3 or later (checked at compile time): its CMake package
+  # provides roc::rocshmem, which adds -fgpu-rdc to the compile and link
+  # options of its users
+  find_package(rocshmem CONFIG REQUIRED)
+  if(NOT Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE)
+    message(WARNING "rocSHMEM is compiled with -fgpu-rdc: Kokkos should be "
+                    "configured with Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON")
+  endif()
+  target_compile_definitions(distributed INTERFACE ENABLE_TPL_ROCSHMEM)
+  target_link_libraries(distributed INTERFACE roc::rocshmem)
+endif()
+
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
   find_package(cuFFTMp REQUIRED)
   find_package(NVSHMEM REQUIRED)

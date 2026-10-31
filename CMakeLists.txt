@@ -19,6 +19,7 @@ option(ENABLE_NCCL "Enable NCCL as a communication backend on NVIDIA GPUs" OFF)
 option(ENABLE_RCCL "Enable RCCL as a communication backend on AMD GPUs" OFF)
 option(ENABLE_ONECCL "Enable oneCCL as a communication backend on Intel GPUs" OFF)
 option(ENABLE_NVSHMEM "Enable NVSHMEM as a communication backend on NVIDIA GPUs" OFF)
+option(ENABLE_ROCSHMEM "Enable rocSHMEM as a communication backend on AMD GPUs" OFF)
 option(ENABLE_CUFFT_MP "Enable cufft-mp as a KokkosFFT backend on NVIDIA GPUs" OFF)
 option(ENABLE_ROCFFT_MPI "Enable rocfft-mpi as a KokkosFFT backend on AMD GPUs" OFF)
 option(ENABLE_INTERNAL_KOKKOS "Build internal Kokkos instead of relying on external one" OFF)
@@ -26,7 +27,7 @@ option(ENABLE_INTERNAL_KOKKOSFFT "Build internal Kokkos-fft instead of relying o
 
 # Check the device tpls usage
 set(ENABLED_DEVICE_COMM_TPLS "")
-set(KOKKOSFFT_DEVICE_COMM_TPL_LIST "NCCL" "RCCL" "ONECCL" "NVSHMEM")
+set(KOKKOSFFT_DEVICE_COMM_TPL_LIST "NCCL" "RCCL" "ONECCL" "NVSHMEM" "ROCSHMEM")
 foreach(DEVICE_COMM_TPL IN LISTS KOKKOSFFT_DEVICE_COMM_TPL_LIST)
   if(ENABLE_${DEVICE_COMM_TPL})
     list(APPEND ENABLED_DEVICE_COMM_TPLS ${DEVICE_COMM_TPL})
