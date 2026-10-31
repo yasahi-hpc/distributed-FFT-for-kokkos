@@ -1,12 +1,7 @@
 add_library(distributed INTERFACE)
 
 find_package(MPI REQUIRED COMPONENTS CXX)
-
-target_link_libraries(distributed
-    INTERFACE
-    Kokkos::kokkos
-    MPI::MPI_CXX
-)
+target_link_libraries(distributed INTERFACE Kokkos::kokkos MPI::MPI_CXX)
 
 if(ENABLE_NCCL AND Kokkos_ENABLE_CUDA)
   find_package(NCCL REQUIRED)
@@ -24,6 +19,29 @@ if(ENABLE_ONECCL AND Kokkos_ENABLE_SYCL)
   find_package(oneCCL REQUIRED)
   target_compile_definitions(distributed INTERFACE ENABLE_TPL_ONECCL)
   target_link_libraries(distributed INTERFACE oneCCL::oneCCL)
+endif()
+
+if(ENABLE_NVSHMEM AND Kokkos_ENABLE_CUDA)
+  find_package(NVSHMEM REQUIRED)
+  target_compile_definitions(distributed INTERFACE ENABLE_TPL_NVSHMEM)
+  target_link_libraries(distributed INTERFACE NVSHMEM::NVSHMEM)
+endif()
+
+if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
+  # rocSHMEM 3.3 or later (checked at compile time): its CMake package
+  # provides roc::rocshmem, which adds -fgpu-rdc to the compile and link
+  # options of its users. Its CMake package does not find its dependencies:
+  # roc::rocshmem links to Threads::Threads, which must be found beforehand
+  find_package(Threads REQUIRED)
+  find_package(hip REQUIRED)
+  find_package(rocshmem CONFIG REQUIRED)
+  if(NOT Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE)
+    message(WARNING "rocSHMEM is compiled with -fgpu-rdc: Kokkos should be "
+                    "configured with Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON"
+    )
+  endif()
+  target_compile_definitions(distributed INTERFACE ENABLE_TPL_ROCSHMEM)
+  target_link_libraries(distributed INTERFACE roc::rocshmem)
 endif()
 
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
@@ -44,7 +62,7 @@ if(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
   target_compile_definitions(distributed INTERFACE ENABLE_TPL_ROCFFT_MPI PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
 endif()
 
-target_include_directories(distributed INTERFACE
-                           $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-                           $<INSTALL_INTERFACE:${INSTALL_INCLUDEDIR}>
+target_include_directories(
+  distributed INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                        $<INSTALL_INTERFACE:${INSTALL_INCLUDEDIR}>
 )

@@ -22,6 +22,7 @@ set(MPI_SOURCES
     Test_Main.cpp
     Test_All2All.cpp
     Test_MPI_Extents.cpp
+    Test_MPI_Teams.cpp
     Test_TransBlock.cpp
     Test_BasePlan.cpp
     Test_BlockAnalyses.cpp
@@ -34,6 +35,11 @@ set(MPI_SOURCES
 if(ENABLE_CUFFT_MP AND Kokkos_ENABLE_CUDA)
   set(SERIAL_SOURCES Test_Main.cpp Test_Types.cpp)
   set(MPI_SOURCES Test_Main.cpp Test_TplPlan.cpp)
+  if(ENABLE_NVSHMEM)
+    # The NVSHMEM transposes: the internal plans are constructed directly,
+    # so they do not depend on PRIORITIZE_TPL_PLAN_IF_AVAILABLE
+    list(APPEND MPI_SOURCES Test_All2All.cpp Test_TransBlock.cpp Test_SlabPlan.cpp Test_PencilPlan.cpp)
+  endif()
 elseif(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
   list(APPEND MPI_SOURCES Test_TplPlan.cpp)
 endif()
@@ -67,6 +73,36 @@ if(ENABLE_NCCL AND (Kokkos_ENABLE_CUDA OR Kokkos_ENABLE_HIP))
   add_executable(unit-tests-nccl ${NCCL_SOURCES})
   target_link_libraries(unit-tests-nccl PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
   add_mpi_unit_tests(unit-tests-nccl NPROCS 1 TIMEOUT 600)
+endif()
+
+if(ENABLE_NVSHMEM AND Kokkos_ENABLE_CUDA)
+  set(NVSHMEM_SOURCES Test_Main.cpp nvshmem/Test_NVSHMEM_Types.cpp)
+  add_executable(unit-tests-nvshmem ${NVSHMEM_SOURCES})
+  target_link_libraries(unit-tests-nvshmem PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
+  add_mpi_unit_tests(
+    unit-tests-nvshmem
+    NPROCS
+    1
+    2
+    4
+    TIMEOUT
+    600
+  )
+endif()
+
+if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
+  set(ROCSHMEM_SOURCES Test_Main.cpp rocSHMEM/Test_rocSHMEM_Types.cpp)
+  add_executable(unit-tests-rocshmem ${ROCSHMEM_SOURCES})
+  target_link_libraries(unit-tests-rocshmem PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
+  add_mpi_unit_tests(
+    unit-tests-rocshmem
+    NPROCS
+    1
+    2
+    4
+    TIMEOUT
+    600
+  )
 endif()
 
 if(ENABLE_ONECCL AND Kokkos_ENABLE_SYCL)

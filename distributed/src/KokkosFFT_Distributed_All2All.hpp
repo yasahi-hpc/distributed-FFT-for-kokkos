@@ -10,6 +10,16 @@
 #include "nccl/KokkosFFT_Distributed_NCCL_Types.hpp"
 #include "nccl/KokkosFFT_Distributed_NCCL_Comm.hpp"
 #include "nccl/KokkosFFT_Distributed_NCCL_All2All.hpp"
+#elif defined(ENABLE_TPL_NVSHMEM)
+#include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Types.hpp"
+#include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Comm.hpp"
+#include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Buffer.hpp"
+#include "nvshmem/KokkosFFT_Distributed_NVSHMEM_All2All.hpp"
+#elif defined(ENABLE_TPL_ROCSHMEM)
+#include "rocSHMEM/KokkosFFT_Distributed_rocSHMEM_Types.hpp"
+#include "rocSHMEM/KokkosFFT_Distributed_rocSHMEM_Comm.hpp"
+#include "rocSHMEM/KokkosFFT_Distributed_rocSHMEM_Buffer.hpp"
+#include "rocSHMEM/KokkosFFT_Distributed_rocSHMEM_All2All.hpp"
 #elif defined(ENABLE_TPL_ONECCL)
 #include "oneCCL/KokkosFFT_Distributed_oneCCL_Types.hpp"
 #include "oneCCL/KokkosFFT_Distributed_oneCCL_Comm.hpp"

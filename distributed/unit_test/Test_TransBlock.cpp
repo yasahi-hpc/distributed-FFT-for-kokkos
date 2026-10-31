@@ -6,6 +6,7 @@
 #include "KokkosFFT_Distributed_TransBlock.hpp"
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
 #include "KokkosFFT_Distributed_Extents.hpp"
+#include "Test_CommBuffers.hpp"
 #include "Test_Utils.hpp"
 
 namespace {
@@ -106,10 +107,6 @@ void test_trans_block_view2D(std::size_t nprocs) {
   auto buffer_01 =
       KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
           global_extents, topology0, topology1);
-  View3DType send_buffer("send_buffer",
-                         KokkosFFT::Impl::create_layout<LayoutType>(buffer_01));
-  View3DType recv_buffer("recv_buffer",
-                         KokkosFFT::Impl::create_layout<LayoutType>(buffer_01));
 
   // Initialization
   Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
@@ -136,6 +133,12 @@ void test_trans_block_view2D(std::size_t nprocs) {
 
   KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(MPI_COMM_WORLD,
                                                               exec);
+
+  // The buffers the transposes of a plan allocate for this communicator
+  auto buffers = make_comm_buffers<View3DType>(
+      comm, KokkosFFT::Impl::create_layout<LayoutType>(buffer_01));
+  const auto& send_buffer = buffers.m_send;
+  const auto& recv_buffer = buffers.m_recv;
   {
     KokkosFFT::Distributed::Impl::TransBlock trans_block_0_1(
         exec, buffer_01, map01, 0, map01, 1);

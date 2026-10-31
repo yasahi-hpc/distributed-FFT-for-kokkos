@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_All2All.hpp"
+#include "Test_CommBuffers.hpp"
 #include "Test_Utils.hpp"
 
 namespace {
@@ -26,6 +27,17 @@ struct TestAll2All : public ::testing::Test {
     m_npx = std::sqrt(m_nprocs);
   }
 };
+
+/// \brief Run the all2all of a communicator wrapper on CommBuffers: copy send
+/// into the send buffer, and the receive buffer into recv
+template <typename ViewType, typename CommType>
+void all2all_on_comm_buffers(const ViewType& send, const ViewType& recv,
+                             const CommType& comm) {
+  auto buffers = make_comm_buffers(comm, send);
+  Kokkos::deep_copy(buffers.m_send, send);
+  KokkosFFT::Distributed::Impl::all2all(buffers.m_send, buffers.m_recv, comm);
+  Kokkos::deep_copy(recv, buffers.m_recv);
+}
 
 /// \brief Test all2all communication for 2D Views
 /// For 8x8 matrix.
@@ -176,7 +188,7 @@ void test_all2all_view2D(int rank, int nprocs, bool use_tpl_wrapper) {
   if (use_tpl_wrapper) {
     KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(MPI_COMM_WORLD,
                                                                 exec);
-    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
+    all2all_on_comm_buffers(send, recv, comm);
   } else {
     KokkosFFT::Distributed::Impl::all2all(send, recv, MPI_COMM_WORLD);
   }
@@ -220,7 +232,9 @@ void test_all2all_view2D_incorrect_proc_size(int nprocs, bool use_tpl_wrapper) {
   if (use_tpl_wrapper) {
     KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(MPI_COMM_WORLD,
                                                                 exec);
-    EXPECT_THROW(KokkosFFT::Distributed::Impl::all2all(send, recv, comm),
+    auto buffers = make_comm_buffers(comm, send);
+    EXPECT_THROW(KokkosFFT::Distributed::Impl::all2all(buffers.m_send,
+                                                       buffers.m_recv, comm),
                  std::runtime_error);
   } else {
     EXPECT_THROW(
@@ -228,6 +242,37 @@ void test_all2all_view2D_incorrect_proc_size(int nprocs, bool use_tpl_wrapper) {
         std::runtime_error);
   }
 }
+
+#if defined(ENABLE_TPL_NVSHMEM)
+/// \brief The NVSHMEM all2all needs buffers on the symmetric heap: plain
+/// Views throw
+template <typename T, typename LayoutType>
+void test_all2all_view2D_not_symmetric(int nprocs) {
+  using View3DType = Kokkos::View<T***, LayoutType, execution_space>;
+  using CommType   = KokkosFFT::Distributed::Impl::TplComm<execution_space>;
+  static_assert(
+      std::is_same_v<CommType,
+                     KokkosFFT::Distributed::Impl::ScopedNVSHMEMComm>);
+
+  auto layout = std::is_same_v<LayoutType, Kokkos::LayoutLeft>
+                    ? KokkosFFT::Impl::create_layout<LayoutType>(
+                          std::array<int, 3>{4, 3, nprocs})
+                    : KokkosFFT::Impl::create_layout<LayoutType>(
+                          std::array<int, 3>{nprocs, 4, 3});
+  View3DType send("send", layout), recv("recv", layout);
+
+  execution_space exec;
+  CommType comm(MPI_COMM_WORLD, exec);
+  EXPECT_THROW(KokkosFFT::Distributed::Impl::all2all(send, recv, comm),
+               std::runtime_error);
+
+  // The same Views on CommBuffers are accepted
+  auto buffers = make_comm_buffers<View3DType>(comm, layout);
+  EXPECT_NO_THROW(KokkosFFT::Distributed::Impl::all2all(buffers.m_send,
+                                                        buffers.m_recv, comm));
+  exec.fence();
+}
+#endif
 
 /// \brief Test all2all communication for 2D Views
 /// For 8x8 matrix.
@@ -383,7 +428,7 @@ void test_all2all_view2D_row(int rank, int npx, int npy, bool use_tpl_wrapper) {
   execution_space exec;
   if (use_tpl_wrapper) {
     KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(row_comm, exec);
-    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
+    all2all_on_comm_buffers(send, recv, comm);
   } else {
     KokkosFFT::Distributed::Impl::all2all(send, recv, row_comm);
   }
@@ -575,7 +620,7 @@ void test_all2all_view2D_col(int rank, int npx, int npy, bool use_tpl_wrapper) {
   execution_space exec;
   if (use_tpl_wrapper) {
     KokkosFFT::Distributed::Impl::TplComm<execution_space> comm(col_comm, exec);
-    KokkosFFT::Distributed::Impl::all2all(send, recv, comm);
+    all2all_on_comm_buffers(send, recv, comm);
   } else {
     KokkosFFT::Distributed::Impl::all2all(send, recv, col_comm);
   }
@@ -643,6 +688,14 @@ TYPED_TEST(TestAll2All, View2D_incorrect_proc_size_with_wrapper) {
   test_all2all_view2D_incorrect_proc_size<float_type, layout_type>(
       this->m_nprocs, true);
 }
+
+#if defined(ENABLE_TPL_NVSHMEM)
+TYPED_TEST(TestAll2All, View2D_not_symmetric_with_wrapper) {
+  using float_type  = typename TestFixture::float_type;
+  using layout_type = typename TestFixture::layout_type;
+  test_all2all_view2D_not_symmetric<float_type, layout_type>(this->m_nprocs);
+}
+#endif
 
 TYPED_TEST(TestAll2All, RView2D_row) {
   using float_type  = typename TestFixture::float_type;

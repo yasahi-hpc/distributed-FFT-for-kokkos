@@ -7,6 +7,7 @@
 #include <mpi.h>
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_All2All.hpp"
+#include "KokkosFFT_Distributed_CommBuffer.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -74,6 +75,10 @@ class SlabComms {
   //! The transposes of a slab plan communicate
   static constexpr bool has_communication = true;
 
+  //! The send and receive buffers of the transposes
+  template <typename T>
+  using buffer_type = CommBuffer<CommType, ExecutionSpace, T>;
+
  private:
   CommType m_comm;
 
@@ -84,7 +89,7 @@ class SlabComms {
   template <typename TopologyType>
   SlabComms(const ExecutionSpace& exec_space, const TopologyType& /*topology*/,
             const MPI_Comm& comm)
-      : m_comm(comm, exec_space) {}
+      : m_comm(setup_tpl_comm<CommType>(comm), exec_space) {}
 
   /// \brief The communicator of a transpose along a comm axis
   const CommType& operator()(std::size_t /*comm_axis*/) const { return m_comm; }
@@ -102,6 +107,11 @@ class PencilComms {
   //! The transposes of a pencil plan communicate
   static constexpr bool has_communication = true;
 
+  //! The send and receive buffers of the transposes. The row and column
+  //! communicators have the same wrapper type, and share the buffers.
+  template <typename T>
+  using buffer_type = CommBuffer<CommType, ExecutionSpace, T>;
+
  private:
   MPI_Comm m_cart_comm = MPI_COMM_NULL;
   std::vector<MPI_Comm> m_cart_comms;
@@ -114,6 +124,8 @@ class PencilComms {
   template <typename TopologyType>
   PencilComms(const ExecutionSpace& exec_space, const TopologyType& topology,
               const MPI_Comm& comm) {
+    // The wrappers are made from sub-communicators of comm
+    setup_tpl_comm<CommType>(comm);
     create_pencil_communicators(exec_space, topology, comm, m_cart_comm,
                                 m_cart_comms, m_cart_tpl_comms);
   }
@@ -152,6 +164,10 @@ class SharedComms {
  public:
   //! No transpose block may be executed with these communicators
   static constexpr bool has_communication = false;
+
+  //! The buffers only hold local scratch: a managed View
+  template <typename T>
+  using buffer_type = CommBuffer<SharedComms, ExecutionSpace, T>;
 
   /// \param[in] exec_space Kokkos execution space (unused)
   /// \param[in] topology The input topology (unused)
