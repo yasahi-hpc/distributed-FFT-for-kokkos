@@ -16,34 +16,34 @@ env:
   DOCKER_BUILDKIT: 1
 
 jobs:
-  # [TO DO] Modularize the small actions for better readability
-  # of the main workflow file
-  
-  # run linter on the code
-  clang-format-check:
-    uses: ./.github/workflows/__clang-format-check.yaml
-    permissions:
-      contents: read
-
-  # run cmake format check
-  cmake-format-check:
-    uses: ./.github/workflows/__cmake-format-check.yaml
-    permissions:
-      contents: read
-
-  # run typos for spell check
-  spell-check:
-    name: spell check with typos
+  # detect changed cpp files
+  detect-changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      cpp_changed: ${{ steps.changed-files.outputs.cpp_changed }}
     steps:
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
-    - uses: crate-ci/typos@a4c3e43aea0a9e9b9e6578d2731ebd9a27e8f6cd  # v1.35.5
-      with:
-        files: ./cmake/ ./CMakeLists.txt ./distributed/ ./README.md ./examples/
-        config: ./.typos.toml
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Detect changed cpp files
+        id: changed-files
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            cpp_changed:
+              - 'distributed/src/**'
+              - 'distributed/unit_test/**'
+              - 'distributed/perf_test/**'
+              - 'CMakeLists.txt'
+  # run pre-commit-check
+  pre-commit-check:
+    uses: ./.github/workflows/__pre-commit.yaml
 
   # build project
   build:
+    needs: [detect-changes, pre-commit-check]
+    if: ${{ needs.detect-changes.outputs.cpp_changed == 'true' }}
     runs-on: ubuntu-latest
 
     strategy:

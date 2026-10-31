@@ -1,0 +1,34 @@
+# This job runs the hooks of .pre-commit-config.yaml (clang-format,
+# cmake-format, typos and basic file checks) on the files changed by the PR.
+# If a hook fails or modifies a file, the job fails and the differences are
+# displayed in the job log.
+# See https://github.com/pre-commit/action for more details.
+
+name: pre-commit
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit:
+    name: Pre-commit on PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # Checkout the PR head instead of the merge commit, and fetch the
+          # history so that the merge base with the PR base is available.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.13"
+      # We only lint the files changed between the merge base and the PR head.
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd  # v3.0.1
+        with:
+          extra_args: >-
+            --from-ref ${{ github.event.pull_request.base.sha }}
+            --to-ref ${{ github.event.pull_request.head.sha }}
