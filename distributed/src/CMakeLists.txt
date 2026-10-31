@@ -1,12 +1,7 @@
 add_library(distributed INTERFACE)
 
 find_package(MPI REQUIRED COMPONENTS CXX)
-
-target_link_libraries(distributed
-    INTERFACE
-    Kokkos::kokkos
-    MPI::MPI_CXX
-)
+target_link_libraries(distributed INTERFACE Kokkos::kokkos MPI::MPI_CXX)
 
 if(ENABLE_NCCL AND Kokkos_ENABLE_CUDA)
   find_package(NCCL REQUIRED)
@@ -39,7 +34,8 @@ if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
   find_package(rocshmem CONFIG REQUIRED)
   if(NOT Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE)
     message(WARNING "rocSHMEM is compiled with -fgpu-rdc: Kokkos should be "
-                    "configured with Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON")
+                    "configured with Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON"
+    )
   endif()
   target_compile_definitions(distributed INTERFACE ENABLE_TPL_ROCSHMEM)
   target_link_libraries(distributed INTERFACE roc::rocshmem)
@@ -63,7 +59,7 @@ if(ENABLE_ROCFFT_MPI AND Kokkos_ENABLE_HIP AND KokkosFFT_ENABLE_ROCFFT)
   target_compile_definitions(distributed INTERFACE ENABLE_TPL_ROCFFT_MPI PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
 endif()
 
-target_include_directories(distributed INTERFACE
-                           $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-                           $<INSTALL_INTERFACE:${INSTALL_INCLUDEDIR}>
+target_include_directories(
+  distributed INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                        $<INSTALL_INTERFACE:${INSTALL_INCLUDEDIR}>
 )

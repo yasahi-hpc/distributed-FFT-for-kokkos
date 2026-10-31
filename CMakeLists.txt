@@ -37,7 +37,10 @@ endforeach()
 # Get the number of enabled tpls
 list(LENGTH ENABLED_DEVICE_COMM_TPLS COUNT)
 if(COUNT GREATER 1)
-  message(FATAL_ERROR "Error: Only one device tpls may be enabled. The following options are enabled: ${ENABLED_DEVICE_COMM_TPLS}")
+  message(
+    FATAL_ERROR
+      "Error: Only one device tpls may be enabled. The following options are enabled: ${ENABLED_DEVICE_COMM_TPLS}"
+  )
 endif()
 
 # Set the global variables
@@ -47,30 +50,33 @@ if(ENABLED_DEVICE_COMM_TPLS)
   endforeach()
 endif()
 
-if (NOT ENABLE_INTERNAL_KOKKOS)
-    # First check, Kokkos is added as subdirectory or not
-    if(NOT TARGET Kokkos::kokkos)
-        find_package(Kokkos ${KOKKOS_REQUIRED_VERSION} REQUIRED)
-    endif()
-else ()
-    add_subdirectory(tpls/kokkos)
-endif ()
+if(NOT ENABLE_INTERNAL_KOKKOS)
+  # First check, Kokkos is added as subdirectory or not
+  if(NOT TARGET Kokkos::kokkos)
+    find_package(Kokkos ${KOKKOS_REQUIRED_VERSION} REQUIRED)
+  endif()
+else()
+  add_subdirectory(tpls/kokkos)
+endif()
 
-if (NOT ENABLE_INTERNAL_KOKKOSFFT)
-    # First check, Kokkos is added as subdirectory or not
-    if(NOT TARGET KokkosFFT::fft)
-        find_package(KokkosFFT ${KOKKOSFFT_REQUIRED_VERSION} REQUIRED)
-    endif()
-else ()
-    add_subdirectory(tpls/kokkos-fft)
-endif ()
+if(NOT ENABLE_INTERNAL_KOKKOSFFT)
+  # First check, Kokkos is added as subdirectory or not
+  if(NOT TARGET KokkosFFT::fft)
+    find_package(KokkosFFT ${KOKKOSFFT_REQUIRED_VERSION} REQUIRED)
+  endif()
+else()
+  add_subdirectory(tpls/kokkos-fft)
+endif()
 
 # ==================================================================
 # CMake Summary
 # ==================================================================
 
 message("")
-message(STATUS "distributed-FFT version: ${DISTRIBUTED_FFT_VERSION_MAJOR}.${DISTRIBUTED_FFT_VERSION_MINOR}.${DISTRIBUTED_FFT_VERSION_PATCH}")
+message(
+  STATUS
+    "distributed-FFT version: ${DISTRIBUTED_FFT_VERSION_MAJOR}.${DISTRIBUTED_FFT_VERSION_MINOR}.${DISTRIBUTED_FFT_VERSION_PATCH}"
+)
 
 # googletest
 if(ENABLE_TESTS)
@@ -96,10 +102,7 @@ endif()
 set(PACKAGE_NAME_CONFIG_FILES KokkosFFT_Distributed_config.hpp KokkosFFT_Distributed_Version_Info.hpp)
 
 foreach(CONFIG_FILE ${PACKAGE_NAME_CONFIG_FILES})
-  configure_file(cmake/${CONFIG_FILE}.in
-                 ${CMAKE_CURRENT_BINARY_DIR}/distributed/src/${CONFIG_FILE}
-                 @ONLY
-  )
+  configure_file(cmake/${CONFIG_FILE}.in ${CMAKE_CURRENT_BINARY_DIR}/distributed/src/${CONFIG_FILE} @ONLY)
 endforeach()
 
 add_subdirectory(distributed)

@@ -79,14 +79,30 @@ if(ENABLE_NVSHMEM AND Kokkos_ENABLE_CUDA)
   set(NVSHMEM_SOURCES Test_Main.cpp nvshmem/Test_NVSHMEM_Types.cpp)
   add_executable(unit-tests-nvshmem ${NVSHMEM_SOURCES})
   target_link_libraries(unit-tests-nvshmem PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
-  add_mpi_unit_tests(unit-tests-nvshmem NPROCS 1 2 4 TIMEOUT 600)
+  add_mpi_unit_tests(
+    unit-tests-nvshmem
+    NPROCS
+    1
+    2
+    4
+    TIMEOUT
+    600
+  )
 endif()
 
 if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
   set(ROCSHMEM_SOURCES Test_Main.cpp rocSHMEM/Test_rocSHMEM_Types.cpp)
   add_executable(unit-tests-rocshmem ${ROCSHMEM_SOURCES})
   target_link_libraries(unit-tests-rocshmem PUBLIC MPI::MPI_CXX GTest::gtest GTest::gmock distributed)
-  add_mpi_unit_tests(unit-tests-rocshmem NPROCS 1 2 4 TIMEOUT 600)
+  add_mpi_unit_tests(
+    unit-tests-rocshmem
+    NPROCS
+    1
+    2
+    4
+    TIMEOUT
+    600
+  )
 endif()
 
 if(ENABLE_ONECCL AND Kokkos_ENABLE_SYCL)
