@@ -119,6 +119,16 @@ jobs:
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
               distributed_fft: -DENABLE_CUFFT_MP=ON -DENABLE_TESTS=ON
             cmake_build_type: Release
+          - name: nvhpc-nvshmem
+            image: nvhpc
+            compiler:
+              cxx: nvc++
+            cmake_flags:
+              cxx_standard: 20
+              kokkos: -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
+              distributed_fft: -DENABLE_NVSHMEM=ON -DENABLE_TESTS=ON
+            cmake_build_type: Release
           - name: hip
             image: rocm
             compiler:
@@ -197,6 +207,10 @@ jobs:
               name: host_device
           - backend:
               name: cuda-nccl
+            target:
+              name: host_device
+          - backend:
+              name: nvhpc-nvshmem
             target:
               name: host_device
           - backend:
