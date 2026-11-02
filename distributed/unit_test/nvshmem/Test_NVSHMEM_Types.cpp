@@ -1,4 +1,6 @@
 #include <mpi.h>
+#include <cstdlib>
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -8,9 +10,13 @@
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Comm.hpp"
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Buffer.hpp"
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_All2All.hpp"
+#if defined(ENABLE_TPL_SHMEM_DEVICE_COMM)
+#include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Exchange.hpp"
+#endif
 
 namespace {
 using CommType = KokkosFFT::Distributed::Impl::ScopedNVSHMEMComm;
+using KokkosFFT::Distributed::Impl::SHMEMCommMode;
 
 struct TestNVSHMEMComm : public ::testing::Test {
   int m_rank   = 0;
@@ -295,7 +301,187 @@ void test_all2all_team(int rank) {
   ::MPI_Comm_free(&half);
 }
 
+/// \brief Set or unset an environment variable, and restore its previous
+/// value at the end of the scope
+struct ScopedEnv {
+  std::string m_name, m_old;
+  bool m_had_old = false;
+
+  ScopedEnv(const std::string& name, const char* value) : m_name(name) {
+    if (const char* old = std::getenv(name.c_str()); old != nullptr) {
+      m_old     = old;
+      m_had_old = true;
+    }
+    if (value != nullptr) {
+      ::setenv(name.c_str(), value, 1);
+    } else {
+      ::unsetenv(name.c_str());
+    }
+  }
+  ~ScopedEnv() {
+    if (m_had_old) {
+      ::setenv(m_name.c_str(), m_old.c_str(), 1);
+    } else {
+      ::unsetenv(m_name.c_str());
+    }
+  }
+};
+
+/// \brief The default mode is device if it is compiled, host otherwise, and
+/// KOKKOSFFT_SHMEM_COMM overrides it. The host mode has no signal word. A
+/// mode that differs between ranks, or the device mode when it is not
+/// compiled, throws on every rank.
+void test_mode(int rank, int nprocs) {
+  using KokkosFFT::Distributed::Impl::default_shmem_comm_mode;
+#if defined(ENABLE_TPL_SHMEM_DEVICE_COMM)
+  constexpr bool has_device = true;
+#else
+  constexpr bool has_device = false;
+#endif
+
+  {
+    ScopedEnv env("KOKKOSFFT_SHMEM_COMM", nullptr);
+    EXPECT_EQ(default_shmem_comm_mode(),
+              has_device ? SHMEMCommMode::device : SHMEMCommMode::host);
+  }
+  {
+    ScopedEnv env("KOKKOSFFT_SHMEM_COMM", "host");
+    EXPECT_EQ(default_shmem_comm_mode(), SHMEMCommMode::host);
+    CommType comm(MPI_COMM_WORLD);
+    EXPECT_EQ(comm.mode(), SHMEMCommMode::host);
+    EXPECT_EQ(comm.signal(), nullptr);
+  }
+  {
+    ScopedEnv env("KOKKOSFFT_SHMEM_COMM", "device");
+    EXPECT_EQ(default_shmem_comm_mode(), SHMEMCommMode::device);
+  }
+  {
+    ScopedEnv env("KOKKOSFFT_SHMEM_COMM", "gpu");
+    EXPECT_THROW(default_shmem_comm_mode(), std::runtime_error);
+  }
+
+  const auto exec = Kokkos::DefaultExecutionSpace();
+  if (has_device) {
+    CommType comm(MPI_COMM_WORLD, exec, SHMEMCommMode::device);
+    EXPECT_EQ(comm.mode(), SHMEMCommMode::device);
+    EXPECT_NE(comm.signal(), nullptr);
+    EXPECT_EQ(comm.epoch(), 0u);
+  } else {
+    EXPECT_THROW(
+        { CommType comm(MPI_COMM_WORLD, exec, SHMEMCommMode::device); },
+        std::runtime_error);
+  }
+
+  if (nprocs > 1) {
+    const auto mode = rank == 0 ? SHMEMCommMode::host : SHMEMCommMode::device;
+    EXPECT_THROW({ CommType comm(MPI_COMM_WORLD, exec, mode); },
+                 std::runtime_error);
+  }
+}
+
+#if defined(ENABLE_TPL_SHMEM_DEVICE_COMM)
+/// \brief The device-initiated all-to-all on a sub-communicator (strided
+/// team): many exchanges in a row, more than the transposes of a plan, with
+/// the buffers swapped, as consecutive transposes do. Rank r of the team
+/// receives value s * size + r from rank s. The signal word counts the
+/// chunks of every exchange (epoch).
+void test_put_all2all(int rank) {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using ViewType = Kokkos::View<double**, Kokkos::LayoutRight, execution_space>;
+  using BufferType =
+      KokkosFFT::Distributed::Impl::CommBuffer<CommType, execution_space,
+                                               double>;
+  using KokkosFFT::Distributed::Impl::put_all2all;
+
+  MPI_Comm half;
+  ::MPI_Comm_split(MPI_COMM_WORLD, rank % 2, rank, &half);
+  {
+    const auto exec = execution_space();
+    CommType comm(half, exec, SHMEMCommMode::device);
+    const int size = comm.size(), me = comm.rank();
+    const std::size_t count = 5;
+    BufferType buffer0("buffer0", size * count, true),
+        buffer1("buffer1", size * count, true);
+    ViewType view0(buffer0.data(), size, count),
+        view1(buffer1.data(), size, count);
+
+    auto h_send = Kokkos::create_mirror_view(view0);
+    for (int p = 0; p < size; ++p) {
+      for (std::size_t i = 0; i < count; ++i) {
+        h_send(p, i) = (me * size + p) * 100.0 + i;
+      }
+    }
+    Kokkos::deep_copy(view0, h_send);
+
+    // An even number of exchanges gives the data back; one more transposes it
+    const int nexchanges = 20;
+    for (int e = 0; e < nexchanges; ++e) {
+      if (e % 2 == 0) {
+        put_all2all(exec, view0, view1, comm);
+      } else {
+        put_all2all(exec, view1, view0, comm);
+      }
+    }
+    auto h_back =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), view0);
+    put_all2all(exec, view0, view1, comm);
+    auto h_recv =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), view1);
+
+    EXPECT_EQ(comm.epoch(), std::uint64_t(nexchanges + 1));
+    std::uint64_t h_signal = 0;
+    Kokkos::deep_copy(
+        h_signal,
+        Kokkos::View<std::uint64_t, Kokkos::CudaSpace,
+                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>(comm.signal()));
+    EXPECT_EQ(h_signal, comm.epoch() * size);
+
+    for (int p = 0; p < size; ++p) {
+      for (std::size_t i = 0; i < count; ++i) {
+        EXPECT_EQ(h_recv(p, i), (p * size + me) * 100.0 + i);
+        EXPECT_EQ(h_back(p, i), h_send(p, i));
+      }
+    }
+
+    // A wrapper in host mode, or plain Views, are rejected
+    CommType host_comm(half, exec, SHMEMCommMode::host);
+    EXPECT_THROW(put_all2all(exec, view0, view1, host_comm),
+                 std::runtime_error);
+    ViewType plain("plain", size, count);
+    EXPECT_THROW(put_all2all(exec, plain, view1, comm), std::runtime_error);
+  }
+  ::MPI_Comm_free(&half);
+}
+
+/// \brief A move hands over the signal word and the epoch
+void test_move_signal() {
+  const auto exec = Kokkos::DefaultExecutionSpace();
+  CommType comm0(MPI_COMM_WORLD, exec, SHMEMCommMode::device);
+  auto* signal = comm0.signal();
+  comm0.next_epoch();
+
+  CommType comm1(std::move(comm0));
+  EXPECT_EQ(comm1.signal(), signal);
+  EXPECT_EQ(comm1.epoch(), 1u);
+  EXPECT_EQ(comm0.signal(), nullptr);  // NOLINT(bugprone-use-after-move)
+
+  CommType comm2(MPI_COMM_WORLD, exec, SHMEMCommMode::device);
+  comm2 = std::move(comm1);
+  EXPECT_EQ(comm2.signal(), signal);
+  EXPECT_EQ(comm2.mode(), SHMEMCommMode::device);
+  EXPECT_EQ(comm1.signal(), nullptr);  // NOLINT(bugprone-use-after-move)
+}
+#endif
+
 }  // namespace
+
+TEST_F(TestNVSHMEMComm, mode) { test_mode(m_rank, m_nprocs); }
+
+#if defined(ENABLE_TPL_SHMEM_DEVICE_COMM)
+TEST_F(TestNVSHMEMComm, put_all2all) { test_put_all2all(m_rank); }
+
+TEST_F(TestNVSHMEMComm, move_signal) { test_move_signal(); }
+#endif
 
 TEST_F(TestNVSHMEMComm, comm_buffer) { test_comm_buffer(m_rank, m_nprocs); }
 

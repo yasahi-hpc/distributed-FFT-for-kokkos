@@ -22,4 +22,7 @@
 /* rocSHMEM */
 #cmakedefine KOKKOSFFT_DISTRIBUTED_ENABLE_TPL_ROCSHMEM
 
+/* Device-initiated communication of the SHMEM backends */
+#cmakedefine KOKKOSFFT_DISTRIBUTED_ENABLE_SHMEM_DEVICE_COMM
+
 #endif

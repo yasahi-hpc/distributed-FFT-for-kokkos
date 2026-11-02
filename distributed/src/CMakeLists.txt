@@ -25,6 +25,16 @@ if(ENABLE_NVSHMEM AND Kokkos_ENABLE_CUDA)
   find_package(NVSHMEM REQUIRED)
   target_compile_definitions(distributed INTERFACE ENABLE_TPL_NVSHMEM)
   target_link_libraries(distributed INTERFACE NVSHMEM::NVSHMEM)
+  if(ENABLE_SHMEM_DEVICE_COMM)
+    # The device API of NVSHMEM is resolved at device link time, from
+    # libnvshmem_device.a (in NVSHMEM::NVSHMEM)
+    if(NOT Kokkos_ENABLE_CUDA_RELOCATABLE_DEVICE_CODE)
+      message(FATAL_ERROR "ENABLE_SHMEM_DEVICE_COMM needs Kokkos configured with "
+                          "Kokkos_ENABLE_CUDA_RELOCATABLE_DEVICE_CODE=ON"
+      )
+    endif()
+    target_compile_definitions(distributed INTERFACE ENABLE_TPL_SHMEM_DEVICE_COMM)
+  endif()
 endif()
 
 if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
