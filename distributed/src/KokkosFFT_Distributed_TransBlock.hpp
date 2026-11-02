@@ -3,8 +3,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
-#include "KokkosFFT_Distributed_PackUnpack.hpp"
-#include "KokkosFFT_Distributed_All2All.hpp"
+#include "KokkosFFT_Distributed_Exchange.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -12,10 +11,7 @@ namespace Impl {
 
 /// \brief Distributed FFT transposition block
 /// 0. Sanity check
-/// 1. Pack
-/// 2. Fence
-/// 3. All2All
-/// 4. Unpack
+/// 1. Exchange (by default: Pack, Fence, All2All and Unpack)
 ///
 /// \tparam ExecutionSpace Kokkos execution space type
 /// \tparam DIM Rank of in/out View
@@ -55,10 +51,8 @@ class TransBlock {
   /// \brief Operator for TransBlock
   /// This operator does the following:
   /// 0. Sanity check
-  /// 1. Pack
-  /// 2. Fence
-  /// 3. All2All
-  /// 4. Unpack
+  /// 1. Exchange (Exchange<CommType>; by default: Pack, Fence, All2All and
+  /// Unpack)
   /// As send/recv buffers are unmanaged views with 1 extra dimension,
   /// the maximum dimension of the input/output view is 7.
   /// Mappings are reversed for backward direction.
@@ -100,10 +94,8 @@ class TransBlock {
     auto src_axis   = is_forward ? m_src_axis : m_dst_axis;
     auto dst_axis   = is_forward ? m_dst_axis : m_src_axis;
 
-    pack(m_exec, in, send_buffer, src_map, src_axis);
-    m_exec.fence();
-    all2all(send_buffer, recv_buffer, comm);
-    unpack(m_exec, recv_buffer, out, dst_map, dst_axis);
+    exchange(m_exec, comm, in, send_buffer, recv_buffer, out, src_map, src_axis,
+             dst_map, dst_axis);
   }
 
  private:
