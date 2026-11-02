@@ -18,6 +18,18 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief The addresses of a symmetric buffer on the PEs of a team, as seen
+/// from this GPU (nvshmem_ptr), for the fused pack of the device mode
+struct NVSHMEMPeerTable {
+  /// The local address of the buffer
+  const void *m_buffer = nullptr;
+  /// The address of the buffer on team PE p, or 0 if p is not reachable by
+  /// load/store (NVLink or PCIe P2P)
+  Kokkos::View<std::uintptr_t *, Kokkos::CudaSpace> m_peers;
+  /// Whether a PE other than this one is reachable by load/store
+  bool m_has_peer = false;
+};
+
 /// \brief Scoped wrapper for an NVSHMEM team made from an MPI communicator
 ///
 /// The team has the same processes, in the same order, as the communicator:
@@ -53,6 +65,7 @@ struct ScopedNVSHMEMComm {
   int m_rank            = 0;
   int m_size            = 1;
   SHMEMCommMode m_mode  = SHMEMCommMode::host;
+  bool m_fused_pack     = true;
 
   // The PE ids of the team in the world team
   PETriplet m_triplet;
@@ -61,6 +74,11 @@ struct ScopedNVSHMEMComm {
   // exchanges done (mutable: the exchanges take a const wrapper)
   std::uint64_t *m_signal       = nullptr;
   mutable std::uint64_t m_epoch = 0;
+
+  // Device mode: the peer tables of the receive buffers used so far
+  // (a plan alternates between two buffers)
+  mutable std::vector<NVSHMEMPeerTable> m_peer_tables;
+  static constexpr std::size_t m_max_peer_tables = 8;
 
  public:
   /// \brief Construct a ScopedNVSHMEMComm
@@ -73,7 +91,10 @@ struct ScopedNVSHMEMComm {
   /// processes of comm are not strided in the SHMEM communicator
   explicit ScopedNVSHMEMComm(MPI_Comm comm, const ExecutionSpace &exec_space,
                              SHMEMCommMode mode)
-      : m_exec_space(exec_space), m_comm(comm), m_mode(mode) {
+      : m_exec_space(exec_space),
+        m_comm(comm),
+        m_mode(mode),
+        m_fused_pack(default_shmem_fused_pack()) {
     ::MPI_Comm_rank(comm, &m_rank);
     ::MPI_Comm_size(comm, &m_size);
 
@@ -116,9 +137,11 @@ struct ScopedNVSHMEMComm {
         m_rank(other.m_rank),
         m_size(other.m_size),
         m_mode(other.m_mode),
+        m_fused_pack(other.m_fused_pack),
         m_triplet(other.m_triplet),
         m_signal(other.m_signal),
-        m_epoch(other.m_epoch) {
+        m_epoch(other.m_epoch),
+        m_peer_tables(std::move(other.m_peer_tables)) {
     other.m_comm   = MPI_COMM_NULL;
     other.m_team   = NVSHMEM_TEAM_INVALID;
     other.m_signal = nullptr;
@@ -135,9 +158,11 @@ struct ScopedNVSHMEMComm {
       m_rank         = other.m_rank;
       m_size         = other.m_size;
       m_mode         = other.m_mode;
+      m_fused_pack   = other.m_fused_pack;
       m_triplet      = other.m_triplet;
       m_signal       = other.m_signal;
       m_epoch        = other.m_epoch;
+      m_peer_tables  = std::move(other.m_peer_tables);
       other.m_comm   = MPI_COMM_NULL;
       other.m_team   = NVSHMEM_TEAM_INVALID;
       other.m_signal = nullptr;
@@ -172,6 +197,37 @@ struct ScopedNVSHMEMComm {
 
   /// \brief The number of exchanges done (device mode)
   std::uint64_t epoch() const { return m_epoch; }
+
+  /// \brief Whether the device mode fuses the pack with the exchange
+  /// (default_shmem_fused_pack, read at construction)
+  bool fused_pack() const { return m_fused_pack; }
+
+  /// \brief The addresses of a symmetric buffer on the PEs of the team
+  /// (device mode). Computed with nvshmem_ptr on the first call for a
+  /// buffer and kept: nvshmem_ptr depends only on the address, so a table
+  /// stays valid for whatever buffer is later allocated at that address.
+  /// \param[in] buffer A local address on the symmetric heap. For any other
+  /// address, every entry is 0.
+  NVSHMEMPeerTable peer_table(const void *buffer) const {
+    for (const auto &table : m_peer_tables) {
+      if (table.m_buffer == buffer) return table;
+    }
+    if (m_peer_tables.size() >= m_max_peer_tables) m_peer_tables.clear();
+
+    NVSHMEMPeerTable table;
+    table.m_buffer = buffer;
+    table.m_peers  = Kokkos::View<std::uintptr_t *, Kokkos::CudaSpace>(
+        "KokkosFFT::Distributed::NVSHMEMPeerTable", m_size);
+    auto h_peers = Kokkos::create_mirror_view(table.m_peers);
+    for (int pe = 0; pe < m_size; ++pe) {
+      h_peers(pe) =
+          reinterpret_cast<std::uintptr_t>(nvshmem_ptr(buffer, world_pe(pe)));
+      if (pe != m_rank && h_peers(pe) != 0) table.m_has_peer = true;
+    }
+    Kokkos::deep_copy(table.m_peers, h_peers);
+    m_peer_tables.push_back(table);
+    return table;
+  }
 
   /// \brief Start an exchange (device mode)
   /// \return The value of the signal word once every PE of the team has put
@@ -260,6 +316,7 @@ struct ScopedNVSHMEMComm {
   /// \brief Free the signal word, after the exchanges enqueued on the stream
   /// that wait on it, and destroy the team
   void destroy() noexcept {
+    m_peer_tables.clear();
     if (m_signal != nullptr) {
       m_exec_space.fence();
       nvshmem_free(m_signal);

@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <cstdlib>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -11,7 +12,13 @@
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Buffer.hpp"
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_All2All.hpp"
 #if defined(ENABLE_TPL_SHMEM_DEVICE_COMM)
+#include <Kokkos_Random.hpp>
+#include "KokkosFFT_Extents.hpp"
+#include "KokkosFFT_Distributed_Extents.hpp"
+#include "KokkosFFT_Distributed_MPI_Extents.hpp"
+#include "KokkosFFT_Distributed_Exchange.hpp"
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Exchange.hpp"
+#include "../Test_CommBuffers.hpp"
 #endif
 
 namespace {
@@ -31,6 +38,26 @@ struct TestNVSHMEMComm : public ::testing::Test {
     KokkosFFT::Distributed::Impl::TplCommSetup<CommType>::setup(MPI_COMM_WORLD);
   }
 };
+
+#if defined(ENABLE_TPL_SHMEM_DEVICE_COMM)
+using exchange_types =
+    ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
+                     std::pair<float, Kokkos::LayoutRight>,
+                     std::pair<double, Kokkos::LayoutLeft>,
+                     std::pair<double, Kokkos::LayoutRight>,
+                     std::pair<Kokkos::complex<float>, Kokkos::LayoutLeft>,
+                     std::pair<Kokkos::complex<float>, Kokkos::LayoutRight>,
+                     std::pair<Kokkos::complex<double>, Kokkos::LayoutLeft>,
+                     std::pair<Kokkos::complex<double>, Kokkos::LayoutRight>>;
+
+/// \brief Fixture for the exchanges of a transpose. value_type is the value
+/// type of the Views, layout_type their layout (and the buffers').
+template <typename T>
+struct TestNVSHMEMExchange : public TestNVSHMEMComm {
+  using value_type  = typename T::first_type;
+  using layout_type = typename T::second_type;
+};
+#endif
 
 /// \brief Check that the team of a wrapper has the processes of its MPI
 /// communicator, in the same order
@@ -471,6 +498,162 @@ void test_move_signal() {
   EXPECT_EQ(comm2.mode(), SHMEMCommMode::device);
   EXPECT_EQ(comm1.signal(), nullptr);  // NOLINT(bugprone-use-after-move)
 }
+
+/// \brief KOKKOSFFT_SHMEM_FUSED_PACK selects the fused pack ("1", the
+/// default) or not ("0"), read at construction
+void test_fused_pack_env() {
+  using KokkosFFT::Distributed::Impl::default_shmem_fused_pack;
+  {
+    ScopedEnv env("KOKKOSFFT_SHMEM_FUSED_PACK", nullptr);
+    EXPECT_TRUE(default_shmem_fused_pack());
+  }
+  {
+    ScopedEnv env("KOKKOSFFT_SHMEM_FUSED_PACK", "0");
+    EXPECT_FALSE(default_shmem_fused_pack());
+    CommType comm(MPI_COMM_WORLD, Kokkos::DefaultExecutionSpace(),
+                  SHMEMCommMode::device);
+    EXPECT_FALSE(comm.fused_pack());
+  }
+  {
+    ScopedEnv env("KOKKOSFFT_SHMEM_FUSED_PACK", "1");
+    EXPECT_TRUE(default_shmem_fused_pack());
+  }
+  {
+    ScopedEnv env("KOKKOSFFT_SHMEM_FUSED_PACK", "yes");
+    EXPECT_THROW(default_shmem_fused_pack(), std::runtime_error);
+  }
+}
+
+/// \brief The peer table of a symmetric buffer: the entry of this PE is the
+/// local address, the others are the addresses nvshmem_ptr gives (0 if not
+/// reachable by load/store), and m_has_peer tells whether one of them is
+/// set. A table is computed once per buffer. A plain View has no peers.
+void test_peer_table(int rank) {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using BufferType =
+      KokkosFFT::Distributed::Impl::CommBuffer<CommType, execution_space,
+                                               double>;
+  MPI_Comm half;
+  ::MPI_Comm_split(MPI_COMM_WORLD, rank % 2, rank, &half);
+  {
+    CommType comm(half, execution_space(), SHMEMCommMode::device);
+    BufferType buffer("buffer", 16, true);
+
+    const auto table = comm.peer_table(buffer.data());
+    EXPECT_EQ(table.m_buffer, buffer.data());
+    auto h_peers =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), table.m_peers);
+    ASSERT_EQ(h_peers.extent(0), std::size_t(comm.size()));
+    EXPECT_EQ(h_peers(comm.rank()),
+              reinterpret_cast<std::uintptr_t>(buffer.data()));
+    bool has_peer = false;
+    for (int pe = 0; pe < comm.size(); ++pe) {
+      EXPECT_EQ(h_peers(pe), reinterpret_cast<std::uintptr_t>(nvshmem_ptr(
+                                 buffer.data(), comm.world_pe(pe))));
+      if (pe != comm.rank() && h_peers(pe) != 0) has_peer = true;
+    }
+    EXPECT_EQ(table.m_has_peer, has_peer);
+
+    // Kept: the same device View on the second call
+    EXPECT_EQ(comm.peer_table(buffer.data()).m_peers.data(),
+              table.m_peers.data());
+
+    // Not on the symmetric heap: no address on any PE
+    Kokkos::View<double*, execution_space> plain("plain", 16);
+    const auto plain_table = comm.peer_table(plain.data());
+    auto h_plain = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                       plain_table.m_peers);
+    EXPECT_FALSE(plain_table.m_has_peer);
+    for (int pe = 0; pe < comm.size(); ++pe) EXPECT_EQ(h_plain(pe), 0u);
+  }
+  ::MPI_Comm_free(&half);
+}
+
+/// \brief The three exchanges of a transpose on a strided team (the 2D
+/// transpose of Test_TransBlock.cpp between an x-pencil and a y-pencil):
+/// host mode (default_exchange), device mode without the fused pack (D1)
+/// and with it (D2), give the same output, and back the input, over
+/// several exchanges in a row with the same buffers. D2 falls back to D1
+/// when no peer is reachable by load/store (one process).
+template <typename T, typename LayoutType>
+void test_exchange_variants(int rank) {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using View2DType      = Kokkos::View<T**, LayoutType, execution_space>;
+  using View3DType      = Kokkos::View<T***, LayoutType, execution_space>;
+  using extents_type    = std::array<std::size_t, 2>;
+  using KokkosFFT::Distributed::Impl::exchange;
+  using KokkosFFT::Impl::create_layout;
+
+  MPI_Comm half;
+  ::MPI_Comm_split(MPI_COMM_WORLD, rank % 2, rank, &half);
+  int nprocs = 1;
+  ::MPI_Comm_size(half, &nprocs);
+  const std::size_t n = nprocs;
+
+  const extents_type global_extents{11, 10}, map01{0, 1};
+  const extents_type topology0{1, n}, topology1{n, 1};
+  // Not structured bindings: they are captured by the lambda below
+  const auto extents0 =
+      std::get<0>(KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_extents, topology0, half));
+  const auto extents1 =
+      std::get<0>(KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_extents, topology1, half));
+  const auto buffer_extents =
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
+          global_extents, topology0, topology1);
+
+  execution_space exec;
+  View2DType in("in", create_layout<LayoutType>(extents0));
+  Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345 + rank);
+  Kokkos::fill_random(in, random_pool, 1.0);
+  auto h_in = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), in);
+
+  // Forward and backward transposes, several times in a row
+  auto run = [&](SHMEMCommMode mode, const char* fused, bool& used_fused) {
+    ScopedEnv env("KOKKOSFFT_SHMEM_FUSED_PACK", fused);
+    CommType comm(half, exec, mode);
+    auto buffers = make_comm_buffers<View3DType>(
+        comm, create_layout<LayoutType>(buffer_extents));
+    View2DType out("out", create_layout<LayoutType>(extents1)),
+        back("back", create_layout<LayoutType>(extents0));
+    used_fused = mode == SHMEMCommMode::device && comm.fused_pack() &&
+                 comm.peer_table(buffers.m_recv.data()).m_has_peer;
+    for (int i = 0; i < 5; ++i) {
+      exchange(exec, comm, in, buffers.m_send, buffers.m_recv, out, map01, 0,
+               map01, 1);
+      exchange(exec, comm, out, buffers.m_send, buffers.m_recv, back, map01, 1,
+               map01, 0);
+    }
+    exec.fence();
+    return std::make_pair(
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), out),
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), back));
+  };
+
+  bool host_fused = false, d1_fused = false, d2_fused = false;
+  auto [h_out_host, h_back_host] = run(SHMEMCommMode::host, "1", host_fused);
+  auto [h_out_d1, h_back_d1]     = run(SHMEMCommMode::device, "0", d1_fused);
+  auto [h_out_d2, h_back_d2]     = run(SHMEMCommMode::device, "1", d2_fused);
+  EXPECT_FALSE(host_fused);
+  EXPECT_FALSE(d1_fused);
+  if (nprocs == 1) EXPECT_FALSE(d2_fused);
+
+  for (std::size_t i0 = 0; i0 < h_out_host.extent(0); ++i0) {
+    for (std::size_t i1 = 0; i1 < h_out_host.extent(1); ++i1) {
+      EXPECT_EQ(h_out_d1(i0, i1), h_out_host(i0, i1));
+      EXPECT_EQ(h_out_d2(i0, i1), h_out_host(i0, i1));
+    }
+  }
+  for (std::size_t i0 = 0; i0 < h_in.extent(0); ++i0) {
+    for (std::size_t i1 = 0; i1 < h_in.extent(1); ++i1) {
+      EXPECT_EQ(h_back_host(i0, i1), h_in(i0, i1));
+      EXPECT_EQ(h_back_d1(i0, i1), h_in(i0, i1));
+      EXPECT_EQ(h_back_d2(i0, i1), h_in(i0, i1));
+    }
+  }
+  ::MPI_Comm_free(&half);
+}
 #endif
 
 }  // namespace
@@ -481,6 +664,18 @@ TEST_F(TestNVSHMEMComm, mode) { test_mode(m_rank, m_nprocs); }
 TEST_F(TestNVSHMEMComm, put_all2all) { test_put_all2all(m_rank); }
 
 TEST_F(TestNVSHMEMComm, move_signal) { test_move_signal(); }
+
+TEST_F(TestNVSHMEMComm, fused_pack_env) { test_fused_pack_env(); }
+
+TEST_F(TestNVSHMEMComm, peer_table) { test_peer_table(m_rank); }
+
+TYPED_TEST_SUITE(TestNVSHMEMExchange, exchange_types);
+
+TYPED_TEST(TestNVSHMEMExchange, exchange_variants) {
+  using value_type  = typename TestFixture::value_type;
+  using layout_type = typename TestFixture::layout_type;
+  test_exchange_variants<value_type, layout_type>(this->m_rank);
+}
 #endif
 
 TEST_F(TestNVSHMEMComm, comm_buffer) { test_comm_buffer(m_rank, m_nprocs); }
