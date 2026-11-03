@@ -1,6 +1,7 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_ROCSHMEM_COMM_HPP
 #define KOKKOSFFT_DISTRIBUTED_ROCSHMEM_COMM_HPP
 
+#include <cstdint>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -9,6 +10,7 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Comm.hpp"
 #include "KokkosFFT_Distributed_MPI_Teams.hpp"
+#include "KokkosFFT_Distributed_SHMEM_Mode.hpp"
 #include "KokkosFFT_Distributed_rocSHMEM_Types.hpp"
 #include "KokkosFFT_Distributed_rocSHMEM_Init.hpp"
 
@@ -31,10 +33,17 @@ namespace Impl {
 /// communicator first (TplCommSetup), so that it can then make wrappers of
 /// its sub-communicators.
 ///
-/// Constructing or destroying a wrapper of a sub-communicator is collective
-/// over the SHMEM communicator: every rank must construct one at the same
-/// time (a team split is collective over the parent team), and every rank of
-/// the team must destroy it.
+/// The mode (SHMEMCommMode) selects how the transposes exchange the data:
+/// all2all in host mode, the puts of Exchange<ScopedrocSHMEMComm> in device
+/// mode. The device mode adds a signal word on the symmetric heap, which the
+/// peers increment when their chunks have arrived, and the number of
+/// exchanges done (the epoch).
+///
+/// Constructing or destroying a wrapper is collective over the SHMEM
+/// communicator: every rank must construct one at the same time (a team
+/// split is collective over the parent team, the mode is checked and the
+/// signal word allocated over the SHMEM communicator), and every rank must
+/// destroy it.
 struct ScopedrocSHMEMComm {
  private:
   using ExecutionSpace = Kokkos::DefaultExecutionSpace;
@@ -43,27 +52,52 @@ struct ScopedrocSHMEMComm {
   rocshmem::rocshmem_team_t m_team = rocshmem::ROCSHMEM_TEAM_INVALID;
   int m_rank                       = 0;
   int m_size                       = 1;
+  SHMEMCommMode m_mode             = SHMEMCommMode::host;
+
+  // The PE ids of the team in the world team
+  PETriplet m_triplet;
+
+  // Device mode: the signal word on the symmetric heap, and the number of
+  // exchanges done (mutable: the exchanges take a const wrapper)
+  std::uint64_t *m_signal       = nullptr;
+  mutable std::uint64_t m_epoch = 0;
 
  public:
   /// \brief Construct a ScopedrocSHMEMComm
   /// \param[in] comm MPI communicator: the SHMEM communicator or a strided
   /// sub-communicator of it. Not owned: it must outlive the wrapper.
   /// \param[in] exec_space Kokkos execution space
-  /// \throws std::runtime_error if the processes of comm are not strided in
-  /// the SHMEM communicator, on every rank of the SHMEM communicator
-  explicit ScopedrocSHMEMComm(MPI_Comm comm, const ExecutionSpace &exec_space)
-      : m_exec_space(exec_space), m_comm(comm) {
+  /// \param[in] mode The communication mode, the same on every rank
+  /// \throws std::runtime_error, on every rank of the SHMEM communicator, if
+  /// the mode is not the same on every rank or not compiled, or if the
+  /// processes of comm are not strided in the SHMEM communicator
+  explicit ScopedrocSHMEMComm(MPI_Comm comm, const ExecutionSpace &exec_space,
+                              SHMEMCommMode mode)
+      : m_exec_space(exec_space), m_comm(comm), m_mode(mode) {
     ::MPI_Comm_rank(comm, &m_rank);
     ::MPI_Comm_size(comm, &m_size);
-    m_team = make_team(comm);
+
+    // Before the team split, so that a wrong mode does not leave a team
+    if (rocshmem_comm() == MPI_COMM_NULL) rocshmem_setup(comm);
+    check_shmem_comm_mode(m_mode, rocshmem_comm());
+    m_team = make_team(comm, m_triplet);
 
     KOKKOSFFT_THROW_IF(rocshmem::rocshmem_team_my_pe(m_team) != m_rank ||
                            rocshmem::rocshmem_team_n_pes(m_team) != m_size,
                        "ScopedrocSHMEMComm: the rocSHMEM team must have the "
                        "ranks and the size of the MPI communicator");
+
+    if (m_mode == SHMEMCommMode::device) allocate_signal();
   }
 
-  /// \brief Construct a ScopedrocSHMEMComm
+  /// \brief Construct a ScopedrocSHMEMComm in the default mode
+  /// (default_shmem_comm_mode)
+  /// \param[in] comm MPI communicator
+  /// \param[in] exec_space Kokkos execution space
+  explicit ScopedrocSHMEMComm(MPI_Comm comm, const ExecutionSpace &exec_space)
+      : ScopedrocSHMEMComm(comm, exec_space, default_shmem_comm_mode()) {}
+
+  /// \brief Construct a ScopedrocSHMEMComm in the default mode
   /// \param[in] comm MPI communicator
   explicit ScopedrocSHMEMComm(MPI_Comm comm)
       : ScopedrocSHMEMComm(comm, ExecutionSpace{}) {}
@@ -80,27 +114,38 @@ struct ScopedrocSHMEMComm {
         m_comm(other.m_comm),
         m_team(other.m_team),
         m_rank(other.m_rank),
-        m_size(other.m_size) {
-    other.m_comm = MPI_COMM_NULL;
-    other.m_team = rocshmem::ROCSHMEM_TEAM_INVALID;
+        m_size(other.m_size),
+        m_mode(other.m_mode),
+        m_triplet(other.m_triplet),
+        m_signal(other.m_signal),
+        m_epoch(other.m_epoch) {
+    other.m_comm   = MPI_COMM_NULL;
+    other.m_team   = rocshmem::ROCSHMEM_TEAM_INVALID;
+    other.m_signal = nullptr;
   }
 
-  // Move assignment operator. Destroying the old team is collective over it.
+  // Move assignment operator. Destroying the old team is collective over it,
+  // freeing the old signal word over the SHMEM communicator.
   ScopedrocSHMEMComm &operator=(ScopedrocSHMEMComm &&other) noexcept {
     if (this != &other) {
-      destroy_team();
-      m_exec_space = other.m_exec_space;
-      m_comm       = other.m_comm;
-      m_team       = other.m_team;
-      m_rank       = other.m_rank;
-      m_size       = other.m_size;
-      other.m_comm = MPI_COMM_NULL;
-      other.m_team = rocshmem::ROCSHMEM_TEAM_INVALID;
+      destroy();
+      m_exec_space   = other.m_exec_space;
+      m_comm         = other.m_comm;
+      m_team         = other.m_team;
+      m_rank         = other.m_rank;
+      m_size         = other.m_size;
+      m_mode         = other.m_mode;
+      m_triplet      = other.m_triplet;
+      m_signal       = other.m_signal;
+      m_epoch        = other.m_epoch;
+      other.m_comm   = MPI_COMM_NULL;
+      other.m_team   = rocshmem::ROCSHMEM_TEAM_INVALID;
+      other.m_signal = nullptr;
     }
     return *this;
   }
 
-  ~ScopedrocSHMEMComm() { destroy_team(); }
+  ~ScopedrocSHMEMComm() { destroy(); }
 
   /// \brief The rocSHMEM team, or ROCSHMEM_TEAM_INVALID if moved from
   rocshmem::rocshmem_team_t team() const { return m_team; }
@@ -112,15 +157,41 @@ struct ScopedrocSHMEMComm {
   int rank() const { return m_rank; }
   int size() const { return m_size; }
 
+  /// \brief The communication mode
+  SHMEMCommMode mode() const { return m_mode; }
+
+  /// \brief The PE id, in the world team, of the PE pe of the team
+  int world_pe(int pe) const { return m_triplet.start + pe * m_triplet.stride; }
+
+  /// \brief The PE ids of the team in the world team
+  const PETriplet &triplet() const { return m_triplet; }
+
+  /// \brief The signal word on the symmetric heap (device mode), or nullptr
+  /// in host mode or if moved from
+  std::uint64_t *signal() const { return m_signal; }
+
+  /// \brief The number of exchanges done (device mode)
+  std::uint64_t epoch() const { return m_epoch; }
+
+  /// \brief Start an exchange (device mode)
+  /// \return The value of the signal word once every PE of the team has put
+  /// its chunk of this exchange
+  std::uint64_t next_epoch() const {
+    ++m_epoch;
+    return m_epoch * static_cast<std::uint64_t>(m_size);
+  }
+
  private:
   /// \brief The team of comm: the world team, or a strided split of it
-  static rocshmem::rocshmem_team_t make_team(MPI_Comm comm) {
-    if (rocshmem_comm() == MPI_COMM_NULL) rocshmem_setup(comm);
+  /// \param[in] comm MPI communicator
+  /// \param[out] mine The PE ids of the team in the world team
+  static rocshmem::rocshmem_team_t make_team(MPI_Comm comm, PETriplet &mine) {
     MPI_Comm world = rocshmem_comm();
 
     int result = MPI_UNEQUAL;
     ::MPI_Comm_compare(comm, world, &result);
     if (result == MPI_IDENT || result == MPI_CONGRUENT) {
+      mine = PETriplet{0, 1, rocshmem::rocshmem_n_pes()};
       return rocshmem::ROCSHMEM_TEAM_WORLD;
     }
 
@@ -134,7 +205,6 @@ struct ScopedrocSHMEMComm {
 
     // Every rank goes on to the splits, which are collective over the world
     // team, or every rank throws
-    PETriplet mine;
     int is_strided = 1;
     try {
       mine = compute_pe_triplet(comm, my_world_pe);
@@ -161,12 +231,42 @@ struct ScopedrocSHMEMComm {
     return team;
   }
 
+  /// \brief Allocate the signal word on the symmetric heap (collective over
+  /// the SHMEM communicator) and zero it, before any peer can signal it: the
+  /// peers signal after a barrier (Exchange)
+  void allocate_signal() {
+    m_signal = static_cast<std::uint64_t *>(
+        rocshmem::rocshmem_malloc(sizeof(std::uint64_t)));
+    if (m_signal == nullptr) {
+      destroy_team();
+      KOKKOSFFT_THROW_IF(true,
+                         "ScopedrocSHMEMComm: rocshmem_malloc of the signal "
+                         "word failed (ROCSHMEM_HEAP_SIZE)");
+    }
+    Kokkos::View<std::uint64_t, Kokkos::HIPSpace,
+                 Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+        signal(m_signal);
+    Kokkos::deep_copy(m_exec_space, signal, std::uint64_t(0));
+    m_exec_space.fence();
+  }
+
   void destroy_team() noexcept {
     if (m_team != rocshmem::ROCSHMEM_TEAM_INVALID &&
         m_team != rocshmem::ROCSHMEM_TEAM_WORLD) {
       rocshmem::rocshmem_team_destroy(m_team);
     }
     m_team = rocshmem::ROCSHMEM_TEAM_INVALID;
+  }
+
+  /// \brief Free the signal word, after the exchanges enqueued on the stream
+  /// that wait on it, and destroy the team
+  void destroy() noexcept {
+    if (m_signal != nullptr) {
+      m_exec_space.fence();
+      rocshmem::rocshmem_free(m_signal);
+      m_signal = nullptr;
+    }
+    destroy_team();
   }
 };
 

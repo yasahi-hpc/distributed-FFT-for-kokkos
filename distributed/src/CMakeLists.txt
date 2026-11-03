@@ -45,7 +45,15 @@ if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
   find_package(Threads REQUIRED)
   find_package(hip REQUIRED)
   find_package(rocshmem CONFIG REQUIRED)
-  if(NOT Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE)
+  if(ENABLE_SHMEM_DEVICE_COMM)
+    # The device API of rocSHMEM is resolved at device link time
+    if(NOT Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE)
+      message(FATAL_ERROR "ENABLE_SHMEM_DEVICE_COMM needs Kokkos configured with "
+                          "Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON"
+      )
+    endif()
+    target_compile_definitions(distributed INTERFACE ENABLE_TPL_SHMEM_DEVICE_COMM)
+  elseif(NOT Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE)
     message(WARNING "rocSHMEM is compiled with -fgpu-rdc: Kokkos should be "
                     "configured with Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON"
     )

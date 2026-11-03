@@ -20,8 +20,8 @@ option(ENABLE_RCCL "Enable RCCL as a communication backend on AMD GPUs" OFF)
 option(ENABLE_ONECCL "Enable oneCCL as a communication backend on Intel GPUs" OFF)
 option(ENABLE_NVSHMEM "Enable NVSHMEM as a communication backend on NVIDIA GPUs" OFF)
 option(ENABLE_ROCSHMEM "Enable rocSHMEM as a communication backend on AMD GPUs" OFF)
-option(ENABLE_SHMEM_DEVICE_COMM "Enable the device-initiated communication of NVSHMEM (needs relocatable device code)"
-       OFF
+option(ENABLE_SHMEM_DEVICE_COMM
+       "Enable the device-initiated communication of NVSHMEM or rocSHMEM (needs relocatable device code)" OFF
 )
 option(ENABLE_CUFFT_MP "Enable cufft-mp as a KokkosFFT backend on NVIDIA GPUs" OFF)
 option(ENABLE_ROCFFT_MPI "Enable rocfft-mpi as a KokkosFFT backend on AMD GPUs" OFF)
@@ -55,10 +55,8 @@ endif()
 
 # The device-initiated communication of the SHMEM backends
 if(ENABLE_SHMEM_DEVICE_COMM)
-  if(ENABLE_ROCSHMEM)
-    message(FATAL_ERROR "ENABLE_SHMEM_DEVICE_COMM is not supported with rocSHMEM yet")
-  elseif(NOT ENABLE_NVSHMEM)
-    message(FATAL_ERROR "ENABLE_SHMEM_DEVICE_COMM needs ENABLE_NVSHMEM")
+  if(NOT ENABLE_NVSHMEM AND NOT ENABLE_ROCSHMEM)
+    message(FATAL_ERROR "ENABLE_SHMEM_DEVICE_COMM needs ENABLE_NVSHMEM or ENABLE_ROCSHMEM")
   endif()
   set(KOKKOSFFT_DISTRIBUTED_ENABLE_SHMEM_DEVICE_COMM TRUE)
 endif()

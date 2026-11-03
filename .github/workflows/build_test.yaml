@@ -179,6 +179,16 @@ jobs:
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror" -DKokkosFFT_ENABLE_ROCFFT=ON
               distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_ROCSHMEM=ON -DENABLE_BENCHMARK=ON
             cmake_build_type: Release
+          - name: rocm-rocshmem-device
+            image: rocm
+            compiler:
+              cxx: hipcc
+            cmake_flags:
+              cxx_standard: 20
+              kokkos: -DKokkos_ENABLE_HIP=ON -DKokkos_ARCH_VEGA90A=ON -DKokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror" -DKokkosFFT_ENABLE_ROCFFT=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_ROCSHMEM=ON -DENABLE_SHMEM_DEVICE_COMM=ON
+            cmake_build_type: Release
           - name: sycl
             image: intel
             compiler:
@@ -243,6 +253,10 @@ jobs:
               name: host_device
           - backend:
               name: rocm-rocshmem
+            target:
+              name: host_device
+          - backend:
+              name: rocm-rocshmem-device
             target:
               name: host_device
           - backend:

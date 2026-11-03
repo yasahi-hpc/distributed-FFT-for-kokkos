@@ -106,6 +106,8 @@ void exchange(const ExecutionSpace& exec_space, const CommType& comm,
 // before TransBlock uses them
 #if defined(ENABLE_TPL_SHMEM_DEVICE_COMM) && defined(ENABLE_TPL_NVSHMEM)
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Exchange.hpp"
+#elif defined(ENABLE_TPL_SHMEM_DEVICE_COMM) && defined(ENABLE_TPL_ROCSHMEM)
+#include "rocSHMEM/KokkosFFT_Distributed_rocSHMEM_Exchange.hpp"
 #endif
 
 #endif
