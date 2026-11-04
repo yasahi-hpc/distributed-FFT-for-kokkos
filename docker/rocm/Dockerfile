@@ -36,13 +36,13 @@ ENV PATH=${CMAKE_DIR}/bin:/usr/lib/x86_64-linux-gnu/openmpi/bin:/opt/rocm/bin:$P
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/openmpi/lib:/opt/rocm/hipfft/lib:$LD_LIBRARY_PATH
 ENV CMAKE_PREFIX_PATH=/usr/lib/x86_64-linux-gnu/openmpi:/opt/rocm/hip/:/opt/rocm/:$CMAKE_PREFIX_PATH
 
-# Install rocSHMEM from source: the rocSHMEM backend needs rocSHMEM 3.3 or
-# later (rocshmem_alltoallmem_on_stream), and the ROCm releases ship older
-# ones (3.1.0 in ROCm 7.1.1). rocSHMEM 3.3.0 is in projects/rocshmem of
-# ROCm/rocm-systems at the tag therock-7.12. It is built with the IPC conduit
-# only, as a static library with relocatable device code, for the GPU of the
-# CI builds (Kokkos_ARCH_VEGA90A).
-ARG ROCSHMEM_TAG=therock-7.12
+# Install rocSHMEM from source: the rocSHMEM backend needs rocSHMEM 3.4 or
+# later (3.3 faults on the collectives of the IPC world team), and the ROCm
+# releases ship older ones (3.1.0 in ROCm 7.1.1). rocSHMEM 3.4.0 is in
+# projects/rocshmem of ROCm/rocm-systems at the tag therock-7.13. It is built
+# with the IPC conduit only, as a static library with relocatable device code,
+# for the GPU of the CI builds (Kokkos_ARCH_VEGA90A).
+ARG ROCSHMEM_TAG=therock-7.13
 ARG ROCSHMEM_GPU_TARGETS=gfx90a
 
 ENV ROCSHMEM_DIR=/opt/rocshmem

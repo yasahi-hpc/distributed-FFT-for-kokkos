@@ -129,6 +129,16 @@ jobs:
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
               distributed_fft: -DENABLE_NVSHMEM=ON -DENABLE_TESTS=ON
             cmake_build_type: Release
+          - name: nvhpc-nvshmem-device
+            image: nvhpc
+            compiler:
+              cxx: g++
+            cmake_flags:
+              cxx_standard: 20
+              kokkos: -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON -DKokkos_ENABLE_CUDA_RELOCATABLE_DEVICE_CODE=ON
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
+              distributed_fft: -DENABLE_NVSHMEM=ON -DENABLE_SHMEM_DEVICE_COMM=ON -DENABLE_TESTS=ON
+            cmake_build_type: Release
           - name: hip
             image: rocm
             compiler:
@@ -168,6 +178,16 @@ jobs:
               kokkos: -DKokkos_ENABLE_HIP=ON -DKokkos_ARCH_VEGA90A=ON -DKokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON
               kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror" -DKokkosFFT_ENABLE_ROCFFT=ON
               distributed_fft: -DENABLE_TESTS=ON -DENABLE_EXAMPLES=ON -DENABLE_ROCSHMEM=ON -DENABLE_BENCHMARK=ON
+            cmake_build_type: Release
+          - name: rocm-rocshmem-device
+            image: rocm
+            compiler:
+              cxx: hipcc
+            cmake_flags:
+              cxx_standard: 20
+              kokkos: -DKokkos_ENABLE_HIP=ON -DKokkos_ARCH_VEGA90A=ON -DKokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE=ON
+              kokkos_fft: -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror" -DKokkosFFT_ENABLE_ROCFFT=ON
+              distributed_fft: -DENABLE_TESTS=ON -DENABLE_ROCSHMEM=ON -DENABLE_SHMEM_DEVICE_COMM=ON
             cmake_build_type: Release
           - name: sycl
             image: intel
@@ -224,11 +244,19 @@ jobs:
             target:
               name: host_device
           - backend:
+              name: nvhpc-nvshmem-device
+            target:
+              name: host_device
+          - backend:
               name: rocm-rccl
             target:
               name: host_device
           - backend:
               name: rocm-rocshmem
+            target:
+              name: host_device
+          - backend:
+              name: rocm-rocshmem-device
             target:
               name: host_device
           - backend:

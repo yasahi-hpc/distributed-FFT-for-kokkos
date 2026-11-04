@@ -72,6 +72,94 @@ KOKKOS_INLINE_FUNCTION iType merge_indices(iType idx, iType start, iType extent,
   }
 }
 
+/// \brief Index arithmetic of Pack. It maps an element of the (N+1)D
+/// destination (send buffer) to the process its chunk is sent to, and to the
+/// element of the ND source view it holds. It is shared by Pack and by the
+/// kernels that write the chunks into the peers' buffers directly.
+///
+/// \tparam LayoutType Layout of the destination view
+/// \tparam iType Integer type for indices
+/// \tparam SrcRank Rank of the source view
+template <typename LayoutType, typename iType, std::size_t SrcRank>
+struct PackIndexMap {
+  static_assert(std::is_same_v<LayoutType, Kokkos::LayoutLeft> ||
+                    std::is_same_v<LayoutType, Kokkos::LayoutRight>,
+                "PackIndexMap: We only accept LayoutLeft or "
+                "LayoutRight for the Dst View.");
+  using ShapeType = Kokkos::Array<std::size_t, SrcRank>;
+
+  std::size_t m_axis, m_merged_size, m_nprocs = 1;
+  ShapeType m_map;
+  ShapeType m_src_extents;
+
+  /// \brief Constructor for the PackIndexMap.
+  ///
+  /// \tparam SrcViewType Kokkos View type of the source data
+  /// \tparam DstViewType Kokkos View type of the destination data
+  /// \param[in] src The source view
+  /// \param[in] dst The destination view (or a view with its extents)
+  /// \param[in] map The mapping of source view dimensions
+  /// \param[in] axis The axis to be split
+  /// \param[in] merged_size The extent of the dimension to be split
+  template <typename SrcViewType, typename DstViewType>
+  PackIndexMap(const SrcViewType& src, const DstViewType& dst,
+               const ShapeType& map, const std::size_t axis,
+               const std::size_t merged_size)
+      : m_axis(axis), m_merged_size(merged_size), m_map(map) {
+    static_assert(
+        SrcViewType::rank() == SrcRank && DstViewType::rank() == SrcRank + 1,
+        "PackIndexMap: SrcView rank must be SrcRank and DstView "
+        "rank must be SrcRank + 1");
+    m_nprocs = std::is_same_v<LayoutType, Kokkos::LayoutRight>
+                   ? dst.extent(0)
+                   : dst.extent(SrcRank);
+    for (std::size_t i = 0; i < SrcRank; ++i) {
+      m_src_extents[i] = src.extent(i);
+    }
+  }
+
+  /// \brief The process (index of the chunk) of a destination element
+  /// \param[in] dst_idx The indices of the destination element
+  /// \return The index of the chunk along the dimension of processes
+  KOKKOS_INLINE_FUNCTION iType peer(const iType dst_idx[]) const {
+    if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
+      return dst_idx[0];
+    } else {
+      return dst_idx[SrcRank];
+    }
+  }
+
+  /// \brief Get the indices of the source element corresponding to the given
+  /// destination indices.
+  /// This function computes the source indices by merging the destination
+  /// indices with the start and extent of the bin along the specified axis.
+  ///
+  /// \param[in] dst_idx The indices of the destination element
+  /// \param[out] src_idx The indices of the source element
+  /// \return false if any of the source indices is out of bounds (the
+  /// destination element is padding), true otherwise
+  KOKKOS_INLINE_FUNCTION bool src_indices(const iType dst_idx[],
+                                          iType src_idx[]) const {
+    constexpr std::size_t offset =
+        std::is_same_v<LayoutType, Kokkos::LayoutRight> ? 1 : 0;
+    const auto [start, extent] =
+        bin_mapping(iType(m_merged_size), iType(m_nprocs), peer(dst_idx));
+    iType merged_indices[SrcRank];
+    for (std::size_t i = 0; i < SrcRank; ++i) {
+      merged_indices[i] =
+          merge_indices(dst_idx[i + offset], start, extent, i, m_axis);
+    }
+    for (std::size_t i = 0; i < SrcRank; ++i) {
+      src_idx[i] = merged_indices[m_map[i]];
+      if (src_idx[i] >= iType(m_src_extents[i]) ||
+          src_idx[i] == OutOfBounds_v<iType>) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
 /// \brief Pack data from ND source view to N+1D destination view by splitting
 /// along a specified axis. The destination view has an additional dimension
 /// representing the number of processes (nprocs). The additional dimension is
@@ -146,40 +234,20 @@ struct Pack {
   }
 
   struct PackInternal {
-    using LayoutType = typename DstViewType::array_layout;
-    using ValueType  = typename SrcViewType::non_const_value_type;
+    using LayoutType   = typename DstViewType::array_layout;
+    using ValueType    = typename SrcViewType::non_const_value_type;
+    using IndexMapType = PackIndexMap<LayoutType, iType, SrcViewType::rank()>;
 
-    static_assert(std::is_same_v<LayoutType, Kokkos::LayoutLeft> ||
-                      std::is_same_v<LayoutType, Kokkos::LayoutRight>,
-                  "PackInternal: We only accept LayoutLeft or "
-                  "LayoutRight for the Dst View.");
     SrcViewType m_src;
     DstViewType m_dst;
-    std::size_t m_axis, m_merged_size, m_nprocs = 1;
-    ShapeType m_map;
-    ShapeType m_dst_extents;
-    ShapeType m_src_extents;
+    IndexMapType m_index_map;
 
     PackInternal(const SrcViewType& src, const DstViewType& dst,
                  const ShapeType& map, const std::size_t axis,
                  const std::size_t merged_size)
         : m_src(src),
           m_dst(dst),
-          m_axis(axis),
-          m_merged_size(merged_size),
-          m_map(map) {
-      for (std::size_t i = 0; i < SrcViewType::rank(); ++i) {
-        m_dst_extents[i] = std::is_same_v<LayoutType, Kokkos::LayoutRight>
-                               ? dst.extent(i + 1)
-                               : dst.extent(i);
-      }
-      m_nprocs = std::is_same_v<LayoutType, Kokkos::LayoutRight>
-                     ? dst.extent(0)
-                     : dst.extent(DstViewType::rank() - 1);
-      for (std::size_t i = 0; i < SrcViewType::rank(); ++i) {
-        m_src_extents[i] = src.extent(i);
-      }
-    }
+          m_index_map(src, dst, map, axis, merged_size) {}
 
     template <typename... IndicesType>
     KOKKOS_INLINE_FUNCTION void operator()(const IndicesType... indices) const {
@@ -209,43 +277,18 @@ struct Pack {
     }
 
     /// \brief Get the value from the source view corresponding to the given
-    /// destination indices.
-    /// This function computes the source indices by merging the destination
-    /// indices with the start and extent of the bin along the specified axis.
+    /// destination indices (PackIndexMap::src_indices).
     /// If any of the computed source indices are out of bounds, it returns 0.
     ///
     template <std::size_t... Is>
     KOKKOS_INLINE_FUNCTION ValueType
     get_src_value(iType dst_idx[], std::index_sequence<Is...>) const {
-      if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutRight>) {
-        const iType p = dst_idx[0];
-        const auto [start, extent] =
-            bin_mapping(iType(m_merged_size), iType(m_nprocs), p);
-        iType src_indices[DstViewType::rank() - 1] = {
-            merge_indices(dst_idx[Is + 1], start, extent, Is, m_axis)...};
-        for (std::size_t i = 0; i < DstViewType::rank() - 1; ++i) {
-          if (src_indices[m_map[i]] >= iType(m_src_extents[i]) ||
-              src_indices[m_map[i]] == OutOfBounds_v<iType>) {
-            // Quick return for out-of-bounds
-            return ValueType(0);
-          }
-        }
-        return m_src(src_indices[m_map[Is]]...);
-      } else {
-        const iType p = dst_idx[DstViewType::rank() - 1];
-        const auto [start, extent] =
-            bin_mapping(iType(m_merged_size), iType(m_nprocs), p);
-        iType src_indices[DstViewType::rank() - 1] = {
-            merge_indices(dst_idx[Is], start, extent, Is, m_axis)...};
-        for (std::size_t i = 0; i < DstViewType::rank() - 1; ++i) {
-          if (src_indices[m_map[i]] >= iType(m_src_extents[i]) ||
-              src_indices[m_map[i]] == OutOfBounds_v<iType>) {
-            // Quick return for out-of-bounds
-            return ValueType(0);
-          }
-        }
-        return m_src(src_indices[m_map[Is]]...);
+      iType src_indices[DstViewType::rank() - 1];
+      if (!m_index_map.src_indices(dst_idx, src_indices)) {
+        // Quick return for out-of-bounds
+        return ValueType(0);
       }
+      return m_src(src_indices[Is]...);
     }
   };
 };
