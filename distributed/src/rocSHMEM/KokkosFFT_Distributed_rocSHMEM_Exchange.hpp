@@ -26,8 +26,10 @@ namespace Impl {
 /// of the send buffer into the slot of this PE in the receive buffer of the
 /// team PE p, and adds 1 to the signal word of p once the data has arrived.
 /// The put is the blocking work-group one: it returns once the send buffer
-/// can be reused (rocSHMEM 3.3 has no quiet on a stream), so the kernel ends
-/// with the local completion of its puts. It does not wait for any peer.
+/// can be reused, so the kernel ends with the local completion of its puts,
+/// without a quiet on the stream (rocshmem_quiet_on_stream, from rocSHMEM
+/// 3.4, would allow the non-blocking put instead). It does not wait for any
+/// peer.
 /// A functor, not a lambda: the members are only used on the device
 /// (KOKKOS_IF_ON_DEVICE), which the extended lambdas do not accept.
 /// \tparam MemberType Kokkos team member type

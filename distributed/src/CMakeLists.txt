@@ -38,7 +38,7 @@ if(ENABLE_NVSHMEM AND Kokkos_ENABLE_CUDA)
 endif()
 
 if(ENABLE_ROCSHMEM AND Kokkos_ENABLE_HIP)
-  # rocSHMEM 3.3 or later (checked at compile time): its CMake package
+  # rocSHMEM 3.4 or later (checked at compile time): its CMake package
   # provides roc::rocshmem, which adds -fgpu-rdc to the compile and link
   # options of its users. Its CMake package does not find its dependencies:
   # roc::rocshmem links to Threads::Threads, which must be found beforehand
