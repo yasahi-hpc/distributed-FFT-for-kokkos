@@ -972,6 +972,9 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
       topology_l_type{1, npy, npx, 1}, topology_r_type{1, npx, npy, 1});
   const float_type atol = std::is_same_v<float_type, float> ? 3.0e-6 : 1.0e-12;
   const Tolerance tol_atol{1.0e-5, atol};
+  // tol_atol for float, the default for double (tol_atol would be stricter)
+  const Tolerance tol_fwd_float =
+      std::is_same_v<float_type, float> ? tol_atol : Tolerance{};
 
   // Not a pencil geometry: the plan must fail
   const std::vector<PlanCase<3>> failure_cases = {
@@ -1006,7 +1009,8 @@ void test_pencil3D_view4D(std::size_t npx, std::size_t npy) {
       // (n0, n1, n2/px, n3/py) -> (n0/2+1, n1, n2/px, n3/py)
       // -> ((n0/2+1)/px, n1, n2, n3/py) -> (n0/2+1, n1, n2/px, n3/py)
       // FFT ax = {0} -> Transpose topo 6 -> FFT2 ax = {1,2} -> Transpose topo 0
-      {0, 0, {1, 2, 0}, Expect::Success, {}, tol_atol},
+      // The forward check needs tol_atol for float with rocFFT (MI250X)
+      {0, 0, {1, 2, 0}, Expect::Success, tol_fwd_float, tol_atol},
       // topo 0 -> topo 0 with ax = {1, 2, 3}
       // (n0, n1, n2/px, n3/py) -> (n0/py, n1, n2/px, n3)
       // -> (n0/py, n1, n2/px, n3/2+1) -> (n0/py, n1/px, n2, n3/2+1)
