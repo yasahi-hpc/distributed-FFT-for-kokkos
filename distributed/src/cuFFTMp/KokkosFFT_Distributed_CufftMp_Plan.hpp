@@ -1,6 +1,7 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_CUFFT_MP_PLAN_HPP
 #define KOKKOSFFT_DISTRIBUTED_CUFFT_MP_PLAN_HPP
 
+#include <algorithm>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
@@ -100,6 +101,55 @@ template <typename ExecutionSpace, typename T,
                            std::nullptr_t> = nullptr>
 void setup(MPI_Comm comm) {
   nvshmem_setup(comm);
+}
+
+/// \brief Size in bytes, on this rank, of the NVSHMEM data buffer of a
+/// cuFFTMp plan. The transform is in place in the buffer, and the buffer
+/// serves both directions, so it must hold the local input (with the padding
+/// of the last FFT axis for real transforms) and the local output, whichever
+/// is larger: with uneven splits, the local output can be the larger one on
+/// some ranks. ScopedCufftMpPlan::commit takes the maximum over the ranks.
+/// \tparam InViewType Kokkos View type for input data
+/// \tparam OutViewType Kokkos View type for output data
+/// \tparam DIM Number of transform dimensions
+///
+/// \param[in] in Input data view
+/// \param[in] out Output data view
+/// \param[in] axes Axes along which to perform the FFT
+/// \param[in] in_topology Topology of input data distribution
+/// \param[in] out_topology Topology of output data distribution
+/// \param[in] comm MPI communicator
+/// \return The size of the buffer in bytes on this rank
+template <typename InViewType, typename OutViewType, std::size_t DIM>
+std::size_t buffer_size_in_bytes(
+    const InViewType& in, const OutViewType& out,
+    const KokkosFFT::axis_type<DIM>& axes,
+    const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
+    const KokkosFFT::shape_type<OutViewType::rank()>& out_topology,
+    const MPI_Comm& comm) {
+  using in_value_type  = typename InViewType::non_const_value_type;
+  using out_value_type = typename OutViewType::non_const_value_type;
+
+  auto gin_extents        = compute_global_extents(in, in_topology, comm);
+  auto gout_extents       = compute_global_extents(out, out_topology, comm);
+  auto gin_padded_extents = gin_extents;
+  if constexpr (KokkosFFT::Impl::is_real_v<in_value_type>) {
+    auto non_negative_axes =
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, InViewType::rank()));
+    gin_padded_extents = KokkosFFT::Impl::compute_padded_extents<in_value_type>(
+        gout_extents, non_negative_axes);
+  }
+  auto [in_padded_extents, in_padded_starts] =
+      compute_local_extents_and_starts(gin_padded_extents, in_topology, comm);
+  auto [out_extents, out_starts] =
+      compute_local_extents_and_starts(gout_extents, out_topology, comm);
+
+  const std::size_t in_size =
+      KokkosFFT::Impl::total_size(in_padded_extents) * sizeof(in_value_type);
+  const std::size_t out_size =
+      KokkosFFT::Impl::total_size(out_extents) * sizeof(out_value_type);
+  return std::max(in_size, out_size);
 }
 
 /// \brief General interface to create a cuFFTMp plan for distributed FFT
@@ -217,14 +267,20 @@ void create_plan(const ExecutionSpace& exec_space,
     plan = std::make_unique<PlanType>(fft_int_extents, lower_input, upper_input,
                                       lower_output, upper_output, strides_input,
                                       strides_output, comm);
-    plan->commit(exec_space, in.size());
+    plan->commit(
+        exec_space,
+        buffer_size_in_bytes(in, out, axes, in_topology, out_topology, comm),
+        comm);
 
   } else {
     auto in_mapped_topology =
         KokkosFFT::Impl::compute_mapped_extents(in_topology, map);
     bool is_xslab = in_mapped_topology.at(0) > 1;
     plan          = std::make_unique<PlanType>(nx, ny, comm, is_xslab);
-    plan->commit(exec_space, in.size());
+    plan->commit(
+        exec_space,
+        buffer_size_in_bytes(in, out, axes, in_topology, out_topology, comm),
+        comm);
   }
 }
 
@@ -292,7 +348,10 @@ void create_plan(const ExecutionSpace& exec_space,
     bool is_xslab = in_mapped_topology.at(0) > 1;
 
     plan = std::make_unique<PlanType>(nx, ny, nz, comm, is_xslab);
-    plan->commit(exec_space, in.size());
+    plan->commit(
+        exec_space,
+        buffer_size_in_bytes(in, out, axes, in_topology, out_topology, comm),
+        comm);
   } else {
     // Using general API
     auto gin_padded_extents = gin_extents;
@@ -349,7 +408,10 @@ void create_plan(const ExecutionSpace& exec_space,
     plan = std::make_unique<PlanType>(fft_int_extents, lower_input, upper_input,
                                       lower_output, upper_output, strides_input,
                                       strides_output, comm);
-    plan->commit(exec_space, in.size());
+    plan->commit(
+        exec_space,
+        buffer_size_in_bytes(in, out, axes, in_topology, out_topology, comm),
+        comm);
   }
 }
 

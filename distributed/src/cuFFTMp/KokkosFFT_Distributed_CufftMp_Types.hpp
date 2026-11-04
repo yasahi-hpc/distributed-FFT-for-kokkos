@@ -1,6 +1,8 @@
 #ifndef KOKKOSFFT_DISTRIBUTED_CUFFT_MP_TYPES_HPP
 #define KOKKOSFFT_DISTRIBUTED_CUFFT_MP_TYPES_HPP
 
+#include <algorithm>
+#include <mpi.h>
 #include <cufftMp.h>
 #include <nvshmem.h>
 #include <Kokkos_Core.hpp>
@@ -19,6 +21,12 @@ struct cuFFTHandleWrapper {
 /// This class handles both forward and backward plans
 /// For complex-to-complex transforms, only the forward plan is created
 ///
+/// The data buffer and the scratch of the plans are on the NVSHMEM symmetric
+/// heap, allocated by commit with the same size on every PE. The plans do not
+/// allocate their own scratch (cufftSetAutoAllocation(plan, 0)): one scratch,
+/// of the largest size the plans need, is shared by them (cufftSetWorkArea),
+/// as they run one after the other on the same stream.
+///
 /// \tparam ExecutionSpace Kokkos execution space type
 /// \tparam T1 Input data type
 /// \tparam T2 Output data type
@@ -31,8 +39,13 @@ struct ScopedCufftMpPlan {
   cuFFTHandleWrapper m_plan_f, m_plan_b;
   ///@}
 
-  //! GPU memory
+  //! GPU memory (NVSHMEM): the data, transformed in place
   buffer_data_type *m_buffer = nullptr;
+  std::size_t m_buffer_size  = 0;
+
+  //! GPU memory (NVSHMEM): the scratch shared by the plans
+  void *m_workarea             = nullptr;
+  std::size_t m_workspace_size = 0;
 
  public:
   /// \brief Constructor for 2D FFT plans
@@ -42,12 +55,14 @@ struct ScopedCufftMpPlan {
   /// \param[in] is_xslab Whether the topology is x-slab
   ScopedCufftMpPlan(int nx, int ny, MPI_Comm comm, bool is_xslab) {
     KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f.m_handle));
+    KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_f.m_handle, 0));
     cufftXtSubFormat subformat_forward =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE : CUFFT_XT_FORMAT_INPLACE_SHUFFLED;
     cufftXtSubFormat subformat_inverse =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE_SHUFFLED : CUFFT_XT_FORMAT_INPLACE;
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b.m_handle));
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_b.m_handle, 0));
       std::size_t workspace = 0;
       auto r2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
@@ -61,9 +76,11 @@ struct ScopedCufftMpPlan {
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(m_plan_f.m_handle, nx, ny,
                                                    r2c_type, &comm,
                                                    CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(m_plan_b.m_handle, nx, ny,
                                                    c2r_type, &comm,
                                                    CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
     } else {
       std::size_t workspace = 0;
       auto c2c_type =
@@ -73,6 +90,7 @@ struct ScopedCufftMpPlan {
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(m_plan_f.m_handle, nx, ny,
                                                    c2c_type, &comm,
                                                    CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
     }
   }
 
@@ -84,12 +102,14 @@ struct ScopedCufftMpPlan {
   /// \param[in] is_xslab Whether the topology is x-slab
   ScopedCufftMpPlan(int nx, int ny, int nz, MPI_Comm comm, bool is_xslab) {
     KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f.m_handle));
+    KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_f.m_handle, 0));
     cufftXtSubFormat subformat_forward =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE : CUFFT_XT_FORMAT_INPLACE_SHUFFLED;
     cufftXtSubFormat subformat_inverse =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE_SHUFFLED : CUFFT_XT_FORMAT_INPLACE;
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b.m_handle));
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_b.m_handle, 0));
       std::size_t workspace = 0;
       auto r2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
@@ -102,9 +122,11 @@ struct ScopedCufftMpPlan {
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(m_plan_f.m_handle, nx, ny,
                                                    nz, r2c_type, &comm,
                                                    CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(m_plan_b.m_handle, nx, ny,
                                                    nz, c2r_type, &comm,
                                                    CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
     } else {
       std::size_t workspace = 0;
       auto c2c_type =
@@ -114,6 +136,7 @@ struct ScopedCufftMpPlan {
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(m_plan_f.m_handle, nx, ny,
                                                    nz, c2c_type, &comm,
                                                    CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
     }
   }
 
@@ -135,9 +158,11 @@ struct ScopedCufftMpPlan {
                     const std::vector<long long int> &strides_output,
                     MPI_Comm comm) {
     KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f.m_handle));
+    KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_f.m_handle, 0));
     int rank = fft_extents.size();
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b.m_handle));
+      KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_b.m_handle, 0));
       auto r2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
       auto c2r_type =
@@ -155,12 +180,14 @@ struct ScopedCufftMpPlan {
           upper_input.data(), strides_input.data(), lower_output.data(),
           upper_output.data(), strides_output.data(), r2c_type, &comm,
           CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
 
       KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlanDecomposition(
           m_plan_b.m_handle, rank, fft_extents.data(), lower_input.data(),
           upper_input.data(), strides_input.data(), lower_output.data(),
           upper_output.data(), strides_output.data(), c2r_type, &comm,
           CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
     } else {
       auto c2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
@@ -173,6 +200,7 @@ struct ScopedCufftMpPlan {
           upper_input.data(), strides_input.data(), lower_output.data(),
           upper_output.data(), strides_output.data(), c2c_type, &comm,
           CUFFT_COMM_MPI, &workspace));
+      m_workspace_size = std::max(m_workspace_size, workspace);
     }
   }
 
@@ -182,15 +210,18 @@ struct ScopedCufftMpPlan {
   ScopedCufftMpPlan &operator=(ScopedCufftMpPlan &&)      = delete;
   ScopedCufftMpPlan(ScopedCufftMpPlan &&)                 = delete;
 
-  /// \brief Destructor to free cufftMp resources
+  /// \brief Destructor to free cufftMp resources. The plans are destroyed
+  /// before the memory they use; nvshmem_free is collective, as the plans are
+  /// destroyed on every PE.
   ~ScopedCufftMpPlan() noexcept {
     Kokkos::Profiling::ScopedRegion region("cleanup_plan[TPL_cuFFTMp]");
-    nvshmem_free(m_buffer);
-    cufftResult cufft_rt = cufftDestroy(m_plan_f.m_handle);
+    bool is_destroyed = cufftDestroy(m_plan_f.m_handle) == CUFFT_SUCCESS;
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      cufft_rt = cufftDestroy(m_plan_b.m_handle);
+      is_destroyed &= cufftDestroy(m_plan_b.m_handle) == CUFFT_SUCCESS;
     }
-    if (cufft_rt != CUFFT_SUCCESS) Kokkos::abort("cufftDestroy failed");
+    nvshmem_free(m_workarea);
+    nvshmem_free(m_buffer);
+    if (!is_destroyed) Kokkos::abort("cufftDestroy failed");
   }
 
   /// \brief Get the underlying cufftHandle
@@ -218,10 +249,17 @@ struct ScopedCufftMpPlan {
                     KokkosFFT::Impl::create_layout<layout_type>(extents));
   }
 
-  /// \brief Commit the plan to a specific execution space
+  /// \brief Commit the plan to a specific execution space, and allocate the
+  /// data buffer and the shared scratch on the NVSHMEM symmetric heap.
+  /// Collective over comm: nvshmem_malloc needs the same size on every PE, so
+  /// both sizes are the maximum over comm.
   /// \param[in] exec_space Kokkos execution space
-  /// \param[in] size Size of the buffer
-  void commit(const Kokkos::Cuda &exec_space, std::size_t size) {
+  /// \param[in] buffer_size Size of the data buffer in bytes on this rank (the
+  /// larger of the input and the output, see buffer_size_in_bytes)
+  /// \param[in] comm MPI communicator of the plan
+  /// \throws std::runtime_error if an allocation fails
+  void commit(const Kokkos::Cuda &exec_space, std::size_t buffer_size,
+              MPI_Comm comm) {
     KOKKOSFFT_CHECK_CUFFT_CALL(
         cufftSetStream(m_plan_f.m_handle, exec_space.cuda_stream()));
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
@@ -229,10 +267,39 @@ struct ScopedCufftMpPlan {
           cufftSetStream(m_plan_b.m_handle, exec_space.cuda_stream()));
     }
 
-    // Allocate GPU memory by nvhsmem
-    m_buffer = static_cast<buffer_data_type *>(nvshmem_malloc(
-        sizeof(buffer_data_type) * size));  // Allocate for both plans
+    // The same sizes on every PE
+    unsigned long long sizes[2]     = {buffer_size, m_workspace_size};
+    unsigned long long max_sizes[2] = {0, 0};
+    ::MPI_Allreduce(sizes, max_sizes, 2, MPI_UNSIGNED_LONG_LONG, MPI_MAX, comm);
+    m_buffer_size    = static_cast<std::size_t>(max_sizes[0]);
+    m_workspace_size = static_cast<std::size_t>(max_sizes[1]);
+
+    // The data buffer, used for both directions
+    m_buffer = static_cast<buffer_data_type *>(nvshmem_malloc(m_buffer_size));
+    KOKKOSFFT_THROW_IF(m_buffer_size > 0 && m_buffer == nullptr,
+                       "ScopedCufftMpPlan: nvshmem_malloc of the data buffer "
+                       "failed (NVSHMEM_SYMMETRIC_SIZE)");
+
+    // The scratch, shared by the plans
+    if (m_workspace_size > 0) {
+      m_workarea = nvshmem_malloc(m_workspace_size);
+      KOKKOSFFT_THROW_IF(m_workarea == nullptr,
+                         "ScopedCufftMpPlan: nvshmem_malloc of the scratch "
+                         "failed (NVSHMEM_SYMMETRIC_SIZE)");
+    }
+    KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetWorkArea(m_plan_f.m_handle, m_workarea));
+    if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
+      KOKKOSFFT_CHECK_CUFFT_CALL(
+          cufftSetWorkArea(m_plan_b.m_handle, m_workarea));
+    }
   }
+
+  /// \brief Size in bytes of the data buffer (the same on every PE)
+  std::size_t buffer_size() const noexcept { return m_buffer_size; }
+
+  /// \brief Size in bytes of the scratch shared by the plans (the same on
+  /// every PE)
+  std::size_t workspace_size() const noexcept { return m_workspace_size; }
 
   /// \brief Get the name of the plan implementation
   /// \return Name of the plan implementation

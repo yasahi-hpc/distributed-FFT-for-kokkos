@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 #include <iostream>
+#include <memory>
 #include <type_traits>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Core.hpp>
@@ -2712,6 +2713,90 @@ void test_tpl2D_inplace_View2D(std::size_t nprocs) {
 #endif
 }
 
+#if defined(ENABLE_TPL_CUFFT_MP)
+/// \brief The NVSHMEM data buffer and the shared scratch of a cuFFTMp plan
+/// have the same size on every rank, and the buffer holds the local input
+/// (padded for real transforms) and the local output of this rank. With
+/// (13, 7, 17) from the x-pencil to the y-pencil, the local output is larger
+/// than the local input on some ranks (C2C): the case the buffer used to be
+/// too small for, when it was sized from the local input only.
+/// \tparam T Value type of the input (float/double or complex)
+/// \param[in] npx Number of processes in the x direction
+/// \param[in] npy Number of processes in the y direction
+template <typename T>
+void test_tpl3D_buffer_size_View3D_pencil(std::size_t npx, std::size_t npy) {
+  using float_type   = KokkosFFT::Impl::base_floating_point_type<T>;
+  using complex_type = Kokkos::complex<float_type>;
+  using InViewType   = Kokkos::View<T***, Kokkos::LayoutRight, execution_space>;
+  using OutViewType =
+      Kokkos::View<complex_type***, Kokkos::LayoutRight, execution_space>;
+  using PlanType =
+      KokkosFFT::Distributed::Impl::ScopedCufftMpPlan<execution_space, T,
+                                                      complex_type>;
+  using axes_type     = KokkosFFT::axis_type<3>;
+  using extents_type  = std::array<std::size_t, 3>;
+  using topology_type = std::array<std::size_t, 3>;
+
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+  const topology_type topology0{1, npx, npy}, topology1{npx, 1, npy};
+  const axes_type axes{0, 1, 2};
+  const std::size_t n0 = 13, n1 = 7, n2 = 17;
+  const extents_type global_in_extents{n0, n1, n2},
+      global_out_extents{n0, n1,
+                         KokkosFFT::Impl::extent_after_transform(n2, is_R2C)};
+
+  auto [in_extents, in_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_in_extents, topology0, MPI_COMM_WORLD);
+  auto [out_extents, out_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_out_extents, topology1, MPI_COMM_WORLD);
+  InViewType in(
+      "in", KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(in_extents));
+  OutViewType out(
+      "out", KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(out_extents));
+
+  execution_space exec;
+  ASSERT_TRUE(KokkosFFT::Distributed::Impl::is_tpl_available(
+      exec, in, out, axes, topology0, topology1));
+
+  KokkosFFT::Distributed::Impl::setup<execution_space, float_type>(
+      MPI_COMM_WORLD);
+  [[maybe_unused]] auto [map, map_inv] =
+      KokkosFFT::Impl::get_map_axes(in, axes);
+  std::unique_ptr<PlanType> plan;
+  KokkosFFT::Distributed::Impl::create_plan(
+      exec, plan, in, out, axes, map, topology0, topology1, MPI_COMM_WORLD);
+
+  // The same sizes on every rank (nvshmem_malloc is symmetric)
+  unsigned long long sizes[2] = {plan->buffer_size(), plan->workspace_size()};
+  unsigned long long min_sizes[2] = {0, 0}, max_sizes[2] = {0, 0};
+  ::MPI_Allreduce(sizes, min_sizes, 2, MPI_UNSIGNED_LONG_LONG, MPI_MIN,
+                  MPI_COMM_WORLD);
+  ::MPI_Allreduce(sizes, max_sizes, 2, MPI_UNSIGNED_LONG_LONG, MPI_MAX,
+                  MPI_COMM_WORLD);
+  EXPECT_EQ(min_sizes[0], max_sizes[0]);
+  EXPECT_EQ(min_sizes[1], max_sizes[1]);
+
+  // Large enough for the input (padded) and the output of this rank
+  const std::size_t in_bytes  = in.size() * sizeof(T);
+  const std::size_t out_bytes = out.size() * sizeof(complex_type);
+  EXPECT_GE(plan->buffer_size(),
+            KokkosFFT::Distributed::Impl::buffer_size_in_bytes(
+                in, out, axes, topology0, topology1, MPI_COMM_WORLD));
+  EXPECT_GE(plan->buffer_size(), in_bytes);
+  EXPECT_GE(plan->buffer_size(), out_bytes);
+
+  // The case this test is about: some rank has a larger local output
+  if constexpr (!is_R2C) {
+    int is_output_larger = out_bytes > in_bytes, any_output_larger = 0;
+    ::MPI_Allreduce(&is_output_larger, &any_output_larger, 1, MPI_INT, MPI_LOR,
+                    MPI_COMM_WORLD);
+    EXPECT_TRUE(any_output_larger);
+  }
+}
+#endif
+
 }  // namespace
 
 TYPED_TEST_SUITE(TestTplPlan1D, test_types);
@@ -2891,6 +2976,19 @@ TYPED_TEST(TestTplPlan3D, ExecuteView3D_Pencil_C2C) {
   test_tpl3D_execute_View3D_pencil<complex_type, layout_type>(
       this->m_npx, this->m_npx, n0_odd, n1_odd, n2_odd);
 }
+
+#if defined(ENABLE_TPL_CUFFT_MP)
+TYPED_TEST(TestTplPlan3D, BufferSizeView3D_Pencil) {
+  using float_type   = typename TestFixture::float_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+  test_tpl3D_buffer_size_View3D_pencil<float_type>(this->m_npx, this->m_npx);
+  test_tpl3D_buffer_size_View3D_pencil<complex_type>(this->m_npx, this->m_npx);
+}
+#endif
 
 TYPED_TEST(TestTplPlan2D, InPlaceView2D_R2C) {
   using float_type  = typename TestFixture::float_type;
