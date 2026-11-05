@@ -2,11 +2,13 @@
 #define KOKKOSFFT_DISTRIBUTED_CUFFT_MP_PLAN_HPP
 
 #include <algorithm>
+#include <array>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_MPI_Extents.hpp"
 #include "KokkosFFT_Distributed_Topologies.hpp"
 #include "KokkosFFT_Distributed_Extents.hpp"
+#include "KokkosFFT_Distributed_TplAxes.hpp"
 #include "nvshmem/KokkosFFT_Distributed_NVSHMEM_Init.hpp"
 
 namespace KokkosFFT {
@@ -37,19 +39,20 @@ bool is_tpl_available(
     const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
     const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
         out_topology) {
-  using InLayout  = typename InViewType::array_layout;
-  using OutLayout = typename OutViewType::array_layout;
-  if constexpr (!std::is_same_v<InLayout, Kokkos::LayoutRight> ||
-                !std::is_same_v<OutLayout, Kokkos::LayoutRight>) {
+  // LayoutLeft Views run either on the reversed LayoutRight Views (no copy)
+  // or through a copy that changes the layout (is_tpl_permutation_needed);
+  // the Views must have the same layout
+  if constexpr (!std::is_same_v<typename InViewType::array_layout,
+                                typename OutViewType::array_layout>) {
     return false;
   }
 
-  [[maybe_unused]] auto [map, map_inv] =
-      KokkosFFT::Impl::get_map_axes(in, axes);
-  bool is_transpose_needed = KokkosFFT::Impl::is_transpose_needed(map);
-  if (is_transpose_needed) return false;
+  // The axes in the order the plan is made with (canonical_tpl_axes): no
+  // transpose when only the order of the axes differs, nor for a LayoutLeft
+  // View that needs only a change of layout or runs reversed
+  if (is_tpl_permutation_needed<InViewType>(axes)) return false;
 
-  if (in_topology == out_topology) return false;
+  if (in_topology.array() == out_topology.array()) return false;
 
   bool is_slab =
       are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
@@ -120,12 +123,14 @@ void setup(MPI_Comm comm) {
 /// \param[in] out_topology Topology of output data distribution
 /// \param[in] comm MPI communicator
 /// \return The size of the buffer in bytes on this rank
-template <typename InViewType, typename OutViewType, std::size_t DIM>
+template <typename InViewType, typename OutViewType, std::size_t DIM,
+          typename InLayoutType, typename OutLayoutType>
 std::size_t buffer_size_in_bytes(
     const InViewType& in, const OutViewType& out,
     const KokkosFFT::axis_type<DIM>& axes,
-    const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
-    const KokkosFFT::shape_type<OutViewType::rank()>& out_topology,
+    const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
+    const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
+        out_topology,
     const MPI_Comm& comm) {
   using in_value_type  = typename InViewType::non_const_value_type;
   using out_value_type = typename OutViewType::non_const_value_type;
@@ -152,18 +157,48 @@ std::size_t buffer_size_in_bytes(
   return std::max(in_size, out_size);
 }
 
+/// \brief buffer_size_in_bytes with LayoutRight topologies
+template <typename InViewType, typename OutViewType, std::size_t DIM>
+std::size_t buffer_size_in_bytes(
+    const InViewType& in, const OutViewType& out,
+    const KokkosFFT::axis_type<DIM>& axes,
+    const std::array<std::size_t, InViewType::rank()>& in_topology,
+    const std::array<std::size_t, OutViewType::rank()>& out_topology,
+    const MPI_Comm& comm) {
+  return buffer_size_in_bytes(
+      in, out, axes, Topology<std::size_t, InViewType::rank()>(in_topology),
+      Topology<std::size_t, OutViewType::rank()>(out_topology), comm);
+}
+
 /// \brief General interface to create a cuFFTMp plan for distributed FFT
 /// Should not be called directly
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
-          typename OutViewType, std::size_t DIM>
-void create_plan(const ExecutionSpace& exec_space,
-                 std::unique_ptr<PlanType>& plan, const InViewType& in,
-                 const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
-                 const KokkosFFT::axis_type<DIM>& map,
-                 const KokkosFFT::shape_type<InViewType::rank()>& in_topology,
-                 const KokkosFFT::shape_type<InViewType::rank()>& out_topology,
-                 const MPI_Comm& comm) {
+          typename OutViewType, std::size_t DIM, typename InLayoutType,
+          typename OutLayoutType>
+void create_plan(
+    const ExecutionSpace& exec_space, std::unique_ptr<PlanType>& plan,
+    const InViewType& in, const OutViewType& out,
+    const KokkosFFT::axis_type<DIM>& axes, const KokkosFFT::axis_type<DIM>& map,
+    const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
+    const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
+        out_topology,
+    const MPI_Comm& comm) {
   KOKKOSFFT_THROW_IF(true, "Plan can be made for 2D or 3D Views only");
+}
+
+/// \brief Create a cuFFTMp plan with LayoutRight topologies
+template <typename ExecutionSpace, typename PlanType, typename InViewType,
+          typename OutViewType, std::size_t DIM>
+void create_plan(
+    const ExecutionSpace& exec_space, std::unique_ptr<PlanType>& plan,
+    const InViewType& in, const OutViewType& out,
+    const KokkosFFT::axis_type<DIM>& axes, const KokkosFFT::axis_type<DIM>& map,
+    const std::array<std::size_t, InViewType::rank()>& in_topology,
+    const std::array<std::size_t, OutViewType::rank()>& out_topology,
+    const MPI_Comm& comm) {
+  create_plan(exec_space, plan, in, out, axes, map,
+              Topology<std::size_t, InViewType::rank()>(in_topology),
+              Topology<std::size_t, OutViewType::rank()>(out_topology), comm);
 }
 
 /// \brief Create a 2D cuFFTMp plan for distributed FFT
@@ -183,13 +218,13 @@ void create_plan(const ExecutionSpace& exec_space,
 /// \param[in] out_topology Topology of output data distribution
 /// \param[in] comm MPI communicator
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
-          typename OutViewType>
+          typename OutViewType, typename InLayoutType, typename OutLayoutType>
 void create_plan(const ExecutionSpace& exec_space,
                  std::unique_ptr<PlanType>& plan, const InViewType& in,
                  const OutViewType& out, const KokkosFFT::axis_type<2>& axes,
                  const KokkosFFT::axis_type<2>& map,
-                 const KokkosFFT::shape_type<2>& in_topology,
-                 const KokkosFFT::shape_type<2>& out_topology,
+                 const Topology<std::size_t, 2, InLayoutType>& in_topology,
+                 const Topology<std::size_t, 2, OutLayoutType>& out_topology,
                  const MPI_Comm& comm) {
   static_assert(
       KokkosFFT::Impl::are_operatable_views_v<ExecutionSpace, InViewType,
@@ -202,7 +237,7 @@ void create_plan(const ExecutionSpace& exec_space,
   using in_value_type  = typename InViewType::non_const_value_type;
   using out_value_type = typename OutViewType::non_const_value_type;
 
-  KOKKOSFFT_THROW_IF(in_topology == out_topology,
+  KOKKOSFFT_THROW_IF(in_topology.array() == out_topology.array(),
                      "Input and output topologies must not be identical");
 
   Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_cuFFTMp]");
@@ -274,7 +309,7 @@ void create_plan(const ExecutionSpace& exec_space,
 
   } else {
     auto in_mapped_topology =
-        KokkosFFT::Impl::compute_mapped_extents(in_topology, map);
+        KokkosFFT::Impl::compute_mapped_extents(in_topology.array(), map);
     bool is_xslab = in_mapped_topology.at(0) > 1;
     plan          = std::make_unique<PlanType>(nx, ny, comm, is_xslab);
     plan->commit(
@@ -301,13 +336,13 @@ void create_plan(const ExecutionSpace& exec_space,
 /// \param[in] out_topology Topology of output data distribution
 /// \param[in] comm MPI communicator
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
-          typename OutViewType>
+          typename OutViewType, typename InLayoutType, typename OutLayoutType>
 void create_plan(const ExecutionSpace& exec_space,
                  std::unique_ptr<PlanType>& plan, const InViewType& in,
                  const OutViewType& out, const KokkosFFT::axis_type<3>& axes,
                  const KokkosFFT::axis_type<3>& map,
-                 const KokkosFFT::shape_type<3>& in_topology,
-                 const KokkosFFT::shape_type<3>& out_topology,
+                 const Topology<std::size_t, 3, InLayoutType>& in_topology,
+                 const Topology<std::size_t, 3, OutLayoutType>& out_topology,
                  const MPI_Comm& comm) {
   static_assert(
       KokkosFFT::Impl::are_operatable_views_v<ExecutionSpace, InViewType,
@@ -320,7 +355,7 @@ void create_plan(const ExecutionSpace& exec_space,
   using in_value_type  = typename InViewType::non_const_value_type;
   using out_value_type = typename OutViewType::non_const_value_type;
 
-  KOKKOSFFT_THROW_IF(in_topology == out_topology,
+  KOKKOSFFT_THROW_IF(in_topology.array() == out_topology.array(),
                      "Input and output topologies must not be identical");
 
   Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_cuFFTMp]");
@@ -344,7 +379,7 @@ void create_plan(const ExecutionSpace& exec_space,
 
   if (is_slab && is_first_dim_ready) {
     auto in_mapped_topology =
-        KokkosFFT::Impl::compute_mapped_extents(in_topology, map);
+        KokkosFFT::Impl::compute_mapped_extents(in_topology.array(), map);
     bool is_xslab = in_mapped_topology.at(0) > 1;
 
     plan = std::make_unique<PlanType>(nx, ny, nz, comm, is_xslab);

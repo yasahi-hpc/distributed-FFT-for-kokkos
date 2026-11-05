@@ -76,8 +76,8 @@ plan_factory(
                 (InViewType::rank() == 3 && DIM == 3)) {
     if (is_tpl_available(exec_space, in, out, axes, in_topology,
                          out_topology)) {
-      return std::make_unique<
-          TplPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
+      return std::make_unique<TplPlan<ExecutionSpace, InViewType, OutViewType,
+                                      DIM, InLayoutType, OutLayoutType>>(
           exec_space, in, out, axes, in_topology, out_topology, comm, norm);
     }
   }

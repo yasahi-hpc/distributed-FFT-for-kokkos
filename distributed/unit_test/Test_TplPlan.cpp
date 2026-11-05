@@ -1,12 +1,16 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 #include <iostream>
+#include <utility>
+#include <cmath>
 #include <memory>
 #include <type_traits>
+#include <vector>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
 #include "KokkosFFT_Distributed_TplPlan.hpp"
+#include "KokkosFFT_Distributed_Plan.hpp"
 #include "KokkosFFT_Distributed_Helper.hpp"
 #include "Test_Utils.hpp"
 #include "Test_PlanUtils.hpp"
@@ -248,18 +252,21 @@ void test_tpl2D_is_available_View2D(std::size_t nprocs) {
     EXPECT_FALSE(is_available_1_0_ax10);
   } else {
     EXPECT_FALSE(is_available_0_0_ax01);
+    EXPECT_FALSE(is_available_0_0_ax10);
+
+    // ax01: the halved axis 1 is the last index; with LayoutLeft, a copy that
+    // changes the layout is enough
+    EXPECT_TRUE(is_available_1_0_ax01);
 
     if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-      // LayoutLeft does not support 2D transforms on 2D Views
-      EXPECT_FALSE(is_available_1_0_ax01);
+      // ax10: the halved axis 0 is the contiguous one of a LayoutLeft View,
+      // the last of the reversed LayoutRight View (no copy)
+      EXPECT_TRUE(is_available_1_0_ax10);
     } else {
-      // LayoutRight supports 2D transforms on 2D Views
-      EXPECT_TRUE(is_available_1_0_ax01);
+      // FIXME, disable this plan for now, as it is not supported: the
+      // halved axis 0 is not the last dimension, so a transpose is needed
+      EXPECT_FALSE(is_available_1_0_ax10);
     }
-
-    // FIXME, disable this plan for now, as it is not supported
-    EXPECT_FALSE(is_available_0_0_ax10);
-    EXPECT_FALSE(is_available_1_0_ax10);
   }
 }
 
@@ -615,19 +622,199 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
     EXPECT_FALSE(is_available_0_1_ax201);
     EXPECT_FALSE(is_available_0_1_ax210);
   } else {
+    // R2C: the axes but the last are reordered (canonical_tpl_axes), so
+    // ax102 is ax012 (with LayoutLeft, through a copy that changes the
+    // layout)
+    EXPECT_TRUE(is_available_0_1_ax012);
+    EXPECT_TRUE(is_available_0_1_ax102);
+
     if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
-      EXPECT_FALSE(is_available_0_1_ax012);
+      // The halved axis 0 is the contiguous one of a LayoutLeft View, the
+      // last of the reversed LayoutRight View: ax120 and ax210 run on it
+      // without a copy
+      EXPECT_TRUE(is_available_0_1_ax120);
+      EXPECT_TRUE(is_available_0_1_ax210);
     } else {
-      EXPECT_TRUE(is_available_0_1_ax012);
+      EXPECT_FALSE(is_available_0_1_ax120);
+      EXPECT_FALSE(is_available_0_1_ax210);
     }
 
-    // FIXME, disable this plan for now, as it is not supported
+    // FIXME, disable this plan for now, as it is not supported: the halved
+    // axis 1 is neither the last nor the contiguous dimension, so a transpose
+    // is needed
     EXPECT_FALSE(is_available_0_1_ax021);
-    EXPECT_FALSE(is_available_0_1_ax102);
-    EXPECT_FALSE(is_available_0_1_ax120);
     EXPECT_FALSE(is_available_0_1_ax201);
-    EXPECT_FALSE(is_available_0_1_ax210);
   }
+}
+
+/// \brief The topology of the reversed View: the dimensions reversed and the
+/// layout flipped, so that every rank keeps its block (the local extents and
+/// starts are the reversed ones)
+template <typename LayoutType>
+void test_reversed_topology(std::size_t nprocs) {
+  using KokkosFFT::Distributed::Impl::reversed_extents;
+  using KokkosFFT::Distributed::Impl::reversed_topology;
+  using topology_type =
+      KokkosFFT::Distributed::Topology<std::size_t, 3, LayoutType>;
+  using extents_type = std::array<std::size_t, 3>;
+
+  // Two distributed dimensions when possible, where the rank order matters
+  int npx = 1;
+  for (int p = static_cast<int>(std::sqrt(nprocs)); p >= 1; --p) {
+    if (nprocs % p == 0) {
+      npx = p;
+      break;
+    }
+  }
+  const std::size_t npy = nprocs / npx;
+  const topology_type topology{1, static_cast<std::size_t>(npx), npy};
+  const auto reversed = reversed_topology(topology);
+  EXPECT_EQ(reversed.array(), reversed_extents(topology.array()));
+
+  const extents_type global_extents{8, 7, 5};
+  auto [extents, starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_extents, topology, MPI_COMM_WORLD);
+  auto [reversed_local_extents, reversed_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          reversed_extents(global_extents), reversed, MPI_COMM_WORLD);
+  EXPECT_EQ(reversed_local_extents, reversed_extents(extents));
+  EXPECT_EQ(reversed_starts, reversed_extents(starts));
+}
+
+/// \brief LayoutLeft Views: the plan runs on the reversed LayoutRight Views
+/// (is_reversed) when the axes need no transpose there, and gives the same
+/// result as LayoutRight Views holding the same data in the same index order.
+/// From the x-slab to the y-slab.
+/// \tparam T Value type of the input (float/double or complex)
+/// \param[in] nprocs Number of processes in the MPI communicator
+template <typename T>
+void test_tpl3D_layout_left_View3D(std::size_t nprocs) {
+  using float_type   = KokkosFFT::Impl::base_floating_point_type<T>;
+  using complex_type = Kokkos::complex<float_type>;
+  using InLeftViewType =
+      Kokkos::View<T***, Kokkos::LayoutLeft, execution_space>;
+  using OutLeftViewType =
+      Kokkos::View<complex_type***, Kokkos::LayoutLeft, execution_space>;
+  using InRightViewType =
+      Kokkos::View<T***, Kokkos::LayoutRight, execution_space>;
+  using OutRightViewType =
+      Kokkos::View<complex_type***, Kokkos::LayoutRight, execution_space>;
+  using axes_type     = KokkosFFT::axis_type<3>;
+  using extents_type  = std::array<std::size_t, 3>;
+  using topology_type = std::array<std::size_t, 3>;
+
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+  const topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1};
+  const std::size_t n0 = 8, n1 = 7, n2 = 5;
+
+  // {axes, whether the LayoutLeft plan runs reversed}
+  const std::vector<std::pair<axes_type, bool>> cases =
+      is_R2C ? std::vector<std::pair<axes_type, bool>>{{{0, 1, 2}, false},
+                                                       {{1, 2, 0}, true},
+                                                       {{2, 1, 0}, true}}
+             : std::vector<std::pair<axes_type, bool>>{{{0, 1, 2}, true},
+                                                       {{2, 1, 0}, true}};
+  for (const auto& [axes, ref_is_reversed] : cases) {
+    const std::size_t last = axes.back();
+    extents_type global_in_extents{n0, n1, n2},
+        global_out_extents      = global_in_extents;
+    global_out_extents.at(last) = KokkosFFT::Impl::extent_after_transform(
+        global_out_extents.at(last), is_R2C);
+
+    auto [in_extents, in_starts] =
+        KokkosFFT::Distributed::compute_local_extents_and_starts(
+            global_in_extents, topology0, MPI_COMM_WORLD);
+    auto [out_extents, out_starts] =
+        KokkosFFT::Distributed::compute_local_extents_and_starts(
+            global_out_extents, topology1, MPI_COMM_WORLD);
+
+    InLeftViewType u_left(
+        "u_left",
+        KokkosFFT::Impl::create_layout<Kokkos::LayoutLeft>(in_extents)),
+        u_left_ref(
+            "u_left_ref",
+            KokkosFFT::Impl::create_layout<Kokkos::LayoutLeft>(in_extents)),
+        u_left_inv(
+            "u_left_inv",
+            KokkosFFT::Impl::create_layout<Kokkos::LayoutLeft>(in_extents));
+    OutLeftViewType u_hat_left(
+        "u_hat_left",
+        KokkosFFT::Impl::create_layout<Kokkos::LayoutLeft>(out_extents));
+    InRightViewType u_right(
+        "u_right",
+        KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(in_extents));
+    OutRightViewType u_hat_right(
+        "u_hat_right",
+        KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(out_extents));
+
+    Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
+    Kokkos::fill_random(u_left_ref, random_pool, 1.0);
+    Kokkos::deep_copy(u_left, u_left_ref);
+    Kokkos::deep_copy(u_right, u_left_ref);
+
+    execution_space exec;
+    ASSERT_TRUE(KokkosFFT::Distributed::Impl::is_tpl_available(
+        exec, u_left, u_hat_left, axes, topology0, topology1));
+
+    KokkosFFT::Distributed::Impl::TplPlan plan_left(
+        exec, u_left, u_hat_left, axes, topology0, topology1, MPI_COMM_WORLD);
+    EXPECT_EQ(plan_left.is_reversed(), ref_is_reversed);
+    plan_left.forward(u_left, u_hat_left);
+
+    // The reference: the internal plans with LayoutRight Views
+    auto plan_right = KokkosFFT::Distributed::Impl::plan_factory(
+        exec, u_right, u_hat_right, axes,
+        KokkosFFT::Distributed::Topology<std::size_t, 3>(topology0),
+        KokkosFFT::Distributed::Topology<std::size_t, 3>(topology1),
+        MPI_COMM_WORLD);
+    plan_right->forward(u_right, u_hat_right);
+
+    OutLeftViewType u_hat_right_as_left(
+        "u_hat_right_as_left",
+        KokkosFFT::Impl::create_layout<Kokkos::LayoutLeft>(out_extents));
+    Kokkos::deep_copy(u_hat_right_as_left, u_hat_right);
+    EXPECT_TRUE(
+        allclose(exec, u_hat_left, u_hat_right_as_left, 1.0e-5, 1.0e-6));
+
+    plan_left.backward(u_hat_left, u_left_inv);
+    EXPECT_TRUE(allclose(exec, u_left_inv, u_left_ref, 1.0e-5, 1.0e-6));
+  }
+}
+
+/// \brief The axes the vendor plans are made with: C2C in increasing order,
+/// R2C the axes but the last in increasing order then the last; negative
+/// axes made non-negative
+void test_canonical_tpl_axes() {
+  using KokkosFFT::Distributed::Impl::canonical_tpl_axes;
+  using c2c_type   = Kokkos::complex<double>;
+  using r2c_type   = double;
+  using axes2_type = KokkosFFT::axis_type<2>;
+  using axes3_type = KokkosFFT::axis_type<3>;
+
+  EXPECT_EQ((canonical_tpl_axes<c2c_type>(axes2_type{1, 0}, 2)),
+            (axes2_type{0, 1}));
+  EXPECT_EQ((canonical_tpl_axes<r2c_type>(axes2_type{1, 0}, 2)),
+            (axes2_type{1, 0}));
+  EXPECT_EQ((canonical_tpl_axes<r2c_type>(axes2_type{0, 1}, 2)),
+            (axes2_type{0, 1}));
+  EXPECT_EQ((canonical_tpl_axes<c2c_type>(axes2_type{-1, -2}, 2)),
+            (axes2_type{0, 1}));
+
+  EXPECT_EQ((canonical_tpl_axes<c2c_type>(axes3_type{2, 0, 1}, 3)),
+            (axes3_type{0, 1, 2}));
+  EXPECT_EQ((canonical_tpl_axes<c2c_type>(axes3_type{1, 2, 0}, 3)),
+            (axes3_type{0, 1, 2}));
+  EXPECT_EQ((canonical_tpl_axes<r2c_type>(axes3_type{1, 0, 2}, 3)),
+            (axes3_type{0, 1, 2}));
+  EXPECT_EQ((canonical_tpl_axes<r2c_type>(axes3_type{2, 0, 1}, 3)),
+            (axes3_type{0, 2, 1}));
+  EXPECT_EQ((canonical_tpl_axes<r2c_type>(axes3_type{-1, 0, -2}, 3)),
+            (axes3_type{0, 2, 1}));
+
+  // Batched: the axes of a 2D FFT on a 3D View
+  EXPECT_EQ((canonical_tpl_axes<c2c_type>(axes2_type{2, 1}, 3)),
+            (axes2_type{1, 2}));
 }
 
 /// \brief Test if the plan is available for 2D transforms on 2D View
@@ -1630,7 +1817,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_0_ax021, ax021, topology1, topology0,
           MPI_COMM_WORLD);
       plan_1_0_ax021.forward(u_1, u_hat_0_ax021);
-      EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021))
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021, 1.0e-5, 1.0e-5))
           << "Failed topo 1 -> topo 0 with ax {0, 2, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1648,7 +1836,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_0_ax102, ax102, topology1, topology0,
           MPI_COMM_WORLD);
       plan_1_0_ax102.forward(u_1, u_hat_0_ax102);
-      EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102))
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102, 1.0e-5, 1.0e-5))
           << "Failed topo 1 -> topo 0 with ax {1, 0, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1893,7 +2082,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_0_ax120, ax120, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax120.forward(u_2, u_hat_0_ax120);
-      EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120))
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120, 1.0e-5, 1.0e-5))
           << "Failed topo 2 -> topo 0 with ax {1, 2, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2797,6 +2987,74 @@ void test_tpl3D_buffer_size_View3D_pencil(std::size_t npx, std::size_t npy) {
 }
 #endif
 
+/// \brief Permuted axes that canonical_tpl_axes maps to the identity: the
+/// vendor plan is made for them, and gives the same result as with the axes
+/// in increasing order. C2C: every order; R2C: {1, 0, 2} (the last axis is
+/// kept). From the x-slab to the y-slab.
+/// \tparam T Value type of the input (float/double or complex)
+/// \param[in] nprocs Number of processes in the MPI communicator
+template <typename T>
+void test_tpl3D_permuted_axes_View3D(std::size_t nprocs) {
+  using float_type   = KokkosFFT::Impl::base_floating_point_type<T>;
+  using complex_type = Kokkos::complex<float_type>;
+  using InViewType   = Kokkos::View<T***, Kokkos::LayoutRight, execution_space>;
+  using OutViewType =
+      Kokkos::View<complex_type***, Kokkos::LayoutRight, execution_space>;
+  using axes_type     = KokkosFFT::axis_type<3>;
+  using extents_type  = std::array<std::size_t, 3>;
+  using topology_type = std::array<std::size_t, 3>;
+
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+  const topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1};
+  const std::size_t n0 = 8, n1 = 7, n2 = 5;
+  const extents_type global_in_extents{n0, n1, n2},
+      global_out_extents{n0, n1,
+                         KokkosFFT::Impl::extent_after_transform(n2, is_R2C)};
+
+  auto [in_extents, in_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_in_extents, topology0, MPI_COMM_WORLD);
+  auto [out_extents, out_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_out_extents, topology1, MPI_COMM_WORLD);
+  const auto in_layout =
+      KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(in_extents);
+  const auto out_layout =
+      KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(out_extents);
+
+  InViewType u("u", in_layout), u_ref("u_ref", in_layout),
+      u_inv("u_inv", in_layout);
+  OutViewType u_hat("u_hat", out_layout), u_hat_ref("u_hat_ref", out_layout);
+  Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
+  Kokkos::fill_random(u_ref, random_pool, 1.0);
+
+  execution_space exec;
+  const axes_type ax012{0, 1, 2};
+  Kokkos::deep_copy(u, u_ref);
+  KokkosFFT::Distributed::Impl::TplPlan plan_ref(
+      exec, u, u_hat_ref, ax012, topology0, topology1, MPI_COMM_WORLD);
+  plan_ref.forward(u, u_hat_ref);
+
+  const std::vector<axes_type> permuted_axes =
+      is_R2C ? std::vector<axes_type>{{1, 0, 2}}
+             : std::vector<axes_type>{
+                   {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}};
+  for (const auto& axes : permuted_axes) {
+    EXPECT_TRUE(KokkosFFT::Distributed::Impl::is_tpl_available(
+        exec, u, u_hat, axes, topology0, topology1));
+
+    // The input of an out-of-place transform may be overwritten
+    Kokkos::deep_copy(u, u_ref);
+    KokkosFFT::Distributed::Impl::TplPlan plan(exec, u, u_hat, axes, topology0,
+                                               topology1, MPI_COMM_WORLD);
+    plan.forward(u, u_hat);
+    EXPECT_TRUE(allclose(exec, u_hat, u_hat_ref));
+
+    plan.backward(u_hat, u_inv);
+    EXPECT_TRUE(allclose(exec, u_inv, u_ref, 1.0e-5, 1.0e-6));
+  }
+}
+
 }  // namespace
 
 TYPED_TEST_SUITE(TestTplPlan1D, test_types);
@@ -2989,6 +3247,33 @@ TYPED_TEST(TestTplPlan3D, BufferSizeView3D_Pencil) {
   test_tpl3D_buffer_size_View3D_pencil<complex_type>(this->m_npx, this->m_npx);
 }
 #endif
+
+TEST(TestTplAxes, canonical_tpl_axes) { test_canonical_tpl_axes(); }
+
+TYPED_TEST(TestTplPlan3D, PermutedAxesView3D) {
+  using float_type   = typename TestFixture::float_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "The slab plans need more than one process";
+  }
+  test_tpl3D_permuted_axes_View3D<float_type>(this->m_nprocs);
+  test_tpl3D_permuted_axes_View3D<complex_type>(this->m_nprocs);
+}
+
+TYPED_TEST(TestTplPlan3D, ReversedTopology) {
+  test_reversed_topology<Kokkos::LayoutRight>(this->m_nprocs);
+  test_reversed_topology<Kokkos::LayoutLeft>(this->m_nprocs);
+}
+
+TYPED_TEST(TestTplPlan3D, LayoutLeftView3D) {
+  using float_type   = typename TestFixture::float_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "The slab plans need more than one process";
+  }
+  test_tpl3D_layout_left_View3D<float_type>(this->m_nprocs);
+  test_tpl3D_layout_left_View3D<complex_type>(this->m_nprocs);
+}
 
 TYPED_TEST(TestTplPlan2D, InPlaceView2D_R2C) {
   using float_type  = typename TestFixture::float_type;

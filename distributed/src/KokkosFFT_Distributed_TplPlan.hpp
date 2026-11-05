@@ -6,6 +6,7 @@
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Extents.hpp"
 #include "KokkosFFT_Distributed_BasePlan.hpp"
+#include "KokkosFFT_Distributed_TplAxes.hpp"
 
 #if defined(ENABLE_TPL_CUFFT_MP)
 #include "cuFFTMp/KokkosFFT_Distributed_CufftMp_Types.hpp"
@@ -51,6 +52,21 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   //! The real value type for normalization
   using normalization_float_type = double;
 
+  //! LayoutRight Views on the memory of the in/out Views, with the extents
+  //! reversed (reversed_view): the vendor plans run on them for LayoutLeft
+  //! Views when that needs no transpose (is_tpl_reversed)
+  using execution_space_type = typename InViewType::execution_space;
+  using InReversedViewType   = Kokkos::View<
+      KokkosFFT::Impl::add_pointer_n_t<in_value_type, InViewType::rank()>,
+      Kokkos::LayoutRight, execution_space_type,
+      Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using OutReversedViewType = Kokkos::View<
+      KokkosFFT::Impl::add_pointer_n_t<out_value_type, OutViewType::rank()>,
+      Kokkos::LayoutRight, execution_space_type,
+      Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  static constexpr bool m_is_layout_left =
+      std::is_same_v<typename InViewType::array_layout, Kokkos::LayoutLeft>;
+
  private:
   //! Execution space
   ExecutionSpace m_exec_space;
@@ -62,14 +78,13 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   map_type m_in_map, m_out_map;
 
   ///@{
-  //! extents of in/out views
-  extents_type m_in_extents, m_out_extents;
-  ///@}
-
-  ///@{
   //! extents of in/out views for plan
   extents_type m_in_mapped_extents, m_out_mapped_extents;
   ///@}
+
+  //! Whether the plan runs on the reversed LayoutRight Views of LayoutLeft
+  //! Views (no copy), rather than on the Views as they are
+  bool m_is_reversed = false;
 
   using base_type::get_fft_extents;
   using base_type::get_norm;
@@ -82,10 +97,8 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
       const extents_type& in_topology, const extents_type& out_topology,
       const MPI_Comm& comm,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
-      : TplPlan(exec_space, in, out, axes,
-                Topology<std::size_t, InViewType::rank()>(in_topology),
-                Topology<std::size_t, OutViewType::rank()>(out_topology), comm,
-                norm) {}
+      : TplPlan(exec_space, in, out, axes, in_topology_type(in_topology),
+                out_topology_type(out_topology), comm, norm) {}
 
   explicit TplPlan(
       const ExecutionSpace& exec_space, const InViewType& in,
@@ -95,22 +108,126 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
       KokkosFFT::Normalization norm = KokkosFFT::Normalization::backward)
       : base_type(exec_space, in, out, axes, in_topology, out_topology, comm,
                   norm),
-        m_exec_space(exec_space),
-        m_in_extents(KokkosFFT::Impl::extract_extents(in)),
-        m_out_extents(KokkosFFT::Impl::extract_extents(out)) {
-    // We need to construct the mapping based on the LayoutRight view
-    // The LayoutLeft view is converted to LayoutRight view via deep_copy
-    // or safe_transpose in exec_plan
-    using in_data_type =
-        KokkosFFT::Impl::add_pointer_n_t<in_value_type, InViewType::rank()>;
-    using execution_space_type = typename InViewType::execution_space;
-    using InRightViewType =
-        Kokkos::View<in_data_type, Kokkos::LayoutRight, execution_space_type>;
-    InRightViewType in_right(
-        in.data(),
-        KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(m_in_extents));
+        m_exec_space(exec_space) {
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+    // The rocFFT plan is created out-of-place (rocfft_placement_notinplace)
+    // and, without transpose, executed directly on the input and output
+    // Views, which must then not share their data. plan_factory uses the
+    // internal plans for in-place transforms instead (is_tpl_available).
+    KOKKOSFFT_THROW_IF(this->is_inplace(),
+                       "TplPlan: in-place transforms are not supported with "
+                       "rocFFT");
+#endif
+
+    // Calling setup function
+    using float_type = KokkosFFT::Impl::base_floating_point_type<in_value_type>;
+    setup<ExecutionSpace, float_type>(comm);
+
+    // A LayoutLeft View is the memory of a LayoutRight View with the extents
+    // reversed: the plan is made for that View (with the axes and the
+    // topologies reversed) when it needs no transpose there. Otherwise, it is
+    // made for the Views as they are, and the execution goes through a copy
+    // that changes the layout (and transposes if the axes need it).
+    if constexpr (m_is_layout_left) {
+      m_is_reversed = is_tpl_reversed<InViewType>(axes);
+    }
+    if (m_is_reversed) {
+      if constexpr (m_is_layout_left) {
+        init(reversed_view<InReversedViewType>(in),
+             reversed_view<OutReversedViewType>(out),
+             reversed_tpl_axes(axes, InViewType::rank()),
+             reversed_topology(in_topology), reversed_topology(out_topology),
+             comm);
+      }
+    } else {
+      init(in, out, axes, in_topology, out_topology, comm);
+    }
+  }
+
+  ~TplPlan() noexcept = default;
+
+  TplPlan()                          = delete;
+  TplPlan(const TplPlan&)            = delete;
+  TplPlan& operator=(const TplPlan&) = delete;
+  TplPlan& operator=(TplPlan&&)      = delete;
+  TplPlan(TplPlan&&)                 = delete;
+
+  void forward(const InViewType& in, const OutViewType& out) const override {
+    good(in, out);
+    if constexpr (m_is_layout_left) {
+      if (m_is_reversed) {
+        execute_impl(*m_plan, reversed_view<InReversedViewType>(in),
+                     reversed_view<OutReversedViewType>(out),
+                     m_in_mapped_extents, m_out_mapped_extents, m_in_map,
+                     m_out_map, KokkosFFT::Direction::forward);
+        return;
+      }
+    }
+    execute_impl(*m_plan, in, out, m_in_mapped_extents, m_out_mapped_extents,
+                 m_in_map, m_out_map, KokkosFFT::Direction::forward);
+  }
+
+  void backward(const OutViewType& out, const InViewType& in) const override {
+    good(in, out);
+    if constexpr (m_is_layout_left) {
+      if (m_is_reversed) {
+        execute_impl(*m_plan, reversed_view<OutReversedViewType>(out),
+                     reversed_view<InReversedViewType>(in),
+                     m_out_mapped_extents, m_in_mapped_extents, m_in_map,
+                     m_out_map, KokkosFFT::Direction::backward);
+        return;
+      }
+    }
+    execute_impl(*m_plan, out, in, m_out_mapped_extents, m_in_mapped_extents,
+                 m_in_map, m_out_map, KokkosFFT::Direction::backward);
+  }
+
+  /// \brief Whether the plan runs on the reversed LayoutRight Views of
+  /// LayoutLeft Views, without a copy (for the tests)
+  bool is_reversed() const noexcept { return m_is_reversed; }
+
+  /// \brief Get the name of the plan implementation
+  /// \return Name of the plan implementation
+  std::string name() const override { return m_plan->name(); }
+
+ private:
+  /// \brief A LayoutRight View on the memory of view, with the extents
+  /// reversed: the same data as the LayoutLeft View view
+  /// \tparam ReversedViewType The LayoutRight unmanaged View type
+  /// \tparam ViewType The View type
+  /// \param[in] view The View
+  template <typename ReversedViewType, typename ViewType>
+  static ReversedViewType reversed_view(const ViewType& view) {
+    return ReversedViewType(
+        view.data(),
+        KokkosFFT::Impl::create_layout<Kokkos::LayoutRight>(
+            reversed_extents(KokkosFFT::Impl::extract_extents(view))));
+  }
+
+  /// \brief Make the vendor plan for in and out (the Views, or their reversed
+  /// Views), the axes and the topologies in the same space
+  /// \param[in] in Input View
+  /// \param[in] out Output View
+  /// \param[in] axes Axes of the FFT
+  /// \param[in] in_topology Topology of the input
+  /// \param[in] out_topology Topology of the output
+  /// \param[in] comm MPI communicator
+  template <typename InView, typename OutView, typename InTopologyType,
+            typename OutTopologyType>
+  void init(const InView& in, const OutView& out, const axes_type& axes,
+            const InTopologyType& in_topology,
+            const OutTopologyType& out_topology, const MPI_Comm& comm) {
+    // The vendor plan is made with the axes in canonical order, which gives
+    // the same result: no transpose when only their order differs. The base
+    // class keeps the given axes (checks, normalization). The map is in the
+    // LayoutRight convention: the vendor plans describe the data in the
+    // LayoutRight order of its indices; a LayoutLeft View that is not
+    // reversed is converted by the copy in exec_plan.
+    const auto tpl_axes =
+        canonical_tpl_axes<in_value_type>(axes, InViewType::rank());
     std::tie(m_in_map, m_out_map) =
-        KokkosFFT::Impl::get_map_axes(in_right, axes);
+        KokkosFFT::Impl::get_map_axes<Kokkos::LayoutRight, InViewType::rank()>(
+            tpl_axes);
 
     auto gin_extents        = compute_global_extents(in, in_topology, comm);
     auto gout_extents       = compute_global_extents(out, out_topology, comm);
@@ -119,8 +236,7 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
 #if defined(ENABLE_TPL_CUFFT_MP)
     if (KokkosFFT::Impl::is_real_v<in_value_type>) {
       auto non_negative_axes =
-          KokkosFFT::Impl::convert_base_int_type<std::size_t>(
-              KokkosFFT::Impl::convert_negative_axes(axes, DIM));
+          KokkosFFT::Impl::convert_base_int_type<std::size_t>(tpl_axes);
       gin_padded_extents =
           KokkosFFT::Impl::compute_padded_extents<in_value_type>(
               gout_extents, non_negative_axes);
@@ -137,50 +253,11 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
     m_out_mapped_extents =
         KokkosFFT::Impl::compute_mapped_extents(out_extents, m_in_map);
 
-#if defined(ENABLE_TPL_ROCFFT_MPI)
-    // The rocFFT plan is created out-of-place (rocfft_placement_notinplace)
-    // and, without transpose, executed directly on the input and output
-    // Views, which must then not share their data. plan_factory uses the
-    // internal plans for in-place transforms instead (is_tpl_available).
-    KOKKOSFFT_THROW_IF(this->is_inplace(),
-                       "TplPlan: in-place transforms are not supported with "
-                       "rocFFT");
-#endif
-
-    // Calling setup function
-    using float_type = KokkosFFT::Impl::base_floating_point_type<in_value_type>;
-    setup<ExecutionSpace, float_type>(comm);
-
-    // Only support 2D or 3D FFTs
-    create_plan(m_exec_space, m_plan, in, out, axes, m_in_map,
-                in_topology.array(), out_topology.array(), comm);
+    // The topologies keep their layout (which rank owns which block)
+    create_plan(m_exec_space, m_plan, in, out, tpl_axes, m_in_map, in_topology,
+                out_topology, comm);
   }
 
-  ~TplPlan() noexcept = default;
-
-  TplPlan()                          = delete;
-  TplPlan(const TplPlan&)            = delete;
-  TplPlan& operator=(const TplPlan&) = delete;
-  TplPlan& operator=(TplPlan&&)      = delete;
-  TplPlan(TplPlan&&)                 = delete;
-
-  void forward(const InViewType& in, const OutViewType& out) const override {
-    good(in, out);
-    execute_impl(*m_plan, in, out, m_in_mapped_extents, m_out_mapped_extents,
-                 m_in_map, m_out_map, KokkosFFT::Direction::forward);
-  }
-
-  void backward(const OutViewType& out, const InViewType& in) const override {
-    good(in, out);
-    execute_impl(*m_plan, out, in, m_out_mapped_extents, m_in_mapped_extents,
-                 m_in_map, m_out_map, KokkosFFT::Direction::backward);
-  }
-
-  /// \brief Get the name of the plan implementation
-  /// \return Name of the plan implementation
-  std::string name() const override { return m_plan->name(); }
-
- private:
   template <typename PlanType, typename InView, typename OutView>
   void execute_impl(const PlanType& plan, const InView& in, const OutView& out,
                     const extents_type& in_extents,

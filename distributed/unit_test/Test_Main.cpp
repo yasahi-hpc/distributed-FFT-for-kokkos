@@ -33,10 +33,15 @@ class MPITestEventListener : public ::testing::EmptyTestEventListener {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (result.failed()) {
+      // file_name() is null for failures without a location (e.g. an
+      // uncaught exception); inserting a null char* would fail the stream
+      // and drop the message
+      const char* file_name =
+          result.file_name() ? result.file_name() : "unknown file";
       std::ostringstream oss;
       oss << "[Rank " << rank << "] "
           << (result.fatally_failed() ? "FATAL FAILURE" : "FAILURE") << ": "
-          << result.file_name() << ":" << result.line_number() << "\n"
+          << file_name << ":" << result.line_number() << "\n"
           << result.summary() << std::endl;
       std::cout << oss.str();
     }

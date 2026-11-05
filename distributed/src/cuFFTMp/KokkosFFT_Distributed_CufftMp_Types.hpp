@@ -2,6 +2,7 @@
 #define KOKKOSFFT_DISTRIBUTED_CUFFT_MP_TYPES_HPP
 
 #include <algorithm>
+#include <string>
 #include <mpi.h>
 #include <cufftMp.h>
 #include <nvshmem.h>
@@ -47,51 +48,137 @@ struct ScopedCufftMpPlan {
   void *m_workarea             = nullptr;
   std::size_t m_workspace_size = 0;
 
+ private:
+  //! The communicator of the plans. cuFFTMp keeps the pointer it is given
+  //! (comm_handle), which must stay valid until cufftDestroy: a member, as
+  //! the plan is neither copied nor moved.
+  MPI_Comm m_comm;
+
+  //@{
+  //! Whether cufftCreate succeeded for the forward and backward handles
+  bool m_is_created_f = false, m_is_created_b = false;
+  ///@}
+
+  /// \brief The first cuFFT call of the plan creation that failed on this
+  /// rank. The creation goes on after a failure so that the ranks make the
+  /// same collective calls; check_creation then fails on every rank.
+  struct CreationStatus {
+    cufftResult m_result = CUFFT_SUCCESS;
+    const char *m_call   = "";
+
+    /// \brief Record the result of a call
+    /// \return Whether the call succeeded
+    bool record(cufftResult result, const char *call) {
+      if (m_result == CUFFT_SUCCESS && result != CUFFT_SUCCESS) {
+        m_result = result;
+        m_call   = call;
+      }
+      return result == CUFFT_SUCCESS;
+    }
+  };
+
+#define KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(status, call) \
+  (status).record((call), #call)
+
+  /// \brief Create the forward (and, for real transforms, backward) handles
+  /// without automatic allocation of the scratch. Called first by the
+  /// constructors: the work already submitted is completed before the
+  /// collective planning of cuFFTMp and the NVSHMEM allocations (commit), as
+  /// a transform of another plan may still be communicating on the device.
+  void create_handles(CreationStatus &status) {
+    Kokkos::fence("ScopedCufftMpPlan: before the plan creation");
+    m_is_created_f = KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+        status, cufftCreate(&m_plan_f.m_handle));
+    KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+        status, cufftSetAutoAllocation(m_plan_f.m_handle, 0));
+    if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
+      m_is_created_b = KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftCreate(&m_plan_b.m_handle));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftSetAutoAllocation(m_plan_b.m_handle, 0));
+    }
+  }
+
+  /// \brief Check on every rank that the plans were created. A cuFFTMp call
+  /// can fail on one rank only; throwing there alone would leave the other
+  /// ranks waiting in the next collective call. The cost is one MPI_Allreduce
+  /// of an int per plan, small next to the collective planning of cuFFTMp.
+  /// \param[in] status The result of the creation on this rank
+  /// \throws std::runtime_error on every rank if the creation failed on any
+  void check_creation(const CreationStatus &status) {
+    int is_created  = status.m_result == CUFFT_SUCCESS;
+    int all_created = 0;
+    ::MPI_Allreduce(&is_created, &all_created, 1, MPI_INT, MPI_LAND, m_comm);
+    if (all_created) return;
+
+    // The destructor does not run when the constructor throws
+    if (m_is_created_f) cufftDestroy(m_plan_f.m_handle);
+    if (m_is_created_b) cufftDestroy(m_plan_b.m_handle);
+
+    int rank = 0;
+    ::MPI_Comm_rank(m_comm, &rank);
+    std::string message =
+        "ScopedCufftMpPlan: the creation of the cuFFTMp plans failed ";
+    if (is_created) {
+      message += "on another rank";
+    } else {
+      message += "on rank " + std::to_string(rank) + ": " + status.m_call +
+                 " failed with error code " +
+                 std::to_string(static_cast<int>(status.m_result)) + " (" +
+                 std::string(
+                     KokkosFFT::Impl::cufft_result_to_string(status.m_result)) +
+                 ")";
+    }
+    KOKKOSFFT_THROW_IF(true, message);
+  }
+
  public:
   /// \brief Constructor for 2D FFT plans
   /// \param[in] nx Global size in X dimension
   /// \param[in] ny Global size in Y dimension
   /// \param[in] comm MPI communicator
   /// \param[in] is_xslab Whether the topology is x-slab
-  ScopedCufftMpPlan(int nx, int ny, MPI_Comm comm, bool is_xslab) {
-    KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f.m_handle));
-    KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_f.m_handle, 0));
+  /// \throws std::runtime_error on every rank if the creation failed on any
+  ScopedCufftMpPlan(int nx, int ny, MPI_Comm comm, bool is_xslab)
+      : m_comm(comm) {
+    CreationStatus status;
+    create_handles(status);
     cufftXtSubFormat subformat_forward =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE : CUFFT_XT_FORMAT_INPLACE_SHUFFLED;
     cufftXtSubFormat subformat_inverse =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE_SHUFFLED : CUFFT_XT_FORMAT_INPLACE;
+    std::size_t workspace = 0;
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b.m_handle));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_b.m_handle, 0));
-      std::size_t workspace = 0;
       auto r2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
       auto c2r_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_f.m_handle, subformat_forward, subformat_inverse));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_b.m_handle, subformat_forward, subformat_inverse));
-
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(m_plan_f.m_handle, nx, ny,
-                                                   r2c_type, &comm,
-                                                   CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftXtSetSubformatDefault(
+                      m_plan_f.m_handle, subformat_forward, subformat_inverse));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftXtSetSubformatDefault(
+                      m_plan_b.m_handle, subformat_forward, subformat_inverse));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftMpMakePlan2d(m_plan_f.m_handle, nx, ny, r2c_type,
+                                    &m_comm, CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(m_plan_b.m_handle, nx, ny,
-                                                   c2r_type, &comm,
-                                                   CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftMpMakePlan2d(m_plan_b.m_handle, nx, ny, c2r_type,
+                                    &m_comm, CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
     } else {
-      std::size_t workspace = 0;
       auto c2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_f.m_handle, subformat_forward, subformat_inverse));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan2d(m_plan_f.m_handle, nx, ny,
-                                                   c2c_type, &comm,
-                                                   CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftXtSetSubformatDefault(
+                      m_plan_f.m_handle, subformat_forward, subformat_inverse));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftMpMakePlan2d(m_plan_f.m_handle, nx, ny, c2c_type,
+                                    &m_comm, CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
     }
+    check_creation(status);
   }
 
   /// \brief Constructor for 3D FFT plans
@@ -100,44 +187,47 @@ struct ScopedCufftMpPlan {
   /// \param[in] nz Global size in Z dimension
   /// \param[in] comm MPI communicator
   /// \param[in] is_xslab Whether the topology is x-slab
-  ScopedCufftMpPlan(int nx, int ny, int nz, MPI_Comm comm, bool is_xslab) {
-    KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f.m_handle));
-    KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_f.m_handle, 0));
+  /// \throws std::runtime_error on every rank if the creation failed on any
+  ScopedCufftMpPlan(int nx, int ny, int nz, MPI_Comm comm, bool is_xslab)
+      : m_comm(comm) {
+    CreationStatus status;
+    create_handles(status);
     cufftXtSubFormat subformat_forward =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE : CUFFT_XT_FORMAT_INPLACE_SHUFFLED;
     cufftXtSubFormat subformat_inverse =
         is_xslab ? CUFFT_XT_FORMAT_INPLACE_SHUFFLED : CUFFT_XT_FORMAT_INPLACE;
+    std::size_t workspace = 0;
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b.m_handle));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_b.m_handle, 0));
-      std::size_t workspace = 0;
       auto r2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
       auto c2r_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_f.m_handle, subformat_forward, subformat_inverse));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_b.m_handle, subformat_forward, subformat_inverse));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(m_plan_f.m_handle, nx, ny,
-                                                   nz, r2c_type, &comm,
-                                                   CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftXtSetSubformatDefault(
+                      m_plan_f.m_handle, subformat_forward, subformat_inverse));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftXtSetSubformatDefault(
+                      m_plan_b.m_handle, subformat_forward, subformat_inverse));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftMpMakePlan3d(m_plan_f.m_handle, nx, ny, nz, r2c_type,
+                                    &m_comm, CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(m_plan_b.m_handle, nx, ny,
-                                                   nz, c2r_type, &comm,
-                                                   CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftMpMakePlan3d(m_plan_b.m_handle, nx, ny, nz, c2r_type,
+                                    &m_comm, CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
     } else {
-      std::size_t workspace = 0;
       auto c2c_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_f.m_handle, subformat_forward, subformat_inverse));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlan3d(m_plan_f.m_handle, nx, ny,
-                                                   nz, c2c_type, &comm,
-                                                   CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftXtSetSubformatDefault(
+                      m_plan_f.m_handle, subformat_forward, subformat_inverse));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftMpMakePlan3d(m_plan_f.m_handle, nx, ny, nz, c2c_type,
+                                    &m_comm, CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
     }
+    check_creation(status);
   }
 
   /// \brief General constructor for FFT plans
@@ -149,6 +239,7 @@ struct ScopedCufftMpPlan {
   /// \param[in] strides_input Strides of input data
   /// \param[in] strides_output Strides of output data
   /// \param[in] comm MPI communicator
+  /// \throws std::runtime_error on every rank if the creation failed on any
   ScopedCufftMpPlan(std::vector<int> &fft_extents,
                     const std::vector<long long int> &lower_input,
                     const std::vector<long long int> &upper_input,
@@ -156,65 +247,59 @@ struct ScopedCufftMpPlan {
                     const std::vector<long long int> &upper_output,
                     const std::vector<long long int> &strides_input,
                     const std::vector<long long int> &strides_output,
-                    MPI_Comm comm) {
-    KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_f.m_handle));
-    KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_f.m_handle, 0));
-    int rank = fft_extents.size();
+                    MPI_Comm comm)
+      : m_comm(comm) {
+    CreationStatus status;
+    create_handles(status);
+    int rank              = fft_extents.size();
+    std::size_t workspace = 0;
+    KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+        status, cufftXtSetSubformatDefault(m_plan_f.m_handle,
+                                           CUFFT_XT_FORMAT_DISTRIBUTED_INPUT,
+                                           CUFFT_XT_FORMAT_DISTRIBUTED_OUTPUT));
+    auto forward_type =
+        KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
+    KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+        status,
+        cufftMpMakePlanDecomposition(
+            m_plan_f.m_handle, rank, fft_extents.data(), lower_input.data(),
+            upper_input.data(), strides_input.data(), lower_output.data(),
+            upper_output.data(), strides_output.data(), forward_type, &m_comm,
+            CUFFT_COMM_MPI, &workspace));
+    m_workspace_size = std::max(m_workspace_size, workspace);
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftCreate(&m_plan_b.m_handle));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftSetAutoAllocation(m_plan_b.m_handle, 0));
-      auto r2c_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
       auto c2r_type =
           KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
-      std::size_t workspace = 0;
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_f.m_handle, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT,
-          CUFFT_XT_FORMAT_DISTRIBUTED_OUTPUT));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_b.m_handle, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT,
-          CUFFT_XT_FORMAT_DISTRIBUTED_OUTPUT));
-
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlanDecomposition(
-          m_plan_f.m_handle, rank, fft_extents.data(), lower_input.data(),
-          upper_input.data(), strides_input.data(), lower_output.data(),
-          upper_output.data(), strides_output.data(), r2c_type, &comm,
-          CUFFT_COMM_MPI, &workspace));
-      m_workspace_size = std::max(m_workspace_size, workspace);
-
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlanDecomposition(
-          m_plan_b.m_handle, rank, fft_extents.data(), lower_input.data(),
-          upper_input.data(), strides_input.data(), lower_output.data(),
-          upper_output.data(), strides_output.data(), c2r_type, &comm,
-          CUFFT_COMM_MPI, &workspace));
-      m_workspace_size = std::max(m_workspace_size, workspace);
-    } else {
-      auto c2c_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
-      std::size_t workspace = 0;
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftXtSetSubformatDefault(
-          m_plan_f.m_handle, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT,
-          CUFFT_XT_FORMAT_DISTRIBUTED_OUTPUT));
-      KOKKOSFFT_CHECK_CUFFT_CALL(cufftMpMakePlanDecomposition(
-          m_plan_f.m_handle, rank, fft_extents.data(), lower_input.data(),
-          upper_input.data(), strides_input.data(), lower_output.data(),
-          upper_output.data(), strides_output.data(), c2c_type, &comm,
-          CUFFT_COMM_MPI, &workspace));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status, cufftXtSetSubformatDefault(
+                      m_plan_b.m_handle, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT,
+                      CUFFT_XT_FORMAT_DISTRIBUTED_OUTPUT));
+      KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
+          status,
+          cufftMpMakePlanDecomposition(
+              m_plan_b.m_handle, rank, fft_extents.data(), lower_input.data(),
+              upper_input.data(), strides_input.data(), lower_output.data(),
+              upper_output.data(), strides_output.data(), c2r_type, &m_comm,
+              CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
     }
+    check_creation(status);
   }
 
+#undef KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL
   ScopedCufftMpPlan()                                     = delete;
   ScopedCufftMpPlan(const ScopedCufftMpPlan &)            = delete;
   ScopedCufftMpPlan &operator=(const ScopedCufftMpPlan &) = delete;
   ScopedCufftMpPlan &operator=(ScopedCufftMpPlan &&)      = delete;
   ScopedCufftMpPlan(ScopedCufftMpPlan &&)                 = delete;
 
-  /// \brief Destructor to free cufftMp resources. The plans are destroyed
-  /// before the memory they use; nvshmem_free is collective, as the plans are
-  /// destroyed on every PE.
+  /// \brief Destructor to free cufftMp resources. The work already submitted
+  /// (a transform of this plan may still be running) is completed first. The
+  /// plans are destroyed before the memory they use; nvshmem_free is
+  /// collective, as the plans are destroyed on every PE.
   ~ScopedCufftMpPlan() noexcept {
     Kokkos::Profiling::ScopedRegion region("cleanup_plan[TPL_cuFFTMp]");
+    Kokkos::fence("ScopedCufftMpPlan: before the plan destruction");
     bool is_destroyed = cufftDestroy(m_plan_f.m_handle) == CUFFT_SUCCESS;
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
       is_destroyed &= cufftDestroy(m_plan_b.m_handle) == CUFFT_SUCCESS;
