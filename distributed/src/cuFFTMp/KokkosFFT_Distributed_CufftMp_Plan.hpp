@@ -36,23 +36,23 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 bool is_tpl_available(
-    const ExecutionSpace& exec_space, const InViewType& in,
-    const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
+    const ExecutionSpace& /*exec_space*/, const InViewType& /*in*/,
+    const OutViewType& /*out*/, const KokkosFFT::axis_type<DIM>& /*axes*/,
     const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
     const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
         out_topology) {
-  // LayoutLeft Views run either on the reversed LayoutRight Views (no copy)
-  // or through a copy that changes the layout (is_tpl_permutation_needed);
-  // the Views must have the same layout
+  // The Views must have the same layout
   if constexpr (!std::is_same_v<typename InViewType::array_layout,
                                 typename OutViewType::array_layout>) {
     return false;
   }
 
-  // The axes in the order the plan is made with (canonical_tpl_axes): no
-  // transpose when only the order of the axes differs, nor for a LayoutLeft
-  // View that needs only a change of layout or runs reversed
-  if (is_tpl_permutation_needed<InViewType>(axes)) return false;
+  // Any order of the axes and either layout: cuFFTMp needs its data in its
+  // NVSHMEM buffer, so exec_plan copies the input in and the output out
+  // anyway, and these copies transpose (and change the layout) when the map
+  // of the canonical axes is not the identity. A LayoutLeft View whose
+  // reversed axes need no transpose runs on the reversed LayoutRight View,
+  // with plain copies (is_tpl_reversed). So the axes are not checked here.
 
   // The same distribution in and out (X-slab to X-slab, pencil to the same
   // pencil) is one plan of the general API with identical boxes
