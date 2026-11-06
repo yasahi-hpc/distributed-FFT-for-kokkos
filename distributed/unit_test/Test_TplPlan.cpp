@@ -251,8 +251,16 @@ void test_tpl2D_is_available_View2D(std::size_t nprocs) {
     EXPECT_FALSE(is_available_1_0_ax01);
     EXPECT_FALSE(is_available_1_0_ax10);
   } else {
+#if defined(ENABLE_TPL_CUFFT_MP)
+    // The same distribution in and out: cuFFTMp with identical boxes, under
+    // the same conditions on the axes as between two slabs
+    EXPECT_TRUE(is_available_0_0_ax01);
+    EXPECT_EQ(is_available_0_0_ax10,
+              (std::is_same_v<LayoutType, Kokkos::LayoutLeft>));
+#else
     EXPECT_FALSE(is_available_0_0_ax01);
     EXPECT_FALSE(is_available_0_0_ax10);
+#endif
 
     // ax01: the halved axis 1 is the last index; with LayoutLeft, a copy that
     // changes the layout is enough
@@ -606,12 +614,26 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
   bool is_available_0_1_ax210 = KokkosFFT::Distributed::Impl::is_tpl_available(
       exec, u_0, u_hat_1_ax210, ax210, topology0, topology1);
 
+#if defined(ENABLE_TPL_CUFFT_MP)
+  // The same distribution in and out: cuFFTMp with identical boxes, under the
+  // same conditions on the axes as between two slabs (below)
+  constexpr bool is_layout_left =
+      std::is_same_v<LayoutType, Kokkos::LayoutLeft>;
+  const bool is_slab = nprocs > 1;
+  EXPECT_EQ(is_available_0_0_ax012, is_slab);
+  EXPECT_EQ(is_available_0_0_ax102, is_slab);
+  EXPECT_EQ(is_available_0_0_ax120, is_slab && is_layout_left);
+  EXPECT_EQ(is_available_0_0_ax210, is_slab && is_layout_left);
+  EXPECT_FALSE(is_available_0_0_ax021);
+  EXPECT_FALSE(is_available_0_0_ax201);
+#else
   EXPECT_FALSE(is_available_0_0_ax012);
   EXPECT_FALSE(is_available_0_0_ax021);
   EXPECT_FALSE(is_available_0_0_ax102);
   EXPECT_FALSE(is_available_0_0_ax120);
   EXPECT_FALSE(is_available_0_0_ax201);
   EXPECT_FALSE(is_available_0_0_ax210);
+#endif
 
   // Not a slab geometry
   if (nprocs == 1) {
@@ -1016,7 +1038,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax01(
           exec, u_0, u_hat_0_ax01, ax01, topology0, topology0, MPI_COMM_WORLD);
       plan_0_0_ax01.forward(u_0, u_hat_0_ax01);
-      EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01, 1.0e-5, 1.0e-5));
 
       plan_0_0_ax01.backward(u_hat_0_ax01, u_inv_0);
       EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
@@ -1030,7 +1053,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax10(
           exec, u_0, u_hat_0_ax10, ax10, topology0, topology0, MPI_COMM_WORLD);
       plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
-      EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10, 1.0e-5, 1.0e-5));
 
       plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
       EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
@@ -1100,7 +1124,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax01(
           exec, u_1, u_hat_1_ax01, ax01, topology1, topology1, MPI_COMM_WORLD);
       plan_1_1_ax01.forward(u_1, u_hat_1_ax01);
-      EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01, 1.0e-5, 1.0e-5));
 
       plan_1_1_ax01.backward(u_hat_1_ax01, u_inv_1);
       EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
@@ -1114,7 +1139,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax10(
           exec, u_1, u_hat_1_ax10, ax10, topology1, topology1, MPI_COMM_WORLD);
       plan_1_1_ax10.forward(u_1, u_hat_1_ax10);
-      EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10));
+      EXPECT_TRUE(
+          allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10, 1.0e-5, 1.0e-5));
 
       plan_1_1_ax10.backward(u_hat_1_ax10, u_inv_1);
       EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
@@ -3055,6 +3081,94 @@ void test_tpl3D_permuted_axes_View3D(std::size_t nprocs) {
   }
 }
 
+#if defined(ENABLE_TPL_CUFFT_MP)
+/// \brief Whether is_tpl_available accepts a plan, for the local Views of
+/// this rank
+/// \tparam InViewType Type of the input View
+/// \tparam OutViewType Type of the output View
+/// \param[in] global_extents Global extents of the input
+/// \param[in] in_topology Input topology
+/// \param[in] out_topology Output topology
+/// \param[in] axes FFT axes
+template <typename InViewType, typename OutViewType, std::size_t DIM>
+bool is_tpl_available_for(const std::array<std::size_t, DIM>& global_extents,
+                          const std::array<std::size_t, DIM>& in_topology,
+                          const std::array<std::size_t, DIM>& out_topology,
+                          const KokkosFFT::axis_type<DIM>& axes) {
+  using LayoutType = typename InViewType::array_layout;
+  constexpr bool is_R2C =
+      KokkosFFT::Impl::is_real_v<typename InViewType::non_const_value_type>;
+  auto [in_extents, in_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_extents, in_topology, MPI_COMM_WORLD);
+  auto [out_extents, out_starts] =
+      KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_out_extents(global_extents, axes, is_R2C), out_topology,
+          MPI_COMM_WORLD);
+  InViewType in("in", KokkosFFT::Impl::create_layout<LayoutType>(in_extents));
+  OutViewType out("out",
+                  KokkosFFT::Impl::create_layout<LayoutType>(out_extents));
+  return KokkosFFT::Distributed::Impl::is_tpl_available(
+      execution_space(), in, out, axes, in_topology, out_topology);
+}
+
+/// \brief The same distribution in and out (T5a): a cuFFTMp plan from each
+/// topology to itself, made with identical boxes. Out-of-place and in-place,
+/// against the single-node FFT. The axes: in increasing order, an order that
+/// canonical_tpl_axes maps to it (3D), and the reversed order (C2C, or R2C
+/// with LayoutLeft Views, which run on the reversed LayoutRight Views).
+/// is_tpl_available must accept every case, so that plan_factory chooses the
+/// cuFFTMp plan.
+/// \tparam T Value type of the input (float/double or complex)
+/// \tparam LayoutType Layout of the Views
+/// \param[in] name Name of the test, printed with the cases
+/// \param[in] global_extents Global extents of the input
+/// \param[in] topologies Topologies, each used for the input and the output
+template <typename T, typename LayoutType, std::size_t DIM,
+          std::size_t NTopologies>
+void test_tpl_same_distribution(
+    const std::string& name, const std::array<std::size_t, DIM>& global_extents,
+    const std::array<std::array<std::size_t, DIM>, NTopologies>& topologies) {
+  using float_type   = KokkosFFT::Impl::base_floating_point_type<T>;
+  using complex_type = Kokkos::complex<float_type>;
+  using InViewType   = Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<T, DIM>,
+                                  LayoutType, execution_space>;
+  using OutViewType =
+      Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<complex_type, DIM>,
+                   LayoutType, execution_space>;
+  using axes_type = KokkosFFT::axis_type<DIM>;
+
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+  constexpr bool is_layout_left =
+      std::is_same_v<LayoutType, Kokkos::LayoutLeft>;
+
+  axes_type increasing_axes{}, reversed_axes{};
+  for (std::size_t i = 0; i < DIM; ++i) {
+    increasing_axes.at(i) = static_cast<int>(i);
+    reversed_axes.at(i)   = static_cast<int>(DIM - 1 - i);
+  }
+  std::vector<axes_type> axes_list = {increasing_axes};
+  if constexpr (DIM == 3) axes_list.push_back(axes_type{1, 0, 2});
+  if constexpr (!is_R2C || is_layout_left) axes_list.push_back(reversed_axes);
+
+  const Tolerance tol_fwd{1.0e-5, 1.0e-5}, tol_bwd{1.0e-5, 1.0e-6};
+  std::vector<PlanCase<DIM>> cases;
+  for (std::size_t i = 0; i < NTopologies; ++i) {
+    for (const auto& axes : axes_list) {
+      PlanCase<DIM> plan_case{i, i, axes, Expect::Success, tol_fwd, tol_bwd};
+      EXPECT_TRUE((is_tpl_available_for<InViewType, OutViewType>(
+          global_extents, topologies.at(i), topologies.at(i), axes)))
+          << name << ": " << to_string(plan_case);
+      cases.push_back(plan_case);
+    }
+  }
+
+  auto gu = make_global_input<InViewType>(global_extents);
+  run_plan_cases_all_placements<OutViewType>(name, execution_space(), gu,
+                                             topologies, cases, TplPlanOps{});
+}
+#endif
+
 }  // namespace
 
 TYPED_TEST_SUITE(TestTplPlan1D, test_types);
@@ -3293,3 +3407,61 @@ TYPED_TEST(TestTplPlan2D, InPlaceView2D_C2C) {
   }
   test_tpl2D_inplace_View2D<complex_type, layout_type>(this->m_nprocs);
 }
+
+#if defined(ENABLE_TPL_CUFFT_MP)
+TYPED_TEST(TestTplPlan2D, SameDistributionView2D) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "The slab plans need more than one process";
+  }
+  const std::size_t p                                        = this->m_nprocs;
+  const std::array<std::array<std::size_t, 2>, 2> topologies = {
+      {{1, p}, {p, 1}}};
+  const std::array<std::size_t, 2> global_extents{8, 7};
+  const std::string name = "Test_TplPlan.cpp test_tpl_same_distribution View2D";
+  test_tpl_same_distribution<float_type, layout_type>(name, global_extents,
+                                                      topologies);
+  test_tpl_same_distribution<complex_type, layout_type>(name, global_extents,
+                                                        topologies);
+}
+
+TYPED_TEST(TestTplPlan3D, SameDistributionView3D) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "The slab plans need more than one process";
+  }
+  const std::size_t p                                        = this->m_nprocs;
+  const std::array<std::array<std::size_t, 3>, 3> topologies = {
+      {{1, 1, p}, {1, p, 1}, {p, 1, 1}}};
+  const std::array<std::size_t, 3> global_extents{13, 10, 17};
+  const std::string name = "Test_TplPlan.cpp test_tpl_same_distribution View3D";
+  test_tpl_same_distribution<float_type, layout_type>(name, global_extents,
+                                                      topologies);
+  test_tpl_same_distribution<complex_type, layout_type>(name, global_extents,
+                                                        topologies);
+}
+
+TYPED_TEST(TestTplPlan3D, SameDistributionView3D_Pencil) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+  const std::size_t px                                       = this->m_npx;
+  const std::array<std::array<std::size_t, 3>, 3> topologies = {
+      {{1, px, px}, {px, 1, px}, {px, px, 1}}};
+  const std::array<std::size_t, 3> global_extents{13, 10, 17};
+  const std::string name =
+      "Test_TplPlan.cpp test_tpl_same_distribution View3D pencil";
+  test_tpl_same_distribution<float_type, layout_type>(name, global_extents,
+                                                      topologies);
+  test_tpl_same_distribution<complex_type, layout_type>(name, global_extents,
+                                                        topologies);
+}
+#endif

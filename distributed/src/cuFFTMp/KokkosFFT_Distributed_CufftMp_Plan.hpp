@@ -15,7 +15,9 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief Check if cuFFTMp TPL can be used for the given transform parameters
+/// \brief Check if cuFFTMp TPL can be used for the given transform parameters:
+/// a 2D FFT of a 2D View on slabs, or a 3D FFT of a 3D View on slabs or
+/// pencils, from one distribution to another or to the same one
 /// \tparam ExecutionSpace Kokkos execution space type
 /// \tparam InViewType Kokkos View type for input data
 /// \tparam OutViewType Kokkos View type for output data
@@ -52,8 +54,9 @@ bool is_tpl_available(
   // View that needs only a change of layout or runs reversed
   if (is_tpl_permutation_needed<InViewType>(axes)) return false;
 
-  if (in_topology.array() == out_topology.array()) return false;
-
+  // The same distribution in and out (X-slab to X-slab, pencil to the same
+  // pencil) is one plan of the general API with identical boxes
+  // (create_decomposition_plan)
   bool is_slab =
       are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
   bool is_pencil =
@@ -201,6 +204,121 @@ void create_plan(
               Topology<std::size_t, OutViewType::rank()>(out_topology), comm);
 }
 
+/// \brief Create a cuFFTMp plan with the general API
+/// (cufftMpMakePlanDecomposition): the local input and output boxes of every
+/// rank, from the topologies, in the mapped order of the axes. Used for the
+/// real transforms in 2D, for the decompositions the built-in slabs do not
+/// cover in 3D, and for the same distribution in and out, where the input
+/// and the output boxes are those of the same topology (identical for C2C).
+/// \tparam ExecutionSpace Kokkos execution space type
+/// \tparam PlanType ScopedCufftMpPlan type
+/// \tparam InViewType Kokkos View type for input data
+/// \tparam OutViewType Kokkos View type for output data
+/// \tparam DIM Number of transform dimensions (the rank of the Views)
+///
+/// \param[in] exec_space Kokkos execution space
+/// \param[out] plan Unique pointer to the cuFFTMp plan to be created
+/// \param[in] in Input data view
+/// \param[in] out Output data view
+/// \param[in] axes Axes along which to perform the FFT
+/// \param[in] map Axis mapping for data distribution
+/// \param[in] in_topology Topology of input data distribution
+/// \param[in] out_topology Topology of output data distribution
+/// \param[in] comm MPI communicator
+template <typename ExecutionSpace, typename PlanType, typename InViewType,
+          typename OutViewType, std::size_t DIM, typename InLayoutType,
+          typename OutLayoutType>
+void create_decomposition_plan(
+    const ExecutionSpace& exec_space, std::unique_ptr<PlanType>& plan,
+    const InViewType& in, const OutViewType& out,
+    const KokkosFFT::axis_type<DIM>& axes, const KokkosFFT::axis_type<DIM>& map,
+    const Topology<std::size_t, DIM, InLayoutType>& in_topology,
+    const Topology<std::size_t, DIM, OutLayoutType>& out_topology,
+    const MPI_Comm& comm) {
+  using in_value_type = typename InViewType::non_const_value_type;
+
+  auto gin_extents       = compute_global_extents(in, in_topology, comm);
+  auto gout_extents      = compute_global_extents(out, out_topology, comm);
+  auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+      KokkosFFT::Impl::convert_negative_axes(axes, DIM));
+  auto fft_extents =
+      compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
+
+  auto gin_padded_extents = gin_extents;
+  if constexpr (KokkosFFT::Impl::is_real_v<in_value_type>) {
+    gin_padded_extents = KokkosFFT::Impl::compute_padded_extents<in_value_type>(
+        gout_extents, non_negative_axes);
+  }
+
+  auto [in_extents, in_starts] =
+      compute_local_extents_and_starts(gin_extents, in_topology, comm);
+  auto [out_extents, out_starts] =
+      compute_local_extents_and_starts(gout_extents, out_topology, comm);
+  auto [in_padded_extents, in_padded_starts] =
+      compute_local_extents_and_starts(gin_padded_extents, in_topology, comm);
+
+  std::array<std::size_t, DIM> in_ends, out_ends;
+  std::transform(in_starts.begin(), in_starts.end(), in_extents.begin(),
+                 in_ends.begin(), std::plus<std::size_t>());
+  std::transform(out_starts.begin(), out_starts.end(), out_extents.begin(),
+                 out_ends.begin(), std::plus<std::size_t>());
+
+  // Mapping based of axes
+  auto mapped_in_padded_extents =
+      KokkosFFT::Impl::compute_mapped_extents(in_padded_extents, map);
+  auto mapped_out_extents =
+      KokkosFFT::Impl::compute_mapped_extents(out_extents, map);
+  auto mapped_in_starts =
+      KokkosFFT::Impl::compute_mapped_extents(in_starts, map);
+  auto mapped_out_starts =
+      KokkosFFT::Impl::compute_mapped_extents(out_starts, map);
+  auto mapped_in_ends  = KokkosFFT::Impl::compute_mapped_extents(in_ends, map);
+  auto mapped_out_ends = KokkosFFT::Impl::compute_mapped_extents(out_ends, map);
+
+  auto in_strides = KokkosFFT::Impl::reversed(
+      KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));
+  auto out_strides = KokkosFFT::Impl::reversed(
+      KokkosFFT::Impl::compute_strides(mapped_out_extents));
+
+  using int_vec_type  = std::vector<int>;
+  using long_vec_type = std::vector<long long int>;
+
+  int_vec_type fft_int_extents(fft_extents.begin(), fft_extents.end());
+  long_vec_type lower_input(mapped_in_starts.begin(), mapped_in_starts.end()),
+      upper_input(mapped_in_ends.begin(), mapped_in_ends.end()),
+      lower_output(mapped_out_starts.begin(), mapped_out_starts.end()),
+      upper_output(mapped_out_ends.begin(), mapped_out_ends.end()),
+      strides_input(in_strides.begin(), in_strides.end()),
+      strides_output(out_strides.begin(), out_strides.end());
+
+  plan = std::make_unique<PlanType>(fft_int_extents, lower_input, upper_input,
+                                    lower_output, upper_output, strides_input,
+                                    strides_output, comm);
+  plan->commit(
+      exec_space,
+      buffer_size_in_bytes(in, out, axes, in_topology, out_topology, comm),
+      comm);
+}
+
+/// \brief Whether a cuFFTMp plan maps a distribution to itself. Throws if
+/// that distribution is not distributed (one process, a shared topology):
+/// there is no cuFFTMp plan without a decomposition.
+/// \param[in] in_topology Topology of input data distribution
+/// \param[in] out_topology Topology of output data distribution
+/// \return true if the input and output topologies are identical
+template <std::size_t N, typename InLayoutType, typename OutLayoutType>
+bool is_same_distribution(
+    const Topology<std::size_t, N, InLayoutType>& in_topology,
+    const Topology<std::size_t, N, OutLayoutType>& out_topology) {
+  const bool is_same = in_topology.array() == out_topology.array();
+  KOKKOSFFT_THROW_IF(
+      is_same && !(are_specified_topologies(TopologyType::Slab, in_topology) ||
+                   are_specified_topologies(TopologyType::Pencil, in_topology)),
+      "Identical input and output topologies must be a slab or a pencil "
+      "decomposition");
+  return is_same;
+}
+
 /// \brief Create a 2D cuFFTMp plan for distributed FFT
 /// \tparam ExecutionSpace Kokkos execution space type
 /// \tparam PlanType ScopedCufftMpPlan type
@@ -234,80 +352,27 @@ void create_plan(const ExecutionSpace& exec_space,
       "(LayoutLeft/LayoutRight), "
       "and the same rank. ExecutionSpace must be accessible to the data in "
       "InViewType and OutViewType.");
-  using in_value_type  = typename InViewType::non_const_value_type;
-  using out_value_type = typename OutViewType::non_const_value_type;
+  using in_value_type = typename InViewType::non_const_value_type;
 
-  KOKKOSFFT_THROW_IF(in_topology.array() == out_topology.array(),
-                     "Input and output topologies must not be identical");
+  const bool is_same = is_same_distribution(in_topology, out_topology);
 
   Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_cuFFTMp]");
 
-  auto gin_extents       = compute_global_extents(in, in_topology, comm);
-  auto gout_extents      = compute_global_extents(out, out_topology, comm);
-  auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
-      KokkosFFT::Impl::convert_negative_axes(axes, 2));
-  auto fft_extents =
-      compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
-  const auto [nx, ny] = fft_extents;
-
-  if (KokkosFFT::Impl::is_real_v<in_value_type>) {
-    // Using general API
-    auto gin_padded_extents =
-        KokkosFFT::Impl::compute_padded_extents<in_value_type>(
-            gout_extents, non_negative_axes);
-    auto [in_extents, in_starts] =
-        compute_local_extents_and_starts(gin_extents, in_topology, comm);
-    auto [out_extents, out_starts] =
-        compute_local_extents_and_starts(gout_extents, out_topology, comm);
-    auto [in_padded_extents, in_padded_starts] =
-        compute_local_extents_and_starts(gin_padded_extents, in_topology, comm);
-
-    std::array<std::size_t, 2> in_ends, out_ends;
-    std::transform(in_starts.begin(), in_starts.end(), in_extents.begin(),
-                   in_ends.begin(), std::plus<std::size_t>());
-    std::transform(out_starts.begin(), out_starts.end(), out_extents.begin(),
-                   out_ends.begin(), std::plus<std::size_t>());
-
-    // Mapping based of axes
-    auto mapped_in_extents =
-        KokkosFFT::Impl::compute_mapped_extents(in_extents, map);
-    auto mapped_in_padded_extents =
-        KokkosFFT::Impl::compute_mapped_extents(in_padded_extents, map);
-    auto mapped_out_extents =
-        KokkosFFT::Impl::compute_mapped_extents(out_extents, map);
-    auto mapped_in_starts =
-        KokkosFFT::Impl::compute_mapped_extents(in_starts, map);
-    auto mapped_out_starts =
-        KokkosFFT::Impl::compute_mapped_extents(out_starts, map);
-    auto mapped_in_ends = KokkosFFT::Impl::compute_mapped_extents(in_ends, map);
-    auto mapped_out_ends =
-        KokkosFFT::Impl::compute_mapped_extents(out_ends, map);
-
-    auto in_strides = KokkosFFT::Impl::reversed(
-        KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));
-    auto out_strides = KokkosFFT::Impl::reversed(
-        KokkosFFT::Impl::compute_strides(mapped_out_extents));
-
-    using int_vec_type  = std::vector<int>;
-    using long_vec_type = std::vector<long long int>;
-
-    int_vec_type fft_int_extents(fft_extents.begin(), fft_extents.end());
-    long_vec_type lower_input(mapped_in_starts.begin(), mapped_in_starts.end()),
-        upper_input(mapped_in_ends.begin(), mapped_in_ends.end()),
-        lower_output(mapped_out_starts.begin(), mapped_out_starts.end()),
-        upper_output(mapped_out_ends.begin(), mapped_out_ends.end()),
-        strides_input(in_strides.begin(), in_strides.end()),
-        strides_output(out_strides.begin(), out_strides.end());
-
-    plan = std::make_unique<PlanType>(fft_int_extents, lower_input, upper_input,
-                                      lower_output, upper_output, strides_input,
-                                      strides_output, comm);
-    plan->commit(
-        exec_space,
-        buffer_size_in_bytes(in, out, axes, in_topology, out_topology, comm),
-        comm);
-
+  // The built-in slabs are in place and swap X and Y: real transforms and
+  // the same distribution in and out use the general API
+  if (KokkosFFT::Impl::is_real_v<in_value_type> || is_same) {
+    create_decomposition_plan(exec_space, plan, in, out, axes, map, in_topology,
+                              out_topology, comm);
   } else {
+    auto gin_extents  = compute_global_extents(in, in_topology, comm);
+    auto gout_extents = compute_global_extents(out, out_topology, comm);
+    auto non_negative_axes =
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, 2));
+    auto fft_extents =
+        compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
+    const auto [nx, ny] = fft_extents;
+
     auto in_mapped_topology =
         KokkosFFT::Impl::compute_mapped_extents(in_topology.array(), map);
     bool is_xslab = in_mapped_topology.at(0) > 1;
@@ -352,24 +417,13 @@ void create_plan(const ExecutionSpace& exec_space,
       "(LayoutLeft/LayoutRight), "
       "and the same rank. ExecutionSpace must be accessible to the data in "
       "InViewType and OutViewType.");
-  using in_value_type  = typename InViewType::non_const_value_type;
-  using out_value_type = typename OutViewType::non_const_value_type;
-
-  KOKKOSFFT_THROW_IF(in_topology.array() == out_topology.array(),
-                     "Input and output topologies must not be identical");
+  const bool is_same = is_same_distribution(in_topology, out_topology);
 
   Kokkos::Profiling::ScopedRegion region("KokkosFFT::create_plan[TPL_cuFFTMp]");
 
-  auto gin_extents       = compute_global_extents(in, in_topology, comm);
-  auto gout_extents      = compute_global_extents(out, out_topology, comm);
-  auto non_negative_axes = KokkosFFT::Impl::convert_base_int_type<std::size_t>(
-      KokkosFFT::Impl::convert_negative_axes(axes, 3));
-  auto fft_extents =
-      compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
-  const auto [nx, ny, nz] = fft_extents;
-
-  // In case of slab geometry, we need to check that the first dimension is
-  // ready
+  // The built-in slabs (in place, X and Y swapped) need slabs whose last FFT
+  // axis is not distributed, in and out. Otherwise, and for the same
+  // distribution in and out, the general API
   auto last_axis          = axes.back();
   auto in_first_dim       = in_topology.at(last_axis),
        out_first_dim      = out_topology.at(last_axis);
@@ -377,7 +431,16 @@ void create_plan(const ExecutionSpace& exec_space,
   bool is_slab =
       are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
 
-  if (is_slab && is_first_dim_ready) {
+  if (is_slab && is_first_dim_ready && !is_same) {
+    auto gin_extents  = compute_global_extents(in, in_topology, comm);
+    auto gout_extents = compute_global_extents(out, out_topology, comm);
+    auto non_negative_axes =
+        KokkosFFT::Impl::convert_base_int_type<std::size_t>(
+            KokkosFFT::Impl::convert_negative_axes(axes, 3));
+    auto fft_extents =
+        compute_fft_extents(gin_extents, gout_extents, non_negative_axes);
+    const auto [nx, ny, nz] = fft_extents;
+
     auto in_mapped_topology =
         KokkosFFT::Impl::compute_mapped_extents(in_topology.array(), map);
     bool is_xslab = in_mapped_topology.at(0) > 1;
@@ -388,65 +451,8 @@ void create_plan(const ExecutionSpace& exec_space,
         buffer_size_in_bytes(in, out, axes, in_topology, out_topology, comm),
         comm);
   } else {
-    // Using general API
-    auto gin_padded_extents = gin_extents;
-    if (KokkosFFT::Impl::is_real_v<in_value_type>) {
-      gin_padded_extents =
-          KokkosFFT::Impl::compute_padded_extents<in_value_type>(
-              gout_extents, non_negative_axes);
-    }
-
-    auto [in_extents, in_starts] =
-        compute_local_extents_and_starts(gin_extents, in_topology, comm);
-    auto [out_extents, out_starts] =
-        compute_local_extents_and_starts(gout_extents, out_topology, comm);
-    auto [in_padded_extents, in_padded_starts] =
-        compute_local_extents_and_starts(gin_padded_extents, in_topology, comm);
-
-    std::array<std::size_t, 3> in_ends, out_ends;
-    std::transform(in_starts.begin(), in_starts.end(), in_extents.begin(),
-                   in_ends.begin(), std::plus<std::size_t>());
-    std::transform(out_starts.begin(), out_starts.end(), out_extents.begin(),
-                   out_ends.begin(), std::plus<std::size_t>());
-
-    // Mapping based of axes
-    auto mapped_in_extents =
-        KokkosFFT::Impl::compute_mapped_extents(in_extents, map);
-    auto mapped_in_padded_extents =
-        KokkosFFT::Impl::compute_mapped_extents(in_padded_extents, map);
-    auto mapped_out_extents =
-        KokkosFFT::Impl::compute_mapped_extents(out_extents, map);
-    auto mapped_in_starts =
-        KokkosFFT::Impl::compute_mapped_extents(in_starts, map);
-    auto mapped_out_starts =
-        KokkosFFT::Impl::compute_mapped_extents(out_starts, map);
-    auto mapped_in_ends = KokkosFFT::Impl::compute_mapped_extents(in_ends, map);
-    auto mapped_out_ends =
-        KokkosFFT::Impl::compute_mapped_extents(out_ends, map);
-
-    auto in_strides = KokkosFFT::Impl::reversed(
-        KokkosFFT::Impl::compute_strides(mapped_in_padded_extents));
-    auto out_strides = KokkosFFT::Impl::reversed(
-        KokkosFFT::Impl::compute_strides(mapped_out_extents));
-
-    using int_vec_type  = std::vector<int>;
-    using long_vec_type = std::vector<long long int>;
-
-    int_vec_type fft_int_extents(fft_extents.begin(), fft_extents.end());
-    long_vec_type lower_input(mapped_in_starts.begin(), mapped_in_starts.end()),
-        upper_input(mapped_in_ends.begin(), mapped_in_ends.end()),
-        lower_output(mapped_out_starts.begin(), mapped_out_starts.end()),
-        upper_output(mapped_out_ends.begin(), mapped_out_ends.end()),
-        strides_input(in_strides.begin(), in_strides.end()),
-        strides_output(out_strides.begin(), out_strides.end());
-
-    plan = std::make_unique<PlanType>(fft_int_extents, lower_input, upper_input,
-                                      lower_output, upper_output, strides_input,
-                                      strides_output, comm);
-    plan->commit(
-        exec_space,
-        buffer_size_in_bytes(in, out, axes, in_topology, out_topology, comm),
-        comm);
+    create_decomposition_plan(exec_space, plan, in, out, axes, map, in_topology,
+                              out_topology, comm);
   }
 }
 
