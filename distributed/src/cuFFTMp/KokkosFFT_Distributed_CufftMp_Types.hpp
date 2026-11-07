@@ -33,6 +33,10 @@ struct cuFFTHandleWrapper {
 /// \tparam T2 Output data type
 template <typename ExecutionSpace, typename T1, typename T2>
 struct ScopedCufftMpPlan {
+  //! The normalization is applied by exec_plan, in the copy out of the
+  //! NVSHMEM buffer (cuFFTMp has no scale factor): TplPlan does not normalize
+  static constexpr bool scales_in_transform = true;
+
   using buffer_data_type =
       typename KokkosFFT::Impl::fft_data_type<ExecutionSpace, T2>::type;
   //@{

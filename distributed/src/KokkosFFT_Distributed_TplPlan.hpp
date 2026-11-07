@@ -2,6 +2,7 @@
 #define KOKKOSFFT_DISTRIBUTED_TPL_PLAN_HPP
 
 #include <memory>
+#include <type_traits>
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Extents.hpp"
@@ -23,6 +24,21 @@
 namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
+
+/// \brief Whether a vendor plan type applies the normalization itself (in the
+/// transform, or fused into a copy of its execution), so that TplPlan must
+/// not normalize again: PlanType::scales_in_transform, false if absent
+template <typename PlanType, typename = void>
+struct tpl_scales_in_transform : std::false_type {};
+
+template <typename PlanType>
+struct tpl_scales_in_transform<
+    PlanType, std::void_t<decltype(PlanType::scales_in_transform)>>
+    : std::bool_constant<PlanType::scales_in_transform> {};
+
+template <typename PlanType>
+inline constexpr bool tpl_scales_in_transform_v =
+    tpl_scales_in_transform<PlanType>::value;
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
@@ -264,10 +280,20 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
                     const extents_type& out_extents, const map_type& in_map,
                     const map_type& out_map,
                     KokkosFFT::Direction direction) const {
-    exec_plan(m_exec_space, plan, in, out, in_extents, out_extents, in_map,
-              out_map, direction);
-    KokkosFFT::Impl::normalize<normalization_float_type>(
-        m_exec_space, out, direction, get_norm(), get_fft_extents());
+    if constexpr (tpl_scales_in_transform_v<PlanType>) {
+      // The plan normalizes its output (cuFFTMp: in its copy-out)
+      auto [coef, to_normalize] =
+          KokkosFFT::Impl::get_coefficients<normalization_float_type>(
+              direction, get_norm(), get_fft_extents());
+      exec_plan(m_exec_space, plan, in, out, in_extents, out_extents, in_map,
+                out_map, direction,
+                to_normalize ? coef : normalization_float_type(1));
+    } else {
+      exec_plan(m_exec_space, plan, in, out, in_extents, out_extents, in_map,
+                out_map, direction);
+      KokkosFFT::Impl::normalize<normalization_float_type>(
+          m_exec_space, out, direction, get_norm(), get_fft_extents());
+    }
   }
 };
 

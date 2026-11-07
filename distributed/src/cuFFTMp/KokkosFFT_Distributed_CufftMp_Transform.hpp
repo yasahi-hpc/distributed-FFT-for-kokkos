@@ -3,12 +3,16 @@
 
 #include <Kokkos_Core.hpp>
 #include <KokkosFFT.hpp>
+#include "KokkosFFT_Distributed_ScaledCopy.hpp"
 
 namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
-/// \brief Execute the cuFFTMp plan for distributed FFT
+/// \brief Execute the cuFFTMp plan for distributed FFT: copy (or transpose)
+/// the input into the NVSHMEM buffer, transform in place there, and copy (or
+/// transpose) the buffer into the output with the normalization (one pass:
+/// the plan scales in the transform, ScopedCufftMpPlan::scales_in_transform)
 /// \tparam ExecutionSpace Kokkos execution space type
 /// \tparam PlanType ScopedCufftMpPlan type
 /// \tparam InViewType Kokkos View type for input data
@@ -23,9 +27,10 @@ namespace Impl {
 /// \param[in] in_map Axis mapping for input data
 /// \param[in] out_map Axis mapping for output data
 /// \param[in] direction Direction of the FFT (forward/backward)
+/// \param[in] coef Normalization coefficient of the output (1: none)
 /// \throws std::runtime_error if cufftXtExecDescriptor fails
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
-          typename OutViewType>
+          typename OutViewType, typename ScaleType>
 inline void exec_plan(
     const ExecutionSpace& exec_space, const PlanType& scoped_plan,
     const InViewType& in, const OutViewType& out,
@@ -33,7 +38,7 @@ inline void exec_plan(
     const std::array<std::size_t, OutViewType::rank()>& out_extents,
     const KokkosFFT::axis_type<InViewType::rank()>& in_map,
     const KokkosFFT::axis_type<OutViewType::rank()>& out_map,
-    KokkosFFT::Direction direction) {
+    KokkosFFT::Direction direction, ScaleType coef) {
   using in_value_type  = typename InViewType::non_const_value_type;
   using out_value_type = typename OutViewType::non_const_value_type;
   using in_data_type =
@@ -61,7 +66,7 @@ inline void exec_plan(
     auto const dir = KokkosFFT::Impl::direction_type<ExecutionSpace>(direction);
     KokkosFFT::Impl::exec_plan(scoped_plan.plan(direction), idata, odata, dir);
   }
-  KokkosFFT::Impl::transpose(exec_space, out_buffer, out, out_map, true);
+  transpose_and_scale(exec_space, out_buffer, out, out_map, coef);
 }
 
 }  // namespace Impl

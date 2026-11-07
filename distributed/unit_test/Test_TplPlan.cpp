@@ -16,6 +16,7 @@
 #include "KokkosFFT_Distributed_TplPlan.hpp"
 #include "KokkosFFT_Distributed_Plan.hpp"
 #include "KokkosFFT_Distributed_Helper.hpp"
+#include "KokkosFFT_Distributed_ScaledCopy.hpp"
 #include "Test_Utils.hpp"
 #include "Test_PlanUtils.hpp"
 
@@ -3093,6 +3094,123 @@ void test_tpl3D_permuted_axes_View3D(std::size_t nprocs) {
   }
 }
 
+/// \brief transpose_and_scale against KokkosFFT::Impl::transpose followed by
+/// a scaling pass: the identity and a permuted map, a layout change, a
+/// destination smaller than the source (the cropped R2C padding), and a
+/// coefficient of 1 (the plain copy)
+/// \tparam T Value type (float/double or complex)
+/// \tparam InLayoutType Layout of the source
+/// \tparam OutLayoutType Layout of the destination
+template <typename T, typename InLayoutType, typename OutLayoutType>
+void test_transpose_and_scale() {
+  using InViewType   = Kokkos::View<T***, InLayoutType, execution_space>;
+  using OutViewType  = Kokkos::View<T***, OutLayoutType, execution_space>;
+  using map_type     = std::array<int, 3>;
+  using extents_type = std::array<std::size_t, 3>;
+
+  execution_space exec;
+  const extents_type in_extents{4, 5, 7};
+  InViewType in("in", KokkosFFT::Impl::create_layout<InLayoutType>(in_extents));
+  Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345);
+  Kokkos::fill_random(in, random_pool, 1.0);
+
+  for (const auto& map : {map_type{0, 1, 2}, map_type{2, 0, 1}}) {
+    for (const bool is_cropped : {false, true}) {
+      for (const double coef : {1.0, 0.25}) {
+        extents_type out_extents{};
+        for (std::size_t i = 0; i < 3; ++i) {
+          out_extents.at(i) = in_extents.at(static_cast<std::size_t>(map[i]));
+        }
+        if (is_cropped) out_extents.at(2) -= 2;
+        const auto out_layout =
+            KokkosFFT::Impl::create_layout<OutLayoutType>(out_extents);
+        OutViewType out("out", out_layout), ref("ref", out_layout);
+
+        KokkosFFT::Impl::transpose(exec, in, ref, map, true);
+        using float_type = KokkosFFT::Impl::base_floating_point_type<T>;
+        KokkosFFT::Impl::normalize_impl(exec, ref,
+                                        static_cast<float_type>(coef));
+        KokkosFFT::Distributed::Impl::transpose_and_scale(exec, in, out, map,
+                                                          coef);
+        EXPECT_TRUE(allclose(exec, out, ref))
+            << "map {" << map[0] << ", " << map[1] << ", " << map[2]
+            << "}, cropped " << is_cropped << ", coef " << coef;
+      }
+    }
+  }
+}
+
+/// \brief TplPlan with every normalization: the forward transform against
+/// the single-node FFT with the same normalization, and the backward
+/// transform back to the input. With cuFFTMp, the normalization is applied
+/// in the copy out of the NVSHMEM buffer (scales_in_transform). From the
+/// x-slab to the y-slab, the axes in increasing and reversed order (a
+/// transpose for LayoutRight R2C, the reversed View for LayoutLeft).
+/// \tparam T Value type of the input (float/double or complex)
+/// \tparam LayoutType Layout of the Views
+/// \param[in] nprocs Number of processes in the MPI communicator
+template <typename T, typename LayoutType>
+void test_tpl3D_normalization_View3D(std::size_t nprocs) {
+  using float_type   = KokkosFFT::Impl::base_floating_point_type<T>;
+  using complex_type = Kokkos::complex<float_type>;
+  using InViewType   = Kokkos::View<T***, LayoutType, execution_space>;
+  using OutViewType =
+      Kokkos::View<complex_type***, LayoutType, execution_space>;
+  using axes_type     = KokkosFFT::axis_type<3>;
+  using topology_type = std::array<std::size_t, 3>;
+
+  constexpr bool is_R2C = KokkosFFT::Impl::is_real_v<T>;
+  const topology_type topology0{1, 1, nprocs}, topology1{1, nprocs, 1};
+  const std::array<std::size_t, 3> global_extents{8, 7, 5};
+  const MPI_Comm comm = MPI_COMM_WORLD;
+  execution_space exec;
+
+  auto gu              = make_global_input<InViewType>(global_extents);
+  auto u_ref           = extract_local(gu, topology0, comm);
+  const auto in_layout = KokkosFFT::Impl::create_layout<LayoutType>(
+      KokkosFFT::Impl::extract_extents(u_ref));
+
+  for (const auto& axes : {axes_type{0, 1, 2}, axes_type{2, 1, 0}}) {
+    for (const auto norm :
+         {KokkosFFT::Normalization::forward, KokkosFFT::Normalization::backward,
+          KokkosFFT::Normalization::ortho, KokkosFFT::Normalization::none}) {
+      auto out_extents = global_out_extents(global_extents, axes, is_R2C);
+      OutViewType gu_hat(
+          "gu_hat", KokkosFFT::Impl::create_layout<LayoutType>(out_extents));
+      if constexpr (is_R2C) {
+        KokkosFFT::rfftn(exec, gu, gu_hat, axes, norm);
+      } else {
+        KokkosFFT::fftn(exec, gu, gu_hat, axes, norm);
+      }
+      auto ref_u_hat = extract_local(gu_hat, topology1, comm);
+
+      InViewType u("u", in_layout), u_inv("u_inv", in_layout);
+      OutViewType u_hat("u_hat", ref_u_hat.layout());
+      Kokkos::deep_copy(u, u_ref);
+
+      KokkosFFT::Distributed::Impl::TplPlan plan(
+          exec, u, u_hat, axes, topology0, topology1, comm, norm);
+      plan.forward(u, u_hat);
+      EXPECT_TRUE(allclose(exec, u_hat, ref_u_hat, 1.0e-5, 1.0e-6))
+          << "axes {" << axes[0] << ", " << axes[1] << ", " << axes[2]
+          << "}, normalization " << static_cast<int>(norm);
+
+      // Without normalization, the backward transform of the forward one is
+      // N times the input (N = n0 * n1 * n2): scaled back by 1/N, so that
+      // the comparison is the same as for the other normalizations
+      plan.backward(u_hat, u_inv);
+      if (norm == KokkosFFT::Normalization::none) {
+        const std::size_t n = KokkosFFT::Impl::total_size(global_extents);
+        KokkosFFT::Impl::normalize_impl(
+            exec, u_inv, float_type(1) / static_cast<float_type>(n));
+      }
+      EXPECT_TRUE(allclose(exec, u_inv, u_ref, 1.0e-5, 1.0e-6))
+          << "inverse, axes {" << axes[0] << ", " << axes[1] << ", " << axes[2]
+          << "}, normalization " << static_cast<int>(norm);
+    }
+  }
+}
+
 #if defined(ENABLE_TPL_CUFFT_MP)
 /// \brief Whether is_tpl_available accepts a plan, for the local Views of
 /// this rank
@@ -3453,6 +3571,26 @@ TYPED_TEST(TestTplPlan3D, BufferSizeView3D_Pencil) {
 #endif
 
 TEST(TestTplAxes, canonical_tpl_axes) { test_canonical_tpl_axes(); }
+
+TEST(TestScaledCopy, transpose_and_scale) {
+  using LL = Kokkos::LayoutLeft;
+  using LR = Kokkos::LayoutRight;
+  test_transpose_and_scale<float, LR, LR>();
+  test_transpose_and_scale<double, LL, LR>();
+  test_transpose_and_scale<Kokkos::complex<float>, LR, LL>();
+  test_transpose_and_scale<Kokkos::complex<double>, LL, LL>();
+}
+
+TYPED_TEST(TestTplPlan3D, NormalizationView3D) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "The slab plans need more than one process";
+  }
+  test_tpl3D_normalization_View3D<float_type, layout_type>(this->m_nprocs);
+  test_tpl3D_normalization_View3D<complex_type, layout_type>(this->m_nprocs);
+}
 
 TYPED_TEST(TestTplPlan3D, PermutedAxesView3D) {
   using float_type   = typename TestFixture::float_type;
