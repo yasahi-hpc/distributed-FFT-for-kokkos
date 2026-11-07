@@ -125,16 +125,6 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
       : base_type(exec_space, in, out, axes, in_topology, out_topology, comm,
                   norm),
         m_exec_space(exec_space) {
-#if defined(ENABLE_TPL_ROCFFT_MPI)
-    // The rocFFT plan is created out-of-place (rocfft_placement_notinplace)
-    // and, without transpose, executed directly on the input and output
-    // Views, which must then not share their data. plan_factory uses the
-    // internal plans for in-place transforms instead (is_tpl_available).
-    KOKKOSFFT_THROW_IF(this->is_inplace(),
-                       "TplPlan: in-place transforms are not supported with "
-                       "rocFFT");
-#endif
-
     // Calling setup function
     using float_type = KokkosFFT::Impl::base_floating_point_type<in_value_type>;
     setup<ExecutionSpace, float_type>(comm);
@@ -270,8 +260,27 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
         KokkosFFT::Impl::compute_mapped_extents(out_extents, m_in_map);
 
     // The topologies keep their layout (which rank owns which block)
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+    // rocFFT applies the normalization with a scale factor fixed at the
+    // creation of the plan of each direction (the FFT size does not depend on
+    // the order of the axes)
+    create_plan(m_exec_space, m_plan, in, out, tpl_axes, m_in_map, in_topology,
+                out_topology, comm, coefficient(KokkosFFT::Direction::forward),
+                coefficient(KokkosFFT::Direction::backward));
+#else
     create_plan(m_exec_space, m_plan, in, out, tpl_axes, m_in_map, in_topology,
                 out_topology, comm);
+#endif
+  }
+
+  /// \brief The normalization coefficient of the transform in a direction, 1
+  /// if it is not normalized
+  /// \param[in] direction Direction of the transform
+  normalization_float_type coefficient(KokkosFFT::Direction direction) const {
+    auto [coef, to_normalize] =
+        KokkosFFT::Impl::get_coefficients<normalization_float_type>(
+            direction, get_norm(), get_fft_extents());
+    return to_normalize ? coef : normalization_float_type(1);
   }
 
   template <typename PlanType, typename InView, typename OutView>
@@ -281,13 +290,10 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
                     const map_type& out_map,
                     KokkosFFT::Direction direction) const {
     if constexpr (tpl_scales_in_transform_v<PlanType>) {
-      // The plan normalizes its output (cuFFTMp: in its copy-out)
-      auto [coef, to_normalize] =
-          KokkosFFT::Impl::get_coefficients<normalization_float_type>(
-              direction, get_norm(), get_fft_extents());
+      // The plan normalizes its output (cuFFTMp: in its copy-out; rocFFT: in
+      // the transform, with the coefficient given at its creation)
       exec_plan(m_exec_space, plan, in, out, in_extents, out_extents, in_map,
-                out_map, direction,
-                to_normalize ? coef : normalization_float_type(1));
+                out_map, direction, coefficient(direction));
     } else {
       exec_plan(m_exec_space, plan, in, out, in_extents, out_extents, in_map,
                 out_map, direction);

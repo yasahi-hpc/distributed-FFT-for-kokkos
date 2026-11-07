@@ -2910,11 +2910,11 @@ struct TplPlanOps : public InternalPlanOps {
   }
 };
 
-/// \brief In-place 2D FFT of 2D Views with TplPlan (slab decomposition).
-/// cuFFTMp copies the input into its own buffer before writing the output,
-/// so it runs in-place and out-of-place, against the same references. The
-/// rocFFT plan is out-of-place and does not support in-place: it runs
-/// out-of-place only, and in-place construction must throw.
+/// \brief In-place 2D FFT of 2D Views with TplPlan (slab decomposition),
+/// in-place and out-of-place, against the same references. cuFFTMp copies
+/// the input into its own buffer before writing the output; the rocFFT plans
+/// are out-of-place and run in-place from a copy of the input (the staging
+/// buffer, T3).
 template <typename T, typename LayoutType>
 void test_tpl2D_inplace_View2D(std::size_t nprocs) {
   using View2DType = Kokkos::View<T**, LayoutType, execution_space>;
@@ -2939,22 +2939,8 @@ void test_tpl2D_inplace_View2D(std::size_t nprocs) {
   auto gu = make_global_input<View2DType>(global_extents);
 
   const std::string name = "Test_TplPlan.cpp test_tpl2D_inplace_View2D";
-#if defined(ENABLE_TPL_ROCFFT_MPI)
-  run_plan_cases<ComplexView2DType>(name, execution_space(), gu, topologies,
-                                    cases, TplPlanOps{});
-
-  // In-place construction throws
-  const std::vector<PlanCase<2>> inplace_cases = {
-      {0, 1, {0, 1}, Expect::Throw},
-      {1, 0, {1, 0}, Expect::Throw},
-  };
-  run_plan_cases<ComplexView2DType>(name, execution_space(), gu, topologies,
-                                    inplace_cases, TplPlanOps{},
-                                    Placement::InPlace);
-#else
   run_plan_cases_all_placements<ComplexView2DType>(
       name, execution_space(), gu, topologies, cases, TplPlanOps{});
-#endif
 }
 
 #if defined(ENABLE_TPL_CUFFT_MP)
@@ -3322,8 +3308,7 @@ struct CufftMpPlanFactoryOps {
 #endif
 
 /// \brief Vendor plans between pairs of topologies, for the given orders of
-/// the axes, against the single-node FFT: out-of-place and in-place with
-/// cuFFTMp, out-of-place only with rocFFT (its plans are out-of-place).
+/// the axes, out-of-place and in-place, against the single-node FFT.
 /// is_tpl_available must accept every case, so that plan_factory chooses the
 /// vendor plan.
 /// \tparam T Value type of the input (float/double or complex)
@@ -3370,13 +3355,32 @@ void test_tpl_plan_cases(
   }
 
   auto gu = make_global_input<InViewType>(global_extents);
-#if defined(ENABLE_TPL_ROCFFT_MPI)
-  run_plan_cases<OutViewType>(name, execution_space(), gu, topologies, cases,
-                              ops, Placement::OutOfPlace);
-#else
   run_plan_cases_all_placements<OutViewType>(name, execution_space(), gu,
                                              topologies, cases, ops);
+}
+
+/// \brief The orders of the axes that is_tpl_available accepts for every
+/// pair of slab or pencil topologies: all of them with cuFFTMp (T6); with
+/// rocFFT, those that need no permutation (is_tpl_permutation_needed, until
+/// T4a)
+/// \tparam T Value type of the input (float/double or complex)
+/// \tparam LayoutType Layout of the Views
+template <typename T, typename LayoutType, std::size_t DIM>
+std::vector<KokkosFFT::axis_type<DIM>> tpl_axes_orders() {
+  auto axes_list = all_axes_orders<DIM>();
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+  using InViewType = Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<T, DIM>,
+                                  LayoutType, execution_space>;
+  axes_list.erase(
+      std::remove_if(
+          axes_list.begin(), axes_list.end(),
+          [](const auto& axes) {
+            return KokkosFFT::Distributed::Impl::is_tpl_permutation_needed<
+                InViewType>(axes);
+          }),
+      axes_list.end());
 #endif
+  return axes_list;
 }
 
 /// \brief The same distribution in and out (T5): a vendor plan from each
@@ -3395,21 +3399,9 @@ void test_tpl_same_distribution(
     const std::array<std::array<std::size_t, DIM>, NTopologies>& topologies) {
   std::vector<std::pair<std::size_t, std::size_t>> pairs;
   for (std::size_t i = 0; i < NTopologies; ++i) pairs.emplace_back(i, i);
-  auto axes_list = all_axes_orders<DIM>();
-#if defined(ENABLE_TPL_ROCFFT_MPI)
-  using InViewType = Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<T, DIM>,
-                                  LayoutType, execution_space>;
-  axes_list.erase(
-      std::remove_if(
-          axes_list.begin(), axes_list.end(),
-          [](const auto& axes) {
-            return KokkosFFT::Distributed::Impl::is_tpl_permutation_needed<
-                InViewType>(axes);
-          }),
-      axes_list.end());
-#endif
   test_tpl_plan_cases<T, LayoutType>(name, global_extents, topologies, pairs,
-                                     axes_list, TplPlanOps{});
+                                     tpl_axes_orders<T, LayoutType, DIM>(),
+                                     TplPlanOps{});
 }
 
 }  // namespace
@@ -3787,5 +3779,60 @@ TYPED_TEST(TestTplPlan3D, LayoutLeftTopologyView3D_Pencil) {
   test_tpl_plan_cases<complex_type, layout_type>(name, global_extents,
                                                  topologies, pairs, axes_list,
                                                  CufftMpPlanFactoryOps{});
+}
+#endif
+
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+TYPED_TEST(TestTplPlan2D, MixedDecompositionView2D) {
+  using float_type     = typename TestFixture::float_type;
+  using layout_type    = typename TestFixture::layout_type;
+  using complex_type   = Kokkos::complex<float_type>;
+  const std::size_t p  = this->m_nprocs;
+  const std::size_t px = static_cast<std::size_t>(std::sqrt(p));
+  if (p == 1 || px * px != p) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+  // rocFFT (R4, T3): a 2D View distributed along both dimensions, to and from
+  // slabs and to itself, which are neither slab nor pencil pairs
+  const std::array<std::array<std::size_t, 2>, 3> topologies = {
+      {{px, px}, {1, p}, {p, 1}}};
+  const std::vector<std::pair<std::size_t, std::size_t>> pairs = {
+      {0, 1}, {2, 0}, {0, 0}};
+  const std::array<std::size_t, 2> global_extents{8, 7};
+  const std::string name =
+      "Test_TplPlan.cpp test_tpl_plan_cases View2D mixed decompositions";
+  test_tpl_plan_cases<float_type, layout_type>(
+      name, global_extents, topologies, pairs,
+      tpl_axes_orders<float_type, layout_type, 2>(), TplPlanOps{});
+  test_tpl_plan_cases<complex_type, layout_type>(
+      name, global_extents, topologies, pairs,
+      tpl_axes_orders<complex_type, layout_type, 2>(), TplPlanOps{});
+}
+
+TYPED_TEST(TestTplPlan3D, MixedDecompositionView3D) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1 || this->m_npx * this->m_npx != this->m_nprocs) {
+    GTEST_SKIP() << "The number of MPI processes should be a perfect square "
+                    "for this test";
+  }
+  // rocFFT (R4, T3): from slabs to pencils and back, which are neither slab
+  // nor pencil pairs
+  const std::size_t px = this->m_npx, p = this->m_nprocs;
+  const std::array<std::array<std::size_t, 3>, 4> topologies = {
+      {{1, 1, p}, {1, px, px}, {px, px, 1}, {p, 1, 1}}};
+  const std::vector<std::pair<std::size_t, std::size_t>> pairs = {
+      {0, 1}, {2, 3}, {1, 3}, {3, 2}};
+  const std::array<std::size_t, 3> global_extents{13, 10, 17};
+  const std::string name =
+      "Test_TplPlan.cpp test_tpl_plan_cases View3D mixed decompositions";
+  test_tpl_plan_cases<float_type, layout_type>(
+      name, global_extents, topologies, pairs,
+      tpl_axes_orders<float_type, layout_type, 3>(), TplPlanOps{});
+  test_tpl_plan_cases<complex_type, layout_type>(
+      name, global_extents, topologies, pairs,
+      tpl_axes_orders<complex_type, layout_type, 3>(), TplPlanOps{});
 }
 #endif

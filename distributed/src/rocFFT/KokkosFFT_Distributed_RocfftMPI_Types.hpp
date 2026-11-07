@@ -2,6 +2,7 @@
 #define KOKKOSFFT_DISTRIBUTED_ROCFFT_MPI_TYPES_HPP
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <string>
 #include <type_traits>
@@ -88,7 +89,8 @@ struct ScopedRocfftMPIPlan {
                       const std::vector<std::size_t> &upper_output,
                       const std::vector<std::size_t> &strides_input,
                       const std::vector<std::size_t> &strides_output,
-                      KokkosFFT::Direction direction, const MPI_Comm &comm)
+                      KokkosFFT::Direction direction, double scale_factor,
+                      const MPI_Comm &comm)
       : m_comm(comm) {
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_create(&m_description));
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_comm(
@@ -103,6 +105,13 @@ struct ScopedRocfftMPIPlan {
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_data_layout(
         m_description, in_array_type, out_array_type, nullptr, nullptr, 0,
         nullptr, 0, 0, nullptr, 0));
+
+    // The normalization, applied by rocFFT to the result (R8): no pass of
+    // its own over the output
+    if (scale_factor != 1.0) {
+      KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_scale_factor(
+          m_description, scale_factor));
+    }
 
     ScopedRocfftField scoped_infield(lower_input, upper_input, strides_input, 1,
                                      0);
@@ -180,9 +189,19 @@ struct ScopedRocfftMPIPlan {
 /// of the forward transform (the output of the backward one), B the output of
 /// the forward transform (the input of the backward one). The user's Views
 /// are only read (input) and written (output) by the transposes, so the
-/// input is preserved. Without a transpose, both buffers are empty.
+/// input is preserved. In-place without a transpose, the plans stay
+/// out-of-place: the input is copied into A (the staging buffer, large
+/// enough for the input of either direction) and the plan runs from A into
+/// the output. Otherwise, both buffers are empty.
+///
+/// The normalization is done by rocFFT (the scale factor of each plan, fixed
+/// at its creation), so TplPlan does not normalize (scales_in_transform).
 template <typename ExecutionSpace, typename T1, typename T2>
 struct ScopedRocfftMPIBidirectionalPlan {
+  //! rocFFT applies the normalization
+  //! (rocfft_plan_description_set_scale_factor)
+  static constexpr bool scales_in_transform = true;
+
  private:
   using ScopedRocfftMPIForwardPlanType =
       ScopedRocfftMPIPlan<ExecutionSpace, T1, T2>;
@@ -197,9 +216,12 @@ struct ScopedRocfftMPIBidirectionalPlan {
 
  public:
   /// \param[in] in_buffer_size Size in bytes of buffer A (the forward input in
-  /// the mapped order), 0 without transpose
+  /// the mapped order, or the staging buffer of an in-place plan), 0 if not
+  /// needed
   /// \param[in] out_buffer_size Size in bytes of buffer B (the forward output
   /// in the mapped order), 0 without transpose
+  /// \param[in] forward_scale Scale factor of the forward plan
+  /// \param[in] backward_scale Scale factor of the backward plan
   ScopedRocfftMPIBidirectionalPlan(
       const std::vector<std::size_t> &length,
       const std::vector<std::size_t> &lower_input,
@@ -209,13 +231,13 @@ struct ScopedRocfftMPIBidirectionalPlan {
       const std::vector<std::size_t> &strides_input,
       const std::vector<std::size_t> &strides_output,
       std::size_t in_buffer_size, std::size_t out_buffer_size,
-      const MPI_Comm &comm)
+      double forward_scale, double backward_scale, const MPI_Comm &comm)
       : m_plan_forward(length, lower_input, upper_input, lower_output,
                        upper_output, strides_input, strides_output,
-                       KokkosFFT::Direction::forward, comm),
+                       KokkosFFT::Direction::forward, forward_scale, comm),
         m_plan_backward(length, lower_output, upper_output, lower_input,
                         upper_input, strides_output, strides_input,
-                        KokkosFFT::Direction::backward, comm),
+                        KokkosFFT::Direction::backward, backward_scale, comm),
         m_work_buffer("KokkosFFT::Distributed::rocFFTMPI_work_buffer",
                       std::max(m_plan_forward.workspace_size(),
                                m_plan_backward.workspace_size())),
@@ -241,6 +263,25 @@ struct ScopedRocfftMPIBidirectionalPlan {
     const bool is_forward = direction == KokkosFFT::Direction::forward;
     const auto &buffer    = is_forward == is_input ? m_buffer_a : m_buffer_b;
     return ViewType(reinterpret_cast<value_type *>(buffer.data()),
+                    KokkosFFT::Impl::create_layout<layout_type>(extents));
+  }
+
+  /// \brief A View of the given type on the staging buffer of an in-place
+  /// plan (A), for the input of either direction
+  /// \tparam ViewType Kokkos View type (LayoutRight) to wrap the buffer
+  /// \param[in] extents Extents of the View
+  /// \throws std::runtime_error if the plan was not made in-place (the buffer
+  /// is too small)
+  template <typename ViewType, std::size_t DIM>
+  auto staging_data(const std::array<std::size_t, DIM> &extents) const {
+    using value_type  = typename ViewType::non_const_value_type;
+    using layout_type = typename ViewType::array_layout;
+    KOKKOSFFT_THROW_IF(
+        m_buffer_a.size() <
+            KokkosFFT::Impl::total_size(extents) * sizeof(value_type),
+        "ScopedRocfftMPIBidirectionalPlan: the plan was not made for "
+        "in-place transforms");
+    return ViewType(reinterpret_cast<value_type *>(m_buffer_a.data()),
                     KokkosFFT::Impl::create_layout<layout_type>(extents));
   }
 

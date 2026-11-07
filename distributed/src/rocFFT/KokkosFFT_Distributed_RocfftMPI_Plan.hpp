@@ -23,8 +23,8 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 bool is_tpl_available(
-    const ExecutionSpace& /*exec_space*/, const InViewType& in,
-    const OutViewType& out, const KokkosFFT::axis_type<DIM>& axes,
+    const ExecutionSpace& /*exec_space*/, const InViewType& /*in*/,
+    const OutViewType& /*out*/, const KokkosFFT::axis_type<DIM>& axes,
     const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
     const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
         out_topology) {
@@ -36,29 +36,30 @@ bool is_tpl_available(
     return false;
   }
 
-  // The rocFFT plan is created out-of-place (rocfft_placement_notinplace)
-  // and, without transpose, executed directly on the input and output Views.
-  // It must not be given Views that share their data: in-place transforms
-  // use the internal plans.
-  if (check_inplace(in, out)) return false;
+  // In-place transforms (in and out share their data) run through the
+  // staging buffer (exec_plan), with the out-of-place plans: no rejection
 
   // The axes in the order the plan is made with (canonical_tpl_axes): no
   // transpose when only the order of the axes differs, nor for a LayoutLeft
   // View that needs only a change of layout or runs reversed
   if (is_tpl_permutation_needed<InViewType>(axes)) return false;
 
-  bool is_slab =
-      are_specified_topologies(TopologyType::Slab, in_topology, out_topology);
-  bool is_pencil =
-      are_specified_topologies(TopologyType::Pencil, in_topology, out_topology);
-
-  if constexpr (InViewType::rank() == 2 && DIM == 2) {
-    if (is_slab) return true;
-  } else if constexpr (InViewType::rank() == 3 && DIM == 3) {
-    if (is_slab || is_pencil) return true;
+  if constexpr ((InViewType::rank() == 2 && DIM == 2) ||
+                (InViewType::rank() == 3 && DIM == 3)) {
+    // The bricks describe any rectangular decomposition: slabs, pencils,
+    // bricks, and pairs of different kinds (R4). Not on a single process
+    // (Shared), where the internal plans make no communication, nor with an
+    // empty or invalid topology.
+    auto is_distributed = [](const auto& topology) {
+      const auto topology_type = to_topology_type(topology);
+      return topology_type == TopologyType::Slab ||
+             topology_type == TopologyType::Pencil ||
+             topology_type == TopologyType::Brick;
+    };
+    return is_distributed(in_topology) && is_distributed(out_topology);
+  } else {
+    return false;
   }
-
-  return false;
 }
 
 template <typename ExecutionSpace, typename InViewType, typename OutViewType,
@@ -97,7 +98,8 @@ void setup(MPI_Comm /*comm*/) {
 }
 
 // General interface. The topologies keep their layout, which decides the
-// bricks each rank owns (compute_local_starts)
+// bricks each rank owns (compute_local_starts). The scale factors are the
+// normalization of each direction, applied by rocFFT (R8).
 template <typename ExecutionSpace, typename PlanType, typename InViewType,
           typename OutViewType, std::size_t DIM, typename InLayoutType,
           typename OutLayoutType>
@@ -108,7 +110,8 @@ void create_plan(
     const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
     const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
         out_topology,
-    const MPI_Comm& comm) {
+    const MPI_Comm& comm, double forward_scale = 1.0,
+    double backward_scale = 1.0) {
   static_assert(
       KokkosFFT::Impl::are_operatable_views_v<ExecutionSpace, InViewType,
                                               OutViewType>,
@@ -166,20 +169,28 @@ void create_plan(
             KokkosFFT::Impl::to_vector(fft_extents));
 
     // The plan runs directly on the input and output Views if they are in
-    // its order (LayoutRight, no transpose), otherwise on two buffers in the
-    // mapped order (exec_plan): A for the forward input, B for its output
+    // its order (LayoutRight, no transpose) and do not share their data.
+    // Otherwise, through buffers (exec_plan): with a transpose, two buffers
+    // in the mapped order, A for the forward input, B for its output;
+    // in-place without a transpose, one staging buffer A for the input of
+    // either direction.
+    using in_value_type  = typename InViewType::non_const_value_type;
+    using out_value_type = typename OutViewType::non_const_value_type;
+    const std::size_t in_bytes =
+        KokkosFFT::Impl::total_size(in_raw_extents) * sizeof(in_value_type);
+    const std::size_t out_bytes =
+        KokkosFFT::Impl::total_size(out_raw_extents) * sizeof(out_value_type);
     std::size_t in_buffer_size = 0, out_buffer_size = 0;
     if (is_rocfft_mpi_buffer_needed<InViewType, OutViewType>(map)) {
-      using in_value_type  = typename InViewType::non_const_value_type;
-      using out_value_type = typename OutViewType::non_const_value_type;
-      in_buffer_size =
-          KokkosFFT::Impl::total_size(in_raw_extents) * sizeof(in_value_type);
-      out_buffer_size =
-          KokkosFFT::Impl::total_size(out_raw_extents) * sizeof(out_value_type);
+      in_buffer_size  = in_bytes;
+      out_buffer_size = out_bytes;
+    } else if (check_inplace(in, out)) {
+      in_buffer_size = std::max(in_bytes, out_bytes);
     }
     plan = std::make_unique<PlanType>(
         reversed_fft_extents, in_lower, in_upper, out_lower, out_upper,
-        in_strides, out_strides, in_buffer_size, out_buffer_size, comm);
+        in_strides, out_strides, in_buffer_size, out_buffer_size, forward_scale,
+        backward_scale, comm);
     plan->commit(exec_space);
   } else {
     KOKKOSFFT_THROW_IF(true, "Plan can be made for 2D or 3D Views only");
@@ -195,10 +206,12 @@ void create_plan(
     const KokkosFFT::axis_type<DIM>& axes, const KokkosFFT::axis_type<DIM>& map,
     const std::array<std::size_t, InViewType::rank()>& in_topology,
     const std::array<std::size_t, OutViewType::rank()>& out_topology,
-    const MPI_Comm& comm) {
+    const MPI_Comm& comm, double forward_scale = 1.0,
+    double backward_scale = 1.0) {
   create_plan(exec_space, plan, in, out, axes, map,
               Topology<std::size_t, InViewType::rank()>(in_topology),
-              Topology<std::size_t, OutViewType::rank()>(out_topology), comm);
+              Topology<std::size_t, OutViewType::rank()>(out_topology), comm,
+              forward_scale, backward_scale);
 }
 
 }  // namespace Impl
