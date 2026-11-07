@@ -264,20 +264,24 @@ void test_tpl2D_is_available_View2D(std::size_t nprocs) {
     EXPECT_TRUE(is_available_1_0_ax01);
     EXPECT_TRUE(is_available_1_0_ax10);
 #else
-    EXPECT_FALSE(is_available_0_0_ax01);
-    EXPECT_FALSE(is_available_0_0_ax10);
+    // rocFFT: the same distribution in and out (identical fields) is
+    // accepted as any other slab pair, so the same-topology cases are those
+    // of the different topologies
 
     // ax01: the halved axis 1 is the last index; with LayoutLeft, a copy that
     // changes the layout is enough
+    EXPECT_TRUE(is_available_0_0_ax01);
     EXPECT_TRUE(is_available_1_0_ax01);
 
     if constexpr (std::is_same_v<LayoutType, Kokkos::LayoutLeft>) {
       // ax10: the halved axis 0 is the contiguous one of a LayoutLeft View,
       // the last of the reversed LayoutRight View (no copy)
+      EXPECT_TRUE(is_available_0_0_ax10);
       EXPECT_TRUE(is_available_1_0_ax10);
     } else {
       // FIXME, disable this plan for now, as it is not supported: the
       // halved axis 0 is not the last dimension, so a transpose is needed
+      EXPECT_FALSE(is_available_0_0_ax10);
       EXPECT_FALSE(is_available_1_0_ax10);
     }
 #endif
@@ -638,15 +642,14 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
   EXPECT_EQ(is_available_0_1_ax201, is_slab);
   EXPECT_EQ(is_available_0_1_ax210, is_slab);
 #else
-  EXPECT_FALSE(is_available_0_0_ax012);
-  EXPECT_FALSE(is_available_0_0_ax021);
-  EXPECT_FALSE(is_available_0_0_ax102);
-  EXPECT_FALSE(is_available_0_0_ax120);
-  EXPECT_FALSE(is_available_0_0_ax201);
-  EXPECT_FALSE(is_available_0_0_ax210);
-
   // Not a slab geometry
   if (nprocs == 1) {
+    EXPECT_FALSE(is_available_0_0_ax012);
+    EXPECT_FALSE(is_available_0_0_ax021);
+    EXPECT_FALSE(is_available_0_0_ax102);
+    EXPECT_FALSE(is_available_0_0_ax120);
+    EXPECT_FALSE(is_available_0_0_ax201);
+    EXPECT_FALSE(is_available_0_0_ax210);
     EXPECT_FALSE(is_available_0_1_ax012);
     EXPECT_FALSE(is_available_0_1_ax021);
     EXPECT_FALSE(is_available_0_1_ax102);
@@ -654,9 +657,15 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
     EXPECT_FALSE(is_available_0_1_ax201);
     EXPECT_FALSE(is_available_0_1_ax210);
   } else {
+    // rocFFT: the same distribution in and out (identical fields) is
+    // accepted as any other slab pair, so the same-topology cases are those
+    // of the different topologies
+
     // R2C: the axes but the last are reordered (canonical_tpl_axes), so
     // ax102 is ax012 (with LayoutLeft, through a copy that changes the
     // layout)
+    EXPECT_TRUE(is_available_0_0_ax012);
+    EXPECT_TRUE(is_available_0_0_ax102);
     EXPECT_TRUE(is_available_0_1_ax012);
     EXPECT_TRUE(is_available_0_1_ax102);
 
@@ -664,9 +673,13 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
       // The halved axis 0 is the contiguous one of a LayoutLeft View, the
       // last of the reversed LayoutRight View: ax120 and ax210 run on it
       // without a copy
+      EXPECT_TRUE(is_available_0_0_ax120);
+      EXPECT_TRUE(is_available_0_0_ax210);
       EXPECT_TRUE(is_available_0_1_ax120);
       EXPECT_TRUE(is_available_0_1_ax210);
     } else {
+      EXPECT_FALSE(is_available_0_0_ax120);
+      EXPECT_FALSE(is_available_0_0_ax210);
       EXPECT_FALSE(is_available_0_1_ax120);
       EXPECT_FALSE(is_available_0_1_ax210);
     }
@@ -674,6 +687,8 @@ void test_tpl3D_is_available_View3D(std::size_t nprocs) {
     // FIXME, disable this plan for now, as it is not supported: the halved
     // axis 1 is neither the last nor the contiguous dimension, so a transpose
     // is needed
+    EXPECT_FALSE(is_available_0_0_ax021);
+    EXPECT_FALSE(is_available_0_0_ax201);
     EXPECT_FALSE(is_available_0_1_ax021);
     EXPECT_FALSE(is_available_0_1_ax201);
   }
@@ -3211,7 +3226,6 @@ void test_tpl3D_normalization_View3D(std::size_t nprocs) {
   }
 }
 
-#if defined(ENABLE_TPL_CUFFT_MP)
 /// \brief Whether is_tpl_available accepts a plan, for the local Views of
 /// this rank
 /// \tparam InViewType Type of the input View
@@ -3255,6 +3269,7 @@ std::vector<KokkosFFT::axis_type<DIM>> all_axes_orders() {
   return orders;
 }
 
+#if defined(ENABLE_TPL_CUFFT_MP)
 /// \brief The layout of a topology type: that of a Topology, LayoutRight for
 /// a std::array
 template <typename TopologyType>
@@ -3304,11 +3319,13 @@ struct CufftMpPlanFactoryOps {
     EXPECT_EQ(plan.name(), "cufftMpPlan");
   }
 };
+#endif
 
-/// \brief cuFFTMp plans between pairs of topologies, for the given orders of
-/// the axes, out-of-place and in-place, against the single-node FFT.
+/// \brief Vendor plans between pairs of topologies, for the given orders of
+/// the axes, against the single-node FFT: out-of-place and in-place with
+/// cuFFTMp, out-of-place only with rocFFT (its plans are out-of-place).
 /// is_tpl_available must accept every case, so that plan_factory chooses the
-/// cuFFTMp plan.
+/// vendor plan.
 /// \tparam T Value type of the input (float/double or complex)
 /// \tparam LayoutType Layout of the Views
 /// \param[in] name Name of the test, printed with the cases
@@ -3353,13 +3370,19 @@ void test_tpl_plan_cases(
   }
 
   auto gu = make_global_input<InViewType>(global_extents);
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+  run_plan_cases<OutViewType>(name, execution_space(), gu, topologies, cases,
+                              ops, Placement::OutOfPlace);
+#else
   run_plan_cases_all_placements<OutViewType>(name, execution_space(), gu,
                                              topologies, cases, ops);
+#endif
 }
 
-/// \brief The same distribution in and out (T5): a cuFFTMp plan from each
-/// topology to itself, made with identical boxes, for every order of the
-/// axes (T6)
+/// \brief The same distribution in and out (T5): a vendor plan from each
+/// topology to itself, for every order of the axes with cuFFTMp (identical
+/// boxes, T6), and the orders the rocFFT is_tpl_available accepts (identical
+/// fields, without a permutation, T2r)
 /// \tparam T Value type of the input (float/double or complex)
 /// \tparam LayoutType Layout of the Views
 /// \param[in] name Name of the test, printed with the cases
@@ -3372,10 +3395,22 @@ void test_tpl_same_distribution(
     const std::array<std::array<std::size_t, DIM>, NTopologies>& topologies) {
   std::vector<std::pair<std::size_t, std::size_t>> pairs;
   for (std::size_t i = 0; i < NTopologies; ++i) pairs.emplace_back(i, i);
-  test_tpl_plan_cases<T, LayoutType>(name, global_extents, topologies, pairs,
-                                     all_axes_orders<DIM>(), TplPlanOps{});
-}
+  auto axes_list = all_axes_orders<DIM>();
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+  using InViewType = Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<T, DIM>,
+                                  LayoutType, execution_space>;
+  axes_list.erase(
+      std::remove_if(
+          axes_list.begin(), axes_list.end(),
+          [](const auto& axes) {
+            return KokkosFFT::Distributed::Impl::is_tpl_permutation_needed<
+                InViewType>(axes);
+          }),
+      axes_list.end());
 #endif
+  test_tpl_plan_cases<T, LayoutType>(name, global_extents, topologies, pairs,
+                                     axes_list, TplPlanOps{});
+}
 
 }  // namespace
 
@@ -3636,7 +3671,6 @@ TYPED_TEST(TestTplPlan2D, InPlaceView2D_C2C) {
   test_tpl2D_inplace_View2D<complex_type, layout_type>(this->m_nprocs);
 }
 
-#if defined(ENABLE_TPL_CUFFT_MP)
 TYPED_TEST(TestTplPlan2D, SameDistributionView2D) {
   using float_type   = typename TestFixture::float_type;
   using layout_type  = typename TestFixture::layout_type;
@@ -3693,6 +3727,7 @@ TYPED_TEST(TestTplPlan3D, SameDistributionView3D_Pencil) {
                                                         topologies);
 }
 
+#if defined(ENABLE_TPL_CUFFT_MP)
 TYPED_TEST(TestTplPlan3D, PermutedAxesView3D_Pencil) {
   using float_type   = typename TestFixture::float_type;
   using layout_type  = typename TestFixture::layout_type;
