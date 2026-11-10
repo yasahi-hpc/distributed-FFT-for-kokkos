@@ -27,6 +27,16 @@ using test_types      = ::testing::Types<std::pair<float, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutLeft>,
                                     std::pair<double, Kokkos::LayoutRight>>;
 
+// Whether a TplPlan constructed directly works on a single process. cuFFTMp
+// throws (its plans need a slab or a pencil decomposition); rocFFT makes its
+// plans from bricks, which also describe a single process. is_tpl_available
+// rejects a single process for both, so plan_factory uses the internal plans.
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+constexpr bool is_tpl_plan_on_one_process = true;
+#else
+constexpr bool is_tpl_plan_on_one_process = false;
+#endif
+
 // TplPlan is constructible only from its arguments: not default
 // constructible, not copyable, not movable, like the other internal plans.
 // Plan holds it through std::unique_ptr, so moving a Plan does not move it.
@@ -952,8 +962,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
   Kokkos::deep_copy(ref_u_inv_0, u_0);
   Kokkos::deep_copy(ref_u_inv_1, u_1);
 
-  // Not a slab geometry
-  if (nprocs == 1) {
+  // Not a slab geometry: cuFFTMp throws, rocFFT runs the cases below
+  if (nprocs == 1 && !is_tpl_plan_on_one_process) {
     ASSERT_THROW(
         {
           KokkosFFT::Distributed::Impl::TplPlan plan_0_1_ax01(
@@ -1470,8 +1480,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
   Kokkos::deep_copy(ref_u_inv_1, u_1);
   Kokkos::deep_copy(ref_u_inv_2, u_2);
 
-  // Not a slab geometry
-  if (nprocs == 1) {
+  // Not a slab geometry: cuFFTMp throws, rocFFT runs the cases below
+  if (nprocs == 1 && !is_tpl_plan_on_one_process) {
     // topology0 -> topology1
     // (n0, n1, n2/p) -> (n0, (n1/2+1)/p, n2)
     ASSERT_THROW(

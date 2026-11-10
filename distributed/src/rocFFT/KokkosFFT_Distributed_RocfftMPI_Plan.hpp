@@ -186,7 +186,7 @@ void create_plan(
     plan = std::make_unique<PlanType>(
         reversed_fft_extents, in_lower, in_upper, out_lower, out_upper,
         in_strides, out_strides, in_buffer_size, out_buffer_size, forward_scale,
-        backward_scale, comm);
+        backward_scale, exec_space.hip_device(), comm);
     plan->commit(exec_space);
   } else {
     KOKKOSFFT_THROW_IF(true, "Plan can be made for 2D or 3D Views only");

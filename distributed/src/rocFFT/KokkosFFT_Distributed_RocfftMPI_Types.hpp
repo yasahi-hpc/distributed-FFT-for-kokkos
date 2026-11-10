@@ -25,7 +25,7 @@ struct ScopedRocfftField {
   /// \param[in] field_upper (end0, end1, ..., end_batch)
   /// \param[in] brick_stride (stride0, stride1, ..., stride_batch)
   /// \param[in] batch_size
-  /// \param[in] deviceID
+  /// \param[in] deviceID HIP device on which the brick is
   ScopedRocfftField(const std::vector<std::size_t> &field_lower,
                     const std::vector<std::size_t> &field_upper,
                     const std::vector<std::size_t> &brick_stride,
@@ -90,7 +90,7 @@ struct ScopedRocfftMPIPlan {
                       const std::vector<std::size_t> &strides_input,
                       const std::vector<std::size_t> &strides_output,
                       KokkosFFT::Direction direction, double scale_factor,
-                      const MPI_Comm &comm)
+                      int device, const MPI_Comm &comm)
       : m_comm(comm) {
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_create(&m_description));
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_comm(
@@ -113,10 +113,13 @@ struct ScopedRocfftMPIPlan {
           m_description, scale_factor));
     }
 
+    // The bricks are on the device of this rank (the one of the execution
+    // space): with every GPU visible to every rank, device 0 would make
+    // rocFFT read the data of the other ranks on the wrong GPU
     ScopedRocfftField scoped_infield(lower_input, upper_input, strides_input, 1,
-                                     0);
+                                     device);
     ScopedRocfftField scoped_outfield(lower_output, upper_output,
-                                      strides_output, 1, 0);
+                                      strides_output, 1, device);
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_infield(
         m_description, scoped_infield.field()));
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_outfield(
@@ -222,6 +225,7 @@ struct ScopedRocfftMPIBidirectionalPlan {
   /// in the mapped order), 0 without transpose
   /// \param[in] forward_scale Scale factor of the forward plan
   /// \param[in] backward_scale Scale factor of the backward plan
+  /// \param[in] device HIP device of this rank, where its bricks are
   ScopedRocfftMPIBidirectionalPlan(
       const std::vector<std::size_t> &length,
       const std::vector<std::size_t> &lower_input,
@@ -231,13 +235,16 @@ struct ScopedRocfftMPIBidirectionalPlan {
       const std::vector<std::size_t> &strides_input,
       const std::vector<std::size_t> &strides_output,
       std::size_t in_buffer_size, std::size_t out_buffer_size,
-      double forward_scale, double backward_scale, const MPI_Comm &comm)
+      double forward_scale, double backward_scale, int device,
+      const MPI_Comm &comm)
       : m_plan_forward(length, lower_input, upper_input, lower_output,
                        upper_output, strides_input, strides_output,
-                       KokkosFFT::Direction::forward, forward_scale, comm),
+                       KokkosFFT::Direction::forward, forward_scale, device,
+                       comm),
         m_plan_backward(length, lower_output, upper_output, lower_input,
                         upper_input, strides_output, strides_input,
-                        KokkosFFT::Direction::backward, backward_scale, comm),
+                        KokkosFFT::Direction::backward, backward_scale, device,
+                        comm),
         m_work_buffer("KokkosFFT::Distributed::rocFFTMPI_work_buffer",
                       std::max(m_plan_forward.workspace_size(),
                                m_plan_backward.workspace_size())),
