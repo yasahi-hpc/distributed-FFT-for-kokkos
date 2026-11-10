@@ -168,8 +168,9 @@ void create_plan(
     // its order (LayoutRight, no transpose) and do not share their data.
     // Otherwise, through buffers (exec_plan): with a transpose, two buffers
     // in the mapped order, A for the forward input, B for its output;
-    // in-place without a transpose, one staging buffer A for the input of
-    // either direction.
+    // in-place, or for the backward (C2R) transform of an R2C plan, which may
+    // overwrite its input, without a transpose: one staging buffer A for the
+    // input of either direction.
     using in_value_type  = typename InViewType::non_const_value_type;
     using out_value_type = typename OutViewType::non_const_value_type;
     const std::size_t in_bytes =
@@ -180,7 +181,8 @@ void create_plan(
     if (is_rocfft_mpi_buffer_needed<InViewType, OutViewType>(map)) {
       in_buffer_size  = in_bytes;
       out_buffer_size = out_bytes;
-    } else if (check_inplace(in, out)) {
+    } else if (KokkosFFT::Impl::is_real_v<in_value_type> ||
+               check_inplace(in, out)) {
       in_buffer_size = std::max(in_bytes, out_bytes);
     }
     plan = std::make_unique<PlanType>(

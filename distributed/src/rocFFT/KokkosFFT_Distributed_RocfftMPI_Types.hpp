@@ -195,7 +195,8 @@ struct ScopedRocfftMPIPlan {
 /// input is preserved. In-place without a transpose, the plans stay
 /// out-of-place: the input is copied into A (the staging buffer, large
 /// enough for the input of either direction) and the plan runs from A into
-/// the output. Otherwise, both buffers are empty.
+/// the output; so does the backward (C2R) transform of an R2C plan, which
+/// may overwrite its input. Otherwise, both buffers are empty.
 ///
 /// The normalization is done by rocFFT (the scale factor of each plan, fixed
 /// at its creation), so TplPlan does not normalize (scales_in_transform).
@@ -273,12 +274,11 @@ struct ScopedRocfftMPIBidirectionalPlan {
                     KokkosFFT::Impl::create_layout<layout_type>(extents));
   }
 
-  /// \brief A View of the given type on the staging buffer of an in-place
-  /// plan (A), for the input of either direction
+  /// \brief A View of the given type on the staging buffer (A) of an
+  /// in-place or R2C plan, for the input of either direction
   /// \tparam ViewType Kokkos View type (LayoutRight) to wrap the buffer
   /// \param[in] extents Extents of the View
-  /// \throws std::runtime_error if the plan was not made in-place (the buffer
-  /// is too small)
+  /// \throws std::runtime_error if the staging buffer is too small
   template <typename ViewType, std::size_t DIM>
   auto staging_data(const std::array<std::size_t, DIM> &extents) const {
     using value_type  = typename ViewType::non_const_value_type;
@@ -286,8 +286,8 @@ struct ScopedRocfftMPIBidirectionalPlan {
     KOKKOSFFT_THROW_IF(
         m_buffer_a.size() <
             KokkosFFT::Impl::total_size(extents) * sizeof(value_type),
-        "ScopedRocfftMPIBidirectionalPlan: the plan was not made for "
-        "in-place transforms");
+        "ScopedRocfftMPIBidirectionalPlan: the staging buffer is too small "
+        "(the plan was made out-of-place, or without a staging buffer)");
     return ViewType(reinterpret_cast<value_type *>(m_buffer_a.data()),
                     KokkosFFT::Impl::create_layout<layout_type>(extents));
   }
