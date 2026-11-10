@@ -4,6 +4,7 @@
 #include <utility>
 #include <algorithm>
 #include <iomanip>
+#include <iostream>
 #include <Kokkos_Core.hpp>
 
 template <typename ViewType>
@@ -47,6 +48,30 @@ bool allclose(const ExecutionSpace& exec, const AViewType& a,
         err += static_cast<int>(not_close);
       },
       error);
+
+  if (error != 0) {
+    // Report the size of the mismatch, to choose tolerances from data: the
+    // largest |a - b|, and the smallest atol that would pass with this rtol
+    double max_diff = 0, needed_atol = 0;
+    Kokkos::parallel_reduce(
+        "KokkosFFT::Test::allclose_report",
+        Kokkos::RangePolicy<ExecutionSpace, Kokkos::IndexType<std::size_t>>(
+            exec, 0, n),
+        KOKKOS_LAMBDA(const std::size_t& i, double& diff, double& need) {
+          const double d = Kokkos::abs(ptr_a[i] - ptr_b[i]);
+          const double e = d - rtol * Kokkos::abs(ptr_b[i]);
+          if (d > diff) diff = d;
+          if (e > need) need = e;
+        },
+        Kokkos::Max<double>(max_diff), Kokkos::Max<double>(needed_atol));
+    std::cerr << std::scientific << std::setprecision(3) << "allclose("
+              << a.label() << ", " << b.label() << "): " << error << " of " << n
+              << " not close (rtol " << rtol << ", atol " << atol
+              << "), max |a - b| " << max_diff << ", atol needed "
+              << needed_atol << std::endl;
+    std::cerr << std::resetiosflags(std::ios_base::floatfield)
+              << std::setprecision(6);
+  }
 
   return error == 0;
 }

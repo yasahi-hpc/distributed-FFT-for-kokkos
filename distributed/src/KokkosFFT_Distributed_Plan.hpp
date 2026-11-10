@@ -76,8 +76,8 @@ plan_factory(
                 (InViewType::rank() == 3 && DIM == 3)) {
     if (is_tpl_available(exec_space, in, out, axes, in_topology,
                          out_topology)) {
-      return std::make_unique<
-          TplPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
+      return std::make_unique<TplPlan<ExecutionSpace, InViewType, OutViewType,
+                                      DIM, InLayoutType, OutLayoutType>>(
           exec_space, in, out, axes, in_topology, out_topology, comm, norm);
     }
   }
@@ -86,11 +86,12 @@ plan_factory(
   switch (topology_type) {
     case TopologyType::Shared:
       return std::make_unique<
-          SharedPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
-          exec_space, in, out, axes, in_topology, out_topology, comm, norm);
+          SharedPlan<ExecutionSpace, InViewType, OutViewType, DIM, InLayoutType,
+                     OutLayoutType>>(exec_space, in, out, axes, in_topology,
+                                     out_topology, comm, norm);
     case TopologyType::Slab:
-      return std::make_unique<
-          SlabPlan<ExecutionSpace, InViewType, OutViewType, DIM>>(
+      return std::make_unique<SlabPlan<ExecutionSpace, InViewType, OutViewType,
+                                       DIM, InLayoutType, OutLayoutType>>(
           exec_space, in, out, axes, in_topology, out_topology, comm, norm);
     case TopologyType::Pencil:
       if constexpr (InViewType::rank() >= 3) {
@@ -149,9 +150,9 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           std::size_t DIM = 1, typename InLayoutType = Kokkos::LayoutRight,
           typename OutLayoutType = Kokkos::LayoutRight>
 class Plan {
-  using BasePlanType =
-      Impl::BasePlan<ExecutionSpace, InViewType, OutViewType, DIM>;
-  using axes_type = KokkosFFT::axis_type<DIM>;
+  using BasePlanType = Impl::BasePlan<ExecutionSpace, InViewType, OutViewType,
+                                      DIM, InLayoutType, OutLayoutType>;
+  using axes_type    = KokkosFFT::axis_type<DIM>;
   using in_topology_type =
       Topology<std::size_t, InViewType::rank(), InLayoutType>;
   using out_topology_type =
