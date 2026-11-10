@@ -24,13 +24,14 @@ template <typename ExecutionSpace, typename InViewType, typename OutViewType,
           typename OutLayoutType = Kokkos::LayoutRight>
 bool is_tpl_available(
     const ExecutionSpace& /*exec_space*/, const InViewType& /*in*/,
-    const OutViewType& /*out*/, const KokkosFFT::axis_type<DIM>& axes,
+    const OutViewType& /*out*/, const KokkosFFT::axis_type<DIM>& /*axes*/,
     const Topology<std::size_t, InViewType::rank(), InLayoutType>& in_topology,
     const Topology<std::size_t, OutViewType::rank(), OutLayoutType>&
         out_topology) {
-  // LayoutLeft Views run either on the reversed LayoutRight Views (no copy)
-  // or through a copy that changes the layout (is_tpl_permutation_needed);
-  // the Views must have the same layout
+  // Any order of the axes and either layout (T4a): LayoutLeft Views run on
+  // the reversed LayoutRight Views when that needs no transpose (no copy);
+  // otherwise exec_plan transposes (and changes the layout) through the
+  // buffers A and B. The Views must have the same layout.
   if constexpr (!std::is_same_v<typename InViewType::array_layout,
                                 typename OutViewType::array_layout>) {
     return false;
@@ -38,11 +39,6 @@ bool is_tpl_available(
 
   // In-place transforms (in and out share their data) run through the
   // staging buffer (exec_plan), with the out-of-place plans: no rejection
-
-  // The axes in the order the plan is made with (canonical_tpl_axes): no
-  // transpose when only the order of the axes differs, nor for a LayoutLeft
-  // View that needs only a change of layout or runs reversed
-  if (is_tpl_permutation_needed<InViewType>(axes)) return false;
 
   if constexpr ((InViewType::rank() == 2 && DIM == 2) ||
                 (InViewType::rank() == 3 && DIM == 3)) {
