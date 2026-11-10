@@ -37,6 +37,24 @@ constexpr bool is_tpl_plan_on_one_process = true;
 constexpr bool is_tpl_plan_on_one_process = false;
 #endif
 
+/// \brief The atol of a forward check (the transform against the single-node
+/// FFT). Float with rocFFT needs a larger one: on MI250X, a few elements close
+/// to zero of outputs of magnitude about N / 2 miss by up to 7e-5 (atol 2e-5
+/// needed with rtol 1e-5, for extents up to 13 x 10 x 17), float rounding
+/// relative to the scale of the output. Double and cuFFTMp keep theirs.
+/// \tparam T Value type of the input (float/double or complex)
+/// \param[in] atol The atol of the check otherwise
+template <typename T>
+double forward_atol(double atol = 1.0e-8) {
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+  if constexpr (std::is_same_v<KokkosFFT::Impl::base_floating_point_type<T>,
+                               float>) {
+    return std::max(atol, 1.0e-4);
+  }
+#endif
+  return atol;
+}
+
 // TplPlan is constructible only from its arguments: not default
 // constructible, not copyable, not movable, like the other internal plans.
 // Plan holds it through std::unique_ptr, so moving a Plan does not move it.
@@ -1001,8 +1019,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax01(
           exec, u_0, u_hat_0_ax01, ax01, topology0, topology0, MPI_COMM_WORLD);
       plan_0_0_ax01.forward(u_0, u_hat_0_ax01);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01, 1.0e-5, 1.0e-5));
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01, 1.0e-5,
+                           forward_atol<T>(1.0e-5)));
 
       plan_0_0_ax01.backward(u_hat_0_ax01, u_inv_0);
       EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
@@ -1016,8 +1034,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_0_0_ax10(
           exec, u_0, u_hat_0_ax10, ax10, topology0, topology0, MPI_COMM_WORLD);
       plan_0_0_ax10.forward(u_0, u_hat_0_ax10);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10, 1.0e-5, 1.0e-5));
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10, 1.0e-5,
+                           forward_atol<T>(1.0e-5)));
 
       plan_0_0_ax10.backward(u_hat_0_ax10, u_inv_0);
       EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
@@ -1031,7 +1049,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_1_ax01, ax01, topology0, topology1, MPI_COMM_WORLD);
 
       plan_0_1_ax01.forward(u_0, u_hat_1_ax01);
-      EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01));
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01, 1.0e-5,
+                           forward_atol<T>(1.0e-8)));
 
       plan_0_1_ax01.backward(u_hat_1_ax01, u_inv_0);
       EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
@@ -1045,8 +1064,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_1_ax10, ax10, topology0, topology1, MPI_COMM_WORLD);
 
       plan_0_1_ax10.forward(u_0, u_hat_1_ax10);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10, 1.0e-5, 1.0e-6));
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10, 1.0e-5,
+                           forward_atol<T>(1.0e-6)));
 
       plan_0_1_ax10.backward(u_hat_1_ax10, u_inv_0);
       EXPECT_TRUE(allclose(exec, u_inv_0, ref_u_inv_0, 1.0e-5, 1.0e-6));
@@ -1059,8 +1078,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax01(
           exec, u_1, u_hat_0_ax01, ax01, topology1, topology0, MPI_COMM_WORLD);
       plan_1_0_ax01.forward(u_1, u_hat_0_ax01);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01, 1.0e-5, 1.0e-6));
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax01, ref_u_hat_0_ax01, 1.0e-5,
+                           forward_atol<T>(1.0e-6)));
 
       plan_1_0_ax01.backward(u_hat_0_ax01, u_inv_1);
       EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
@@ -1073,7 +1092,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_1_0_ax10(
           exec, u_1, u_hat_0_ax10, ax10, topology1, topology0, MPI_COMM_WORLD);
       plan_1_0_ax10.forward(u_1, u_hat_0_ax10);
-      EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10));
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax10, ref_u_hat_0_ax10, 1.0e-5,
+                           forward_atol<T>(1.0e-8)));
 
       plan_1_0_ax10.backward(u_hat_0_ax10, u_inv_1);
       EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
@@ -1087,8 +1107,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax01(
           exec, u_1, u_hat_1_ax01, ax01, topology1, topology1, MPI_COMM_WORLD);
       plan_1_1_ax01.forward(u_1, u_hat_1_ax01);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01, 1.0e-5, 1.0e-5));
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax01, ref_u_hat_1_ax01, 1.0e-5,
+                           forward_atol<T>(1.0e-5)));
 
       plan_1_1_ax01.backward(u_hat_1_ax01, u_inv_1);
       EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
@@ -1102,8 +1122,8 @@ void test_tpl2D_execute_View2D(std::size_t nprocs, std::size_t n0,
       KokkosFFT::Distributed::Impl::TplPlan plan_1_1_ax10(
           exec, u_1, u_hat_1_ax10, ax10, topology1, topology1, MPI_COMM_WORLD);
       plan_1_1_ax10.forward(u_1, u_hat_1_ax10);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10, 1.0e-5, 1.0e-5));
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax10, ref_u_hat_1_ax10, 1.0e-5,
+                           forward_atol<T>(1.0e-5)));
 
       plan_1_1_ax10.backward(u_hat_1_ax10, u_inv_1);
       EXPECT_TRUE(allclose(exec, u_inv_1, ref_u_inv_1, 1.0e-5, 1.0e-6));
@@ -1549,12 +1569,14 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_1_ax012, ax012, topology0, topology1,
           MPI_COMM_WORLD);
       plan_0_1_ax012.forward(u_0, u_hat_1_ax012);
-      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5,
+                           forward_atol<T>(1.0e-8)))
           << "Failed topo 0 -> topo 1 with ax {0, 1, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
       plan_0_1_ax012.forward(u_0, u_hat_1_ax012);
-      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5,
+                           forward_atol<T>(1.0e-8)))
           << "Failed (second execution) topo 0 -> topo 1 with ax {0, 1, 2} (nx "
              "x ny x nz): "
           << n0 << " x " << n1 << " x " << n2;
@@ -1579,8 +1601,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_1_ax021, ax021, topology0, topology1,
           MPI_COMM_WORLD);
       plan_0_1_ax021.forward(u_0, u_hat_1_ax021);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 0 -> topo 1 with ax {0, 2, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1598,8 +1620,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_1_ax102, ax102, topology0, topology1,
           MPI_COMM_WORLD);
       plan_0_1_ax102.forward(u_0, u_hat_1_ax102);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102, 1.0e-5, 1.0e-4))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102, 1.0e-5,
+                           forward_atol<T>(1.0e-4)))
           << "Failed topo 0 -> topo 1 with ax {1, 0, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1617,8 +1639,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_1_ax120, ax120, topology0, topology1,
           MPI_COMM_WORLD);
       plan_0_1_ax120.forward(u_0, u_hat_1_ax120);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 0 -> topo 1 with ax {1, 2, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1636,8 +1658,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_1_ax201, ax201, topology0, topology1,
           MPI_COMM_WORLD);
       plan_0_1_ax201.forward(u_0, u_hat_1_ax201);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 0 -> topo 1 with ax {2, 0, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1655,8 +1677,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_1_ax210, ax210, topology0, topology1,
           MPI_COMM_WORLD);
       plan_0_1_ax210.forward(u_0, u_hat_1_ax210);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 0 -> topo 1 with ax {2, 1, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1674,8 +1696,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
           MPI_COMM_WORLD);
       plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 0 -> topo 2 with ax {0, 1, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1693,8 +1715,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_2_ax021, ax021, topology0, topology2,
           MPI_COMM_WORLD);
       plan_0_2_ax021.forward(u_0, u_hat_2_ax021);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 0 -> topo 2 with ax {0, 2, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1712,7 +1734,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_2_ax102, ax102, topology0, topology2,
           MPI_COMM_WORLD);
       plan_0_2_ax102.forward(u_0, u_hat_2_ax102);
-      EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102, 1.0e-5,
+                           forward_atol<T>(1.0e-8)))
           << "Failed topo 0 -> topo 2 with ax {1, 0, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1730,8 +1753,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_2_ax120, ax120, topology0, topology2,
           MPI_COMM_WORLD);
       plan_0_2_ax120.forward(u_0, u_hat_2_ax120);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 0 -> topo 2 with ax {1, 2, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1749,8 +1772,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_2_ax201, ax201, topology0, topology2,
           MPI_COMM_WORLD);
       plan_0_2_ax201.forward(u_0, u_hat_2_ax201);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 0 -> topo 2 with ax {2, 0, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1768,8 +1791,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_0, u_hat_2_ax210, ax210, topology0, topology2,
           MPI_COMM_WORLD);
       plan_0_2_ax210.forward(u_0, u_hat_2_ax210);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 0 -> topo 2 with ax {2, 1, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1787,8 +1810,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_0_ax012, ax012, topology1, topology0,
           MPI_COMM_WORLD);
       plan_1_0_ax012.forward(u_1, u_hat_0_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 1 -> topo 0 with ax {0, 1, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1806,8 +1829,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_0_ax021, ax021, topology1, topology0,
           MPI_COMM_WORLD);
       plan_1_0_ax021.forward(u_1, u_hat_0_ax021);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 1 -> topo 0 with ax {0, 2, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1825,8 +1848,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_0_ax102, ax102, topology1, topology0,
           MPI_COMM_WORLD);
       plan_1_0_ax102.forward(u_1, u_hat_0_ax102);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 1 -> topo 0 with ax {1, 0, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1844,8 +1867,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_0_ax120, ax120, topology1, topology0,
           MPI_COMM_WORLD);
       plan_1_0_ax120.forward(u_1, u_hat_0_ax120);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 1 -> topo 0 with ax {1, 2, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1863,8 +1886,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_0_ax201, ax201, topology1, topology0,
           MPI_COMM_WORLD);
       plan_1_0_ax201.forward(u_1, u_hat_0_ax201);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 1 -> topo 0 with ax {2, 0, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1882,8 +1905,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_0_ax210, ax210, topology1, topology0,
           MPI_COMM_WORLD);
       plan_1_0_ax210.forward(u_1, u_hat_0_ax210);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 1 -> topo 0 with ax {2, 1, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1901,8 +1924,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_2_ax012, ax012, topology1, topology2,
           MPI_COMM_WORLD);
       plan_1_2_ax012.forward(u_1, u_hat_2_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 1 -> topo 2 with ax {0, 1, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1920,8 +1943,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_2_ax021, ax021, topology1, topology2,
           MPI_COMM_WORLD);
       plan_1_2_ax021.forward(u_1, u_hat_2_ax021);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax021, ref_u_hat_2_ax021, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 1 -> topo 2 with ax {0, 2, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1939,8 +1962,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_2_ax102, ax102, topology1, topology2,
           MPI_COMM_WORLD);
       plan_1_2_ax102.forward(u_1, u_hat_2_ax102);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax102, ref_u_hat_2_ax102, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 1 -> topo 2 with ax {1, 0, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1958,8 +1981,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_2_ax120, ax120, topology1, topology2,
           MPI_COMM_WORLD);
       plan_1_2_ax120.forward(u_1, u_hat_2_ax120);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax120, ref_u_hat_2_ax120, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 1 -> topo 2 with ax {1, 2, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1977,7 +2000,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_2_ax201, ax201, topology1, topology2,
           MPI_COMM_WORLD);
       plan_1_2_ax201.forward(u_1, u_hat_2_ax201);
-      EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax201, ref_u_hat_2_ax201, 1.0e-5,
+                           forward_atol<T>(1.0e-8)))
           << "Failed topo 1 -> topo 2 with ax {2, 0, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -1995,8 +2019,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_1, u_hat_2_ax210, ax210, topology1, topology2,
           MPI_COMM_WORLD);
       plan_1_2_ax210.forward(u_1, u_hat_2_ax210);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax210, ref_u_hat_2_ax210, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 1 -> topo 2 with ax {2, 1, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2014,8 +2038,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_0_ax012, ax012, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 2 -> topo 0 with ax {0, 1, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2033,8 +2057,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_0_ax021, ax021, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax021.forward(u_2, u_hat_0_ax021);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax021, ref_u_hat_0_ax021, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 2 -> topo 0 with ax {0, 2, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2052,8 +2076,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_0_ax102, ax102, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax102.forward(u_2, u_hat_0_ax102);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax102, ref_u_hat_0_ax102, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 2 -> topo 0 with ax {1, 0, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2071,8 +2095,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_0_ax120, ax120, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax120.forward(u_2, u_hat_0_ax120);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax120, ref_u_hat_0_ax120, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 2 -> topo 0 with ax {1, 2, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2090,8 +2114,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_0_ax201, ax201, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax201.forward(u_2, u_hat_0_ax201);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax201, ref_u_hat_0_ax201, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 2 -> topo 0 with ax {2, 0, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2109,8 +2133,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_0_ax210, ax210, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax210.forward(u_2, u_hat_0_ax210);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210, 1.0e-5, 5.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax210, ref_u_hat_0_ax210, 1.0e-5,
+                           forward_atol<T>(5.0e-5)))
           << "Failed topo 2 -> topo 0 with ax {2, 1, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2128,8 +2152,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_1_ax012, ax012, topology2, topology1,
           MPI_COMM_WORLD);
       plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 2 -> topo 1 with ax {0, 1, 2} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2147,8 +2171,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_1_ax021, ax021, topology2, topology1,
           MPI_COMM_WORLD);
       plan_2_1_ax021.forward(u_2, u_hat_1_ax021);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax021, ref_u_hat_1_ax021, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 2 -> topo 1 with ax {0, 2, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2166,8 +2190,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_1_ax102, ax102, topology2, topology1,
           MPI_COMM_WORLD);
       plan_2_1_ax102.forward(u_2, u_hat_1_ax102);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102, 1.0e-5, 5.0e-5));
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax102, ref_u_hat_1_ax102, 1.0e-5,
+                           forward_atol<T>(5.0e-5)));
 
       plan_2_1_ax102.backward(u_hat_1_ax102, u_inv_2);
       EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6))
@@ -2183,8 +2207,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_1_ax120, ax120, topology2, topology1,
           MPI_COMM_WORLD);
       plan_2_1_ax120.forward(u_2, u_hat_1_ax120);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120, 1.0e-5, 5.0e-5));
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax120, ref_u_hat_1_ax120, 1.0e-5,
+                           forward_atol<T>(5.0e-5)));
 
       plan_2_1_ax120.backward(u_hat_1_ax120, u_inv_2);
       EXPECT_TRUE(allclose(exec, u_inv_2, ref_u_inv_2, 1.0e-5, 1.0e-6));
@@ -2197,8 +2221,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_1_ax201, ax201, topology2, topology1,
           MPI_COMM_WORLD);
       plan_2_1_ax201.forward(u_2, u_hat_1_ax201);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201, 1.0e-5, 1.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax201, ref_u_hat_1_ax201, 1.0e-5,
+                           forward_atol<T>(1.0e-5)))
           << "Failed topo 2 -> topo 1 with ax {2, 0, 1} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2216,7 +2240,8 @@ void test_tpl3D_execute_View3D(std::size_t nprocs, std::size_t n0,
           exec, u_2, u_hat_1_ax210, ax210, topology2, topology1,
           MPI_COMM_WORLD);
       plan_2_1_ax210.forward(u_2, u_hat_1_ax210);
-      EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax210, ref_u_hat_1_ax210, 1.0e-5,
+                           forward_atol<T>(1.0e-8)))
           << "Failed topo 2 -> topo 1 with ax {2, 1, 0} (nx x ny x nz): " << n0
           << " x " << n1 << " x " << n2;
 
@@ -2724,16 +2749,16 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy,
           exec, u_0, u_hat_2_ax012, ax012, topology0, topology2,
           MPI_COMM_WORLD);
       plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 1.0e-6))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5,
+                           forward_atol<T>(1.0e-6)))
           << "Failed forward topo 0 -> topo 2 with ax = {0, 1, 2} (nx x ny x "
              "nz) = ("
           << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
           << ", " << npy << ")";
 
       plan_0_2_ax012.forward(u_0, u_hat_2_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5, 1.0e-6))
+      EXPECT_TRUE(allclose(exec, u_hat_2_ax012, ref_u_hat_2_ax012, 1.0e-5,
+                           forward_atol<T>(1.0e-6)))
           << "Failed forward topo 0 -> topo 2 with ax = {0, 1, 2} (nx x ny x "
              "nz) = ("
           << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
@@ -2761,16 +2786,16 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy,
           exec, u_2, u_hat_0_ax012, ax012, topology2, topology0,
           MPI_COMM_WORLD);
       plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5, 1.0e-6))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5,
+                           forward_atol<T>(1.0e-6)))
           << "Failed forward topo 2 -> topo 0 with ax = {0, 1, 2} (nx x ny x "
              "nz) = ("
           << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
           << ", " << npy << ")";
 
       plan_2_0_ax012.forward(u_2, u_hat_0_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5, 1.0e-6))
+      EXPECT_TRUE(allclose(exec, u_hat_0_ax012, ref_u_hat_0_ax012, 1.0e-5,
+                           forward_atol<T>(1.0e-6)))
           << "Failed forward topo 2 -> topo 0 with ax = {0, 1, 2} (nx x ny x "
              "nz) = ("
           << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
@@ -2798,16 +2823,16 @@ void test_tpl3D_execute_View3D_pencil(std::size_t npx, std::size_t npy,
           exec, u_2, u_hat_1_ax012, ax012, topology2, topology1,
           MPI_COMM_WORLD);
       plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5, 7.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5,
+                           forward_atol<T>(7.0e-5)))
           << "Failed forward topo 2 -> topo 1 with ax = {0, 1, 2} (nx x ny x "
              "nz) = ("
           << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
           << ", " << npy << ")";
 
       plan_2_1_ax012.forward(u_2, u_hat_1_ax012);
-      EXPECT_TRUE(
-          allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5, 7.0e-5))
+      EXPECT_TRUE(allclose(exec, u_hat_1_ax012, ref_u_hat_1_ax012, 1.0e-5,
+                           forward_atol<T>(7.0e-5)))
           << "Failed forward topo 2 -> topo 1 with ax = {0, 1, 2} (nx x ny x "
              "nz) = ("
           << n0 << " x " << n1 << " x " << n2 << ") with (px, py) = (" << npx
@@ -3127,7 +3152,8 @@ void test_tpl3D_normalization_View3D(std::size_t nprocs) {
       KokkosFFT::Distributed::Impl::TplPlan plan(
           exec, u, u_hat, axes, topology0, topology1, comm, norm);
       plan.forward(u, u_hat);
-      EXPECT_TRUE(allclose(exec, u_hat, ref_u_hat, 1.0e-5, 1.0e-6))
+      EXPECT_TRUE(
+          allclose(exec, u_hat, ref_u_hat, 1.0e-5, forward_atol<T>(1.0e-6)))
           << "axes {" << axes[0] << ", " << axes[1] << ", " << axes[2]
           << "}, normalization " << static_cast<int>(norm);
 
@@ -3273,7 +3299,8 @@ void test_tpl_plan_cases(
       Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<complex_type, DIM>,
                    LayoutType, execution_space>;
 
-  const Tolerance tol_fwd{1.0e-5, 1.0e-5}, tol_bwd{1.0e-5, 1.0e-6};
+  const Tolerance tol_fwd{1.0e-5, forward_atol<T>(1.0e-5)},
+      tol_bwd{1.0e-5, 1.0e-6};
   std::vector<PlanCase<DIM>> cases;
   for (const auto& pair : pairs) {
     const std::size_t in_topo = pair.first, out_topo = pair.second;
