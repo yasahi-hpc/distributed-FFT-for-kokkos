@@ -1,8 +1,10 @@
+#include <iostream>
 #include <string>
-#include <cstdlib>
+#include <vector>
 #include <mpi.h>
 #include <benchmark/benchmark.h>
 #include "Benchmark_Context.hpp"
+#include "Benchmark_MPI_Context.hpp"
 #include <Kokkos_Core.hpp>
 
 // This reporter does nothing.
@@ -15,48 +17,66 @@ class NullReporter : public ::benchmark::BenchmarkReporter {
   virtual void Finalize() {}
 };
 
-bool has_output_flag(int argc, char **argv) {
+/// \brief The arguments of a rank other than 0: without the output file
+/// arguments, and with an empty --benchmark_out last, which overrides the
+/// BENCHMARK_OUT environment variable. Google Benchmark opens the output
+/// file in RunSpecifiedBenchmarks on every process that has one, even with a
+/// null file reporter, so that the processes would write the same file.
+std::vector<char *> args_without_output_file(int argc, char **argv) {
+  static char empty_out[] = "--benchmark_out=";
+  std::vector<char *> args;
   for (int i = 0; i < argc; ++i) {
-    std::string arg = argv[i];
-    if (arg.find("--benchmark_out=") == 0) {
-      return true;
+    const std::string arg = argv[i];
+    if (i > 0 && (arg.rfind("--benchmark_out=", 0) == 0 ||
+                  arg.rfind("--benchmark_out_format=", 0) == 0)) {
+      continue;
     }
+    args.push_back(argv[i]);
   }
-  return false;
+  args.push_back(empty_out);
+  args.push_back(nullptr);
+  return args;
 }
 
-bool has_output_envvar() { return std::getenv("BENCHMARK_OUT") != nullptr; }
-
 int main(int argc, char **argv) {
-  int provided;
+  // The library calls MPI from the thread that calls it only; ask for more,
+  // but run with what the MPI library provides
+  int provided = MPI_THREAD_SINGLE;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-  if (provided != MPI_THREAD_MULTIPLE) {
-    throw std::runtime_error("MPI_THREAD_MULTIPLE is needed");
-  }
 
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0 && provided < MPI_THREAD_FUNNELED) {
+    std::cerr << "Warning: MPI provides "
+              << KokkosFFT::Distributed::Benchmark::thread_level_name(provided)
+              << " only" << std::endl;
+  }
 
   Kokkos::initialize(argc, argv);
   {
+    std::vector<char *> args;
+    if (rank != 0) {
+      args = args_without_output_file(argc, argv);
+      argc = static_cast<int>(args.size()) - 1;
+      argv = args.data();
+    }
     ::benchmark::Initialize(&argc, argv);
     ::benchmark::SetDefaultTimeUnit(benchmark::kSecond);
 
+    // The MPI context is collective (every rank); the rest is reported by
+    // rank 0 only
+    KokkosFFT::Distributed::Benchmark::add_mpi_benchmark_context(MPI_COMM_WORLD,
+                                                                 provided);
     if (rank == 0) {
+      KokkosFFT::Distributed::Benchmark::add_benchmark_context(true);
       // root process will use a reporter from the usual set provided by
       // ::benchmark
-      KokkosFFT::Distributed::Benchmark::add_benchmark_context(true);
       ::benchmark::RunSpecifiedBenchmarks();
     } else {
-      // reporting from other processes is disabled by passing a custom reporter
+      // reporting from other processes is disabled by passing a custom
+      // reporter; they have no output file (args_without_output_file)
       NullReporter null;
-      bool has_file_output = has_output_flag(argc, argv) || has_output_envvar();
-      if (has_file_output) {
-        ::benchmark::RunSpecifiedBenchmarks(/* display_reporter = */ &null,
-                                            /* file_reporter = */ &null);
-      } else {
-        ::benchmark::RunSpecifiedBenchmarks(/* display_reporter = */ &null);
-      }
+      ::benchmark::RunSpecifiedBenchmarks(/* display_reporter = */ &null);
     }
 
     ::benchmark::Shutdown();

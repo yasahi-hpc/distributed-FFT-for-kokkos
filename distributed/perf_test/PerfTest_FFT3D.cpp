@@ -1,5 +1,7 @@
+#include <exception>
 #include <benchmark/benchmark.h>
 #include "Benchmark_Context.hpp"
+#include "Benchmark_Timing.hpp"
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed.hpp"
 
@@ -10,7 +12,7 @@ namespace Benchmark {
 using execution_space = Kokkos::DefaultExecutionSpace;
 
 template <typename T, typename LayoutType>
-static void benchmark_fft3D(benchmark::State& state) {
+void benchmark_fft3D_impl(benchmark::State& state) {
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -47,16 +49,30 @@ static void benchmark_fft3D(benchmark::State& state) {
                                     KokkosFFT::axis_type<3>{0, 1, 2},
                                     in_topology, out_topology, MPI_COMM_WORLD);
 
-  for (auto _ : state) {
-    Kokkos::Timer timer;
+  // The plan that ran (native or vendor)
+  state.SetLabel(plan.name());
+
+  auto forward = [&]() {
     KokkosFFT::Distributed::execute(plan, in, out,
                                     KokkosFFT::Direction::forward);
-    exec_space.fence();
-    auto elapsed = timer.seconds();
-    double max_elapsed_second;
-    MPI_Allreduce(&elapsed, &max_elapsed_second, 1, MPI_DOUBLE, MPI_MAX,
-                  MPI_COMM_WORLD);
-    report_results(state, in, out, max_elapsed_second);
+  };
+  warmup(exec_space, MPI_COMM_WORLD, forward);
+  for (auto _ : state) {
+    const double elapsed =
+        time_max_over_ranks(exec_space, MPI_COMM_WORLD, forward);
+    report_results(state, in, out, elapsed);
+  }
+}
+
+/// \brief benchmark_fft3D_impl, with an error (the same on every rank:
+/// plan creation, buffers) reported as the error of this benchmark, so that
+/// the next benchmarks still run
+template <typename T, typename LayoutType>
+static void benchmark_fft3D(benchmark::State& state) {
+  try {
+    benchmark_fft3D_impl<T, LayoutType>(state);
+  } catch (const std::exception& e) {
+    state.SkipWithError(e.what());
   }
 }
 
@@ -66,7 +82,8 @@ static void benchmark_fft3D(benchmark::State& state) {
       ->Unit(benchmark::kMillisecond)                                   \
       ->ArgNames({"N", "py"})                                           \
       ->RangeMultiplier(2)                                              \
-      ->Ranges({{n_begin, n_end}, {py_begin, py_end}})
+      ->Ranges({{n_begin, n_end}, {py_begin, py_end}})                  \
+      ->ComputeStatistics("min", min_statistic)
 
 BENCHMARK_FFT3D(float, LayoutLeft, 256, 1024, 1, 16);
 BENCHMARK_FFT3D(float, LayoutRight, 256, 1024, 1, 16);

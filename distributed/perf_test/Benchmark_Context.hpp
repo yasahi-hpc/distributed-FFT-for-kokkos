@@ -1,14 +1,21 @@
 #ifndef KOKKOSFFT_BENCHMARK_CONTEXT_HPP
 #define KOKKOSFFT_BENCHMARK_CONTEXT_HPP
 
+#include <algorithm>
 #include <cstdlib>
+#include <set>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <benchmark/benchmark.h>
 
 #include <Kokkos_Core.hpp>
 #include "KokkosFFT_Distributed_PrintConfiguration.hpp"
 #include <KokkosFFT_Distributed_Version_Info.hpp>
+
+// POSIX: the environment of the process
+extern char** environ;
 
 namespace KokkosFFT {
 namespace Distributed {
@@ -36,15 +43,18 @@ inline void add_kokkos_configuration(bool verbose) {
   KokkosFFT::Distributed::print_configuration(msg);
 
   // Iterate over lines returned from kokkos and extract key:value pairs
+  std::set<std::string> keys;
   std::stringstream ss{msg.str()};
   for (std::string line; std::getline(ss, line, '\n');) {
     auto found = line.find_first_of(':');
     if (found != std::string::npos) {
       auto val = remove_unwanted_characters(line.substr(found + 1));
-      // Ignore line without value, for example a category name
-      if (!val.empty()) {
-        benchmark::AddCustomContext(
-            remove_unwanted_characters(line.substr(0, found)), val);
+      auto key = remove_unwanted_characters(line.substr(0, found));
+      // Ignore line without value, for example a category name, and the
+      // keys that the configuration prints more than once (the first value
+      // is kept)
+      if (!val.empty() && !key.empty() && keys.insert(key).second) {
+        benchmark::AddCustomContext(key, val);
       }
     }
   }
@@ -68,22 +78,58 @@ inline void add_version_info() {
   }
 }
 
+/// \brief Whether an environment variable is recorded in the context: the
+/// variables that change how the benchmarks run (OpenMP, Kokkos and
+/// Kokkos-FFT, the communication libraries, GPU-aware MPI, the visible GPUs)
+inline bool is_recorded_env(const std::string& name) {
+  static const char* const prefixes[] = {"OMP_",
+                                         "KOKKOS_",
+                                         "KOKKOSFFT_",
+                                         "NVSHMEM_",
+                                         "ROCSHMEM_",
+                                         "NCCL_",
+                                         "RCCL_",
+                                         "UCX_",
+                                         "MPICH_GPU_",
+                                         "MPICH_OFI_",
+                                         "OMPI_MCA_",
+                                         "CUDA_VISIBLE_DEVICES",
+                                         "HIP_VISIBLE_DEVICES",
+                                         "ROCR_VISIBLE_DEVICES",
+                                         "CUFFT_",
+                                         "ROCFFT_"};
+  // Set by the Open MPI launcher for every process (job ids, URIs,
+  // directories, process counts): not settings of the run
+  static const char* const launcher_prefixes[] = {
+      "OMPI_MCA_orte_",        "OMPI_MCA_ess",
+      "OMPI_MCA_pmix",         "OMPI_MCA_plm_",
+      "OMPI_MCA_initial_wdir", "OMPI_MCA_shmem_RUNTIME_QUERY_hint"};
+  auto starts_with = [&name](const char* prefix) {
+    return name.rfind(prefix, 0) == 0;
+  };
+  for (const char* prefix : launcher_prefixes) {
+    if (starts_with(prefix)) return false;
+  }
+  for (const char* prefix : prefixes) {
+    if (starts_with(prefix)) return true;
+  }
+  return false;
+}
+
+/// \brief Add the recorded environment variables (is_recorded_env) to the
+/// benchmark context, sorted by name
 inline void add_env_info() {
-  auto num_threads = std::getenv("OMP_NUM_THREADS");
-  if (num_threads) {
-    benchmark::AddCustomContext("OMP_NUM_THREADS", num_threads);
+  std::vector<std::pair<std::string, std::string>> vars;
+  for (char** env = environ; env != nullptr && *env != nullptr; ++env) {
+    const std::string entry(*env);
+    const auto eq = entry.find('=');
+    if (eq == std::string::npos) continue;
+    std::string name = entry.substr(0, eq);
+    if (is_recorded_env(name)) vars.emplace_back(name, entry.substr(eq + 1));
   }
-  auto dynamic = std::getenv("OMP_DYNAMIC");
-  if (dynamic) {
-    benchmark::AddCustomContext("OMP_DYNAMIC", dynamic);
-  }
-  auto proc_bind = std::getenv("OMP_PROC_BIND");
-  if (proc_bind) {
-    benchmark::AddCustomContext("OMP_PROC_BIND", proc_bind);
-  }
-  auto places = std::getenv("OMP_PLACES");
-  if (places) {
-    benchmark::AddCustomContext("OMP_PLACES", places);
+  std::sort(vars.begin(), vars.end());
+  for (const auto& [name, value] : vars) {
+    benchmark::AddCustomContext(name, value);
   }
 }
 
