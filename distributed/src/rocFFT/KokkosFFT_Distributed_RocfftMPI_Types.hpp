@@ -21,30 +21,22 @@ struct ScopedRocfftField {
   rocfft_field m_field = nullptr;
 
  public:
-  /// \param[in] field_lower (start0, start1, ..., start_batch)
-  /// \param[in] field_upper (end0, end1, ..., end_batch)
-  /// \param[in] brick_stride (stride0, stride1, ..., stride_batch)
-  /// \param[in] batch_size
+  /// The brick has the FFT dimensions, fastest first, then the batch
+  /// dimension (rocFFT: dim + 1 entries).
+  /// \param[in] lower (start0, start1, ..., start_batch)
+  /// \param[in] upper (end0, end1, ..., end_batch)
+  /// \param[in] strides (stride0, stride1, ..., stride_batch), in elements
   /// \param[in] deviceID HIP device on which the brick is
-  ScopedRocfftField(const std::vector<std::size_t> &field_lower,
-                    const std::vector<std::size_t> &field_upper,
-                    const std::vector<std::size_t> &brick_stride,
-                    std::size_t batch_size, int deviceID) {
+  ScopedRocfftField(const std::vector<std::size_t> &lower,
+                    const std::vector<std::size_t> &upper,
+                    const std::vector<std::size_t> &strides, int deviceID) {
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_field_create(&m_field));
 
-    std::vector<std::size_t> lower   = field_lower;
-    std::vector<std::size_t> upper   = field_upper;
-    std::vector<std::size_t> strides = brick_stride;
-    lower.push_back(0);
-    upper.push_back(batch_size);
-    strides.push_back(0);
-
-    // Strides would be compued by
-    // (1, extents[n-1], strides[1] * extents[n-2], ...)
     rocfft_brick brick = nullptr;
-    KOKKOSFFT_CHECK_ROCFFT_CALL(
-        rocfft_brick_create(&brick, lower.data(), upper.data(), strides.data(),
-                            lower.size(), deviceID));
+    KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_brick_create(
+        &brick, const_cast<std::size_t *>(lower.data()),
+        const_cast<std::size_t *>(upper.data()),
+        const_cast<std::size_t *>(strides.data()), lower.size(), deviceID));
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_field_add_brick(m_field, brick));
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_brick_destroy(brick));
     brick = nullptr;
@@ -89,6 +81,7 @@ struct ScopedRocfftMPIPlan {
                       const std::vector<std::size_t> &upper_output,
                       const std::vector<std::size_t> &strides_input,
                       const std::vector<std::size_t> &strides_output,
+                      std::size_t number_of_transforms,
                       KokkosFFT::Direction direction, double scale_factor,
                       int device, const MPI_Comm &comm)
       : m_comm(comm) {
@@ -116,10 +109,10 @@ struct ScopedRocfftMPIPlan {
     // The bricks are on the device of this rank (the one of the execution
     // space): with every GPU visible to every rank, device 0 would make
     // rocFFT read the data of the other ranks on the wrong GPU
-    ScopedRocfftField scoped_infield(lower_input, upper_input, strides_input, 1,
+    ScopedRocfftField scoped_infield(lower_input, upper_input, strides_input,
                                      device);
     ScopedRocfftField scoped_outfield(lower_output, upper_output,
-                                      strides_output, 1, device);
+                                      strides_output, device);
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_infield(
         m_description, scoped_infield.field()));
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_add_outfield(
@@ -134,10 +127,10 @@ struct ScopedRocfftMPIPlan {
     // other ranks would hang in the next collective call.
     const rocfft_status status =
         rocfft_plan_create(&m_plan, place, fft_direction, m_precision,
-                           length.size(),   // Dimension
-                           length.data(),   // Lengths
-                           1,               // Number of transforms
-                           m_description);  // Description
+                           length.size(),         // Dimension
+                           length.data(),         // Lengths
+                           number_of_transforms,  // The global batch
+                           m_description);        // Description
     int is_created = status == rocfft_status_success, all_created = 0;
     ::MPI_Allreduce(&is_created, &all_created, 1, MPI_INT, MPI_LAND, m_comm);
     if (!all_created) {
@@ -198,6 +191,11 @@ struct ScopedRocfftMPIPlan {
 /// the output; so does the backward (C2R) transform of an R2C plan, which
 /// may overwrite its input. Otherwise, both buffers are empty.
 ///
+/// With strided bricks (T4b), the bricks describe the Views with their own
+/// strides in the order of the plan, so that a permutation or a change of
+/// layout needs no transpose: no buffer B, and A only as the staging buffer
+/// of the backward (C2R) transform of an R2C plan.
+///
 /// The normalization is done by rocFFT (the scale factor of each plan, fixed
 /// at its creation), so TplPlan does not normalize (scales_in_transform).
 template <typename ExecutionSpace, typename T1, typename T2>
@@ -218,12 +216,19 @@ struct ScopedRocfftMPIBidirectionalPlan {
   KokkosFFT::Impl::ScopedRocfftExecutionInfo m_execution_info;
   ByteViewType m_buffer_a, m_buffer_b;
 
+  //! Whether the bricks describe the Views with their own strides
+  bool m_is_strided = false;
+
  public:
   /// \param[in] in_buffer_size Size in bytes of buffer A (the forward input in
   /// the mapped order, or the staging buffer of an in-place plan), 0 if not
   /// needed
   /// \param[in] out_buffer_size Size in bytes of buffer B (the forward output
   /// in the mapped order), 0 without transpose
+  /// \param[in] number_of_transforms The global batch (1 without a batch
+  /// dimension)
+  /// \param[in] is_strided Whether the bricks describe the Views with their
+  /// own strides (no transpose)
   /// \param[in] forward_scale Scale factor of the forward plan
   /// \param[in] backward_scale Scale factor of the backward plan
   /// \param[in] device HIP device of this rank, where its bricks are
@@ -236,23 +241,24 @@ struct ScopedRocfftMPIBidirectionalPlan {
       const std::vector<std::size_t> &strides_input,
       const std::vector<std::size_t> &strides_output,
       std::size_t in_buffer_size, std::size_t out_buffer_size,
-      double forward_scale, double backward_scale, int device,
-      const MPI_Comm &comm)
+      std::size_t number_of_transforms, bool is_strided, double forward_scale,
+      double backward_scale, int device, const MPI_Comm &comm)
       : m_plan_forward(length, lower_input, upper_input, lower_output,
                        upper_output, strides_input, strides_output,
-                       KokkosFFT::Direction::forward, forward_scale, device,
-                       comm),
+                       number_of_transforms, KokkosFFT::Direction::forward,
+                       forward_scale, device, comm),
         m_plan_backward(length, lower_output, upper_output, lower_input,
                         upper_input, strides_output, strides_input,
-                        KokkosFFT::Direction::backward, backward_scale, device,
-                        comm),
+                        number_of_transforms, KokkosFFT::Direction::backward,
+                        backward_scale, device, comm),
         m_work_buffer("KokkosFFT::Distributed::rocFFTMPI_work_buffer",
                       std::max(m_plan_forward.workspace_size(),
                                m_plan_backward.workspace_size())),
         m_buffer_a("KokkosFFT::Distributed::rocFFTMPI_buffer_a",
                    in_buffer_size),
         m_buffer_b("KokkosFFT::Distributed::rocFFTMPI_buffer_b",
-                   out_buffer_size) {
+                   out_buffer_size),
+        m_is_strided(is_strided) {
     m_execution_info.set_work_area(m_work_buffer.data(), m_work_buffer.size());
   }
 
@@ -310,6 +316,16 @@ struct ScopedRocfftMPIBidirectionalPlan {
   /// \brief Run the plans on the stream of exec_space
   void commit(const Kokkos::HIP &exec_space) {
     m_execution_info.commit(exec_space);
+  }
+
+  /// \brief Whether the bricks describe the Views with their own strides
+  /// (T4b): the plans run on the Views, without a transpose
+  bool is_strided() const noexcept { return m_is_strided; }
+
+  /// \brief Size in bytes of buffer B, which only the transposing path has
+  /// (for the tests)
+  std::size_t transpose_buffer_size() const noexcept {
+    return m_buffer_b.size();
   }
 
   /// \brief The execution info of both plans (stream and work buffer)
