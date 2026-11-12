@@ -192,6 +192,9 @@ class TplPlan : public BasePlan<ExecutionSpace, InViewType, OutViewType, DIM,
   /// LayoutLeft Views, without a copy (for the tests)
   bool is_reversed() const noexcept { return m_is_reversed; }
 
+  /// \brief The vendor plan (for the tests)
+  const fft_plan_type& vendor_plan() const noexcept { return *m_plan; }
+
   /// \brief Get the name of the plan implementation
   /// \return Name of the plan implementation
   std::string name() const override { return m_plan->name(); }

@@ -16,8 +16,9 @@ namespace Impl {
 /// the plan's execution info and with its work buffer
 /// (ScopedRocfftMPIBidirectionalPlan::commit). Directly on the input and
 /// output Views when they are LayoutRight in the order of the plan and do not
-/// share their data. In-place, and for the backward (C2R) transform of an R2C
-/// plan, which may overwrite its input, the input is first copied into the
+/// share their data, or with strided bricks (any order of the axes, any
+/// layout, out-of-place). In-place, and for the backward (C2R) transform of an
+/// R2C plan, which may overwrite its input, the input is first copied into the
 /// staging buffer, and the plan runs from it into the output. Otherwise (a
 /// transpose or a change of layout) through the plan's buffers: in is
 /// transposed into the input buffer, the plan runs from it into the output
@@ -81,11 +82,31 @@ inline void exec_plan(
     exec_space.fence("KokkosFFT::Distributed::exec_plan: after rocfft_execute");
   };
 
+  // A C2R transform may overwrite its input (rocFFT API reference): like
+  // in-place, it runs from a copy of the input, which stays unchanged
+  constexpr bool is_C2R = KokkosFFT::Impl::is_complex_v<in_value_type> &&
+                          KokkosFFT::Impl::is_real_v<out_value_type>;
+
+  if (scoped_plan.is_strided()) {
+    // Strided bricks (T4b): the bricks describe the Views with their own
+    // strides, so the plans run on them whatever the order of the axes or
+    // the layout. The copy of a C2R input has the layout and the extents of
+    // the input, hence its strides (contiguous Views, create_plan).
+    if constexpr (is_C2R) {
+      using InStagingViewType =
+          Kokkos::View<in_data_type, typename InViewType::array_layout,
+                       execution_space_type>;
+      auto staging = scoped_plan.template staging_data<InStagingViewType>(
+          KokkosFFT::Impl::extract_extents(in));
+      Kokkos::deep_copy(exec_space, staging, in);
+      execute(staging.data(), out.data());
+    } else {
+      execute(in.data(), out.data());
+    }
+    return;
+  }
+
   if (!is_rocfft_mpi_buffer_needed<InViewType, OutViewType>(in_map)) {
-    // A C2R transform may overwrite its input (rocFFT API reference): like
-    // in-place, it runs from a copy of the input, which stays unchanged
-    constexpr bool is_C2R = KokkosFFT::Impl::is_complex_v<in_value_type> &&
-                            KokkosFFT::Impl::is_real_v<out_value_type>;
     if (is_C2R || check_inplace(in, out)) {
       // The plans are out-of-place: run from a copy of the input
       auto staging =

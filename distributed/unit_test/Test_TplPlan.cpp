@@ -3,6 +3,7 @@
 #include <iostream>
 #include <utility>
 #include <cmath>
+#include <cstdlib>
 #include <algorithm>
 #include <memory>
 #include <numeric>
@@ -454,20 +455,26 @@ void test_tpl2D_is_available_View3D(std::size_t nprocs) {
   bool is_available_0_1_ax21 = KokkosFFT::Distributed::Impl::is_tpl_available(
       exec, u_0, u_hat_0_ax21, ax21, topology0, topology1);
 
-  // Batched plans are not supported
-  EXPECT_FALSE(is_available_0_0_ax01);
-  EXPECT_FALSE(is_available_0_0_ax02);
-  EXPECT_FALSE(is_available_0_0_ax10);
-  EXPECT_FALSE(is_available_0_0_ax12);
-  EXPECT_FALSE(is_available_0_0_ax20);
-  EXPECT_FALSE(is_available_0_0_ax21);
-
-  EXPECT_FALSE(is_available_0_1_ax01);
-  EXPECT_FALSE(is_available_0_1_ax02);
-  EXPECT_FALSE(is_available_0_1_ax10);
-  EXPECT_FALSE(is_available_0_1_ax12);
-  EXPECT_FALSE(is_available_0_1_ax20);
-  EXPECT_FALSE(is_available_0_1_ax21);
+  // cuFFTMp: no batches. rocFFT: the dimension that is not transformed is
+  // the batch dimension of its bricks (T4b), for any distribution (more than
+  // one process)
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+  const bool is_batched = nprocs > 1;
+#else
+  const bool is_batched = false;
+#endif
+  EXPECT_EQ(is_available_0_0_ax01, is_batched);
+  EXPECT_EQ(is_available_0_0_ax02, is_batched);
+  EXPECT_EQ(is_available_0_0_ax10, is_batched);
+  EXPECT_EQ(is_available_0_0_ax12, is_batched);
+  EXPECT_EQ(is_available_0_0_ax20, is_batched);
+  EXPECT_EQ(is_available_0_0_ax21, is_batched);
+  EXPECT_EQ(is_available_0_1_ax01, is_batched);
+  EXPECT_EQ(is_available_0_1_ax02, is_batched);
+  EXPECT_EQ(is_available_0_1_ax10, is_batched);
+  EXPECT_EQ(is_available_0_1_ax12, is_batched);
+  EXPECT_EQ(is_available_0_1_ax20, is_batched);
+  EXPECT_EQ(is_available_0_1_ax21, is_batched);
 }
 
 /// \brief Test if the plan is available for 3D transforms on 3D View
@@ -3181,9 +3188,9 @@ void test_tpl3D_normalization_View3D(std::size_t nprocs) {
 /// \param[in] in_topology Input topology (std::array or Topology)
 /// \param[in] out_topology Output topology (std::array or Topology)
 /// \param[in] axes FFT axes
-template <typename InViewType, typename OutViewType, std::size_t DIM,
-          typename InTopologyType, typename OutTopologyType>
-bool is_tpl_available_for(const std::array<std::size_t, DIM>& global_extents,
+template <typename InViewType, typename OutViewType, std::size_t Rank,
+          std::size_t DIM, typename InTopologyType, typename OutTopologyType>
+bool is_tpl_available_for(const std::array<std::size_t, Rank>& global_extents,
                           const InTopologyType& in_topology,
                           const OutTopologyType& out_topology,
                           const KokkosFFT::axis_type<DIM>& axes) {
@@ -3276,6 +3283,8 @@ struct TplPlanFactoryOps {
 /// vendor plan.
 /// \tparam T Value type of the input (float/double or complex)
 /// \tparam LayoutType Layout of the Views
+/// \tparam Rank Rank of the Views: DIM, or DIM + 1 with a batch dimension
+/// \tparam DIM Number of FFT axes
 /// \param[in] name Name of the test, printed with the cases
 /// \param[in] global_extents Global extents of the input
 /// \param[in] topologies Topologies (std::array or Topology, in a tuple or an
@@ -3283,20 +3292,21 @@ struct TplPlanFactoryOps {
 /// \param[in] pairs Pairs of indices of the input and output topologies
 /// \param[in] axes_list Orders of the axes
 /// \param[in] ops Plan operations: TplPlanOps or TplPlanFactoryOps
-template <typename T, typename LayoutType, std::size_t DIM,
+template <typename T, typename LayoutType, std::size_t Rank, std::size_t DIM,
           typename TopologiesType, typename PlanOps>
 void test_tpl_plan_cases(
-    const std::string& name, const std::array<std::size_t, DIM>& global_extents,
+    const std::string& name,
+    const std::array<std::size_t, Rank>& global_extents,
     const TopologiesType& topologies,
     const std::vector<std::pair<std::size_t, std::size_t>>& pairs,
     const std::vector<KokkosFFT::axis_type<DIM>>& axes_list,
     const PlanOps& ops) {
   using float_type   = KokkosFFT::Impl::base_floating_point_type<T>;
   using complex_type = Kokkos::complex<float_type>;
-  using InViewType   = Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<T, DIM>,
+  using InViewType   = Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<T, Rank>,
                                   LayoutType, execution_space>;
   using OutViewType =
-      Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<complex_type, DIM>,
+      Kokkos::View<KokkosFFT::Impl::add_pointer_n_t<complex_type, Rank>,
                    LayoutType, execution_space>;
 
   const Tolerance tol_fwd{1.0e-5, forward_atol<T>(1.0e-5)},
@@ -3343,6 +3353,48 @@ void test_tpl_same_distribution(
                                      all_axes_orders<DIM>(), TplPlanOps{});
 }
 
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+/// \brief Enables the strided bricks of the rocFFT plans
+/// (KOKKOSFFT_ROCFFT_STRIDED_BRICKS=1) in its scope, on this rank: the plans
+/// made meanwhile describe permuted or LayoutLeft Views with their strides
+struct ScopedStridedBricks {
+  static constexpr const char* m_name = "KOKKOSFFT_ROCFFT_STRIDED_BRICKS";
+
+  //! The value before, restored at the end of the scope (the whole run may
+  //! have set it, e.g. in the MI250X job script)
+  bool m_was_set = false;
+  std::string m_value;
+
+  ScopedStridedBricks() {
+    if (const char* value = std::getenv(m_name)) {
+      m_was_set = true;
+      m_value   = value;
+    }
+    ::setenv(m_name, "1", 1);
+  }
+  ~ScopedStridedBricks() {
+    if (m_was_set) {
+      ::setenv(m_name, m_value.c_str(), 1);
+    } else {
+      ::unsetenv(m_name);
+    }
+  }
+  ScopedStridedBricks(const ScopedStridedBricks&)            = delete;
+  ScopedStridedBricks& operator=(const ScopedStridedBricks&) = delete;
+};
+
+/// \brief TplPlan operations that also check that an out-of-place plan has
+/// no transposing buffers: with strided bricks, every order of the axes and
+/// either layout runs on the Views (in-place still copies through buffers)
+struct StridedTplPlanOps : public TplPlanOps {
+  template <typename PlanType>
+  void check(const PlanType& plan) const {
+    if (!plan.is_inplace()) {
+      EXPECT_EQ(plan.vendor_plan().transpose_buffer_size(), 0u);
+    }
+  }
+};
+#endif
 }  // namespace
 
 TYPED_TEST_SUITE(TestTplPlan1D, test_types);
@@ -3770,5 +3822,92 @@ TYPED_TEST(TestTplPlan3D, MixedDecompositionView3D) {
   test_tpl_plan_cases<complex_type, layout_type>(
       name, global_extents, topologies, pairs, all_axes_orders<3>(),
       TplPlanOps{});
+}
+#endif
+
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+TYPED_TEST(TestTplPlan3D, StridedBricksView3D) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "The slab plans need more than one process";
+  }
+  // Strided bricks (T4b): every order of the axes, from a slab to another
+  // and to itself, without transposes (StridedTplPlanOps): the first check
+  // that rocFFT accepts permuted and reversed brick strides for fields
+  ScopedStridedBricks strided;
+  const std::size_t p                                        = this->m_nprocs;
+  const std::array<std::array<std::size_t, 3>, 3> topologies = {
+      {{1, 1, p}, {1, p, 1}, {p, 1, 1}}};
+  const std::vector<std::pair<std::size_t, std::size_t>> pairs = {
+      {0, 1}, {1, 2}, {2, 0}, {0, 0}};
+  const std::array<std::size_t, 3> global_extents{13, 10, 17};
+  const std::string name =
+      "Test_TplPlan.cpp test_tpl_plan_cases View3D strided bricks";
+  test_tpl_plan_cases<float_type, layout_type>(name, global_extents, topologies,
+                                               pairs, all_axes_orders<3>(),
+                                               StridedTplPlanOps{});
+  test_tpl_plan_cases<complex_type, layout_type>(
+      name, global_extents, topologies, pairs, all_axes_orders<3>(),
+      StridedTplPlanOps{});
+}
+
+TYPED_TEST(TestTplPlan2D, BatchedView3D) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "The slab plans need more than one process";
+  }
+  // Batches (R7, T4b): 2D FFTs of 3D Views, the remaining dimension as the
+  // batch dimension of the bricks, distributed or not; through the buffers
+  // (a batch dimension that is not the first one needs a transpose), then
+  // with strided bricks
+  const std::size_t p                                        = this->m_nprocs;
+  const std::array<std::array<std::size_t, 3>, 3> topologies = {
+      {{1, 1, p}, {1, p, 1}, {p, 1, 1}}};
+  const std::vector<std::pair<std::size_t, std::size_t>> pairs = {
+      {0, 1}, {1, 2}, {2, 0}, {0, 0}};
+  const std::vector<KokkosFFT::axis_type<2>> axes_list = {
+      {1, 2}, {2, 1}, {0, 1}, {0, 2}, {2, 0}};
+  const std::array<std::size_t, 3> global_extents{12, 9, 10};
+  const std::string name = "Test_TplPlan.cpp test_tpl_plan_cases View3D batch";
+  test_tpl_plan_cases<float_type, layout_type>(name, global_extents, topologies,
+                                               pairs, axes_list, TplPlanOps{});
+  test_tpl_plan_cases<complex_type, layout_type>(
+      name, global_extents, topologies, pairs, axes_list, TplPlanOps{});
+
+  ScopedStridedBricks strided;
+  test_tpl_plan_cases<float_type, layout_type>(
+      name + " strided", global_extents, topologies, pairs, axes_list,
+      StridedTplPlanOps{});
+  test_tpl_plan_cases<complex_type, layout_type>(
+      name + " strided", global_extents, topologies, pairs, axes_list,
+      StridedTplPlanOps{});
+}
+
+TYPED_TEST(TestTplPlan3D, BatchedView4D) {
+  using float_type   = typename TestFixture::float_type;
+  using layout_type  = typename TestFixture::layout_type;
+  using complex_type = Kokkos::complex<float_type>;
+  if (this->m_nprocs == 1) {
+    GTEST_SKIP() << "The slab plans need more than one process";
+  }
+  // Batches (R7, T4b): 3D FFTs of 4D Views, the batch first (no transpose
+  // for LayoutRight) or last, distributed or not
+  const std::size_t p                                        = this->m_nprocs;
+  const std::array<std::array<std::size_t, 4>, 3> topologies = {
+      {{1, 1, 1, p}, {1, 1, p, 1}, {p, 1, 1, 1}}};
+  const std::vector<std::pair<std::size_t, std::size_t>> pairs = {
+      {0, 1}, {1, 2}, {2, 1}};
+  const std::vector<KokkosFFT::axis_type<3>> axes_list = {
+      {1, 2, 3}, {3, 2, 1}, {0, 1, 2}};
+  const std::array<std::size_t, 4> global_extents{8, 9, 10, 8};
+  const std::string name = "Test_TplPlan.cpp test_tpl_plan_cases View4D batch";
+  test_tpl_plan_cases<float_type, layout_type>(name, global_extents, topologies,
+                                               pairs, axes_list, TplPlanOps{});
+  test_tpl_plan_cases<complex_type, layout_type>(
+      name, global_extents, topologies, pairs, axes_list, TplPlanOps{});
 }
 #endif

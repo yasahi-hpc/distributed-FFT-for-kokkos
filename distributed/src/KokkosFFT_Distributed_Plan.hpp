@@ -72,8 +72,16 @@ plan_factory(
       "Extents are not valid");
 
 #if defined(PRIORITIZE_TPL_PLAN_IF_AVAILABLE)
-  if constexpr ((InViewType::rank() == 2 && DIM == 2) ||
-                (InViewType::rank() == 3 && DIM == 3)) {
+  // The vendor plans take 2D and 3D FFTs of Views of the same rank; rocFFT
+  // also takes one more dimension, its batch dimension (R7)
+  constexpr std::size_t rank = InViewType::rank();
+  constexpr bool is_tpl_rank =
+      ((rank == 2 && DIM == 2) || (rank == 3 && DIM == 3))
+#if defined(ENABLE_TPL_ROCFFT_MPI)
+      || ((DIM == 2 || DIM == 3) && rank == DIM + 1)
+#endif
+      ;
+  if constexpr (is_tpl_rank) {
     if (is_tpl_available(exec_space, in, out, axes, in_topology,
                          out_topology)) {
       return std::make_unique<TplPlan<ExecutionSpace, InViewType, OutViewType,
