@@ -13,6 +13,15 @@ namespace KokkosFFT {
 namespace Distributed {
 namespace Impl {
 
+/// \brief The cufftType of a transform from InType to OutType values,
+/// deduced from their precision and the transform kind (C2C, R2C or C2R)
+/// \tparam InType Input value type
+/// \tparam OutType Output value type
+template <typename InType, typename OutType>
+inline constexpr cufftType cufft_type_v = KokkosFFT::Impl::deduce_cufft_type<
+    KokkosFFT::Impl::base_floating_point_type<InType>,
+    KokkosFFT::Impl::transform_kind_v<InType, OutType>>();
+
 struct cuFFTHandleWrapper {
   cufftHandle m_handle = 0;
   cufftHandle plan() const noexcept { return m_handle; }
@@ -153,10 +162,8 @@ struct ScopedCufftMpPlan {
         is_xslab ? CUFFT_XT_FORMAT_INPLACE_SHUFFLED : CUFFT_XT_FORMAT_INPLACE;
     std::size_t workspace = 0;
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      auto r2c_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
-      auto c2r_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
+      auto r2c_type = cufft_type_v<T1, T2>;
+      auto c2r_type = cufft_type_v<T2, T1>;
       KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
           status, cufftXtSetSubformatDefault(
                       m_plan_f.m_handle, subformat_forward, subformat_inverse));
@@ -172,8 +179,7 @@ struct ScopedCufftMpPlan {
                                     &m_comm, CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
     } else {
-      auto c2c_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
+      auto c2c_type = cufft_type_v<T1, T2>;
       KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
           status, cufftXtSetSubformatDefault(
                       m_plan_f.m_handle, subformat_forward, subformat_inverse));
@@ -202,10 +208,8 @@ struct ScopedCufftMpPlan {
         is_xslab ? CUFFT_XT_FORMAT_INPLACE_SHUFFLED : CUFFT_XT_FORMAT_INPLACE;
     std::size_t workspace = 0;
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      auto r2c_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
-      auto c2r_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
+      auto r2c_type = cufft_type_v<T1, T2>;
+      auto c2r_type = cufft_type_v<T2, T1>;
       KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
           status, cufftXtSetSubformatDefault(
                       m_plan_f.m_handle, subformat_forward, subformat_inverse));
@@ -221,8 +225,7 @@ struct ScopedCufftMpPlan {
                                     &m_comm, CUFFT_COMM_MPI, &workspace));
       m_workspace_size = std::max(m_workspace_size, workspace);
     } else {
-      auto c2c_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
+      auto c2c_type = cufft_type_v<T1, T2>;
       KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
           status, cufftXtSetSubformatDefault(
                       m_plan_f.m_handle, subformat_forward, subformat_inverse));
@@ -261,8 +264,7 @@ struct ScopedCufftMpPlan {
         status, cufftXtSetSubformatDefault(m_plan_f.m_handle,
                                            CUFFT_XT_FORMAT_DISTRIBUTED_INPUT,
                                            CUFFT_XT_FORMAT_DISTRIBUTED_OUTPUT));
-    auto forward_type =
-        KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
+    auto forward_type = cufft_type_v<T1, T2>;
     KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
         status,
         cufftMpMakePlanDecomposition(
@@ -272,8 +274,7 @@ struct ScopedCufftMpPlan {
             CUFFT_COMM_MPI, &workspace));
     m_workspace_size = std::max(m_workspace_size, workspace);
     if constexpr (KokkosFFT::Impl::is_real_v<T1>) {
-      auto c2r_type =
-          KokkosFFT::Impl::transform_type<ExecutionSpace, T2, T1>::type();
+      auto c2r_type = cufft_type_v<T2, T1>;
       KOKKOSFFT_DISTRIBUTED_RECORD_CUFFT_CALL(
           status, cufftXtSetSubformatDefault(
                       m_plan_b.m_handle, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT,

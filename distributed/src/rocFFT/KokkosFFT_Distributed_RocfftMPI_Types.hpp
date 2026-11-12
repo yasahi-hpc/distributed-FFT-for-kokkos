@@ -91,10 +91,9 @@ struct ScopedRocfftMPIPlan {
 
     // Do not set stride information via the descriptor, they are to be defined
     // during field creation below
-    constexpr auto transform_type =
-        KokkosFFT::Impl::transform_type<ExecutionSpace, T1, T2>::type();
     auto [in_array_type, out_array_type, fft_direction] =
-        KokkosFFT::Impl::get_in_out_array_type(transform_type, direction);
+        KokkosFFT::Impl::get_in_out_array_type<
+            KokkosFFT::Impl::transform_kind_v<T1, T2>>(direction);
     KOKKOSFFT_CHECK_ROCFFT_CALL(rocfft_plan_description_set_data_layout(
         m_description, in_array_type, out_array_type, nullptr, nullptr, 0,
         nullptr, 0, 0, nullptr, 0));
