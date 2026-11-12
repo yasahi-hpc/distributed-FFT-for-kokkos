@@ -11,6 +11,7 @@
 #include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <KokkosFFT.hpp>
 #include "KokkosFFT_Distributed_Exchange.hpp"
+#include "KokkosFFT_Distributed_Extents.hpp"
 #include "KokkosFFT_Distributed_NVSHMEM_Types.hpp"
 #include "KokkosFFT_Distributed_NVSHMEM_Comm.hpp"
 #include "KokkosFFT_Distributed_NVSHMEM_All2All.hpp"
@@ -231,6 +232,13 @@ struct SignalChunks {
 ///    put with signal for each other chunk;
 /// 4. a quiet and a wait on the signal word, as in put_all2all.
 ///
+/// The input must not overlap the receive buffer (uses_fused_pack): the
+/// peers store into it right after the barrier, while this PE may still be
+/// reading its input, and this PE stores its own chunk into it too. The plans
+/// place the input of a transpose in the receive buffer when it was staged
+/// in the send buffer (BlockExecutor::transpose); put_all2all is safe there,
+/// since its barrier comes after the pack.
+///
 /// \tparam ExecutionSpace Kokkos execution space type (Kokkos::Cuda)
 /// \tparam InViewType Kokkos View type of the input data
 /// \tparam ViewType Kokkos View type of the send/receive buffers
@@ -243,7 +251,7 @@ struct SignalChunks {
 /// \param[in] peers The peer table of recv (ScopedNVSHMEMComm::peer_table)
 /// \param[in] src_map The map of the input view
 /// \param[in] src_axis The axis to be split
-/// \throws std::runtime_error as put_all2all
+/// \throws std::runtime_error as put_all2all, or if in overlaps recv
 template <typename ExecutionSpace, typename InViewType, typename ViewType,
           std::size_t DIM>
 void fused_put_all2all(const ExecutionSpace& exec_space, const InViewType& in,
@@ -271,6 +279,9 @@ void fused_put_all2all(const ExecutionSpace& exec_space, const InViewType& in,
   KOKKOSFFT_THROW_IF(peers.m_buffer != recv.data(),
                      "fused_put_all2all: the peer table must be the one of "
                      "the receive buffer");
+  KOKKOSFFT_THROW_IF(are_overlapping(in, recv),
+                     "fused_put_all2all: the input must not overlap the "
+                     "receive buffer");
   const std::size_t nbytes =
       check_nvshmem_all2all_buffers(send, recv, scoped_comm);
 
@@ -317,11 +328,34 @@ void fused_put_all2all(const ExecutionSpace& exec_space, const InViewType& in,
   nvshmemx_signal_wait_until_on_stream(signal, NVSHMEM_CMP_GE, target, stream);
 }
 
+/// \brief Whether an exchange in device mode fuses the pack with the puts
+/// (fused_put_all2all): the fused pack is on (ScopedNVSHMEMComm::fused_pack),
+/// the input does not overlap the receive buffer, and a peer is reachable by
+/// load/store. Every PE makes the same choice for the same transpose: the
+/// plans run the same schedule on every PE, so the input overlaps the
+/// receive buffer everywhere or nowhere (the buffers are symmetric). Mixing
+/// the variants would be safe anyway: both signal the peers in the same way,
+/// and a PE that fuses has an input that peers do not write into.
+/// \param[in] comm NVSHMEM communicator wrapper in device mode
+/// \param[in] in Input view to be packed
+/// \param[in] recv Receive buffer, on the symmetric heap
+/// \param[out] peers The peer table of recv, if the pack is fused
+template <typename InViewType, typename ViewType>
+bool uses_fused_pack(const ScopedNVSHMEMComm& comm, const InViewType& in,
+                     const ViewType& recv, NVSHMEMPeerTable& peers) {
+  if (comm.mode() != SHMEMCommMode::device || !comm.fused_pack() ||
+      are_overlapping(in, recv)) {
+    return false;
+  }
+  peers = comm.peer_table(recv.data());
+  return peers.m_has_peer;
+}
+
 /// \brief Data exchange of a transpose with an NVSHMEM communicator wrapper.
 /// In host mode, the default sequence (default_exchange). In device mode,
 /// all on the stream of exec_space, without a fence:
-/// - if the pack is fused (ScopedNVSHMEMComm::fused_pack) and a peer is
-///   reachable by load/store: fused_put_all2all (D2), then unpack;
+/// - if the pack can be fused (uses_fused_pack): fused_put_all2all (D2),
+///   then unpack;
 /// - otherwise: pack, put_all2all (D1), then unpack.
 template <>
 struct Exchange<ScopedNVSHMEMComm> {
@@ -341,14 +375,12 @@ struct Exchange<ScopedNVSHMEMComm> {
                        dst_map, dst_axis);
       return;
     }
-    if (comm.fused_pack()) {
-      const auto peers = comm.peer_table(recv.data());
-      if (peers.m_has_peer) {
-        fused_put_all2all(exec_space, in, send, recv, comm, peers, src_map,
-                          src_axis);
-        unpack(exec_space, recv, out, dst_map, dst_axis);
-        return;
-      }
+    NVSHMEMPeerTable peers;
+    if (uses_fused_pack(comm, in, recv, peers)) {
+      fused_put_all2all(exec_space, in, send, recv, comm, peers, src_map,
+                        src_axis);
+      unpack(exec_space, recv, out, dst_map, dst_axis);
+      return;
     }
     pack(exec_space, in, send, src_map, src_axis);
     put_all2all(exec_space, send, recv, comm);

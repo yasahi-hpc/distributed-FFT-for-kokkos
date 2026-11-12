@@ -5,6 +5,7 @@
 #include <benchmark/benchmark.h>
 #include "Benchmark_Context.hpp"
 #include "Benchmark_MPI_Context.hpp"
+#include "PerfTest_FFT.hpp"
 #include <Kokkos_Core.hpp>
 
 // This reporter does nothing.
@@ -62,6 +63,10 @@ int main(int argc, char **argv) {
     }
     ::benchmark::Initialize(&argc, argv);
     ::benchmark::SetDefaultTimeUnit(benchmark::kSecond);
+
+    // The FFT benchmarks depend on the number of processes: registered at
+    // run time, the same on every rank
+    KokkosFFT::Distributed::Benchmark::register_fft_benchmarks(MPI_COMM_WORLD);
 
     // The MPI context is collective (every rank); the rest is reported by
     // rank 0 only

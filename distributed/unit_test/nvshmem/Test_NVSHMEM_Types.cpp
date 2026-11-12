@@ -654,6 +654,104 @@ void test_exchange_variants(int rank) {
   }
   ::MPI_Comm_free(&half);
 }
+
+/// \brief An exchange whose input is staged in its receive buffer, as the
+/// plans do when the input of a transpose was in the send buffer
+/// (BlockExecutor::transpose swaps the buffers). The peers write into the
+/// receive buffer, so the pack cannot be fused there: uses_fused_pack is
+/// false, fused_put_all2all throws, and every variant gives the output of
+/// the host mode with an input that is not in a buffer, several times in a
+/// row. With a separate input, the fused pack is used if a peer is reachable.
+template <typename T, typename LayoutType>
+void test_exchange_recv_input(int rank) {
+  using execution_space = Kokkos::DefaultExecutionSpace;
+  using View2DType      = Kokkos::View<T**, LayoutType, execution_space>;
+  using View3DType      = Kokkos::View<T***, LayoutType, execution_space>;
+  using extents_type    = std::array<std::size_t, 2>;
+  using KokkosFFT::Distributed::Impl::exchange;
+  using KokkosFFT::Distributed::Impl::fused_put_all2all;
+  using KokkosFFT::Distributed::Impl::NVSHMEMPeerTable;
+  using KokkosFFT::Distributed::Impl::uses_fused_pack;
+  using KokkosFFT::Impl::create_layout;
+
+  MPI_Comm half;
+  ::MPI_Comm_split(MPI_COMM_WORLD, rank % 2, rank, &half);
+  int nprocs = 1;
+  ::MPI_Comm_size(half, &nprocs);
+  const std::size_t n = nprocs;
+
+  // Large enough for the kernels of the PEs to overlap in time
+  const extents_type global_extents{301, 256}, map01{0, 1};
+  const extents_type topology0{1, n}, topology1{n, 1};
+  const auto extents0 =
+      std::get<0>(KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_extents, topology0, half));
+  const auto extents1 =
+      std::get<0>(KokkosFFT::Distributed::compute_local_extents_and_starts(
+          global_extents, topology1, half));
+  const auto buffer_extents =
+      KokkosFFT::Distributed::Impl::compute_buffer_extents<LayoutType>(
+          global_extents, topology0, topology1);
+
+  execution_space exec;
+  View2DType in("in", create_layout<LayoutType>(extents0));
+  Kokkos::Random_XorShift64_Pool<> random_pool(/*seed=*/12345 + rank);
+  Kokkos::fill_random(in, random_pool, 1.0);
+
+  // The reference: host mode, the input in its own View
+  View2DType ref("ref", create_layout<LayoutType>(extents1));
+  {
+    CommType comm(half, exec, SHMEMCommMode::host);
+    auto buffers = make_comm_buffers<View3DType>(
+        comm, create_layout<LayoutType>(buffer_extents));
+    exchange(exec, comm, in, buffers.m_send, buffers.m_recv, ref, map01, 0,
+             map01, 1);
+  }
+  auto h_ref = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), ref);
+
+  auto run = [&](SHMEMCommMode mode, const char* fused) {
+    ScopedEnv env("KOKKOSFFT_SHMEM_FUSED_PACK", fused);
+    CommType comm(half, exec, mode);
+    auto buffers = make_comm_buffers<View3DType>(
+        comm, create_layout<LayoutType>(buffer_extents));
+    View2DType staged(buffers.m_recv.data(),
+                      create_layout<LayoutType>(extents0));
+    View2DType out("out", create_layout<LayoutType>(extents1));
+
+    NVSHMEMPeerTable peers;
+    EXPECT_FALSE(uses_fused_pack(comm, staged, buffers.m_recv, peers));
+    if (mode == SHMEMCommMode::device && comm.fused_pack()) {
+      const bool has_peer = comm.peer_table(buffers.m_recv.data()).m_has_peer;
+      EXPECT_EQ(uses_fused_pack(comm, in, buffers.m_recv, peers), has_peer);
+      EXPECT_THROW(
+          fused_put_all2all(exec, staged, buffers.m_send, buffers.m_recv, comm,
+                            comm.peer_table(buffers.m_recv.data()), map01, 0),
+          std::runtime_error);
+    }
+
+    for (int i = 0; i < 5; ++i) {
+      // The exchange overwrites the receive buffer: stage the input again
+      Kokkos::deep_copy(exec, staged, in);
+      exchange(exec, comm, staged, buffers.m_send, buffers.m_recv, out, map01,
+               0, map01, 1);
+      exec.fence();
+      auto h_out =
+          Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), out);
+      std::size_t mismatches = 0;
+      for (std::size_t i0 = 0; i0 < h_ref.extent(0); ++i0) {
+        for (std::size_t i1 = 0; i1 < h_ref.extent(1); ++i1) {
+          if (h_out(i0, i1) != h_ref(i0, i1)) ++mismatches;
+        }
+      }
+      EXPECT_EQ(mismatches, 0u) << "exchange " << i;
+    }
+  };
+
+  run(SHMEMCommMode::host, "1");
+  run(SHMEMCommMode::device, "0");
+  run(SHMEMCommMode::device, "1");
+  ::MPI_Comm_free(&half);
+}
 #endif
 
 }  // namespace
@@ -675,6 +773,12 @@ TYPED_TEST(TestNVSHMEMExchange, exchange_variants) {
   using value_type  = typename TestFixture::value_type;
   using layout_type = typename TestFixture::layout_type;
   test_exchange_variants<value_type, layout_type>(this->m_rank);
+}
+
+TYPED_TEST(TestNVSHMEMExchange, exchange_recv_input) {
+  using value_type  = typename TestFixture::value_type;
+  using layout_type = typename TestFixture::layout_type;
+  test_exchange_recv_input<value_type, layout_type>(this->m_rank);
 }
 #endif
 

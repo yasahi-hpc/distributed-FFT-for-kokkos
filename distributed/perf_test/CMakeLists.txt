@@ -5,7 +5,7 @@ check_git_version()
 add_executable(${MPI_BENCHMARK_NAME}
   BenchmarkMPIMain.cpp
   PerfTest_All2All.cpp
-  PerfTest_FFT3D.cpp
+  PerfTest_FFT.cpp
 )
 
 target_link_libraries(${MPI_BENCHMARK_NAME} PUBLIC benchmark::benchmark distributed)
